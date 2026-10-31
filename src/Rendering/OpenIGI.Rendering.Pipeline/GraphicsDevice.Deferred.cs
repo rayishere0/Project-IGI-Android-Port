@@ -1,0 +1,718 @@
+﻿using System.Runtime.InteropServices;
+using OpenIGI.Core.Graphics;
+using OpenIGI.Core.Numerics;
+using OpenIGI.Rendering.Mesh3D;
+using OpenIGI.Rendering.Pipeline.Deferred;
+using OpenIGI.Rendering.Pipeline.Mesh3D;
+using OpenIGI.Rendering.Pipeline.Sky;
+using OpenIGI.Rendering.Pipeline.Targets;
+using OpenIGI.Rendering.Rhi;
+using OpenIGI.Rendering.Temporal;
+
+namespace OpenIGI.Rendering.Pipeline;
+
+/// <summary>The deferred frame: the G-buffer, the shading over it, and the resolve onto the screen.</summary>
+/// <remarks>
+/// <para>
+/// Three passes rather than one. The geometry pass writes what every surface IS — its colour, which way
+/// it faces, what it is made of and what light was baked onto it — into four targets and a depth buffer.
+/// The shading pass reads all five back as textures and turns them into lit colour. The resolve turns
+/// that half-float colour into the eight-bit frame a display takes.
+/// </para>
+/// <para>
+/// The shading reads them as TEXTURES rather than as subpass inputs: WebGPU has no subpasses at all, and
+/// one form that every backend has is one form to keep right.
+/// </para>
+/// <para>
+/// After the shading, the forward pass: what cannot be in a G-buffer because a G-buffer holds one surface
+/// per pixel — the translucency, the muzzle flash, and the first-person arms and weapon — drawn over the
+/// lit image against the scene's own depth.
+/// </para>
+/// <para>
+/// What a backend cannot run is named honestly rather than drawn wrongly: its console variables are
+/// reported as unimplemented (see <see cref="GraphicsCapabilities.UnimplementedSettings"/>) and its pass
+/// stands down, rather than, say, a window pane being drawn as ordinary translucency -- a frame that
+/// looks finished and is not.
+/// </para>
+/// </remarks>
+public sealed partial class GraphicsDevice
+{
+    /// <summary>The four G-buffer targets, in the order the geometry pass declares them.</summary>
+    private static readonly SceneTargetId[] GBufferTargets =
+    [
+        SceneTargetId.BaseColour,
+        SceneTargetId.Normal,
+        SceneTargetId.Material,
+        SceneTargetId.Baked,
+    ];
+
+    private SceneTargetSet? _scene;
+    private GBufferPipelineCache? _geometryPipelines;
+    private Mesh3DPipelineCache? _forwardPipelines;
+    private DeferredLighting? _shading;
+    private DeferredResolve? _sceneResolve;
+    private SkyAtmosphere? _sky;
+
+    private BloomPass? _bloom;
+    private SunShaftPass? _sunShafts;
+    private IRhiBindGroupLayout? _surfaceLayout;
+    private IRhiBuffer? _surfaceUniform;
+    private IRhiBindGroup? _surfaceGroup;
+    private IRhiRenderPassEncoder? _scenePass;
+
+    private bool _capturing;
+    private bool _shaded;
+    private bool _foreground;
+    private Viewport _sceneViewport;
+    private DebugView _debugView;
+    private bool _groundDetail;
+    private bool _paintedSky;
+    private bool _frameHasPaintedSky;
+    private float _floorGloss = 1f;
+    private float _writtenFloorGloss = float.NaN;
+    private float _materialDetail;
+    private float _writtenMaterialDetail = float.NaN;
+    private float _sceneExposure = 1f;
+    private int _grainFrame;
+    private Matrix3f _viewToWorld = Matrix3f.Identity;
+    private Vector3f _cameraPosition;
+    private DepthUnprojection _unprojection = new(1f, 1f, 0.1f, 1000f);
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Only the deferred, high-dynamic-range form. A description asking for anything else is declined,
+    /// which is how the game falls back to the direct path rather than being handed a frame this cannot
+    /// finish.
+    /// </remarks>
+    public bool BeginSceneCapture(in SceneTargetDescription description)
+    {
+        ThrowIfDisposed();
+
+        if (_capturing)
+        {
+            throw new GraphicsDeviceException("A scene capture is already in progress.");
+        }
+
+        // Declined where it was not advertised, so the two answers cannot disagree: something that asks
+        // without reading the capability gets the same no.
+        if (!Capabilities.SupportsSceneCapture || !description.Deferred || CapturingCards)
+        {
+            return false;
+        }
+
+        // Whatever the caller drew before the capture belongs to the frame, not to the G-buffer.
+        ClosePass();
+
+        EnsureDeferred(
+            Math.Max(1, description.Width),
+            Math.Max(1, description.Height),
+            description.PresentWidth,
+            description.PresentHeight);
+        WriteSurfaceBlock();
+
+        // The traced world is NOT updated here. What it is built from is what the G-buffer draws, and here
+        // that is still last frame's: every ray of this frame traced a world one frame old -- a truck's
+        // back face starting its shadow ray inside the truck as it stood a frame ago, a far hillside
+        // starting under the level of detail it had before. See SettleTracedWorld.
+        _sunTraced = false;
+        _worldSettled = false;
+
+        // A cut asked for since the last frame takes effect here, before anything measures motion.
+        ConsumeHistoryReset();
+
+        // The scene's passes draw at the render size whatever the window's viewport says, and a viewport
+        // set during the capture — the map inset — is already in render coordinates.
+        _sceneViewport = new Viewport(0, 0, _scene!.Width, _scene.Height);
+        _foreground = false;
+        _frameHasPaintedSky = false;
+        _shaded = false;
+        ResetGlazingFrame();
+        _capturing = true;
+        _frameDrawn = true;
+        return true;
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// A bracket around the dome's own draws: what it turns on is the division by the exposure, which
+    /// belongs to them and to nothing drawn after. The frame remembers that a sky was painted at all, so
+    /// the shading keeps it rather than putting the atmosphere where there is no depth.
+    /// </remarks>
+    public void SetPaintedSky(bool painted)
+    {
+        ThrowIfDisposed();
+        _paintedSky = painted;
+        _frameHasPaintedSky |= painted;
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// The ground's lightmap slot then carries its detail map, which the geometry pass multiplies into
+    /// the colour rather than writing as baked light.
+    /// </remarks>
+    public void SetLightmapModulates(bool modulate)
+    {
+        ThrowIfDisposed();
+        _groundDetail = modulate;
+    }
+
+    /// <inheritdoc/>
+    public void SetFloorGloss(float gloss)
+    {
+        ThrowIfDisposed();
+        _floorGloss = Math.Clamp(gloss, 0f, 2f);
+    }
+
+    /// <inheritdoc/>
+    public void BeginPass(ScenePass pass)
+    {
+        ThrowIfDisposed();
+        CurrentPass = pass;
+
+        // A pass ends when the next one begins, whether or not the caller said so: the game moves from
+        // geometry to glazing to translucency by declaring the next one, and a second render pass begun
+        // while the first is still open is undefined rather than nested.
+        CloseScenePass();
+
+        // What the pass just closed recorded -- the geometry, above all -- finished while the next records.
+        SealEncoder("frame.scene");
+
+        if (!_capturing || _scene is not { } scene)
+        {
+            return;
+        }
+
+        switch (pass)
+        {
+            case ScenePass.Geometry:
+                BeginGeometryPass(scene);
+                break;
+
+            case ScenePass.GlassLayer:
+                BeginGlassLayerPass(scene);
+                break;
+
+            case ScenePass.Forward:
+                // Everything forward draws over the LIT image, so the light has to be there first.
+                RecordShading();
+                PrepareGlazing();
+                SealEncoder("frame.shading");
+                BeginForwardPass(scene);
+                break;
+        }
+    }
+
+    /// <summary>Opens the pass that writes the G-buffer.</summary>
+    /// <param name="scene">The frame's targets.</param>
+    /// <param name="resume">
+    /// Whether this picks the pass up again after a flush broke it, keeping what it had drawn rather than
+    /// clearing it.
+    /// </param>
+    private void BeginGeometryPass(SceneTargetSet scene, bool resume = false)
+    {
+        // The whole G-buffer cleared at once: coverage, normal, material and baked light all read as
+        // nothing where no surface reached, and the shading tests the depth rather than any of them.
+        ClosePass();
+
+        RhiLoadOp load = resume ? RhiLoadOp.Load : RhiLoadOp.Clear;
+        RhiColorAttachment[] attachments = new RhiColorAttachment[GBufferTargets.Length];
+
+        for (int i = 0; i < GBufferTargets.Length; i++)
+        {
+            attachments[i] = new RhiColorAttachment(
+                scene.View(GBufferTargets[i]),
+                load,
+                RhiStoreOp.Store,
+                RhiClearColor.Transparent);
+        }
+
+        _scenePass = Encoder().BeginRenderPass(new RhiRenderPassDescriptor(
+            attachments,
+            new RhiDepthAttachment(
+                scene.View(SceneTargetId.Depth),
+
+                // Reverse-Z: the far plane is nought, so a pass that clears starts with everything
+                // already further away than anything it will draw.
+                load,
+                RhiStoreOp.Store,
+                DepthClearValue: 0f),
+            _profiler.Time(RenderStage.Geometry, "geometry"),
+
+            // Where the world's visibility probes land; see IssueOcclusionQuery.
+            OcclusionQuerySet: _occlusion.CurrentSet,
+            Label: "geometry"));
+
+        ApplySceneViewport(_scenePass);
+    }
+
+    /// <summary>Opens the pass that draws over the lit image, against the depth the geometry wrote.</summary>
+    /// <remarks>
+    /// Both loaded rather than cleared: the colour is the shaded scene the translucency goes over, and
+    /// the depth is what hides a muzzle flash behind a wall. Stored, because every pass after reads both.
+    /// </remarks>
+    private void BeginForwardPass(SceneTargetSet scene)
+    {
+        ClosePass();
+
+        _scenePass = Encoder().BeginRenderPass(new RhiRenderPassDescriptor(
+            [new RhiColorAttachment(scene.View(SceneTargetId.Lit), RhiLoadOp.Load, RhiStoreOp.Store, RhiClearColor.Transparent)],
+            new RhiDepthAttachment(scene.View(SceneTargetId.Depth), RhiLoadOp.Load, RhiStoreOp.Store, DepthClearValue: 0f),
+            _profiler.Time(RenderStage.Forward, "forward"),
+            Label: "forward"));
+
+        ApplySceneViewport(_scenePass);
+    }
+
+    /// <summary>Points a scene pass at the scene's viewport, or at the first-person layer's sliver of it.</summary>
+    /// <param name="pass">The pass to set.</param>
+    /// <remarks>
+    /// The sliver spans the whole render: the rig is drawn over the whole view whatever sub-viewport the
+    /// world was drawn in.
+    /// </remarks>
+    private void ApplySceneViewport(IRhiRenderPassEncoder pass)
+    {
+        if (_scene is not { } scene)
+        {
+            return;
+        }
+
+        if (_foreground)
+        {
+            pass.SetViewport(0, 0, scene.Width, scene.Height, Viewport.ForegroundDepthFloor, 1f);
+            SetClippedScissor(pass, 0, 0, scene.Width, scene.Height);
+            return;
+        }
+
+        Viewport view = _sceneViewport;
+        int width = view.Width > 0 ? view.Width : scene.Width;
+        int height = view.Height > 0 ? view.Height : scene.Height;
+
+        pass.SetViewport(
+            view.X,
+            view.Y,
+            width,
+            height,
+            view.MinDepth,
+            view.MaxDepth is 0f && view.MinDepth is 0f ? 1f : view.MaxDepth);
+
+        SetClippedScissor(pass, Math.Max(0, view.X), Math.Max(0, view.Y), width, height);
+    }
+
+    /// <summary>Takes a viewport set while a capture is open, which is the scene's rather than the window's.</summary>
+    /// <param name="viewport">The viewport, in render coordinates.</param>
+    /// <returns><see langword="true"/> when a capture took it.</returns>
+    private bool TakeSceneViewport(in Viewport viewport)
+    {
+        if (!_capturing)
+        {
+            return false;
+        }
+
+        _sceneViewport = viewport;
+
+        if (_scenePass is { } pass)
+        {
+            ApplySceneViewport(pass);
+        }
+
+        return true;
+    }
+
+    /// <summary>Moves the scene's draws into or out of the first-person layer's sliver of the depth range.</summary>
+    /// <param name="foreground">Whether what follows is the first-person layer.</param>
+    /// <remarks>
+    /// Instead of the depth clear the interface describes. Inside a capture the depth is not only this
+    /// pass's test: it is what every pass after reads, and clearing it would leave them a scene holding
+    /// nothing but the held weapon. The sliver gives the rig a depth range no wall can reach into, which
+    /// is what the clear was for. See <see cref="Viewport.ForegroundDepthFloor"/>.
+    /// </remarks>
+    private void SetForegroundLayer(bool foreground)
+    {
+        _foreground = foreground;
+
+        if (_scenePass is { } pass)
+        {
+            ApplySceneViewport(pass);
+        }
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// The shading draws every view it knows from the G-buffer it is reading, the temporal resolve draws
+    /// its own, and the final resolve shows the code values of those that are masks rather than tone
+    /// mapping them. A view of a pass the backend cannot run shows what the shading draws without it.
+    /// </remarks>
+    public void SetDebugView(DebugView view)
+    {
+        ThrowIfDisposed();
+        _debugView = view;
+    }
+
+    /// <inheritdoc/>
+    public void EndPass()
+    {
+        ThrowIfDisposed();
+        CurrentPass = ScenePass.None;
+        CloseScenePass();
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Where the G-buffer becomes light, if nothing forward asked for it earlier. Recorded here rather
+    /// than by the resolve so that the capture is finished when it says it is, whatever the caller does
+    /// between the two.
+    /// </remarks>
+    public void EndSceneCapture()
+    {
+        ThrowIfDisposed();
+
+        if (!_capturing)
+        {
+            return;
+        }
+
+        CloseScenePass();
+        SealEncoder("frame.scene");
+        RecordShading();
+        SealEncoder("frame.shading");
+
+        // Over the finished, lit frame and before the temporal resolve steadies it: the surfaces' own
+        // reflections first, so a pane then reflects a road with its reflections in.
+        RecordSceneReflection();
+        RecordGlazingReflection();
+        RecordTemporal();
+        SealEncoder("frame.temporal");
+
+        ReportTracedWorld();
+
+        // Read by the shading, the fog and the rig's forward draws, all done now.
+        _localLightCount = 0;
+        _flashlight = FlashlightLight.Off;
+
+        // The next frame draws its own cascades, or has none.
+        _shadowsDrawn = false;
+
+        _capturing = false;
+    }
+
+    /// <summary>Gets whether a scene capture is open, which routes every draw through it.</summary>
+    private bool Capturing => _capturing;
+
+    /// <summary>Records one mesh's ranges into the G-buffer.</summary>
+    /// <param name="mesh">The mesh being drawn.</param>
+    /// <param name="ranges">Which parts of it, and what each is textured with.</param>
+    /// <param name="modelView">Its transform into view space.</param>
+    /// <param name="diffuse">Its colour texture.</param>
+    /// <param name="lightmap">Its lightmap.</param>
+    /// <param name="blend">How it is blended.</param>
+    private void DrawGeometryRanges(
+        MeshHandle mesh,
+        ReadOnlySpan<MeshDrawRange> ranges,
+        in Matrix4f modelView,
+        TextureHandle diffuse,
+        TextureHandle lightmap,
+        BlendMode blend)
+    {
+        if (_scenePass is not { } pass || _geometryPipelines is not { } pipelines)
+        {
+            return;
+        }
+
+        Span<float> push = stackalloc float[GBufferPushBlock.Floats];
+        GBufferPushBlock.Write(push, GeometryState(modelView), modelView, blend);
+
+        _meshes.DrawRanges(
+            pass,
+            pipelines.ForState(_depthState, _cullMode, blend, _alphaReference),
+            Call(mesh, 0, 0, diffuse, lightmap, blend),
+            ranges,
+            MemoryMarshal.AsBytes(push),
+            _frameCounter,
+            _surfaceGroup);
+    }
+
+    /// <summary>What a geometry draw is told about the frame it is in.</summary>
+    private GBufferDrawState GeometryState(in Matrix4f modelView) => new(
+        _projection,
+        _viewToWorld,
+        _material,
+        _lightmapScale,
+        _poseBlend,
+        _alphaHashSeed,
+        _detailFade,
+        GBufferPushBlock.TerrainCameraOffset(modelView, _viewToWorld),
+        _groundDetail,
+        _paintedSky,
+        _sceneExposure);
+
+    /// <summary>Records one mesh into the G-buffer.</summary>
+    /// <param name="call">What to draw.</param>
+    /// <param name="modelView">Its transform into view space.</param>
+    /// <param name="blend">How it is blended, which is what names the ground's bake.</param>
+    /// <returns><see langword="true"/> when it was drawn.</returns>
+    private bool DrawGeometry(in MeshDrawCall call, in Matrix4f modelView, BlendMode blend)
+    {
+        if (_scenePass is not { } pass || _geometryPipelines is not { } pipelines)
+        {
+            return false;
+        }
+
+        Span<float> push = stackalloc float[GBufferPushBlock.Floats];
+        GBufferPushBlock.Write(push, GeometryState(modelView), modelView, blend);
+
+        return _meshes.Draw(
+            pass,
+            pipelines.ForState(_depthState, _cullMode, blend, _alphaReference),
+            call,
+            MemoryMarshal.AsBytes(push),
+            _frameCounter,
+            _surfaceGroup);
+    }
+
+    /// <summary>Records one mesh over the lit image, in the capture's forward pass.</summary>
+    /// <param name="call">What to draw.</param>
+    /// <param name="ranges">Which parts of it, or empty for the call's own range.</param>
+    /// <param name="modelView">Its transform into view space.</param>
+    /// <param name="blend">How it is blended.</param>
+    /// <param name="hasLightmap">Whether it carries a lightmap.</param>
+    /// <remarks>
+    /// The same forward shader and the same block as the direct path, built for the lit image instead of
+    /// the frame. A pane goes to the glazing's own pipeline instead: drawn as ordinary translucency it
+    /// would be a window that looks finished and is not.
+    /// </remarks>
+    private void DrawForward(
+        in MeshDrawCall call,
+        ReadOnlySpan<MeshDrawRange> ranges,
+        in Matrix4f modelView,
+        BlendMode blend,
+        bool hasLightmap)
+    {
+        if (_scenePass is not { } pass || _forwardPipelines is not { } pipelines)
+        {
+            return;
+        }
+
+        NoteViewModelLens();
+
+        // Under ray reconstruction, the opaque scene as it stood before the first transparent draw.
+        if (_scene is { } current)
+        {
+            TakeColourBeforeTransparency(current, blend != BlendMode.Opaque || _material.Rain || _material.Glass);
+            pass = _scenePass ?? pass;
+        }
+
+        // A raindrop is clear water: its own pipeline refracts the scene behind it.
+        if (_material.Rain)
+        {
+            DrawRain(call, ranges, modelView);
+            return;
+        }
+
+        if (_material.Glass)
+        {
+            DrawGlass(pass, call, ranges, modelView);
+            return;
+        }
+
+        Span<float> push = stackalloc float[ForwardPushBlock.Floats];
+        WriteForward(push, modelView, blend, hasLightmap, _sceneExposure, linearScene: true);
+
+        // A draw reflects when the frame has named a cube.
+        (bool reflective, IRhiBindGroup environment) = EnvironmentFor();
+        IRhiRenderPipeline pipeline = pipelines.ForState(_depthState, _cullMode, blend, _alphaReference, reflective);
+
+        NoteRigGuideDraw(call, ranges, push, environment);
+
+        if (ranges.IsEmpty)
+        {
+            _meshes.Draw(pass, pipeline, call, MemoryMarshal.AsBytes(push), _frameCounter, environment);
+        }
+        else
+        {
+            _meshes.DrawRanges(pass, pipeline, call, ranges, MemoryMarshal.AsBytes(push), _frameCounter, environment);
+        }
+    }
+
+    /// <summary>Closes whichever of the scene's passes is open.</summary>
+    private void CloseScenePass()
+    {
+        if (_scenePass is not { } pass)
+        {
+            return;
+        }
+
+        pass.EndPass();
+        pass.Dispose();
+        _scenePass = null;
+    }
+
+    /// <summary>Builds everything the deferred frame needs, at the size it is asked for.</summary>
+    private void EnsureDeferred(int width, int height, int outputWidth, int outputHeight)
+    {
+        int historyScale = TemporalResolveSettings.HistoryScaleFor(width, outputWidth > 0 ? outputWidth : width);
+
+        if (_scene is { } existing && existing.Matches(width, height, outputWidth, outputHeight, historyScale))
+        {
+            return;
+        }
+
+        if (_scene is { } resized)
+        {
+            resized.Resize(width, height, outputWidth, outputHeight, historyScale);
+
+            // Every history was the old size; the targets that held them are gone.
+            ResetHistory(HistoryResetReason.Resize);
+            return;
+        }
+
+        _scene = new SceneTargetSet(_device, width, height, outputWidth, outputHeight, _retired, historyScale);
+
+        _surfaceLayout = _device.CreateBindGroupLayout(new RhiBindGroupLayoutDescriptor(
+            [new RhiBindGroupLayoutEntry(0, RhiBindingType.UniformBuffer, RhiShaderStages.Graphics)],
+            "surface"));
+
+        // One vector, per FRAME rather than per draw: how strongly the derived detail maps are trusted,
+        // and how far an up-facing surface's roughness is smoothed towards a floor's.
+        _surfaceUniform = _device.CreateBuffer(new RhiBufferDescriptor(
+            SurfaceBlockBytes,
+            RhiBufferUsage.Uniform | RhiBufferUsage.CopyDestination,
+            "surface"));
+
+        _writtenFloorGloss = float.NaN;
+        _writtenMaterialDetail = float.NaN;
+        WriteSurfaceBlock();
+
+        _surfaceGroup = _device.CreateBindGroup(new RhiBindGroupDescriptor(
+            _surfaceLayout,
+            [RhiBindGroupEntry.Of(0, _surfaceUniform)],
+            "surface"));
+
+        _geometryPipelines = new GBufferPipelineCache(
+            _device,
+            _materialLayout,
+            _surfaceLayout,
+            [.. GBufferTargets.Select(id => SceneTargetSet.FormatOf(id))],
+            SceneTargetSet.FormatOf(SceneTargetId.Depth));
+
+        _shading = new DeferredLighting(
+            _device, FramesInFlight, SceneTargetSet.FormatOf(SceneTargetId.Lit), traced: TracedWorld is not null);
+
+        // The forward shader over the lit image: the one the frame draws with, built for the lit format
+        // and the scene's depth, and handed the level's fog and sun as that one was.
+        _forwardPipelines = new Mesh3DPipelineCache(
+            _device,
+            _materialLayout,
+            _cubeLayout,
+            SceneTargetSet.FormatOf(SceneTargetId.Lit),
+            SceneTargetSet.FormatOf(SceneTargetId.Depth),
+            _retired);
+
+        _forwardPipelines.SetFog(_fog.Colour, _fog.DensityPerMetre);
+        _forwardPipelines.SetSun(_sceneSunAmbient, _sceneSunColour);
+
+        // The atmosphere's tables never change place, so the shading is pointed at them once. Until they
+        // were, it read the stand-ins: a sky of flat white and an ambient of nothing.
+        EnsureTemporal();
+        EnsureGlazing();
+        EnsureRain();
+        _bloom = new BloomPass(_device, FramesInFlight, _retired);
+
+        // A map made before the first capture -- the game states its cascades first -- is handed over
+        // now that there is a shading to hand it to.
+        if (_shadowArray is { } cascades)
+        {
+            _shading.BindShadowMap(cascades);
+        }
+
+        _sky = new SkyAtmosphere(_device, FramesInFlight);
+        _shading.BindSky(_sky.SkyViewTable, _sky.TransmittanceTable, _sky.IrradianceTable, _sky.Sampler);
+        _sceneResolve = new DeferredResolve(_device, PresentFormat);
+    }
+
+    /// <summary>Writes the geometry pass's surface block, when what it says has changed.</summary>
+    /// <remarks>
+    /// <para>
+    /// Not a block of zeros. The floor gloss is a MULTIPLY on an up-facing surface's roughness, and one
+    /// is its identity: nought makes every floor a mirror. The detail strength is how far the derived
+    /// detail maps are trusted, and a diffuse without one is given the neutral map, whose every term is
+    /// an identity -- so a strength never bends a surface that has nothing to bend it with.
+    /// </para>
+    /// <para>
+    /// Written only when it changes, because the buffer is one for every frame in flight and the gloss
+    /// is a setting that moves when a player moves it.
+    /// </para>
+    /// </remarks>
+    private void WriteSurfaceBlock()
+    {
+        if (_surfaceUniform is not { } uniform
+            || (_floorGloss.Equals(_writtenFloorGloss) && _materialDetail.Equals(_writtenMaterialDetail)))
+        {
+            return;
+        }
+
+        Span<float> block = stackalloc float[SurfaceBlockFloats];
+        block[0] = _materialDetail;
+        block[1] = _floorGloss;
+
+        _device.WriteBuffer<float>(uniform, 0, block);
+        _writtenFloorGloss = _floorGloss;
+        _writtenMaterialDetail = _materialDetail;
+    }
+
+    /// <summary>How many floats the geometry pass's per-frame surface block holds.</summary>
+    private const int SurfaceBlockFloats = 4;
+
+    /// <summary>How many bytes it occupies.</summary>
+    private const ulong SurfaceBlockBytes = SurfaceBlockFloats * sizeof(float);
+
+    private void DisposeDeferred()
+    {
+        DisposeTemporal();
+        DisposeReconstruction();
+        DisposeLayers();
+        DisposeSilhouette();
+        DisposeShadows();
+        DisposeGlazing();
+        DisposeRain();
+        DisposeLitWater();
+        DisposeGlazingReflection();
+        DisposeFog();
+        _motionBlur?.Dispose();
+        _motionBlur = null;
+        DisposeSceneReflection();
+        _autoExposure?.Dispose();
+        _autoExposure = null;
+        DisposeSunShadow();
+        DisposeLampShadow();
+        DisposeFlashlightShadow();
+        DisposeGrade();
+
+        _scenePass?.Dispose();
+        _scenePass = null;
+
+        _sceneResolve?.Dispose();
+        _sceneResolve = null;
+        _sky?.Dispose();
+        _sky = null;
+        _bloom?.Dispose();
+        _sunShafts?.Dispose();
+        DisposeModPasses();
+        _bloom = null;
+        _shading?.Dispose();
+        _shading = null;
+        _geometryPipelines?.Dispose();
+        _geometryPipelines = null;
+        _forwardPipelines?.Dispose();
+        _forwardPipelines = null;
+
+        _surfaceGroup?.Dispose();
+        _surfaceGroup = null;
+        _surfaceUniform?.Dispose();
+        _surfaceUniform = null;
+        _surfaceLayout?.Dispose();
+        _surfaceLayout = null;
+
+        _scene?.Dispose();
+        _scene = null;
+    }
+}

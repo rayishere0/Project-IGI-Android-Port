@@ -1,0 +1,273 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OpenIGI.UI.Rhi</name>
+    </assembly>
+    <members>
+        <member name="T:OpenIGI.UI.Rhi.RhiBackdropLevel">
+            <summary>One level of the blurred scene pyramid: a texture and how blurred it is.</summary>
+            <param name="Texture">The blurred copy of the frame, the size of the screen in texture coordinates.</param>
+            <param name="SigmaPx">The blur's standard deviation in the interface's units.</param>
+        </member>
+        <member name="M:OpenIGI.UI.Rhi.RhiBackdropLevel.#ctor(OpenIGI.Rendering.TextureHandle,System.Single)">
+            <summary>One level of the blurred scene pyramid: a texture and how blurred it is.</summary>
+            <param name="Texture">The blurred copy of the frame, the size of the screen in texture coordinates.</param>
+            <param name="SigmaPx">The blur's standard deviation in the interface's units.</param>
+        </member>
+        <member name="P:OpenIGI.UI.Rhi.RhiBackdropLevel.Texture">
+            <summary>The blurred copy of the frame, the size of the screen in texture coordinates.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Rhi.RhiBackdropLevel.SigmaPx">
+            <summary>The blur's standard deviation in the interface's units.</summary>
+        </member>
+        <member name="T:OpenIGI.UI.Rhi.RhiBackdrop">
+            <summary>
+            The blurred copies of this frame's scene that frosted glass samples, from least to most blurred.
+            </summary>
+            <remarks>
+            The host fills it once per frame from the device's backdrop blur, after the 3D scene and before the
+            interface. A glass panel asking for a blur between two levels draws the sharper one and cross-fades
+            the blurrier one over it, so an animated blur radius moves smoothly instead of stepping.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.UI.Rhi.RhiBackdrop.#ctor(System.Collections.Generic.IReadOnlyList{OpenIGI.UI.Rhi.RhiBackdropLevel},System.Single,System.Single)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Rhi.RhiBackdrop"/> class.</summary>
+            <param name="levels">The levels, ordered from least to most blurred.</param>
+            <param name="width">The width of the screen the levels cover, in the interface's units.</param>
+            <param name="height">The height of the screen the levels cover, in the interface's units.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="levels"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.UI.Rhi.RhiBackdrop.From(OpenIGI.Rendering.BackdropBlur,System.Single,System.Single)">
+            <summary>Wraps a device's blurred frame for the renderer, or returns <see langword="null"/> when it is empty.</summary>
+            <param name="blur">The device's blurred frame.</param>
+            <param name="width">The width of the 2D coordinate space the interface draws in.</param>
+            <param name="height">The height of the 2D coordinate space the interface draws in.</param>
+            <returns>The backdrop, or <see langword="null"/>.</returns>
+            <remarks>
+            The interface draws in window units and the levels are measured in frame pixels; on a high-density
+            display the two differ, so each level's blur is restated in the interface's units.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.UI.Rhi.RhiBackdrop.Levels">
+            <summary>Gets the levels, ordered from least to most blurred.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Rhi.RhiBackdrop.Width">
+            <summary>Gets the width of the screen the levels cover, in device pixels.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Rhi.RhiBackdrop.Height">
+            <summary>Gets the height of the screen the levels cover, in device pixels.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Rhi.RhiBackdrop.TryPick(System.Single,OpenIGI.UI.Rhi.RhiBackdropLevel@,OpenIGI.UI.Rhi.RhiBackdropLevel@,System.Single@)">
+            <summary>Picks the two levels either side of a requested blur and how far between them it lies.</summary>
+            <param name="sigmaPx">The requested blur in device pixels.</param>
+            <param name="lower">The sharper level.</param>
+            <param name="upper">The blurrier level.</param>
+            <param name="blend">How much of <paramref name="upper"/> to lay over <paramref name="lower"/>, 0 to 1.</param>
+            <returns><see langword="false"/> when there are no levels.</returns>
+        </member>
+        <member name="T:OpenIGI.UI.Rhi.RhiImageFactory">
+            <summary>Makes interface images as textures on the game's graphics device.</summary>
+            <remarks>
+            A <see cref="T:OpenIGI.UI.Drawing.UiImage"/> made here carries the device's texture handle as its identifier, so it maps
+            back to that handle with no table lookup when the <see cref="T:OpenIGI.UI.Rhi.RhiUiRenderer"/> draws it.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.UI.Rhi.RhiImageFactory.#ctor(OpenIGI.Rendering.IGraphicsDevice)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Rhi.RhiImageFactory"/> class.</summary>
+            <param name="device">The device to create textures on.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="device"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.UI.Rhi.RhiImageFactory.CreateImage(System.Int32,System.Int32,System.ReadOnlySpan{OpenIGI.Core.Graphics.Bgra32})">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Rhi.RhiImageFactory.DestroyImage(OpenIGI.UI.Drawing.UiImage)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Rhi.RhiUiRenderer">
+            <summary>
+            The game's <see cref="T:OpenIGI.UI.Drawing.IUiRenderer"/>: every quad and glyph the painter emits goes straight into the
+            engine's open <see cref="T:OpenIGI.Rendering.SpriteBatch"/>, in submission order.
+            </summary>
+            <remarks>
+            <para>
+            A thin adapter by design — it holds no state between frames and allocates nothing per draw, so the
+            game can wrap its batch in one every frame. A quad maps onto <see cref="M:OpenIGI.Rendering.SpriteBatch.DrawQuad(OpenIGI.Rendering.TextureHandle,OpenIGI.Rendering.Vertex2D@,OpenIGI.Rendering.Vertex2D@,OpenIGI.Rendering.Vertex2D@,OpenIGI.Rendering.Vertex2D@,OpenIGI.Rendering.BlendMode)"/>
+            one-to-one; a glyph onto the distance-field path when its font is a field (or effects are asked
+            for), else onto a plain textured quad, exactly as the painter drew before it had a seam.
+            </para>
+            <para>
+            Frosted glass samples <see cref="P:OpenIGI.UI.Rhi.RhiUiRenderer.Backdrop"/>, the blurred pyramid of the scene the host captured
+            this frame. Without one the glass is its tint alone.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.UI.Rhi.RhiUiRenderer.#ctor(OpenIGI.Rendering.SpriteBatch)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Rhi.RhiUiRenderer"/> class.</summary>
+            <param name="batch">The open sprite batch to draw into.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="batch"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.UI.Rhi.RhiUiRenderer.Backdrop">
+            <summary>Gets or sets the blurred scene frosted glass samples, or <see langword="null"/> for none.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Rhi.RhiUiRenderer.DrawQuad(OpenIGI.UI.Drawing.UiImage,OpenIGI.UI.Drawing.UiVertex@,OpenIGI.UI.Drawing.UiVertex@,OpenIGI.UI.Drawing.UiVertex@,OpenIGI.UI.Drawing.UiVertex@,OpenIGI.UI.Drawing.UiBlend)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Rhi.RhiUiRenderer.DrawGlyph(OpenIGI.UI.Text.UiFont,OpenIGI.UI.Drawing.UiGlyph@,OpenIGI.Core.Graphics.Bgra32,System.Nullable{OpenIGI.UI.Drawing.UiTextEffects}@,OpenIGI.UI.Drawing.UiBlend)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Rhi.RhiUiRenderer.DrawBackdrop(System.ReadOnlySpan{OpenIGI.UI.Layout.UiVec2},System.Single,OpenIGI.Core.Graphics.Bgra32,System.Single,System.Single)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.RhiUiExtensions">
+            <summary>
+            Bridges between the interface framework's backend-neutral types and the game's graphics types, and
+            the game-side entry points: a painter over a sprite batch, a font or surface atlas on a device.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.UI.RhiUiExtensions.ToTextureHandle(OpenIGI.UI.Drawing.UiImage)">
+            <summary>Gets the device texture an interface image made by <see cref="T:OpenIGI.UI.Rhi.RhiImageFactory"/> refers to.</summary>
+            <param name="image">The image.</param>
+            <returns>The texture handle.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.RhiUiExtensions.ToUiImage(OpenIGI.Rendering.TextureHandle)">
+            <summary>Wraps a device texture as an interface image.</summary>
+            <param name="texture">The texture.</param>
+            <returns>The image.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.RhiUiExtensions.ToRectF(OpenIGI.UI.Layout.UiRect)">
+            <summary>Converts an interface rectangle to the renderer's.</summary>
+            <param name="rect">The rectangle.</param>
+            <returns>The same rectangle.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.RhiUiExtensions.ToUiRect(OpenIGI.Rendering.RectF)">
+            <summary>Converts a renderer rectangle to the interface's.</summary>
+            <param name="rect">The rectangle.</param>
+            <returns>The same rectangle.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.RhiUiExtensions.ToBlendMode(OpenIGI.UI.Drawing.UiBlend)">
+            <summary>Converts an interface blend to the renderer's.</summary>
+            <param name="blend">The blend.</param>
+            <returns>The matching blend mode.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.RhiUiExtensions.ToUiBlend(OpenIGI.Rendering.BlendMode)">
+            <summary>Converts a renderer blend mode to the interface's.</summary>
+            <param name="blend">The blend mode.</param>
+            <returns>The matching blend; modes the interface does not have become alpha blending.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.RhiUiExtensions.ToSdfTextParams(OpenIGI.UI.Drawing.UiTextEffects,System.Single)">
+            <summary>Converts interface text effects to the SDF shader's parameters.</summary>
+            <param name="effects">The effects.</param>
+            <param name="pxRange">The font's distance-field range.</param>
+            <returns>The shader parameters.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.RhiUiExtensions.ToUiTextEffects(OpenIGI.Rendering.SdfTextParams)">
+            <summary>Converts SDF shader parameters to interface text effects.</summary>
+            <param name="parameters">The shader parameters; their range is the font's business and is dropped.</param>
+            <returns>The effects.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.RhiUiExtensions.FillRect(OpenIGI.UI.UiPainter,OpenIGI.UI.Layout.UiRect,OpenIGI.Core.Graphics.Bgra32,OpenIGI.Rendering.BlendMode)">
+            <summary>Fills a rectangle with a solid colour.</summary>
+            <param name="painter">The painter.</param>
+            <param name="rect">The rectangle in pixels.</param>
+            <param name="color">The fill colour.</param>
+            <param name="blend">How the fill combines with what is behind it.</param>
+        </member>
+        <member name="M:OpenIGI.UI.RhiUiExtensions.StrokeRect(OpenIGI.UI.UiPainter,OpenIGI.UI.Layout.UiRect,System.Single,OpenIGI.Core.Graphics.Bgra32,OpenIGI.Rendering.BlendMode)">
+            <summary>Strokes a rectangle's outline.</summary>
+            <param name="painter">The painter.</param>
+            <param name="rect">The rectangle in pixels.</param>
+            <param name="thickness">The stroke thickness in pixels.</param>
+            <param name="color">The stroke colour.</param>
+            <param name="blend">How the stroke combines with what is behind it.</param>
+        </member>
+        <member name="M:OpenIGI.UI.RhiUiExtensions.FillRoundedRect(OpenIGI.UI.UiPainter,OpenIGI.UI.Layout.UiRect,OpenIGI.UI.NineSlice@,OpenIGI.Core.Graphics.Bgra32,System.Single,OpenIGI.Rendering.BlendMode)">
+            <summary>Fills a rounded rectangle.</summary>
+            <param name="painter">The painter.</param>
+            <param name="rect">The rectangle in pixels.</param>
+            <param name="slice">The corner sprite.</param>
+            <param name="color">The fill colour.</param>
+            <param name="radius">The corner radius in pixels.</param>
+            <param name="blend">How the fill combines with what is behind it.</param>
+        </member>
+        <member name="M:OpenIGI.UI.RhiUiExtensions.DrawSprite(OpenIGI.UI.UiPainter,OpenIGI.Rendering.TextureHandle,OpenIGI.UI.Layout.UiRect,OpenIGI.Rendering.RectF,OpenIGI.Core.Graphics.Bgra32,OpenIGI.Rendering.BlendMode)">
+            <summary>Draws a textured sprite from a device texture.</summary>
+            <param name="painter">The painter.</param>
+            <param name="texture">The texture to sample.</param>
+            <param name="destination">The destination rectangle in pixels.</param>
+            <param name="source">The source rectangle in texture coordinates.</param>
+            <param name="color">The colour modulated with the texture.</param>
+            <param name="blend">How the sprite combines with what is behind it.</param>
+        </member>
+        <member name="M:OpenIGI.UI.RhiUiExtensions.DrawText(OpenIGI.UI.UiPainter,OpenIGI.UI.Text.UiFont,System.ReadOnlySpan{System.Char},OpenIGI.UI.Layout.UiVec2,System.Single,OpenIGI.Core.Graphics.Bgra32,OpenIGI.Rendering.BlendMode)">
+            <summary>Draws a string.</summary>
+            <param name="painter">The painter.</param>
+            <param name="font">The font to draw with.</param>
+            <param name="text">The text.</param>
+            <param name="topLeft">The top-left of the first line, in pixels.</param>
+            <param name="sizePx">The text size in pixels.</param>
+            <param name="color">The text colour.</param>
+            <param name="blend">How the glyphs combine with what is behind them.</param>
+            <returns>The pen position after the last glyph.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.RhiUiExtensions.DrawText(OpenIGI.UI.UiPainter,OpenIGI.UI.Text.UiFont,System.ReadOnlySpan{System.Char},OpenIGI.UI.Layout.UiVec2,System.Single,OpenIGI.Core.Graphics.Bgra32,OpenIGI.Rendering.SdfTextParams@,OpenIGI.Rendering.BlendMode)">
+            <summary>Draws distance-field text with the SDF shader's own parameters.</summary>
+            <param name="painter">The painter.</param>
+            <param name="font">The SDF font to draw with.</param>
+            <param name="text">The text.</param>
+            <param name="topLeft">The top-left of the first line, in pixels.</param>
+            <param name="sizePx">The text size in pixels.</param>
+            <param name="color">The fill colour.</param>
+            <param name="effects">The outline, glow and dissolve; the range is taken from the font.</param>
+            <param name="blend">How the glyphs combine with what is behind them.</param>
+            <returns>The pen position after the last glyph.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.RhiUiExtensions.DrawTextTracked(OpenIGI.UI.UiPainter,OpenIGI.UI.Text.UiFont,System.ReadOnlySpan{System.Char},OpenIGI.UI.Layout.UiVec2,System.Single,OpenIGI.Core.Graphics.Bgra32,System.Single,OpenIGI.Rendering.BlendMode)">
+            <summary>Draws a letterspaced string.</summary>
+            <param name="painter">The painter.</param>
+            <param name="font">The font to draw with.</param>
+            <param name="text">The text.</param>
+            <param name="topLeft">The top-left of the first line, in pixels.</param>
+            <param name="sizePx">The text size in pixels.</param>
+            <param name="color">The text colour.</param>
+            <param name="tracking">Extra pixels added after each glyph.</param>
+            <param name="blend">How the glyphs combine with what is behind them.</param>
+            <returns>The pen position after the last glyph.</returns>
+        </member>
+        <member name="T:OpenIGI.UI.RhiPainterExtensions">
+            <summary>Creates painters that draw into the game's sprite batch.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.RhiPainterExtensions.Create(OpenIGI.Rendering.SpriteBatch,OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Rhi.RhiBackdrop)">
+            <inheritdoc cref="M:OpenIGI.UI.RhiPainterExtensions.&lt;G&gt;$025724DF68DC137D2718083A481C044A.Create(OpenIGI.Rendering.SpriteBatch,OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Rhi.RhiBackdrop)"/>
+        </member>
+        <member name="M:OpenIGI.UI.RhiPainterExtensions.&lt;G&gt;$025724DF68DC137D2718083A481C044A.Create(OpenIGI.Rendering.SpriteBatch,OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Rhi.RhiBackdrop)">
+            <summary>Creates a painter that draws into the game's open sprite batch.</summary>
+            <param name="batch">The open sprite batch.</param>
+            <param name="context">The layout context for this frame.</param>
+            <param name="backdrop">The blurred scene frosted glass samples, or <see langword="null"/>.</param>
+            <returns>The painter.</returns>
+        </member>
+        <member name="T:OpenIGI.UI.RhiFontExtensions">
+            <summary>Uploads font atlases to the game's graphics device.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.RhiFontExtensions.Upload(OpenIGI.Rendering.IGraphicsDevice,OpenIGI.UI.Text.FontAtlasData)">
+            <inheritdoc cref="M:OpenIGI.UI.RhiFontExtensions.&lt;G&gt;$72EDF51F48512EA1F7D60DFBC04C286A.Upload(OpenIGI.Rendering.IGraphicsDevice,OpenIGI.UI.Text.FontAtlasData)"/>
+        </member>
+        <member name="M:OpenIGI.UI.RhiFontExtensions.&lt;G&gt;$72EDF51F48512EA1F7D60DFBC04C286A.Upload(OpenIGI.Rendering.IGraphicsDevice,OpenIGI.UI.Text.FontAtlasData)">
+            <summary>Uploads an atlas to the game's device and returns a font that can measure and draw.</summary>
+            <param name="device">The device to upload to.</param>
+            <param name="atlas">The rasterised atlas.</param>
+            <returns>A drawable font.</returns>
+        </member>
+        <member name="T:OpenIGI.UI.RhiSurfaceExtensions">
+            <summary>Uploads the rounded-corner and shadow atlas to the game's graphics device.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.RhiSurfaceExtensions.Create(OpenIGI.Rendering.IGraphicsDevice)">
+            <inheritdoc cref="M:OpenIGI.UI.RhiSurfaceExtensions.&lt;G&gt;$4EC3C1A7D282B8F50E01F5FA15BA6454.Create(OpenIGI.Rendering.IGraphicsDevice)"/>
+        </member>
+        <member name="M:OpenIGI.UI.RhiSurfaceExtensions.&lt;G&gt;$4EC3C1A7D282B8F50E01F5FA15BA6454.Create(OpenIGI.Rendering.IGraphicsDevice)">
+            <summary>Generates the rounded-corner and shadow atlas and uploads it to the game's device.</summary>
+            <param name="device">The device to upload to.</param>
+            <returns>The uploaded surfaces.</returns>
+        </member>
+    </members>
+</doc>

@@ -1,0 +1,336 @@
+{
+  "module": "UpscaleUpdateHistory",
+  "variant": "default",
+  "entryPoints": [
+    {
+      "name": "computeMain",
+      "stage": "Compute",
+      "workgroupSize": [
+        8,
+        8,
+        1
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "name": "uCurrent",
+      "group": 0,
+      "binding": 0,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 0,
+        "space": 0
+      }
+    },
+    {
+      "name": "uCurrentSampler",
+      "group": 0,
+      "binding": 1,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 0,
+        "space": 0
+      }
+    },
+    {
+      "name": "uVelocity",
+      "group": 0,
+      "binding": 2,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 1,
+        "space": 0
+      }
+    },
+    {
+      "name": "uVelocitySampler",
+      "group": 0,
+      "binding": 3,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 1,
+        "space": 0
+      }
+    },
+    {
+      "name": "uPrevHistoryColour",
+      "group": 0,
+      "binding": 4,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 2,
+        "space": 0
+      }
+    },
+    {
+      "name": "uPrevHistoryColourSampler",
+      "group": 0,
+      "binding": 5,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 2,
+        "space": 0
+      }
+    },
+    {
+      "name": "uPrevHistoryMetadata",
+      "group": 0,
+      "binding": 6,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 3,
+        "space": 0
+      }
+    },
+    {
+      "name": "uPrevHistoryMetadataSampler",
+      "group": 0,
+      "binding": 7,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 3,
+        "space": 0
+      }
+    },
+    {
+      "name": "uHistoryColour",
+      "group": 0,
+      "binding": 8,
+      "kind": "StorageTexture",
+      "dimensions": 2,
+      "storageFormat": "Rgba16Float",
+      "wgslStorageFormat": "Rgba16Float",
+      "storageAccess": "WriteOnly",
+      "hlsl": {
+        "class": "UnorderedAccess",
+        "register": 0,
+        "space": 0
+      }
+    },
+    {
+      "name": "uHistoryMetadata",
+      "group": 0,
+      "binding": 9,
+      "kind": "StorageTexture",
+      "dimensions": 2,
+      "storageFormat": "R8Unorm",
+      "wgslStorageFormat": "Rgba32Float",
+      "storageAccess": "WriteOnly",
+      "hlsl": {
+        "class": "UnorderedAccess",
+        "register": 1,
+        "space": 0
+      }
+    },
+    {
+      "name": "uHistoryRejection",
+      "group": 0,
+      "binding": 10,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 4,
+        "space": 0
+      }
+    },
+    {
+      "name": "uHistoryRejectionSampler",
+      "group": 0,
+      "binding": 11,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 4,
+        "space": 0
+      }
+    },
+    {
+      "name": "uSpatialAa",
+      "group": 0,
+      "binding": 12,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 5,
+        "space": 0
+      }
+    },
+    {
+      "name": "uSpatialAaSampler",
+      "group": 0,
+      "binding": 13,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 5,
+        "space": 0
+      }
+    },
+    {
+      "name": "uShadingRejection",
+      "group": 0,
+      "binding": 14,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 6,
+        "space": 0
+      }
+    },
+    {
+      "name": "uShadingRejectionSampler",
+      "group": 0,
+      "binding": 15,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 6,
+        "space": 0
+      }
+    },
+    {
+      "name": "uRejectionBlend",
+      "group": 0,
+      "binding": 16,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 7,
+        "space": 0
+      }
+    },
+    {
+      "name": "uRejectionBlendSampler",
+      "group": 0,
+      "binding": 17,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 7,
+        "space": 0
+      }
+    },
+    {
+      "name": "uDepth",
+      "group": 0,
+      "binding": 18,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "sampleType": "Depth",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 8,
+        "space": 0
+      }
+    },
+    {
+      "name": "uDepthSampler",
+      "group": 0,
+      "binding": 19,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 8,
+        "space": 0
+      }
+    },
+    {
+      "name": "p",
+      "group": 0,
+      "binding": 20,
+      "kind": "UniformBuffer",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ConstantBuffer",
+        "register": 0,
+        "space": 0
+      }
+    }
+  ],
+  "pushBlock": null,
+  "specializationConstants": [],
+  "globals": null
+}

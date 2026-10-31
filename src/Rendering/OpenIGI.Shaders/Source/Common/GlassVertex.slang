@@ -1,0 +1,144 @@
+// The vertex stage both glazing passes share, and the sets they both bind.
+//
+// The transmission draw and the front-layer draw are two fragment stages over one vertex stage and
+// one pair of descriptor sets, so a pane goes through the same alpha cut and arrives with the same
+// world normal in each. They are two modules rather than one because a module names one entry point
+// per stage; the shared half lives here so the transform exists once.
+
+#ifndef OPENIGI_GLASS_VERTEX_INCLUDED
+#define OPENIGI_GLASS_VERTEX_INCLUDED
+
+#include "PushConstants.slang"
+#include "ClipSpace.slang"
+
+struct GlassPush
+{
+    float4x4 modelViewProjection;
+
+    // The OBJECT-TO-WORLD rotation, by column, exactly as the G-buffer pass pushes and reads it.
+    // Composed on the processor as the view-to-world rotation times the model-view own rotation,
+    // which costs nothing per vertex and saves a second matrix here. The fourth components hold the
+    // object's origin relative to the camera in world axes, so the same columns place a vertex too.
+    float4 normal0;
+    float4 normal1;
+    float4 normal2;
+
+    // spare.
+    float4 glass;
+};
+
+OPENIGI_PUSH_CONSTANT(GlassPush, push);
+
+// The same set the world and shadow pipelines bind, so a texture pairing built for one is bindable
+// here without being rebuilt. The detail map is declared and unread, for the reason it is declared
+// in those: the set is shared, so all of them must agree about its shape.
+[[vk::binding(0, 0)]] Texture2D<float4> uDiffuse;
+[[vk::binding(1, 0)]] SamplerState uDiffuseSampler;
+[[vk::binding(2, 0)]] Texture2D<float4> uLightmap;
+[[vk::binding(3, 0)]] SamplerState uLightmapSampler;
+[[vk::binding(4, 0)]] Texture2D<float4> uDetail;
+[[vk::binding(5, 0)]] SamplerState uDetailSampler;
+
+// The scene's depth, read by texel and never sampled, so it needs no sampler of its own. The
+// transmission draw declares it unread because the set is shared with the front-layer pass. A depth
+// texture, declared as one: WGSL refuses a depth image bound as a float texture.
+[[vk::binding(0, 1)]] DepthTexture2D uSceneDepth;
+
+struct GlassParams
+{
+    // the frame's fog colour, and its density per metre of view depth.
+    float4 fog;
+};
+
+[[vk::binding(1, 1)]] ConstantBuffer<GlassParams> p;
+
+struct GlassVertexInput
+{
+    [[vk::location(0)]] float3 position : TEXCOORD0;
+    [[vk::location(1)]] float3 normal : TEXCOORD1;
+    [[vk::location(2)]] float2 diffuseUv : TEXCOORD2;
+    [[vk::location(3)]] float2 lightmapUv : TEXCOORD3;
+    [[vk::location(4)]] float4 colorBgra : TEXCOORD4;
+
+    // Declared because the vertex format the world binds has them, and a pipeline's attributes must
+    // describe the buffer it is fed. Glazing does not move, so neither is read.
+    [[vk::location(5)]] float3 previousPosition : TEXCOORD5;
+    [[vk::location(6)]] float3 previousNormal : TEXCOORD6;
+};
+
+struct GlassVaryings
+{
+    float4 position : SV_Position;
+    [[vk::location(0)]] float2 diffuseUv : TEXCOORD0;
+    [[vk::location(1)]] float2 lightmapUv : TEXCOORD1;
+    [[vk::location(2)]] float4 color : TEXCOORD2;
+    [[vk::location(3)]] float3 worldNormal : TEXCOORD3;
+    [[vk::location(4)]] float viewDepth : TEXCOORD4;
+
+    // Where the vertex is relative to the camera, in world axes: the line of sight to the pane.
+    [[vk::location(5)]] float3 fromEye : TEXCOORD5;
+};
+
+/// The alpha below which a glazing texel is a hole rather than glass: no pane there, nothing to see through
+/// or reflect. Both glazing draws make this cut, so the layer and the transmission agree about it.
+static const float GlassHoleAlpha = 0.02;
+
+/// Thin-pane reflectance: a sheet has two faces, and the light that crosses the first and is reflected
+/// back by the second partly escapes too. Summing every bounce, a pane reflects 2R/(1+R) of what reaches
+/// it, R being one face's Schlick reflectance with glass's 0.04 at normal incidence -- 7.7 per cent head-on,
+/// rising to a mirror at a glancing angle -- and lets through (1-R)/(1+R), the rest.
+float GlassPaneReflectance(float cosine)
+{
+    float face = 0.04 + (0.96 * pow(1.0 - saturate(cosine), 5.0));
+    return (2.0 * face) / (1.0 + face);
+}
+
+/// A pane to clip space, with its normal in world axes and its own distance carried on.
+GlassVaryings GlassTransform(GlassVertexInput input)
+{
+    GlassVaryings output;
+
+    output.diffuseUv = input.diffuseUv;
+    output.lightmapUv = input.lightmapUv;
+
+    // The vertex colour arrives BGRA, as the original's packed word does.
+    output.color = input.colorBgra.bgra;
+
+    float4 clip = mul(push.modelViewProjection, float4(input.position, 1.0));
+
+    // The engine's projection is an OpenGL one, so the same correction the world stage applies,
+    // character for character: Y flipped for Vulkan's y-down framebuffer, and Z remapped to REVERSE-Z
+    // in [0, 1] -- w minus z, not w plus z, so that nearer geometry takes the greater value. Getting
+    // that subtraction backwards does not tilt the glazing slightly; it puts every pane at the wrong
+    // end of the depth range, where the pipeline's greater-or-equal test rejects all of it. The
+    // winding the Y flip reverses is compensated by the front face.
+    clip.y = OpenIgiClipY(clip.y);
+    clip.z = (clip.w - clip.z) * 0.5;
+    output.position = clip;
+
+    // How far away the pane is. With an OpenGL projection the clip w IS the view depth, so there is
+    // nothing to undo; the reflection pass rebuilds the full position from this and the pixel's own
+    // direction, which is why nothing else about the position has to travel.
+    output.viewDepth = clip.w;
+
+    // Straight to WORLD space, the same way the G-buffer pass does it. The normal that arrives is in
+    // MODEL space, and handing that to a view-to-world rotation -- which is what this stage did at
+    // first -- produces a normal pointing somewhere arbitrary. It does not tilt the reflection
+    // slightly; it reflects the room about the wrong plane, so the floor comes out at the top of the
+    // pane.
+    //
+    // Written as the three scaled columns summed rather than as a matrix: a matrix constructor fills
+    // columns in GLSL and rows in Slang, and the GLSL this replaces multiplied by columns.
+    output.worldNormal = (push.normal0.xyz * input.normal.x)
+        + (push.normal1.xyz * input.normal.y)
+        + (push.normal2.xyz * input.normal.z);
+
+    output.fromEye = (push.normal0.xyz * input.position.x)
+        + (push.normal1.xyz * input.position.y)
+        + (push.normal2.xyz * input.position.z)
+        + float3(push.normal0.w, push.normal1.w, push.normal2.w);
+
+    return output;
+}
+
+#endif

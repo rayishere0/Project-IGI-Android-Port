@@ -1,0 +1,452 @@
+{
+  "module": "CardsScreenResolve",
+  "variant": "default",
+  "entryPoints": [
+    {
+      "name": "computeMain",
+      "stage": "Compute",
+      "workgroupSize": [
+        8,
+        8,
+        1
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "name": "uAccum",
+      "group": 0,
+      "binding": 0,
+      "kind": "StorageTexture",
+      "dimensions": 2,
+      "storageFormat": "Rgba16Float",
+      "wgslStorageFormat": "Rgba16Float",
+      "storageAccess": "WriteOnly",
+      "hlsl": {
+        "class": "UnorderedAccess",
+        "register": 0,
+        "space": 0
+      }
+    },
+    {
+      "name": "uAccumPosition",
+      "group": 0,
+      "binding": 1,
+      "kind": "StorageTexture",
+      "dimensions": 2,
+      "storageFormat": "Rgba16Float",
+      "wgslStorageFormat": "Rgba16Float",
+      "storageAccess": "WriteOnly",
+      "hlsl": {
+        "class": "UnorderedAccess",
+        "register": 1,
+        "space": 0
+      }
+    },
+    {
+      "name": "uProbe",
+      "group": 0,
+      "binding": 32,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 0,
+        "space": 0
+      }
+    },
+    {
+      "name": "uSceneDepth",
+      "group": 0,
+      "binding": 33,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "sampleType": "Depth",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 1,
+        "space": 0
+      }
+    },
+    {
+      "name": "uSceneNormal",
+      "group": 0,
+      "binding": 34,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 2,
+        "space": 0
+      }
+    },
+    {
+      "name": "uHistory",
+      "group": 0,
+      "binding": 35,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 3,
+        "space": 0
+      }
+    },
+    {
+      "name": "uHistoryPosition",
+      "group": 0,
+      "binding": 36,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 4,
+        "space": 0
+      }
+    },
+    {
+      "name": "uProbePosition",
+      "group": 0,
+      "binding": 37,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 5,
+        "space": 0
+      }
+    },
+    {
+      "name": "uVelocity",
+      "group": 0,
+      "binding": 38,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 6,
+        "space": 0
+      }
+    },
+    {
+      "name": "g",
+      "group": 0,
+      "binding": 49,
+      "kind": "UniformBuffer",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ConstantBuffer",
+        "register": 0,
+        "space": 0
+      }
+    },
+    {
+      "name": "uProbeSampler",
+      "group": 0,
+      "binding": 64,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 0,
+        "space": 0
+      }
+    },
+    {
+      "name": "uSceneDepthSampler",
+      "group": 0,
+      "binding": 65,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 1,
+        "space": 0
+      }
+    },
+    {
+      "name": "uSceneNormalSampler",
+      "group": 0,
+      "binding": 66,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 2,
+        "space": 0
+      }
+    },
+    {
+      "name": "uHistorySampler",
+      "group": 0,
+      "binding": 67,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 3,
+        "space": 0
+      }
+    },
+    {
+      "name": "uHistoryPositionSampler",
+      "group": 0,
+      "binding": 68,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 4,
+        "space": 0
+      }
+    },
+    {
+      "name": "uProbePositionSampler",
+      "group": 0,
+      "binding": 69,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 5,
+        "space": 0
+      }
+    },
+    {
+      "name": "uVelocitySampler",
+      "group": 0,
+      "binding": 70,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 6,
+        "space": 0
+      }
+    }
+  ],
+  "pushBlock": null,
+  "specializationConstants": [],
+  "globals": {
+    "name": "g",
+    "group": 0,
+    "binding": 49,
+    "size": 288,
+    "fields": [
+      {
+        "name": "uUnproject",
+        "offset": 0,
+        "size": 16,
+        "hlslOffset": 0
+      },
+      {
+        "name": "uPrevUnproject",
+        "offset": 16,
+        "size": 16,
+        "hlslOffset": 16
+      },
+      {
+        "name": "uViewToWorld0",
+        "offset": 32,
+        "size": 12,
+        "hlslOffset": 32
+      },
+      {
+        "name": "uViewToWorld1",
+        "offset": 48,
+        "size": 12,
+        "hlslOffset": 48
+      },
+      {
+        "name": "uViewToWorld2",
+        "offset": 64,
+        "size": 12,
+        "hlslOffset": 64
+      },
+      {
+        "name": "uCameraToCache",
+        "offset": 80,
+        "size": 12,
+        "hlslOffset": 80
+      },
+      {
+        "name": "uPrevWorldToView0",
+        "offset": 96,
+        "size": 12,
+        "hlslOffset": 96
+      },
+      {
+        "name": "uPrevWorldToView1",
+        "offset": 112,
+        "size": 12,
+        "hlslOffset": 112
+      },
+      {
+        "name": "uPrevWorldToView2",
+        "offset": 128,
+        "size": 12,
+        "hlslOffset": 128
+      },
+      {
+        "name": "uPrevCameraToCache",
+        "offset": 144,
+        "size": 12,
+        "hlslOffset": 144
+      },
+      {
+        "name": "uProbeWorldToView0",
+        "offset": 160,
+        "size": 12,
+        "hlslOffset": 160
+      },
+      {
+        "name": "uProbeWorldToView1",
+        "offset": 176,
+        "size": 12,
+        "hlslOffset": 176
+      },
+      {
+        "name": "uProbeWorldToView2",
+        "offset": 192,
+        "size": 12,
+        "hlslOffset": 192
+      },
+      {
+        "name": "uProbeCameraToCache",
+        "offset": 208,
+        "size": 12,
+        "hlslOffset": 208
+      },
+      {
+        "name": "uScreenWidth",
+        "offset": 220,
+        "size": 4,
+        "hlslOffset": 220
+      },
+      {
+        "name": "uScreenHeight",
+        "offset": 224,
+        "size": 4,
+        "hlslOffset": 224
+      },
+      {
+        "name": "uHasHistory",
+        "offset": 228,
+        "size": 4,
+        "hlslOffset": 228
+      },
+      {
+        "name": "uMaxFrames",
+        "offset": 232,
+        "size": 4,
+        "hlslOffset": 232
+      },
+      {
+        "name": "uProbe",
+        "offset": 236,
+        "size": 4,
+        "hlslOffset": 236
+      },
+      {
+        "name": "uSceneDepth",
+        "offset": 240,
+        "size": 4,
+        "hlslOffset": 240
+      },
+      {
+        "name": "uSceneNormal",
+        "offset": 244,
+        "size": 4,
+        "hlslOffset": 244
+      },
+      {
+        "name": "uHistory",
+        "offset": 248,
+        "size": 4,
+        "hlslOffset": 248
+      },
+      {
+        "name": "uHistoryPosition",
+        "offset": 252,
+        "size": 4,
+        "hlslOffset": 252
+      },
+      {
+        "name": "uProbePosition",
+        "offset": 256,
+        "size": 4,
+        "hlslOffset": 256
+      },
+      {
+        "name": "uVelocity",
+        "offset": 260,
+        "size": 4,
+        "hlslOffset": 260
+      },
+      {
+        "name": "uProbeStep",
+        "offset": 264,
+        "size": 4,
+        "hlslOffset": 264
+      },
+      {
+        "name": "uProbeFrame",
+        "offset": 268,
+        "size": 4,
+        "hlslOffset": 268
+      },
+      {
+        "name": "uHasVelocity",
+        "offset": 272,
+        "size": 4,
+        "hlslOffset": 272
+      }
+    ],
+    "hlslSize": 288
+  }
+}

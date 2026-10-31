@@ -1,0 +1,203 @@
+[
+  {
+    "mission": 1,
+    "comment": "Trainyard",
+    "radius": 150,
+    "height": 60,
+    "speed": 0.12,
+    "startAngle": 0.6,
+    "pitchBias": -0.05,
+    "points": [
+      { "x": 5983.9, "y": -13653.8, "z": 42591.2, "radius": 41, "height": 14.6 },
+      { "x": 6088.7, "y": -13736, "z": 42584.8, "radius": 20.4, "height": 9.1 },
+      { "x": 5963.2, "y": -13779.9, "z": 42586.6, "radius": 26.2, "height": 10.6 }
+    ]
+  },
+  {
+    "mission": 2,
+    "comment": "SAM Base",
+    "radius": 140,
+    "height": 55,
+    "speed": 0.12,
+    "startAngle": 0,
+    "pitchBias": 0,
+    "points": [
+      { "x": 30736.9, "y": -9252.4, "z": 42830.2, "radius": 20.4, "height": 9.1 },
+      { "x": 30987.9, "y": -9223.6, "z": 42800.8, "radius": 20.4, "height": 9.1 },
+      { "x": 31016.4, "y": -9356.6, "z": 42800.8, "radius": 20.4, "height": 9.1 }
+    ]
+  },
+  {
+    "mission": 3,
+    "comment": "Military Airbase",
+    "radius": 140,
+    "height": 55,
+    "speed": 0.12,
+    "startAngle": 0,
+    "pitchBias": 0,
+    "points": [
+      { "x": 5710.6, "y": -13484.8, "z": 42591.9, "radius": 43.4, "height": 15.3 },
+      { "x": 5919.6, "y": -13292, "z": 42669.7, "radius": 32.4, "height": 12.3 },
+      { "x": 6053.4, "y": -13607.5, "z": 42584.6, "radius": 20.4, "height": 9.1 },
+      { "x": 5833.7, "y": -13458.2, "z": 42585.3, "radius": 21.9, "height": 9.5 }
+    ]
+  },
+  {
+    "mission": 4,
+    "comment": "GOD",
+    "radius": 140,
+    "height": 55,
+    "speed": 0.12,
+    "startAngle": 0,
+    "pitchBias": 0,
+    "points": [
+      { "x": 27611.5, "y": -13739.3, "z": 42798.6, "radius": 21.9, "height": 9.5 },
+      { "x": 27600.9, "y": -13379.7, "z": 42841.6, "radius": 22.5, "height": 9.6 },
+      { "x": 27471.8, "y": -13644.9, "z": 42798.9, "radius": 22.6, "height": 9.7 },
+      { "x": 27573, "y": -13626.7, "z": 42805.2, "radius": 43.2, "height": 15.2 }
+    ]
+  },
+  {
+    "mission": 5,
+    "comment": "Radar Base",
+    "radius": 140,
+    "height": 55,
+    "speed": 0.12,
+    "startAngle": 0,
+    "pitchBias": 0,
+    "points": [
+      { "x": -5985, "y": -8600, "z": 44122.5, "radius": 25.5, "height": 10.4 },
+      { "x": -6360.4, "y": -8616.3, "z": 44082.2, "radius": 33.4, "height": 12.6 },
+      { "x": -6123, "y": -8682.3, "z": 44124.5, "radius": 32.4, "height": 12.3 }
+    ]
+  },
+  {
+    "mission": 6,
+    "comment": "Get Priboi",
+    "radius": 140,
+    "height": 55,
+    "speed": 0.12,
+    "startAngle": 0,
+    "pitchBias": 0,
+    "points": [
+      { "x": 5970.3, "y": 21431, "z": 42657.4, "radius": 58, "height": 19.2 },
+      { "x": 5945, "y": 21846.8, "z": 42613, "radius": 42.5, "height": 15 },
+      { "x": 6090.9, "y": 21651.8, "z": 42605.9, "radius": 20.4, "height": 9.1 }
+    ]
+  },
+  {
+    "mission": 7,
+    "comment": "Border Crossing",
+    "radius": 140,
+    "height": 55,
+    "speed": 0.12,
+    "startAngle": 0,
+    "pitchBias": 0,
+    "points": [
+      { "x": -888.2, "y": 21720.1, "z": 42674.2, "radius": 33.4, "height": 12.6 },
+      { "x": -1620, "y": 22072.6, "z": 42670.8, "radius": 22.4, "height": 9.6 },
+      { "x": -1537.6, "y": 21747.9, "z": 42671.4, "radius": 24.5, "height": 10.2 },
+      { "x": -1213.2, "y": 21800.2, "z": 42672.4, "radius": 21, "height": 9.2 }
+    ]
+  },
+  {
+    "mission": 8,
+    "comment": "Re-supply",
+    "radius": 140,
+    "height": 55,
+    "speed": 0.12,
+    "startAngle": 0,
+    "pitchBias": 0,
+    "points": [
+      { "x": 11222, "y": 35468.5, "z": 42803.2, "radius": 36.7, "height": 13.4 },
+      { "x": 10952.7, "y": 35940.8, "z": 42780.4, "radius": 32.4, "height": 12.3 },
+      { "x": 10799, "y": 35498.1, "z": 42808.2, "radius": 53.1, "height": 17.9 }
+    ]
+  },
+  {
+    "mission": 9,
+    "comment": "Missile Trainyard",
+    "radius": 140,
+    "height": 55,
+    "speed": 0.12,
+    "startAngle": 0,
+    "pitchBias": 0,
+    "points": [
+      { "x": 5647, "y": -12361.9, "z": 42605.8, "radius": 20.4, "height": 9.1 },
+      { "x": 5749, "y": -12459.7, "z": 42613.6, "radius": 44, "height": 15.4 },
+      { "x": 5888.7, "y": -12388.4, "z": 42608.8, "radius": 29.9, "height": 11.6 }
+    ]
+  },
+  {
+    "mission": 10,
+    "comment": "Defend Priboi",
+    "radius": 140,
+    "height": 55,
+    "speed": 0.12,
+    "startAngle": 0,
+    "pitchBias": 0,
+    "points": [
+      { "x": 1875.5, "y": 37284.3, "z": 42586.3, "radius": 25.3, "height": 10.4 },
+      { "x": 2079.5, "y": 37322, "z": 42587.8, "radius": 29.9, "height": 11.6 },
+      { "x": 2111.4, "y": 37207.8, "z": 42585.3, "radius": 21.9, "height": 9.5 }
+    ]
+  },
+  {
+    "mission": 11,
+    "comment": "Eagle's Nest I",
+    "radius": 140,
+    "height": 55,
+    "speed": 0.12,
+    "startAngle": 0,
+    "pitchBias": 0,
+    "points": [
+      { "x": 27503.4, "y": -13670.1, "z": 42808.2, "radius": 49.3, "height": 16.6 },
+      { "x": 27610.3, "y": -13384.3, "z": 42847.8, "radius": 43.2, "height": 15.2 },
+      { "x": 27952.1, "y": -13892.2, "z": 42938.4, "radius": 25.6, "height": 10.5 },
+      { "x": 27601.2, "y": -13620.7, "z": 42805.3, "radius": 43.4, "height": 15.3 }
+    ]
+  },
+  {
+    "mission": 12,
+    "comment": "Eagle's Nest II",
+    "radius": 140,
+    "height": 55,
+    "speed": 0.12,
+    "startAngle": 0,
+    "pitchBias": 0,
+    "points": [
+      { "x": 27413.3, "y": -10281.7, "z": 43847.2, "radius": 64.3, "height": 20 },
+      { "x": 27281.6, "y": -9974.9, "z": 43841.4, "radius": 26.8, "height": 10.8 },
+      { "x": 27517.5, "y": -10021.9, "z": 43864.8, "radius": 20.4, "height": 9.1 },
+      { "x": 27345.3, "y": -10033.3, "z": 43871.9, "radius": 38.9, "height": 13.7 },
+      { "x": 27423.8, "y": -10100.9, "z": 43871.2, "radius": 41, "height": 14.6 }
+    ]
+  },
+  {
+    "mission": 13,
+    "comment": "Nuclear Infiltration",
+    "radius": 140,
+    "height": 55,
+    "speed": 0.12,
+    "startAngle": 0,
+    "pitchBias": 0,
+    "points": [
+      { "x": -194.6, "y": 22145.2, "z": 42674.8, "radius": 35.3, "height": 13.1 },
+      { "x": -780.8, "y": 21707.8, "z": 42678.5, "radius": 58, "height": 19.2 },
+      { "x": -776.8, "y": 21977.1, "z": 42646.7, "radius": 26.8, "height": 10.8 },
+      { "x": -540.5, "y": 21991.6, "z": 42669.9, "radius": 20.4, "height": 9.1 }
+    ]
+  },
+  {
+    "mission": 14,
+    "comment": "Finding the bomb",
+    "radius": 140,
+    "height": 55,
+    "speed": 0.12,
+    "startAngle": 0,
+    "pitchBias": 0,
+    "points": [
+      { "x": 6033, "y": -13667.4, "z": 42506.5, "radius": 30, "height": 13 }
+    ]
+  }
+]

@@ -1,0 +1,1196 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OpenIGI.Audio</name>
+    </assembly>
+    <members>
+        <member name="T:OpenIGI.Audio.AudioBufferHandle">
+            <summary>Identifies a block of PCM the device holds ready to play.</summary>
+            <param name="Value">The opaque identifier; zero is the null handle.</param>
+            <remarks>Buffers are shared: one buffer can back any number of simultaneous voices.</remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.AudioBufferHandle.#ctor(System.Int32)">
+            <summary>Identifies a block of PCM the device holds ready to play.</summary>
+            <param name="Value">The opaque identifier; zero is the null handle.</param>
+            <remarks>Buffers are shared: one buffer can back any number of simultaneous voices.</remarks>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioBufferHandle.Value">
+            <summary>The opaque identifier; zero is the null handle.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioBufferHandle.None">
+            <summary>Gets the handle that refers to no buffer.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioBufferHandle.IsValidHandle">
+            <summary>Gets a value indicating whether the handle refers to a buffer.</summary>
+        </member>
+        <member name="T:OpenIGI.Audio.AudioCVars">
+            <summary>
+            The audio system's console variables.
+            </summary>
+            <remarks>
+            <para>
+            Declared next to the audio seam, the way the renderer declares its own. The console, the settings
+            file and the options menu all reach these through <see cref="P:OpenIGI.Core.Configuration.CVarRegistry.Default"/>, so there is one
+            value and three views onto it. The <c>snd_</c> prefix is the one the settings screen already builds
+            its Audio page from — until this file existed, that page rendered empty.
+            </para>
+            <para>
+            The volumes here are the <em>output</em> side. They are distinct from the player profile's own sound
+            settings, which the original stores per profile and which remain the value the game's own menus
+            edit; the profile feeds these, not the other way round.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.Preset">
+            <summary>Which named profile the audio settings correspond to.</summary>
+            <remarks>
+            <para>
+            Setting this writes the profile's values over the variables it names, which is how
+            <c>-vanilla</c> reaches the audio system: the flag emits <c>snd_preset vanilla</c> as a start-up
+            statement, exactly as it emits <c>gfx_preset vanilla</c> for the renderer.
+            </para>
+            <para>
+            It has to be set before the device opens to take full effect. The voice count and the output rate
+            are read once, when the device is created; the panning model is read per voice and so does follow
+            a change immediately.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.Enabled">
+            <summary>Whether the audio backend is opened at all.</summary>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.MasterVolume">
+            <summary>The master gain applied over every bus.</summary>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.EffectsVolume">
+            <summary>The gain of the sound-effects bus.</summary>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.MusicVolume">
+            <summary>The gain of the music bus.</summary>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.SpeechVolume">
+            <summary>The gain of the speech bus.</summary>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.AmbienceVolume">
+            <summary>The gain of the ambience bus.</summary>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.Voices">
+            <summary>How many voices may sound at once.</summary>
+            <remarks>
+            The original's pool is 32 (<c>0x4952F0</c>), and that is what the vanilla profile uses. Raising
+            it is the single cheapest audible improvement in a firefight, where the original simply drops
+            whatever asks for a voice once the pool is full.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.Rain">
+            <summary>Whether the weather is heard as well as seen.</summary>
+            <remarks>
+            A remaster addition with no counterpart in the original, which ships no weather sound at all —
+            its rain is a band of sprites and nothing more. Off leaves the picture exactly as it was.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.RainVolume">
+            <summary>The gain of the rain bed, over and above the ambience bus.</summary>
+            <remarks>
+            Separate from <see cref="F:OpenIGI.Audio.AudioCVars.AmbienceVolume"/> because they answer different questions: the bus
+            says how loud the level's beds are against the gunfire, and this says how loud the rain is
+            against the rest of the beds. A player who wants a quieter storm and the same generators wants
+            this one.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.RainWallLevel">
+            <summary>How much of the rain outside a wall is heard through it, as an amplitude.</summary>
+            <remarks>
+            <para>
+            The floor under the whole indoor mix, and the number that decides whether stepping inside
+            sounds like shelter or like a cellar. It has to carry the interior on its own wherever the roof
+            is too high to drum — a warehouse, a hangar, anything with a ceiling out of reach — because
+            there the drumming contributes nothing and this is all that is left.
+            </para>
+            <para>
+            Thirteen decibels down. Genuine transmission loss through a solid wall is rather more than
+            that, but the buildings in this game are sheds, huts and light industrial shells, and a storm
+            you can barely hear from inside one reads as a bug rather than as insulation.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.RainWallCutoffHz">
+            <summary>The cutoff the through-the-wall component is heard through, in hertz.</summary>
+            <remarks>
+            Rain's own energy peaks between one and two and a half kilohertz, so a cutoff below that takes
+            the rain out of the rain and leaves a rumble that could be anything. Just under a kilohertz
+            keeps enough of the peak for it to still be recognisable through the wall.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.RainRoofLevel">
+            <summary>How loud the drumming of rain on a roof overhead is, as an amplitude.</summary>
+            <remarks>
+            Well above the walls: a roof is thin, it is struck directly by the drops, and it is the sound
+            that makes a shed in a storm unmistakably a shed in a storm.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.RainDebug">
+            <summary>Whether the rain mix is reported to the log as it is computed.</summary>
+            <remarks>
+            Once a second, not once a frame. What it prints is the whole state the mix is derived from —
+            the sky exposure, the roof, and every emitter's gain and cutoff — which is the only practical
+            way to tell "the doorway is not being found" from "the doorway is found and too quiet".
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.ReverseStereo">
+            <summary>Whether the left and right output channels are swapped.</summary>
+            <remarks>Mirrors the original's reverse-stereo profile option, global <c>0x543914</c>.</remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.Spatial">
+            <summary>Whether sounds are positioned in three dimensions rather than panned as the original did.</summary>
+            <remarks>
+            Off is the original's behaviour, which is not DirectSound3D at all: a linear distance fade and a
+            lateral pan computed by hand in <c>0x496E60</c>, with no elevation, no distance cue beyond the
+            fade, and no head model. On hands position to the backend and lets it do the work properly.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioCVars.SampleRate">
+            <summary>The output sample rate requested from the backend.</summary>
+            <remarks>
+            The original's primary buffer is 22050 Hz and everything is resampled into it. The shipped sounds
+            are not all at that rate — some are 44100 — so the original throws away detail it shipped.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.AudioCVars.#cctor">
+            <summary>Wires the profile variable to the values it stands for.</summary>
+            <remarks>
+            A static constructor rather than a registry, because the audio layer may reference only
+            <c>OpenIGI.Core</c> and the graphics preset registry lives in the renderer. The profile is not
+            recomputed when one of its variables is changed by hand: it says what was asked for, and a
+            player who then moves a single slider is not silently switched to "custom" mid-session.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.AudioCVars.Apply(OpenIGI.Audio.AudioProfile)">
+            <summary>Writes a profile's values over the variables it names.</summary>
+            <param name="profile">The profile to apply. <see cref="F:OpenIGI.Audio.AudioProfile.Custom"/> changes nothing.</param>
+        </member>
+        <member name="T:OpenIGI.Audio.AudioDeviceOptions">
+            <summary>How a backend should open itself.</summary>
+            <remarks>
+            Built in the composition root from <see cref="T:OpenIGI.Audio.AudioCVars"/>, so the backend never reads the console
+            registry itself and can be constructed directly in a test.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioDeviceOptions.VoiceCount">
+            <summary>Gets the number of voices to allocate.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioDeviceOptions.SampleRate">
+            <summary>Gets the output sample rate to request, or zero to accept whatever the backend prefers.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioDeviceOptions.Spatial">
+            <summary>Gets a value indicating whether sounds are positioned in three dimensions.</summary>
+            <remarks>
+            <see langword="false"/> selects the original's behaviour: a linear distance fade and a lateral
+            pan computed by <see cref="T:OpenIGI.Audio.VanillaSpatialiser"/> rather than by the backend.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioDeviceOptions.ReverseStereo">
+            <summary>Gets a value indicating whether the output channels are swapped.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioDeviceOptions.Vanilla">
+            <summary>Gets the options the original would imply: 32 voices, 22050 Hz and no real 3D.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioDeviceOptions.Default">
+            <summary>Gets the defaults for a normal launch.</summary>
+        </member>
+        <member name="M:OpenIGI.Audio.AudioDeviceOptions.FromCVars">
+            <summary>Reads the options currently held by the console variables.</summary>
+            <returns>The options.</returns>
+        </member>
+        <member name="T:OpenIGI.Audio.AudioFormat">
+            <summary>The shape of a block of PCM: how many channels, how wide a sample and how fast.</summary>
+            <param name="SampleRate">The sample rate in hertz.</param>
+            <param name="Channels">The channel count, one or two.</param>
+            <param name="BitsPerSample">The sample width in bits, 8 or 16.</param>
+            <remarks>
+            The rate is carried per buffer rather than fixed for the device because the shipped sounds are not
+            all at one rate — a retail installation holds sounds at 22050, 44100 and 11025 Hz, and the original
+            simply let DirectSound resample each secondary buffer into a 22050 Hz primary.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.AudioFormat.#ctor(System.Int32,System.Int32,System.Int32)">
+            <summary>The shape of a block of PCM: how many channels, how wide a sample and how fast.</summary>
+            <param name="SampleRate">The sample rate in hertz.</param>
+            <param name="Channels">The channel count, one or two.</param>
+            <param name="BitsPerSample">The sample width in bits, 8 or 16.</param>
+            <remarks>
+            The rate is carried per buffer rather than fixed for the device because the shipped sounds are not
+            all at one rate — a retail installation holds sounds at 22050, 44100 and 11025 Hz, and the original
+            simply let DirectSound resample each secondary buffer into a 22050 Hz primary.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioFormat.SampleRate">
+            <summary>The sample rate in hertz.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioFormat.Channels">
+            <summary>The channel count, one or two.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioFormat.BitsPerSample">
+            <summary>The sample width in bits, 8 or 16.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioFormat.BlockAlign">
+            <summary>Gets the size in bytes of one frame — one sample on every channel.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioFormat.IsValid">
+            <summary>Gets a value indicating whether the format is one the device can accept.</summary>
+        </member>
+        <member name="M:OpenIGI.Audio.AudioFormat.FrameCount(System.Int64)">
+            <summary>Returns the number of whole frames <paramref name="byteCount"/> bytes hold.</summary>
+            <param name="byteCount">A size in bytes.</param>
+            <returns>The frame count.</returns>
+        </member>
+        <member name="M:OpenIGI.Audio.AudioFormat.Validate(System.String)">
+            <summary>Throws when the format is one the device cannot accept.</summary>
+            <param name="parameterName">The name of the argument being validated.</param>
+            <exception cref="T:System.ArgumentException">The format is not valid.</exception>
+        </member>
+        <member name="T:OpenIGI.Audio.AudioListenerState">
+            <summary>Where the listener is and which way it faces.</summary>
+            <remarks>
+            <para>
+            Positions are in <b>metres</b> and are <see langword="double"/>, matching the rest of the port: world
+            positions are double throughout, and the render world divides raw engine units by 4096 on load. A
+            caller holding engine units must divide by <c>UnitsPerMetre</c> before it gets here.
+            </para>
+            <para>
+            The orientation is the engine's own eye basis, whose columns are right, forward and up — the frame
+            <c>sub_4B38E0</c> composes and the AI vision cone is measured in. It is applied with the engine's
+            <c>v · M</c> convention, which is what <see cref="M:OpenIGI.Core.Numerics.Matrix3f.Transform(OpenIGI.Core.Numerics.Vector3d)"/> does; using the
+            other convention transposes the rotation and mirrors the stereo image.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioListenerState.Position">
+            <summary>Gets the listener position in metres.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioListenerState.Orientation">
+            <summary>Gets the listener basis: columns are right, forward and up.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioListenerState.Velocity">
+            <summary>Gets the listener velocity in metres per second, used only when doppler is enabled.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioListenerState.Default">
+            <summary>Gets a listener at the origin facing along the engine's forward axis.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioListenerState.Forward">
+            <summary>Gets the direction the listener faces.</summary>
+            <remarks>The engine's forward axis is the basis' second column, which is +Y in an unrotated frame.</remarks>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioListenerState.Up">
+            <summary>Gets the listener's up direction.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioListenerState.Right">
+            <summary>Gets the listener's right direction, which is the axis a pan is measured along.</summary>
+        </member>
+        <member name="M:OpenIGI.Audio.AudioListenerState.FromViewRotation(OpenIGI.Core.Numerics.Vector3d,OpenIGI.Core.Numerics.Matrix3f)">
+            <summary>Builds a listener from a camera's world-to-view rotation.</summary>
+            <param name="positionMetres">Where the ear is, in metres.</param>
+            <param name="worldToView">
+            A world-to-view rotation whose <b>rows</b> are the view axes in the order right, up, forward —
+            the shape <c>Camera3D.LookRotation</c> returns.
+            </param>
+            <returns>A listener whose orientation is the engine eye basis this type expects.</returns>
+            <remarks>
+            <para>
+            <b>These are two different matrices and confusing them is silent, not loud.</b> A camera's
+            world-to-view rotation carries its axes in its rows, in the order right, <i>up</i>, forward; the
+            engine's eye basis carries them in its columns, in the order right, <i>forward</i>, up. Handing
+            the first straight to <see cref="P:OpenIGI.Audio.AudioListenerState.Orientation"/> reads column 2 as forward when column 2 is not
+            even an axis of the frame — at an unrotated pose it yields forward <c>+Z</c> and up <c>+Y</c>,
+            so the listener faces <i>straight up</i>.
+            </para>
+            <para>
+            What that sounds like is a source above the player arriving dead ahead: centred, unpanned and
+            seemingly right on top of the listener however far away it really is. Transposing moves the
+            rows into the columns; the swap puts forward ahead of up.
+            </para>
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Audio.AudioProfile">
+            <summary>A named set of audio settings, the audio counterpart of a graphics preset.</summary>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioProfile.Custom">
+            <summary>The settings do not correspond to any named profile.</summary>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioProfile.Vanilla">
+            <summary>
+            The original's behaviour: 32 voices, a 22050 Hz mix, and the flat hand-computed pan of
+            <c>0x496E60</c> instead of real positioning.
+            </summary>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioProfile.Enhanced">
+            <summary>Positioned sound, a larger voice pool and a modern output rate.</summary>
+        </member>
+        <member name="T:OpenIGI.Audio.AudioVoiceHandle">
+            <summary>Identifies a playing voice.</summary>
+            <param name="Value">The opaque identifier; zero is the null handle.</param>
+            <remarks>
+            <para>
+            A voice handle carries a generation alongside its slot index, and every device call checks it. This
+            matters because voices are a fixed pool that gets stolen from: a caller holding a handle to a
+            looping sound whose voice was reclaimed for something more urgent must not later stop or re-aim
+            whatever took its place. A stale handle is ignored.
+            </para>
+            <para>
+            The original has the same hazard and does not guard against it — its callers keep a raw pointer into
+            the 32-voice array, for instance the per-task sound handle at <c>HumanAI+16032</c>. Guarding is a
+            deliberate divergence; it buys a class of bug that then cannot exist.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.AudioVoiceHandle.#ctor(System.Int32)">
+            <summary>Identifies a playing voice.</summary>
+            <param name="Value">The opaque identifier; zero is the null handle.</param>
+            <remarks>
+            <para>
+            A voice handle carries a generation alongside its slot index, and every device call checks it. This
+            matters because voices are a fixed pool that gets stolen from: a caller holding a handle to a
+            looping sound whose voice was reclaimed for something more urgent must not later stop or re-aim
+            whatever took its place. A stale handle is ignored.
+            </para>
+            <para>
+            The original has the same hazard and does not guard against it — its callers keep a raw pointer into
+            the 32-voice array, for instance the per-task sound handle at <c>HumanAI+16032</c>. Guarding is a
+            deliberate divergence; it buys a class of bug that then cannot exist.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioVoiceHandle.Value">
+            <summary>The opaque identifier; zero is the null handle.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioVoiceHandle.None">
+            <summary>Gets the handle that refers to no voice.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.AudioVoiceHandle.IsValidHandle">
+            <summary>Gets a value indicating whether the handle refers to a voice.</summary>
+        </member>
+        <member name="T:OpenIGI.Audio.AudioVolumeCurve">
+            <summary>
+            The original's gain curve — the table <c>Snd_Init</c> builds before it touches DirectSound, and the
+            thing that makes the game's volume sliders feel the way they do.
+            </summary>
+            <remarks>
+            <para>
+            <c>0x4952F0</c> fills 10001 entries at <c>0x67A4A0</c>, indexed by <c>gain × 10000</c>. Each entry is
+            <c>trunc(ln(gain) × 1442.695040888849)</c>, clamped to <c>[−10000, 0]</c>, written backwards from the
+            last entry down; entry zero is stored as the floor before the loop rather than computed.
+            </para>
+            <para>
+            <b>The unit is not decibels, and that is the interesting part.</b> The constant is
+            <c>1000 / ln(2)</c>, so the entry is <c>1000 × log2(gain)</c> — one thousand units per halving. The
+            value is then handed straight to <c>IDirectSoundBuffer::SetVolume</c>, which reads it as hundredths
+            of a decibel. A halving therefore attenuates by <b>10 dB</b> where true amplitude decibels would give
+            6.02, so the original's curve is about <c>1.66×</c> steeper than a dB curve. Sounds fall away faster
+            than a straight port of "gain to dB" would make them, and a mix built on the arithmetically correct
+            curve is audibly wrong. The floor, −10000, is reached at a gain of <c>2^−10</c> ≈ 0.00098.
+            </para>
+            <para>
+            It matters that this is a <em>table</em> and not a formula: the original quantises the gain to one of
+            10001 steps before taking the logarithm, so two gains differing in the fifth decimal produce exactly
+            the same attenuation. Reproducing the quantisation is what makes the vanilla profile match rather
+            than merely resemble.
+            </para>
+            <para>
+            The curve is also how a pan becomes an attenuation: the original puts <c>1 − |pan|</c> through the
+            same table and signs the result.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioVolumeCurve.EntryCount">
+            <summary>The number of entries in the original's table.</summary>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioVolumeCurve.MinimumMillibels">
+            <summary>The floor the original clamps to, and the value DirectSound treats as silence.</summary>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioVolumeCurve.MaximumMillibels">
+            <summary>Full scale.</summary>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioVolumeCurve.UnitsPerHalving">
+            <summary>How far the curve falls per halving of gain: one thousand units, or 10 dB as DirectSound reads them.</summary>
+        </member>
+        <member name="F:OpenIGI.Audio.AudioVolumeCurve.NaturalLogScale">
+            <summary>
+            The literal at <c>0x4952F0</c>, which scales a <em>natural</em> logarithm. It is
+            <c><see cref="F:OpenIGI.Audio.AudioVolumeCurve.UnitsPerHalving"/> / ln(2)</c>.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Audio.AudioVolumeCurve.ToMillibels(System.Single)">
+            <summary>Converts a linear gain to the original's attenuation units.</summary>
+            <param name="gain">A linear gain. Values outside zero to one are clamped.</param>
+            <returns>The attenuation, between <see cref="F:OpenIGI.Audio.AudioVolumeCurve.MinimumMillibels"/> and zero.</returns>
+            <remarks>
+            The original indexes the table without a bounds check, relying on its callers to have clamped the
+            gain to zero-to-one first. Clamping here instead is a deliberate divergence: it turns a class of
+            caller mistake from a wild read into an inaudible one.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.AudioVolumeCurve.ToGain(System.Int32)">
+            <summary>Converts the original's attenuation units back to a linear gain.</summary>
+            <param name="millibels">An attenuation in the units <see cref="M:OpenIGI.Audio.AudioVolumeCurve.ToMillibels(System.Single)"/> produces.</param>
+            <returns>The equivalent linear gain, between zero and one.</returns>
+            <remarks>
+            Exact rather than tabulated. This exists for the enhanced profile, whose mixer wants linear
+            amplitude, and it is what carries the original's steeper-than-decibels shape across to it.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.AudioVolumeCurve.Quantise(System.Single)">
+            <summary>Puts a linear gain through the curve and back, giving the gain the original would use.</summary>
+            <param name="gain">A linear gain.</param>
+            <returns>The quantised gain.</returns>
+            <remarks>This is the shortest way for a non-DirectSound backend to inherit the original's loudness.</remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.AudioVolumeCurve.PanToMillibels(System.Single,System.Boolean)">
+            <summary>Converts a pan position to the signed value the original hands to <c>SetPan</c>.</summary>
+            <param name="pan">The pan, −1 hard left to +1 hard right. Values outside are clamped.</param>
+            <param name="reverseStereo">Whether the profile's reverse-stereo option is on.</param>
+            <returns>
+            The pan in the same units, signed: DirectSound attenuates the left channel for a positive value
+            and the right for a negative one.
+            </returns>
+            <remarks>
+            Transcribed from <c>0x496E60</c>: the magnitude is the curve of <c>1 − |pan|</c> and the sign is
+            the sign of the pan, flipped when the reverse-stereo global <c>0x543914</c> is set.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Audio.FilteredLoopSource">
+            <summary>
+            One tap on a shared, endlessly looping block of mono PCM, low-passed by an amount the game moves
+            while the tap is sounding.
+            </summary>
+            <remarks>
+            <para>
+            This exists for the continuous beds — rain above all — where the same recording has to be heard
+            from several directions at once and each direction has to sound like the path it took to get here.
+            Rain arriving through an open door is the recording; the same rain arriving through the wall beside
+            it is the recording with its top three octaves gone. A resident buffer cannot express that, because
+            the device offers gain and pitch and nothing else, so the filtering is done here, on the samples,
+            as they are pulled.
+            </para>
+            <para>
+            <b>The PCM is shared and never copied.</b> Every tap holds the same <see cref="T:System.ReadOnlyMemory`1"/>
+            and only its own read cursor, so a two-megabyte loop costs two megabytes however many directions
+            are sounding. Giving each tap a different starting frame is what keeps them from being the same
+            signal six times over: six copies of one waveform sum coherently and collapse to a point between
+            the speakers, where six different stretches of the same rain sum incoherently and stay spread out.
+            </para>
+            <para>
+            <b>The cutoff is smoothed towards its target rather than assigned.</b> A filter coefficient stepped
+            once a frame is a click once a frame; approached over a fifth of a second it is a door opening.
+            Because the smoothing runs per sample inside <see cref="M:OpenIGI.Audio.FilteredLoopSource.Read(System.Span{System.Int16})"/>, a caller may set
+            <see cref="P:OpenIGI.Audio.FilteredLoopSource.CutoffHz"/> as often as it likes and never hear the individual steps.
+            </para>
+            <para>
+            <b>Latency.</b> A gain change reaches the ear at once, because gain belongs to the device's own
+            source; a cutoff change reaches it only when the buffers already queued ahead of it have played,
+            which is a quarter of a second at the device's default queue depth. That is the right way round:
+            level is what a listener notices being late, and a doorway takes longer than a quarter second to
+            walk through in any case.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.FilteredLoopSource.OpenCutoffHz">
+            <summary>The cutoff that means "do not filter at all", in hertz.</summary>
+            <remarks>
+            At or above the sample rate's Nyquist frequency the coefficient is exactly zero and both poles
+            pass their input through unchanged, so an outdoor tap is bit-for-bit the recording rather than
+            the recording through a filter that is merely wide. Callers blending towards "open" should
+            blend towards this value.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.FilteredLoopSource.MinimumCutoffHz">
+            <summary>The lowest cutoff a caller may ask for, in hertz.</summary>
+            <remarks>
+            Below this the bed stops being muffled rain and starts being a hum with no rain in it at all.
+            Concrete and rain together do not get duller than this in life either.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.FilteredLoopSource.#ctor(System.ReadOnlyMemory{System.Int16},System.Int32,System.Int32,System.Single,System.Single)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Audio.FilteredLoopSource"/> class.</summary>
+            <param name="pcm">The shared mono 16-bit PCM to loop. It is read, never written or copied.</param>
+            <param name="sampleRate">The rate <paramref name="pcm"/> was recorded at, in hertz.</param>
+            <param name="startFrame">Where in the loop this tap begins; wrapped into range.</param>
+            <param name="cutoffHz">The cutoff to start at, so a tap does not audibly open as it fades in.</param>
+            <param name="smoothingSeconds">How long the cutoff takes to travel most of the way to a new target.</param>
+            <exception cref="T:System.ArgumentException"><paramref name="pcm"/> is empty.</exception>
+            <exception cref="T:System.ArgumentOutOfRangeException">The rate or the smoothing time is not positive.</exception>
+        </member>
+        <member name="P:OpenIGI.Audio.FilteredLoopSource.Format">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Audio.FilteredLoopSource.CanRestart">
+            <inheritdoc/>
+            <remarks>
+            True, though nothing will call it: <see cref="M:OpenIGI.Audio.FilteredLoopSource.Read(System.Span{System.Int16})"/> never reports a short fill, because the
+            loop has no end to run off.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Audio.FilteredLoopSource.CutoffHz">
+            <summary>Gets or sets the low-pass cutoff this tap is heading towards, in hertz.</summary>
+            <remarks>
+            Clamped into <see cref="F:OpenIGI.Audio.FilteredLoopSource.MinimumCutoffHz"/> … <see cref="F:OpenIGI.Audio.FilteredLoopSource.OpenCutoffHz"/>. Set from the game
+            thread and read from whichever thread is pumping the device, so it goes through
+            <see cref="T:System.Threading.Volatile"/> in both directions; a torn float here would be a single wrong
+            coefficient the smoothing would swallow anyway, but the contract is cheap to honour.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.FilteredLoopSource.SnapCutoff(System.Single)">
+            <summary>Puts the cutoff at a value immediately, with no glide.</summary>
+            <param name="cutoffHz">The cutoff, in hertz.</param>
+            <remarks>
+            For the frame a tap starts on, where there is no previous value to glide from and the smoothing
+            would otherwise be heard as the sound opening up over its first fifth of a second.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.FilteredLoopSource.Read(System.Span{System.Int16})">
+            <inheritdoc/>
+            <remarks>
+            Always fills the whole span: the cursor wraps rather than stopping, so the device's stream pump
+            never sees a short read and never has to call <see cref="M:OpenIGI.Audio.FilteredLoopSource.Restart"/>. Wrapping mid-buffer is
+            silent because the loop the caller supplies is crossfaded closed — see the rain asset's own
+            preparation notes.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.FilteredLoopSource.Restart">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.FilteredLoopSource.Dispose">
+            <inheritdoc/>
+            <remarks>Nothing is owned: the PCM belongs to whoever handed it over and outlives every tap.</remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.FilteredLoopSource.CoefficientFor(System.Single,System.Int32)">
+            <summary>Turns a cutoff frequency into the one-pole coefficient that realises it.</summary>
+            <param name="cutoffHz">The cutoff, in hertz.</param>
+            <param name="sampleRate">The sample rate, in hertz.</param>
+            <returns>The coefficient, zero (no filtering) to just under one.</returns>
+            <remarks>
+            The impulse-invariant form, <c>exp(-2*pi*fc/fs)</c>, which keeps the cutoff honest across the
+            range that matters here — a few hundred hertz to a few kilohertz. At and above Nyquist it is
+            forced to exactly zero rather than to the 0.043 the formula gives, so that "open" really is
+            open; the half-decibel step that removes at eight kilohertz is smoothed like any other move.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.FilteredLoopSource.CutoffFor(System.Single,System.Int32)">
+            <summary>Turns a one-pole coefficient back into the cutoff it stands for.</summary>
+            <param name="coefficient">The coefficient, zero to just under one.</param>
+            <param name="sampleRate">The sample rate, in hertz.</param>
+            <returns>The cutoff, in hertz.</returns>
+        </member>
+        <member name="T:OpenIGI.Audio.IAudioDevice">
+            <summary>
+            The seam between the game and whatever is making noise — the audio counterpart of
+            <c>IGraphicsDevice</c>.
+            </summary>
+            <remarks>
+            <para>
+            <c>OpenIGI.Engine</c> and <c>OpenIGI.Game</c> talk to this and never to a backend. The backend is
+            chosen in the composition root — OpenAL in <c>apps/OpenIGI.Desktop</c>, the Web Audio API in
+            <c>apps/OpenIGI.Web</c> — exactly as the renderer is.
+            </para>
+            <para>
+            The model is the original's, generalised only where it had to be. There is a fixed pool of voices —
+            the original allocates 32 of 76 bytes each in <c>Snd_Init</c> <c>0x4952F0</c> — and a request that
+            finds none free either steals a less important one or is dropped. Buffers are shared, so the same
+            sound backs any number of voices at once.
+            </para>
+            <para>
+            Everything here is called from the game thread. A device that needs a worker of its own — a streaming
+            pump, for instance — owns it privately and must not call back into game code.
+            </para>
+            <para>
+            <b>A device is always usable.</b> When no hardware can be opened, the implementation degrades to
+            silence rather than throwing: <see cref="P:OpenIGI.Audio.IAudioDevice.IsAvailable"/> goes <see langword="false"/> and every call
+            still succeeds. A machine with no sound card must boot, play and pass its tests.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Audio.IAudioDevice.IsAvailable">
+            <summary>Gets a value indicating whether real hardware is behind this device.</summary>
+            <remarks>
+            <see langword="false"/> means the device is a working silence — the game runs, the calls all
+            succeed and nothing is heard.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Audio.IAudioDevice.VoiceCount">
+            <summary>Gets the number of voices that can sound at once.</summary>
+            <remarks>The original's number is 32. The enhanced profile raises it; the vanilla profile does not.</remarks>
+        </member>
+        <member name="P:OpenIGI.Audio.IAudioDevice.ActiveVoiceCount">
+            <summary>Gets the number of voices currently sounding.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.IAudioDevice.Listener">
+            <summary>Gets or sets where the listener is and which way it faces.</summary>
+        </member>
+        <member name="M:OpenIGI.Audio.IAudioDevice.SetCategoryGain(OpenIGI.Audio.SoundCategory,System.Single)">
+            <summary>Sets the gain of one mixing bus.</summary>
+            <param name="category">The bus.</param>
+            <param name="gain">The linear gain, zero to one.</param>
+            <remarks>These are the player profile's own volume settings, applied as the original applies them.</remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.IAudioDevice.SetTimeWarp(System.Single,System.Single)">
+            <summary>Slows and muffles every voice at once, the music with the rest: the world heard as if time had slowed.</summary>
+            <param name="pitch">The rate every voice plays at, against its own: one is untouched, a half an octave down.</param>
+            <param name="muffle">How muffled every voice is, nought (clear) to one (as through glass).</param>
+            <remarks><b>Not retail</b>: the remaster's weapon wheel slows the world. A device that cannot does nothing.</remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.IAudioDevice.GetCategoryGain(OpenIGI.Audio.SoundCategory)">
+            <summary>Gets the gain of one mixing bus.</summary>
+            <param name="category">The bus.</param>
+            <returns>The linear gain.</returns>
+        </member>
+        <member name="M:OpenIGI.Audio.IAudioDevice.CreateBuffer(OpenIGI.Audio.AudioFormat,System.ReadOnlySpan{System.Byte})">
+            <summary>Uploads PCM the device will keep until it is destroyed.</summary>
+            <param name="format">The shape of <paramref name="pcm"/>.</param>
+            <param name="pcm">The samples, channel-interleaved.</param>
+            <returns>A handle to the buffer, or <see cref="P:OpenIGI.Audio.AudioBufferHandle.None"/> when the device is unavailable.</returns>
+            <exception cref="T:System.ArgumentException"><paramref name="format"/> is not one the device accepts.</exception>
+        </member>
+        <member name="M:OpenIGI.Audio.IAudioDevice.DestroyBuffer(OpenIGI.Audio.AudioBufferHandle)">
+            <summary>Releases a buffer.</summary>
+            <param name="buffer">The buffer to release; an unknown handle is ignored.</param>
+            <remarks>Voices still playing the buffer are stopped first.</remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.IAudioDevice.Play(OpenIGI.Audio.AudioBufferHandle,OpenIGI.Audio.VoiceParameters@)">
+            <summary>Starts a resident sound on a voice.</summary>
+            <param name="buffer">The buffer to play.</param>
+            <param name="parameters">How to play it.</param>
+            <returns>
+            A handle to the voice, or <see cref="P:OpenIGI.Audio.AudioVoiceHandle.None"/> when no voice was free and none
+            could be stolen.
+            </returns>
+        </member>
+        <member name="M:OpenIGI.Audio.IAudioDevice.PlayStream(OpenIGI.Audio.ISampleSource,OpenIGI.Audio.VoiceParameters@)">
+            <summary>Starts a streamed sound on a voice.</summary>
+            <param name="source">The source to play. The device takes ownership and disposes it when the voice ends.</param>
+            <param name="parameters">How to play it.</param>
+            <returns>
+            A handle to the voice, or <see cref="P:OpenIGI.Audio.AudioVoiceHandle.None"/> when no voice was free — in which
+            case <paramref name="source"/> is disposed.
+            </returns>
+        </member>
+        <member name="M:OpenIGI.Audio.IAudioDevice.IsPlaying(OpenIGI.Audio.AudioVoiceHandle)">
+            <summary>Determines whether a voice is still sounding.</summary>
+            <param name="voice">The voice; a stale or unknown handle reads as not playing.</param>
+            <returns><see langword="true"/> while the voice sounds.</returns>
+        </member>
+        <member name="M:OpenIGI.Audio.IAudioDevice.SetVoiceParameters(OpenIGI.Audio.AudioVoiceHandle,OpenIGI.Audio.VoiceParameters@)">
+            <summary>Re-aims a sounding voice.</summary>
+            <param name="voice">The voice; a stale or unknown handle is ignored.</param>
+            <param name="parameters">The new parameters.</param>
+            <remarks>
+            This is the per-tick call for anything that moves. The original does the same work in
+            <c>0x496E60</c>, recomputing gain, pan and frequency for every sounding voice.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.IAudioDevice.StopVoice(OpenIGI.Audio.AudioVoiceHandle)">
+            <summary>Stops a voice and frees it.</summary>
+            <param name="voice">The voice; a stale or unknown handle is ignored.</param>
+        </member>
+        <member name="M:OpenIGI.Audio.IAudioDevice.StopAll">
+            <summary>Stops every voice.</summary>
+            <remarks>Used on mission teardown, where the original tears down its whole voice array.</remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.IAudioDevice.Update">
+            <summary>Advances the device: retires finished voices and feeds streams.</summary>
+            <remarks>Called once a frame from the game thread.</remarks>
+        </member>
+        <member name="T:OpenIGI.Audio.IAudioDeviceFactory">
+            <summary>Opens the audio backend a host runs against.</summary>
+            <remarks>
+            <para>
+            A factory rather than a device, because the device is re-opened whenever the voice count or the
+            output rate changes and both are fixed at open time: the host disposes the previous device and asks
+            for a new one with the current options.
+            </para>
+            <para>
+            This is the seam that keeps the host free of a backend. The host holds an
+            <see cref="T:OpenIGI.Audio.IAudioDevice"/> and asks a factory for it; only the app composition root names a concrete
+            backend. A host with none is given <see cref="T:OpenIGI.Audio.NullAudioDeviceFactory"/>, which is what a headless
+            test and a machine with no sound hardware both want — and is why no caller has to handle a device
+            that would not open.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.IAudioDeviceFactory.Open(OpenIGI.Audio.AudioDeviceOptions,OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <summary>Opens a device with the given options.</summary>
+            <param name="options">The voice count, output rate and spatialisation to open with.</param>
+            <param name="logger">Where the backend reports what it opened, or why it could not.</param>
+            <returns>The device, which the caller disposes.</returns>
+            <remarks>
+            A backend that cannot open returns a silent device rather than throwing, because the game runs
+            either way and a missing sound card is not a reason to refuse to start.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Audio.ISampleSource">
+            <summary>A source of PCM the device pulls from a buffer at a time.</summary>
+            <remarks>
+            <para>
+            This is the seam the original's streamed storage formats need. A sound stored as
+            <c>StreamedPcm</c> or <c>StreamedAdpcm</c> is never resident — the loader keeps only its file name —
+            because the long ones are the music track and the ambience beds, and a retail track is about
+            thirteen megabytes expanded.
+            </para>
+            <para>
+            Implementations are pulled from the device's own thread rather than the game thread, so an
+            implementation must not touch game state. It is read by exactly one thread at a time.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Audio.ISampleSource.Format">
+            <summary>Gets the shape of the PCM this source produces.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.ISampleSource.CanRestart">
+            <summary>Gets a value indicating whether the source can be rewound to its start.</summary>
+        </member>
+        <member name="M:OpenIGI.Audio.ISampleSource.Read(System.Span{System.Int16})">
+            <summary>Fills <paramref name="destination"/> with the next samples.</summary>
+            <param name="destination">Receives channel-interleaved 16-bit samples.</param>
+            <returns>The number of samples written, or zero at the end of the source.</returns>
+        </member>
+        <member name="M:OpenIGI.Audio.ISampleSource.Restart">
+            <summary>Rewinds to the start so the source can loop.</summary>
+            <exception cref="T:System.NotSupportedException"><see cref="P:OpenIGI.Audio.ISampleSource.CanRestart"/> is <see langword="false"/>.</exception>
+        </member>
+        <member name="T:OpenIGI.Audio.MixBuses">
+            <summary>The four mixing buses a device levels its voices through, and the original's loudness curve.</summary>
+            <remarks>
+            <para>
+            One linear gain per <see cref="T:OpenIGI.Audio.SoundCategory"/>, which is the player profile's own volume settings
+            as the host pushes them. A device that has buses of its own (a graph with a gain node per bus)
+            mirrors these onto them; one that has none (OpenAL) folds the bus gain into each voice.
+            </para>
+            <para>
+            <see cref="M:OpenIGI.Audio.MixBuses.Level(System.Single,OpenIGI.Audio.SoundCategory)"/> is where a voice's gain becomes the original's: it goes through
+            <see cref="T:OpenIGI.Audio.AudioVolumeCurve"/>, whose 10001-entry table in a thousand units per halving is
+            appreciably steeper than decibels. The quantisation is the point — it is what carries the original's
+            loudness shape onto a backend that has never heard of DirectSound.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.MixBuses.Set(OpenIGI.Audio.SoundCategory,System.Single)">
+            <summary>Sets the gain of one bus.</summary>
+            <param name="category">The bus.</param>
+            <param name="gain">The linear gain, clamped to zero to one.</param>
+        </member>
+        <member name="M:OpenIGI.Audio.MixBuses.Get(OpenIGI.Audio.SoundCategory)">
+            <summary>Gets the gain of one bus.</summary>
+            <param name="category">The bus.</param>
+            <returns>The linear gain.</returns>
+        </member>
+        <member name="M:OpenIGI.Audio.MixBuses.Quantise(System.Single)">
+            <summary>Puts a voice gain through the original's curve.</summary>
+            <param name="gain">The voice's own gain, zero to one.</param>
+            <returns>The quantised linear gain, before any bus gain.</returns>
+        </member>
+        <member name="M:OpenIGI.Audio.MixBuses.Level(System.Single,OpenIGI.Audio.SoundCategory)">
+            <summary>Puts a voice gain through the original's curve, then through its bus.</summary>
+            <param name="gain">The voice's own gain, zero to one.</param>
+            <param name="category">The bus it plays on.</param>
+            <returns>The linear gain to give the backend for the voice.</returns>
+        </member>
+        <member name="T:OpenIGI.Audio.NullAudioDevice">
+            <summary>An audio device that accepts everything and makes no sound.</summary>
+            <remarks>
+            <para>
+            The null object the rest of the engine defaults to, in the same spirit as the renderer's null
+            scheduler. It is what runs on a machine with no sound hardware, in continuous integration, and in
+            every headless test — so no call site needs to ask whether audio exists.
+            </para>
+            <para>
+            It still hands out real handles and tracks how many voices are notionally sounding, so a caller that
+            checks <see cref="M:OpenIGI.Audio.NullAudioDevice.IsPlaying(OpenIGI.Audio.AudioVoiceHandle)"/> before starting a looping sound behaves the same silently as it does
+            aloud. Voices retire on the next <see cref="M:OpenIGI.Audio.NullAudioDevice.Update"/>, since nothing is timing them.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.NullAudioDevice.Instance">
+            <summary>The shared instance.</summary>
+        </member>
+        <member name="M:OpenIGI.Audio.NullAudioDevice.#ctor">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Audio.NullAudioDevice"/> class.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.NullAudioDevice.IsAvailable">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Audio.NullAudioDevice.VoiceCount">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Audio.NullAudioDevice.ActiveVoiceCount">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Audio.NullAudioDevice.Listener">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.NullAudioDevice.SetCategoryGain(OpenIGI.Audio.SoundCategory,System.Single)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.NullAudioDevice.GetCategoryGain(OpenIGI.Audio.SoundCategory)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.NullAudioDevice.CreateBuffer(OpenIGI.Audio.AudioFormat,System.ReadOnlySpan{System.Byte})">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.NullAudioDevice.DestroyBuffer(OpenIGI.Audio.AudioBufferHandle)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.NullAudioDevice.Play(OpenIGI.Audio.AudioBufferHandle,OpenIGI.Audio.VoiceParameters@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.NullAudioDevice.PlayStream(OpenIGI.Audio.ISampleSource,OpenIGI.Audio.VoiceParameters@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.NullAudioDevice.IsPlaying(OpenIGI.Audio.AudioVoiceHandle)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.NullAudioDevice.SetVoiceParameters(OpenIGI.Audio.AudioVoiceHandle,OpenIGI.Audio.VoiceParameters@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.NullAudioDevice.StopVoice(OpenIGI.Audio.AudioVoiceHandle)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.NullAudioDevice.StopAll">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.NullAudioDevice.Update">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.NullAudioDevice.Dispose">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Audio.NullAudioDeviceFactory">
+            <summary>A factory that opens silent devices.</summary>
+            <remarks>
+            The default a host is given when no backend is wired in — headless tests, continuous integration,
+            and the <c>-nosound</c> path. Each call returns a fresh <see cref="T:OpenIGI.Audio.NullAudioDevice"/> rather than
+            the shared instance, so a host that disposes the device it was handed does not silence a later one.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.NullAudioDeviceFactory.Instance">
+            <summary>The shared instance.</summary>
+        </member>
+        <member name="M:OpenIGI.Audio.NullAudioDeviceFactory.Open(OpenIGI.Audio.AudioDeviceOptions,OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Audio.SoundCategory">
+            <summary>The mixing bus a sound belongs to.</summary>
+            <remarks>
+            <para>
+            The original has three user-facing volumes — effects, music and speech — stored per player profile
+            and applied as plain gain multipliers inside the voice update <c>0x496E60</c>: a flag bit on the
+            voice selects between one global (<c>0x54390C</c>) and the product of two (<c>0x543908</c> ×
+            <c>0x543904</c>).
+            </para>
+            <para>
+            <see cref="F:OpenIGI.Audio.SoundCategory.Ambience"/> has no counterpart in the original, which mixes the level's beds in with the
+            effects. It is split out because the enhanced mix ducks and limits the buses separately, and folding
+            a continuous bed into the same bus as gunfire makes both worse. Under the vanilla profile it takes
+            the effects gain, so the split is inaudible there.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.SoundCategory.Effects">
+            <summary>Weapons, footsteps, doors, impacts — everything the original calls a sound effect.</summary>
+        </member>
+        <member name="F:OpenIGI.Audio.SoundCategory.Music">
+            <summary>The mission score and the menu theme.</summary>
+        </member>
+        <member name="F:OpenIGI.Audio.SoundCategory.Speech">
+            <summary>Voice lines, including the ones a subtitle transcribes.</summary>
+        </member>
+        <member name="F:OpenIGI.Audio.SoundCategory.Ambience">
+            <summary>Continuous level beds. Folded into <see cref="F:OpenIGI.Audio.SoundCategory.Effects"/> under the vanilla profile.</summary>
+        </member>
+        <member name="T:OpenIGI.Audio.VanillaSpatialiser">
+            <summary>
+            The original's positional audio, exactly as it computed it: a linear distance rolloff and a pan,
+            folded into the gain and balance of an otherwise flat stereo voice.
+            </summary>
+            <remarks>
+            <para>
+            Transcribed from the voice update <c>0x496E60</c>. <b>The original is not DirectSound3D.</b> Its
+            primary buffer is created with flags <c>0x9</c> and its sample buffers with <c>0x100E8</c> — neither
+            carries <c>DSBCAPS_CTRL3D</c>. Every sound in the game is a mono or stereo buffer whose apparent
+            position is hand-computed into volume, pan and playback frequency, three times a tick. This class is
+            that computation, and it is what the vanilla profile uses instead of letting OpenAL position
+            anything.
+            </para>
+            <para>
+            Two details of it are worth stating because they are not what a modern engine would do:
+            </para>
+            <list type="number">
+            <item><description>
+            The distance rolloff is <b>linear</b> between the two distances, not inverse-square and not
+            inverse-clamped. A source is at full gain inside the minimum distance, fades on a straight line to
+            silence at the maximum, and is cut entirely beyond it.
+            </description></item>
+            <item><description>
+            The pan is <c>localX / (minimum + maximum)</c> — the lateral offset over the <em>sum</em> of the two
+            distances. Distance cancels out of it entirely, so a source ten metres to the left pans exactly as
+            hard whether it is ten metres away or fifty. It is not a direction; it is a lateral offset measured
+            against a fixed scale.
+            </description></item>
+            </list>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.VanillaSpatialiser.Spatialise(OpenIGI.Audio.VoiceParameters@,OpenIGI.Audio.AudioListenerState@)">
+            <summary>The gain and pan the original would give a positional voice.</summary>
+            <param name="parameters">The voice, whose <see cref="P:OpenIGI.Audio.VoiceParameters.Gain"/> is the starting gain.</param>
+            <param name="listener">Where the listener is and which way it faces.</param>
+            <returns>The gain after distance, and the pan, both already clamped.</returns>
+        </member>
+        <member name="M:OpenIGI.Audio.VanillaSpatialiser.DistanceGain(System.Single,System.Double,System.Single,System.Single)">
+            <summary>Applies the original's linear distance rolloff to a gain.</summary>
+            <param name="gain">The voice's own gain.</param>
+            <param name="distance">The distance from listener to source, in metres.</param>
+            <param name="minimumDistance">The distance within which gain is untouched.</param>
+            <param name="maximumDistance">The distance beyond which the voice is silent.</param>
+            <returns>The attenuated gain, clamped to zero-to-one.</returns>
+        </member>
+        <member name="M:OpenIGI.Audio.VanillaSpatialiser.Pan(OpenIGI.Core.Numerics.Vector3d,System.Double,System.Single,System.Single,OpenIGI.Audio.AudioListenerState@)">
+            <summary>Computes the original's pan for a source at <paramref name="delta"/> from the listener.</summary>
+            <param name="delta">The source position minus the listener position, in metres.</param>
+            <param name="distance">The length of <paramref name="delta"/>.</param>
+            <param name="minimumDistance">The voice's minimum distance.</param>
+            <param name="maximumDistance">The voice's maximum distance.</param>
+            <param name="listener">The listener, whose orientation defines the lateral axis.</param>
+            <returns>The pan, −1 hard left to +1 hard right.</returns>
+        </member>
+        <member name="M:OpenIGI.Audio.VanillaSpatialiser.ClampPitch(System.Single)">
+            <summary>Clamps a pitch to the range the original's frequency control allows.</summary>
+            <param name="pitch">The requested rate multiplier.</param>
+            <returns>The pitch, clamped to 0.5 – 2.0.</returns>
+            <remarks>
+            The bounds are literals in <c>0x496E60</c>, applied just before the rate is multiplied by the
+            sound's own sample rate and handed to <c>SetFrequency</c>.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Audio.VoiceParameters">
+            <summary>Everything the device needs to know about one playing sound.</summary>
+            <remarks>
+            <para>
+            Distances are in <b>metres</b>, matching <see cref="T:OpenIGI.Audio.AudioListenerState"/>. The original stores them
+            in metres too and multiplies by 4096 in the voice update to compare against engine-unit positions;
+            keeping both sides in metres removes the conversion without changing any ratio, because every use of
+            the two distances in <c>0x496E60</c> is a ratio.
+            </para>
+            <para>
+            A voice is either positional or not. A positional voice takes <see cref="P:OpenIGI.Audio.VoiceParameters.Position"/> and the two
+            distances and has its gain and pan derived; a flat one takes <see cref="P:OpenIGI.Audio.VoiceParameters.Pan"/> as given. The original
+            draws the same line with two flag bits on the voice record — <c>0x2</c> selects positional and
+            <c>0x4</c> suppresses panning altogether.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceParameters.Category">
+            <summary>Gets the bus this voice mixes into.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceParameters.Gain">
+            <summary>Gets the voice's own linear gain before category and distance are applied, zero to one.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceParameters.Pitch">
+            <summary>Gets the playback rate multiplier. The original clamps this to 0.5 – 2.0.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceParameters.Pan">
+            <summary>Gets the pan for a non-positional voice, −1 hard left to +1 hard right.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceParameters.IsPositional">
+            <summary>Gets a value indicating whether gain and pan are derived from <see cref="P:OpenIGI.Audio.VoiceParameters.Position"/>.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceParameters.Position">
+            <summary>Gets the source position in metres.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceParameters.Velocity">
+            <summary>Gets the source velocity in metres per second, used only when doppler is enabled.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceParameters.MinimumDistance">
+            <summary>Gets the distance in metres within which the voice plays at full gain.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceParameters.MaximumDistance">
+            <summary>Gets the distance in metres beyond which the voice is silent.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceParameters.Looping">
+            <summary>Gets a value indicating whether the voice repeats when it reaches the end.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceParameters.Priority">
+            <summary>Gets the voice's importance when the pool is full; a higher value survives.</summary>
+            <remarks>
+            The original has a fixed pool of 32 and no explicit priority — a request that finds no free voice
+            simply does not play. Priority is a divergence, and it buys the thing the fixed pool costs: a
+            firefight full of distant rifle cracks can no longer silence the player's own weapon.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceParameters.Default">
+            <summary>Gets a set of sensible defaults: a flat, centred, non-looping effect at full gain.</summary>
+        </member>
+        <member name="M:OpenIGI.Audio.VoiceParameters.At(OpenIGI.Core.Numerics.Vector3d,System.Single,System.Single)">
+            <summary>Returns these parameters with the position and distance range of a positional voice.</summary>
+            <param name="position">The source position in metres.</param>
+            <param name="minimumDistance">The distance within which gain is not reduced.</param>
+            <param name="maximumDistance">The distance beyond which the voice is silent.</param>
+            <returns>The positional parameters.</returns>
+        </member>
+        <member name="T:OpenIGI.Audio.VoicePool">
+            <summary>Makes voice pools.</summary>
+        </member>
+        <member name="M:OpenIGI.Audio.VoicePool.Empty``1">
+            <summary>Makes an empty pool, for a device that opened nothing.</summary>
+            <typeparam name="TVoice">The backend's slot type.</typeparam>
+            <returns>A pool with no voices.</returns>
+        </member>
+        <member name="T:OpenIGI.Audio.VoicePool`1">
+            <summary>A device's fixed pool of voices: allocation, stealing, handles and stream refills.</summary>
+            <typeparam name="TVoice">The backend's slot type.</typeparam>
+            <remarks>
+            <para>
+            The model is the original's — a fixed number of voices allocated once (<c>Snd_Init</c>
+            <c>0x4952F0</c> makes 32) and reused for the life of the device — with the bookkeeping every backend
+            needs done once here: which slots are free, which to steal, what a handle encodes, and how a stream
+            is refilled. A backend supplies the two things only it knows: how to make a slot of its own kind
+            and how to silence one.
+            </para>
+            <para>
+            A handle packs the slot index and its generation, so a handle to a voice that has since been stolen
+            resolves to nothing rather than to whatever took its place.
+            </para>
+            <para>
+            Not thread-safe. The device that owns the pool is called from the game thread only, and keeps its own
+            lock where it wants one.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.VoicePool`1.#ctor(System.Int32,System.Func{System.Int32,`0},System.Action{`0})">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Audio.VoicePool`1"/> class.</summary>
+            <param name="count">How many voices to make; fewer than one makes an empty pool.</param>
+            <param name="create">Makes the slot at an index.</param>
+            <param name="silence">Stops whatever a slot is sounding, before the pool clears it for reuse.</param>
+        </member>
+        <member name="P:OpenIGI.Audio.VoicePool`1.Count">
+            <summary>Gets the number of voices.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoicePool`1.ActiveCount">
+            <summary>Gets the number of voices in use.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoicePool`1.Voices">
+            <summary>Gets every voice, in slot order.</summary>
+        </member>
+        <member name="M:OpenIGI.Audio.VoicePool`1.Acquire(System.Int32)">
+            <summary>Finds a free slot, or steals the least important active one.</summary>
+            <param name="priority">The priority of the sound that wants a voice.</param>
+            <returns>An active slot, or <see langword="null"/> when none was free and none could be stolen.</returns>
+            <remarks>
+            The original has no equivalent: with all 32 of its voices busy, whatever asked next simply does
+            not play, however important it was. Stealing is a divergence, and it is the reason the player's
+            own weapon cannot be silenced by a crowd of distant ones. A slot is stolen only from a strictly
+            less important sound; an equal one keeps its voice.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.VoicePool`1.TryResolve(OpenIGI.Audio.AudioVoiceHandle,`0@)">
+            <summary>Resolves a handle to the voice it names, if that voice is still the one it named.</summary>
+            <param name="handle">The handle; a stale or unknown one resolves to nothing.</param>
+            <param name="voice">The voice, when it resolved.</param>
+            <returns><see langword="true"/> when the handle names an active voice of the same generation.</returns>
+        </member>
+        <member name="M:OpenIGI.Audio.VoicePool`1.Retire(`0)">
+            <summary>Silences a voice and frees its slot.</summary>
+            <param name="voice">The voice.</param>
+            <remarks>Its stream, if any, is disposed: the device owns a stream it was handed.</remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.VoicePool`1.RetireAll">
+            <summary>Silences and frees every active voice.</summary>
+        </member>
+        <member name="M:OpenIGI.Audio.VoicePool`1.FillStreamBuffer(`0)">
+            <summary>Pulls one in-flight buffer's worth of samples from a streaming voice.</summary>
+            <param name="voice">The voice.</param>
+            <returns>
+            The samples, channel-interleaved at the stream's format, valid until the next call; empty when
+            the stream is finished.
+            </returns>
+        </member>
+        <member name="T:OpenIGI.Audio.VoiceSlot">
+            <summary>One slot in a device's fixed voice pool.</summary>
+            <remarks>
+            <para>
+            The part of a voice that every backend has: which sound it is playing, how, and whether it is in
+            use. A backend derives from it to add what only it needs — an OpenAL source name, say — and hands
+            the pool a factory for its own kind.
+            </para>
+            <para>
+            <see cref="P:OpenIGI.Audio.VoiceSlot.Generation"/> is what makes a stale handle harmless. It increases every time the slot is
+            reused, so a caller holding a handle to a voice that has since been stolen finds the generation no
+            longer matches and its call is dropped rather than applied to whatever took its place.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.VoiceSlot.StreamBufferCount">
+            <summary>How many buffers a streaming voice keeps in flight.</summary>
+            <remarks>
+            Four is enough that a frame-time spike cannot starve the voice before the next pump, while
+            keeping the latency of a volume change on the music down to a fraction of a second.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.VoiceSlot.StreamFramesPerBuffer">
+            <summary>How many frames of a stream each in-flight buffer holds.</summary>
+            <remarks>About a sixteenth of a second at 48 kHz — short enough that a volume change is prompt.</remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.VoiceSlot.#ctor(System.Int32)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Audio.VoiceSlot"/> class.</summary>
+            <param name="index">The slot index within its pool.</param>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceSlot.Index">
+            <summary>Gets the slot index.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceSlot.Generation">
+            <summary>Gets the generation, incremented on every reuse.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceSlot.IsActive">
+            <summary>Gets a value indicating whether the slot is in use.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceSlot.Handle">
+            <summary>Gets the handle a caller holds for this voice in its current generation.</summary>
+            <remarks>The slot index and the generation, packed; a reused slot gives out a different handle.</remarks>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceSlot.Parameters">
+            <summary>Gets or sets the parameters the voice was last given.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceSlot.Stream">
+            <summary>Gets or sets the streamed source feeding this voice, when it is a streaming voice.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceSlot.IsStreaming">
+            <summary>Gets a value indicating whether this voice plays a stream rather than a resident buffer.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceSlot.StreamDrained">
+            <summary>Gets or sets a value indicating whether the stream has run out of samples.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.VoiceSlot.Buffer">
+            <summary>Gets or sets the resident buffer handle a non-streaming voice is playing.</summary>
+        </member>
+        <member name="M:OpenIGI.Audio.VoiceSlot.FillFromStream(System.Span{System.Int16})">
+            <summary>Pulls one buffer's worth of samples from the voice's stream.</summary>
+            <param name="destination">Where the samples go, channel-interleaved.</param>
+            <returns>How many samples were written; zero when the stream is finished.</returns>
+            <remarks>
+            A looping stream is rewound when it runs out, but only once per fill, and that bound is the
+            point rather than an optimisation. A source that reports nothing with samples still to come —
+            because the tail of this buffer is smaller than the block it decodes, say — would otherwise be
+            rewound, asked again, report nothing again, and be rewound again, for ever. A loop point is worth
+            crossing once in a buffer; twice means the source is not going to fill it.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.VoiceSlot.Reset">
+            <summary>Clears the slot for reuse: disposes its stream and forgets what it played.</summary>
+        </member>
+        <member name="T:OpenIGI.Audio.Generated.CVarRegistrations">
+            <summary>
+            Registers every <c>[CVarContainer]</c> declared in <c>OpenIGI.Audio</c>.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Audio.Generated.CVarRegistrations.RegisterAll">
+            <summary>Forces every container in this assembly to publish its declarations.</summary>
+            <remarks>Safe to call more than once; only the first call does anything.</remarks>
+        </member>
+    </members>
+</doc>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Project IGI: Im Going In</string>
+    <string name="title_activity_main">Project IGI: Im Going In</string>
+    <string name="package_name">com.projectigi.app</string>
+    <string name="custom_url_scheme">com.projectigi.app</string>
+</resources>
+

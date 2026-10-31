@@ -1,0 +1,1872 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OpenIGI.Presentation.Igi2</name>
+    </assembly>
+    <members>
+        <member name="T:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer">
+            <content>The binoculars' overlay, <c>BinocularOverlay_Draw</c> (<c>igi2 0x525FA0</c>).</content>
+            <content>
+            The open map computer (<c>ComputerMenu_DrawHandler</c> and its screens'): the picture under the casing's line filter, the menu
+            down the left on its grey panel, the screen's own text and buttons, the pointer, the casing over everything and its lamp's
+            glow. The screens are laid out 480 lines high, as on the display the casing was drawn for, and stretched across.
+            </content>
+            <summary>The retail status display for the title-owned player.</summary>
+            <content>
+            A running cutscene's framing (<c>pc_filter.c</c>): the letterbox its camera opens and closes, and the filter its camera puts over
+            the picture, in the screen's own pixels.
+            </content>
+            <content>The weapons carried, across the top left: <c>HumanPlayer_StatusDisplayHandler</c>'s inventory.</content>
+            <content>
+            The level's lens flares over the picture, on the original's look with its lens-flares option on: each item's sprite added at its
+            place along the line through the display's centre (<c>Lensflaretask_DrawLensflareItem</c>), texture coordinates 0.01 to 0.99.
+            </content>
+            <content>
+            The remastered display: I.G.I. 2's player read into the shared model (<see cref="T:OpenIGI.Presentation.Hud.Remastered.HudModel"/>) and drawn in I.G.I. 2's theme
+            (<see cref="T:OpenIGI.Presentation.Igi2.Hud.Igi2HudTheme"/>), in place of the retail status display, inventory, action row and messages. The computer, the
+            cutscene framing, the scopes and the aim's sight stay the original's.
+            </content>
+            <content>
+            The scopes' overlays (<c>sniperoverlay.c</c> and the AUG's, Dragunov's, G11's and PSG-1's), and the laser designator's
+            (<c>laserdesignatoroverlay.c</c>).
+            </content>
+            <content>Retail status art, ammunition, interaction prompts, progress and view flashes.</content>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.BinocularSprite">
+            <summary>The overlay's frame, one half of it mirrored across the screen.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.InfraredSprite">
+            <summary>The frame while the view is infrared.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.RangeKey">
+            <summary>The range line's text key.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.DrawZoomOverlay(OpenIGI.Rendering.SpriteBatch,OpenIGI.Game.Igi2.Player.Igi2TitlePlayer,System.Single,System.Single)">
+            <summary>The overlay the player's zoom has up, drawn over the view as its status display draws it.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.DrawBinocularFrame(OpenIGI.Rendering.SpriteBatch,System.String,System.Single,System.Single)">
+            <summary>The frame: its sprite stretched over the left half and mirrored over the right, a sprite pixel past each edge.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.DrawRange(OpenIGI.Rendering.SpriteBatch,OpenIGI.Game.Igi2.Player.Igi2TitlePlayer,System.Single,System.Single)">
+            <summary>The range to what the view is trained on, in whole metres, or a thousand and more.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.RangeText(OpenIGI.Game.Igi2.Player.Igi2TitlePlayer)">
+            <summary>The range line, <c>"%s: %0.fm"</c>, or a thousand and more with nothing in reach.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.DrawCompass(OpenIGI.Rendering.SpriteBatch,OpenIGI.Game.Igi2.Player.Igi2TitlePlayer,System.Single,System.Single)">
+            <summary>
+            The compass (<c>BinocularOverlay_DrawCompass</c>): sixty-four ticks across a strip, the heading setting where the first
+            falls, every sixteenth long and lettered above and below, every eighth longer than the rest, wrapping round; and a notch
+            at the strip's middle, top and bottom.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.DrawMarks(OpenIGI.Rendering.SpriteBatch,OpenIGI.Game.Igi2.Player.Igi2TitlePlayer,System.Single,System.Single)">
+            <summary>
+            The people the binoculars pick out, those in sight (<c>BinocularOverlay_TrackMovement</c>): a box over each, as wide as
+            they are on the screen, that closes in from eleven times its size and turns a quarter turn over the quarter second after
+            they are first picked out; red for the enemy, green for the rest.
+            </summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.ComputerLines">
+            <summary>The lines the computer's screens are laid out in.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.FilterColumns">
+            <summary>The line filter's tiles across the screen, <c>ComputerFilter_D3DDraw</c>'s texture coordinates.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.FilterRows">
+            <summary>Its tiles down.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.StringWidth(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.LineHeight(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.MeasureComputer(OpenIGI.Game.Igi2.Player.Igi2TitlePlayer,System.Int32,System.Int32)">
+            <summary>Tells the computer the screen its pages are laid out in and the fonts it measures them in, before it opens.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.AuthoredWidth">
+            <summary>The display the status art is laid out for: 1280×720, so a 1440-line display draws it twice over.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.AuthoredHeight">
+            <summary>The height of the display the status art is laid out for.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.ShowMissionMessages(System.Collections.Generic.IReadOnlyList{OpenIGI.Game.World.StatusMessageDisplay})">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.Draw(OpenIGI.Rendering.SpriteBatch,OpenIGI.Game.Player.ITitlePlayer,System.Int32,System.Int32,System.Int32)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.SightShown(OpenIGI.Game.Igi2.Player.Igi2TitlePlayer)">
+            <summary>
+            Whether the player aims with a sight now: not in a cutscene, alive, at no timed action, in the first-person camera with a
+            weapon in hand and no scope or zoom on -- as the original draws its sight.
+            </summary>
+            <param name="title">The player.</param>
+            <returns>Whether a sight shows.</returns>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.LineAlphaLeft">
+            <summary>The line filter's alpha at the screen's left, packed with the camera's colour (<c>LineFilter_D3DDraw</c>).</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.LineAlphaRight">
+            <summary>Its alpha at the right.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.HandiCamAlpha">
+            <summary>The hand-held camera filter's rows' alpha (<c>HandiCamFilter_D3DDraw</c>).</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.LineSpacing">
+            <summary>How far apart the line filter's rows are, in pixels.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.BandMoveLoop">
+            <summary>The band filter's roll, in ticks, <c>BandFilter_New</c>'s move loop as the cutscene makes it.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.BandNoiseLoop">
+            <summary>Its noise's longest wait, in ticks, the noise loop.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.BandTexture">
+            <summary>The band filter's texture's side, in texels and in the screen's pixels.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.DrawInventory(OpenIGI.Rendering.SpriteBatch,OpenIGI.Game.Igi2.Player.Igi2TitlePlayer)">
+            <summary>The inventory: <c>HumanPlayer_StatusDisplayHandler</c>.</summary>
+            <remarks>
+            <para>
+            A column for each slot whose category the player carries a weapon of, the first carried of it, from five across and five down,
+            each a pixel past the last. A column's head is a panel 56 high, its key at its top left, the weapon's sprite centred under the key's
+            line and, where the slot counts them, the rounds carried at its foot on the right: the rounds in the pockets and, unless the
+            slot leaves them out, those loaded; the M16A2's rounds and, after a stroke, its grenades'. Under the head goes the weapon's
+            short name, brighter for the weapon in hand. Each head and each name line lies on a half-dark panel.
+            </para>
+            <para>
+            The grenades are one column: the one in hand at its head, the others' names below it, each on its own line.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.Theme">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.Icons">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.Model">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.RemasteredChosen">
+            <summary>Gets a value indicating whether the remastered display draws this frame: chosen, and able to.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.Build(OpenIGI.Game.Igi2.Player.Igi2TitlePlayer,OpenIGI.Presentation.Hud.Remastered.HudModel)">
+            <summary>Reads I.G.I. 2's player into the shared model.</summary>
+            <param name="title">The player.</param>
+            <param name="model">The model, refilled.</param>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.ScopeCornerSprite">
+            <summary>A scope's frame, its top-left quarter mirrored into the other three.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.DragunovOpticsSprite">
+            <summary>The Dragunov's rangefinding reticle.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.G11AimSprite">
+            <summary>The G11's posts.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.Psg1MilDotSprite">
+            <summary>The PSG-1's mil dots.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.DrawSniperReticle(OpenIGI.Rendering.SpriteBatch,OpenIGI.Game.Igi2.Player.Igi2TitlePlayer,System.Single,System.Single,System.Single,System.Single)">
+            <summary><c>SniperOverlay_Draw</c>'s reticle, range and compass, all in black.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.DrawAugReticle(OpenIGI.Rendering.SpriteBatch,System.Single,System.Single,System.Single)">
+            <summary><c>AugSniperOverlay_Draw</c>: posts left, right and below, hairlines on to a small ring at the middle.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.DrawG11Reticle(OpenIGI.Rendering.SpriteBatch,System.Single,System.Single)">
+            <summary><c>G11SniperOverlay_Draw</c>: four posts in from the ring, hairlines short of the middle, and a diamond there.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.DrawPsg1Reticle(OpenIGI.Rendering.SpriteBatch,System.Single,System.Single,System.Single,System.Single)">
+            <summary><c>Psg1SniperOverlay_Draw</c>: four posts in from the ring, a thin cross through it, and mil dots along the cross.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.DrawLaserDesignator(OpenIGI.Rendering.SpriteBatch,OpenIGI.Game.Igi2.Player.Igi2TitlePlayer,System.Single,System.Single)">
+            <summary>
+            <c>LaserDesignatorOverlay_Draw</c>: the binoculars' frame, the range and the lock under the middle, and green brackets either
+            side of it. The lock reads locked on, the seconds left of the twenty a target is held for, or no lock.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.DrawCorners(OpenIGI.Rendering.SpriteBatch,System.Single,System.Single)">
+            <summary>The scope's frame: its corner sprite, a sprite pixel past each edge, mirrored into each quarter.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.DrawRing(OpenIGI.Rendering.SpriteBatch,System.Single,System.Single,System.Single,System.Int32,System.Single)">
+            <summary>A ring of straight segments, each a turn over their count.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.Quad(OpenIGI.Rendering.SpriteBatch,System.String,System.ValueTuple{System.Single,System.Single},System.ValueTuple{System.Single,System.Single},System.ValueTuple{System.Single,System.Single},System.ValueTuple{System.Single,System.Single})">
+            <summary>
+            A sprite over four corners in <c>QSprite_Register4</c>'s order: the texture's top left, top right, bottom left and bottom
+            right, so a corner given out of place mirrors or turns it.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.#ctor(OpenIGI.Rendering.IGraphicsDevice,OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <summary>Creates the title's HUD presenter.</summary>
+            <param name="device">The sprite upload device.</param>
+            <param name="logger">The load diagnostics.</param>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.Load(OpenIGI.Engine.Vfs.VirtualFileSystem)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.Dispose">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.DrawActionMenu(OpenIGI.Rendering.SpriteBatch,OpenIGI.Game.Igi2.Player.Igi2HumanPlayer,System.Single)">
+            <summary>The action menu's row: <c>ActionMenuScreen_Draw</c>.</summary>
+            <remarks>
+            What may be done is offered left to right from 175 across and 90 up from the foot, 64 apart, each centred on its place; the first,
+            which the activate key takes, behind a box that pulses as the screen's counter runs from -8 to 8 a tick. Nothing is offered
+            while the menu is hidden. A thing to work shows its badge (<c>ActionMenuScreen_DrawActionItemHandler</c> and each type's own);
+            a swap, the weapon lying there and, ten below, the one given for it under the throw-away badge
+            (<c>HumanPlayer_DrawActionItemHandler</c>), both as their pickup sprites.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.ThrowAwaySprite">
+            <summary>The badge a swap's given weapon is drawn under: the status screen's <c>action_throwaway.spr</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudRenderer.InteractionIcon(OpenIGI.Game.Igi2.Interaction.IIgi2Activatable)">
+            <summary>Resolves the retail action badge for the target the human has actually selected.</summary>
+            <param name="target">The selected target.</param>
+            <returns>The status archive sprite name, or null when the target has no badge.</returns>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.Hud.Igi2HudTheme">
+            <summary>
+            I.G.I. 2's look for the remastered display: its own status blue, glass of deep night blue, small chamfers and paired rules,
+            a shimmer now and then, and a fine-lined holographic visor. Every part where the original put it.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.Hud.Igi2HudTheme.Theme">
+            <summary>Gets the theme.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudTheme.Health(System.Single)">
+            <summary>The health gauge's colour, retail's ramp: red when spent, blue when whole.</summary>
+            <param name="health">The health, nought to one.</param>
+            <returns>The colour.</returns>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudTheme.Visibility(System.Single)">
+            <summary>The visibility meter's colour, retail's ramp: blue in the dark, red in full light.</summary>
+            <param name="visibility">The visibility, nought to one.</param>
+            <returns>The colour.</returns>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.Hud.Igi2HudIcons">
+            <summary>I.G.I. 2's pictures for the remastered display: its status archive's sprites, by name.</summary>
+            <param name="assets">Where the status display's sprites are loaded from.</param>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudIcons.#ctor(System.Func{OpenIGI.Presentation.Igi2.World.Igi2SpriteResources})">
+            <summary>I.G.I. 2's pictures for the remastered display: its status archive's sprites, by name.</summary>
+            <param name="assets">Where the status display's sprites are loaded from.</param>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudIcons.TryMeasure(OpenIGI.Presentation.Hud.Remastered.HudIcon,System.Single@,System.Single@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudIcons.Draw(OpenIGI.Rendering.SpriteBatch,OpenIGI.Presentation.Hud.Remastered.HudIcon,System.Single,System.Single,System.Single,OpenIGI.Core.Graphics.Bgra32)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2HudIcons.Resolve(OpenIGI.Presentation.Hud.Remastered.HudIcon)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.Hud.Igi2SightLine">
+            <summary>One screen-space segment of a weapon sight.</summary>
+            <param name="X1">The start's horizontal position.</param>
+            <param name="Y1">The start's vertical position.</param>
+            <param name="X2">The end's horizontal position.</param>
+            <param name="Y2">The end's vertical position.</param>
+            <param name="Alpha">The segment's share of the configured opacity.</param>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2SightLine.#ctor(System.Single,System.Single,System.Single,System.Single,System.Single)">
+            <summary>One screen-space segment of a weapon sight.</summary>
+            <param name="X1">The start's horizontal position.</param>
+            <param name="Y1">The start's vertical position.</param>
+            <param name="X2">The end's horizontal position.</param>
+            <param name="Y2">The end's vertical position.</param>
+            <param name="Alpha">The segment's share of the configured opacity.</param>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.Hud.Igi2SightLine.X1">
+            <summary>The start's horizontal position.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.Hud.Igi2SightLine.Y1">
+            <summary>The start's vertical position.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.Hud.Igi2SightLine.X2">
+            <summary>The end's horizontal position.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.Hud.Igi2SightLine.Y2">
+            <summary>The end's vertical position.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.Hud.Igi2SightLine.Alpha">
+            <summary>The segment's share of the configured opacity.</summary>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.Hud.Igi2WeaponSight">
+            <summary>Weapon sights sized by the player's current precision, as weapontype.c WeaponType_StatusDisplayHandler.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Hud.Igi2WeaponSight.MaximumLines">
+            <summary>The largest sight's segment buffer.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Hud.Igi2WeaponSight.Write(System.Span{OpenIGI.Presentation.Igi2.Hud.Igi2SightLine},System.Int32,System.Single,System.Single,System.Int32,System.Int32,System.Boolean)">
+            <summary>Writes the current weapon's sight without allocating a frame's geometry.</summary>
+            <param name="lines">Space for <see cref="F:OpenIGI.Presentation.Igi2.Hud.Igi2WeaponSight.MaximumLines"/> segments.</param>
+            <param name="sight">The weapon's Sight Display Type.</param>
+            <param name="precision">The sum of settled weapon and posture precision, in degrees.</param>
+            <param name="fieldOfView">The view's tangent of the half angle.</param>
+            <param name="width">The screen width.</param>
+            <param name="height">The screen height.</param>
+            <param name="thick">Whether two-pixel lines are selected.</param>
+            <returns>The segments written.</returns>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.Igi2PresentationProvider">
+            <summary>Builds the renderers I.G.I. 2 draws with.</summary>
+            <remarks>
+            <para>
+            <b>Only what exists.</b> The sequel draws its placed world, its ground, its sky, its forests and water,
+            and what its own player holds in front of its eyes (<see cref="M:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.CreateTitleViewModel(OpenIGI.Presentation.ViewModelPresentationRequest@)"/>). Its title HUD draws weapon sights;
+            the remaining HUD and map computer are pending. Every other factory is left at the interface's default of null, which the host
+            reads as "this title does not present that pass" and skips.
+            </para>
+            <para>
+            <b>Not here yet, and for one shared reason.</b> The forest and the water are read and culled and
+            tessellated, and neither is wired: both need the mission's model packs and its own archives, and a
+            <see cref="T:OpenIGI.Presentation.GroundPresentationRequest"/> carries the level tree and the resource registry alone. That
+            is a seam to widen deliberately once, with both passes in front of it, rather than twice by halves.
+            </para>
+            <para>
+            The world presenter itself is <c>WorldRenderer</c>, shared with Project I.G.I. It named no task type,
+            no model id and no asset path, so it moved into the presentation layer and both titles draw through
+            it; what differs is only how a level becomes placements, which is
+            <see cref="T:OpenIGI.Game.Igi2.World.Igi2DrawableScene"/>'s job.
+            </para>
+            <para>
+            The ground is registered for a <see cref="T:OpenIGI.Presentation.GroundPresentationRequest"/> rather than a
+            <see cref="T:OpenIGI.Presentation.TerrainPresentationRequest"/>, because the latter carries a <c>TerrainSurface</c> built from
+            Project I.G.I.'s chunked octree and the sequel's flat grid of <c>.thm</c> tiles produces no such thing.
+            Given the level and a registry, this reads its own.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.#ctor">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Presentation.Igi2.Igi2PresentationProvider"/> class.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.Presenters">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.CreateTitleHud(OpenIGI.Presentation.HudPresentationRequest@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.CreateTitleViewModel(OpenIGI.Presentation.ViewModelPresentationRequest@)">
+            <inheritdoc/>
+            <remarks>The arms and the weapon in them, posed by the player's view; see <see cref="T:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer"/>.</remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.CreateWorld(OpenIGI.Presentation.WorldPresentationRequest@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.CreateSky(OpenIGI.Presentation.SkyPresentationRequest@)">
+            <inheritdoc/>
+            <remarks>
+            <para>
+            The sequel's sky is a typed <see cref="T:OpenIGI.Game.Igi2.World.FlatSkyTask"/> on the level tree, which is exactly
+            why this had to come behind the seam: the shared <c>SkyRenderer</c> finds its own by walking for a
+            <c>DeclaredTask</c> named <c>FlatSky</c>, and a title with a class for the type has no such node.
+            The host built that renderer directly, so until now I.G.I. 2 drew no sky at all and nothing said
+            so.
+            </para>
+            <para>
+            A level that declares no sky gets no presenter, so the host skips the pass rather than clearing
+            to a colour nobody authored.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.ReadAtmosphere(OpenIGI.Engine.Tasks.GameTask)">
+            <inheritdoc/>
+            <remarks>
+            The level's <c>TerrainMap</c> tasks say which tiles it has; <c>heightmaps.res</c> beside them
+            holds the three maps of each. A level that declares no terrain gets no presenter rather than an
+            empty one, so the host skips the pass entirely instead of issuing nothing every frame.
+            </remarks>
+            <inheritdoc/>
+            <remarks>
+            The sequel's levels carry a <c>GlobalLight</c> task; see <see cref="T:OpenIGI.Game.Igi2.World.Igi2SceneAtmosphere"/> for
+            what the original does with it and why a level without the haze does not read as night.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.LightmapGain">
+            <summary>What a sampled object lightmap is multiplied by: the sequel's lightmap stage is <c>MODULATE2X</c>.</summary>
+            <remarks>
+            <c>Direct3DRender_SetTextureStateLightmap</c> (<c>igi2ed 0x56D140</c>) sets stage 0 to
+            <c>SELECTARG1(TEXTURE)</c> and stage 1 to <c>COLOROP = MODULATE2X</c> with <c>COLORARG1 = TEXTURE</c>
+            (the bake) and <c>COLORARG2 = CURRENT</c>. The vertex colour never enters; the product is doubled.
+            A lightmapped object drawn at a plain multiply is half the brightness the game shipped at.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.ReadModelLod(OpenIGI.Engine.Tasks.GameTask,OpenIGI.Engine.Resources.ResourceRegistry,OpenIGI.Engine.Titles.IServiceCatalog)">
+            <inheritdoc/>
+            <remarks>
+            No level of the game makes a <c>LODSettings</c>, so its renderer runs on the values it starts with: switches at nought, cutoffs at
+            ten radii, the radius taken as it is (<c>Mesh3D_vRadiusImpact</c> one, the ideal radius nought). Every model the game draws
+            near has distances of its own in <c>lod.qsc</c> or a level's, which the session's table holds. The model-detail option biases
+            the pick (<c>Config_SetGameToCurrentPerformanceLevel</c>: <c>1 - vModelDetail</c>).
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.ReadObjectShading(OpenIGI.Engine.Tasks.GameTask)">
+            <inheritdoc/>
+            <remarks>
+            The gain is a property of the renderer and holds for every level; the sun is read off the level and
+            may be absent, in which case an unlightmapped object is left as the port has always drawn it.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.NightLuminance">
+            <summary>How dark a sun has to be before the picture is shown as night.</summary>
+            <remarks>
+            <para>
+            The band is fitted to what the sequel actually authors, which is the only thing available: the
+            engine has no notion of exposure and nothing in a level says how bright to show it. Over the
+            twenty-four levels the sun's luminance is either under 0.45 or over 0.55, with nothing in
+            between — three night levels at 0.00, 0.11 and 0.15, a dusk one at 0.32, a dim mine at 0.41, and
+            everything else from 0.56 to 0.99. So the band brackets a gap in the data rather than splitting
+            a continuum, and every level lands firmly on one side of it.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.DayLuminance">
+            <summary>The luminance above which a level is shown as full day.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.NightBoundNightfall">
+            <summary>How dark a level has to read before the cycle binds it by its night end.</summary>
+            <remarks>
+            Three of the twenty-four are past this: <c>location1/level1</c> at 0.85, <c>location2/LEVEL6</c> at
+            0.94 and <c>location3/LEVEL4</c> at 1.00, whose sun is literally black. The two below it are a dusk
+            map at 0.24 and a dim one at 0.03, and both are far nearer a dim DAY than a night -- bound by their
+            night end they would open at midnight, which is not what they are.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.NightReferenceHour">
+            <summary>The hour a night-bound level opens at: the darkest point of the cycle.</summary>
+            <remarks>
+            <para>
+            Midnight rather than an hour fitted per level, because the sequel gives no hour to fit one from --
+            every campaign level writes <c>Time 12</c> and every multiplayer map writes <c>Time 0</c>, so the
+            field is a constant and says nothing. Midnight is where the cycle's own handover is complete: the
+            moon is fully risen and the sun fully faded, so the authored night is reproduced exactly rather
+            than crossfaded with a sun on its way down.
+            </para>
+            <para>
+            Written as twenty-four rather than nought, which is the same instant: <c>DayNightCycle.Apply</c>
+            reads a reference hour as <c>&gt; 0 and &lt;= 24</c> -- nought is its "this level said nothing" --
+            and <c>Reset</c> wraps twenty-four back to nought for the clock itself. So this is midnight said
+            in the one way both of them hear.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.DaylightColour">
+            <summary>The daylight sun a night level would have authored, taken from the ones that did.</summary>
+            <remarks>
+            The median over the nineteen levels the corpus reads as day, which is the only evidence available:
+            a level that authors a night authors no day, and the cycle has to sweep it somewhere. Median rather
+            than mean so <c>location3/LEVEL4</c>'s pure black and <c>location2/LEVEL2</c>'s over-unity red
+            pull nothing.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.DaylightAmbient">
+            <summary>And the fill, measured the same way over the same nineteen.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.ReadDeferredLighting(OpenIGI.Engine.Tasks.GameTask)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.CreateGround(OpenIGI.Presentation.GroundPresentationRequest@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.CreateWeather(OpenIGI.Presentation.ScenePresentationRequest@)">
+            <inheritdoc/>
+            <remarks>
+            <para>
+            The stands come from the level's <c>Forest</c> tasks and the trees from the <c>forest_&lt;id&gt;.dat</c>
+            beside them; the model each stand plants comes from the mission's packs, which is the one thing a
+            ground or a sky never needs and the reason this pass has a request of its own.
+            </para>
+            <para>
+            A host that cannot resolve models yet supplies a lookup that declines, and the presenter then
+            finds no geometry for any stand — so nothing is built rather than 54,537 invisible trees being
+            culled every frame.
+            </para>
+            </remarks>
+            <summary>A level's weather as I.G.I. 2 runs it, from its <see cref="T:OpenIGI.Game.Igi2.World.Igi2RainEffectTask"/>.</summary>
+            <remarks>
+            <para>
+            <c>RainEffect_UpdateInternalDataHandler</c> makes a <c>Rain</c> of the task's kind, traces, colour, alpha and density;
+            <c>RainEffect_RunHandler</c> tells it each tick whether it falls. Rain is <c>drop.tga</c>, a loose file beside the common
+            textures, and snow <c>snow.tex</c> in their archive.
+            </para>
+            <para>
+            <c>Rain_Open</c> scatters the copies a drop is drawn at for each layer of its density: a hundred and twenty-eight offsets of up
+            to 2048 units each way, three draws of the weather's stream apiece (the first along, the second up, the third across), the
+            stream the weather then runs on.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.CreateWater(OpenIGI.Presentation.ScenePresentationRequest@)">
+            <inheritdoc/>
+            <remarks>
+            <para>
+            Water needs nothing from the model packs — a sheet is a surface, not an instance of anything — so
+            the only part of the request it reads beyond the level is the registry, which is where its baked
+            reflections and the ground under it live.
+            </para>
+            <para>
+            The reflections are the cube maps in the sheet's own <c>water_&lt;id&gt;.res</c>, one a slot of its
+            resource list, and the slot drawn is the one its index expression picks. A sheet whose archive is
+            absent is not drawn, as the original returns before drawing one with no valid reflection.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.LoadCubes(OpenIGI.Rendering.IGraphicsDevice,OpenIGI.Engine.Resources.ResourceRegistry,System.Collections.Generic.Dictionary{System.Int32,OpenIGI.Game.Igi2.World.WaterTask},OpenIGI.Game.Igi2.World.Igi2WaterSheet,OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <summary>Loads one sheet's baked reflections, one a slot of its resource list (<c>Water_LoadEnvmapData</c>).</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.Waters(OpenIGI.Engine.Tasks.GameTask)">
+            <summary>Walks the level's water tasks.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.Igi2PresentationProvider.FindSky(OpenIGI.Engine.Tasks.GameTask)">
+            <summary>Finds the level's sky, if it declares one.</summary>
+            <remarks>
+            The first in the tree. No shipped level declares two, and a second would be a second backdrop
+            drawn over the first rather than anything meaningful.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer">
+            <summary>Draws what the player's view holds: the skinned first-person model and the models its clip hangs on it.</summary>
+            <remarks>
+            <para>
+            The view is a boned object drawn after the world under its own projection (<c>HumanView_EnterHandler</c>,
+            <c>igi2 0x4D5DB0</c>, and <c>vObjectFOV</c>, <c>tan 30°</c>). Its model is skinned (<c>arms1_1</c> in the first
+            mission, a mesh of format 1), so its vertices are pushed through the posed bones whenever the pose moves, as the
+            sequel's renderer weighs them (<see cref="T:OpenIGI.Game.Igi2.Animation.Igi2BoneSkin"/>); the skin is built in the model's own frame and the
+            model's position and orientation are applied in the draw.
+            </para>
+            <para>
+            The weapon in hand is not part of that model: each weapon's first-person clips carry an attach object named
+            <c>weapon</c> on the right hand, and the engine draws the held weapon's <c>Fixed Model</c> there
+            (<c>WeaponMagicObj_GetModelName</c>, <c>0x4733B0</c>). The player says which model each part is; this resolves
+            names to meshes and textures through the mission's pack table, as the placed world does.
+            </para>
+            <para>
+            None of the view's models has a bake, so each is lit as an unlightmapped object is: the level's fixed-function sun
+            and object ambient per vertex (<see cref="M:OpenIGI.Rendering.IGraphicsDevice.SetVertexSun(OpenIGI.Core.Numerics.Vector3f)"/>), the sun turned into the model's frame.
+            </para>
+            <para>
+            The same models drawn in the world are the weapons lying in the level (<see cref="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.DrawWorld(System.Collections.Generic.IReadOnlyList{OpenIGI.Game.Player.TitleWorldModel},OpenIGI.Core.Graphics.Camera3D@,OpenIGI.Core.Numerics.Matrix4f@,System.Single)"/>): rigid, unbaked, and
+            lit the same way, under the world's projection.
+            </para>
+            </remarks>
+            <content>Marks lying on the ground: a body's shadow and its pool of blood (<c>Shadow_MagicObjEnterHandler</c>).</content>
+            <content>Explosion0's FireBalls, drawn by the drawer both titles share with I.G.I. 2's own <c>1006_01_1</c>.</content>
+            <content>Muzzle flashes at a weapon object's muzzle, <c>MuzzleFlash_EnterHandler</c> (<c>igi2 0x4D0E80</c>).</content>
+            <content>The level's 2-D particles -- the blood of its wounded, its smoke, its trails -- drawn with I.G.I. 2's own sprites.</content>
+            <content>Security-camera indicator sprites in the world's depth buffer.</content>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.#ctor(OpenIGI.Rendering.IGraphicsDevice,OpenIGI.Engine.Resources.ResourceRegistry,OpenIGI.Core.Diagnostics.IOpenIgiLogger,OpenIGI.Core.Threading.IWorkScheduler)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer"/> class.</summary>
+            <param name="device">The device to upload to and draw with.</param>
+            <param name="resources">Where texture bytes are read from.</param>
+            <param name="logger">Where to report problems.</param>
+            <param name="work">Where the world models' skinning runs in parallel; none skins them in line.</param>
+            <exception cref="T:System.ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.Shading">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.Load(OpenIGI.Game.World.LoadedMission)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.Load(System.Collections.Generic.IReadOnlyList{OpenIGI.Game.World.LoadedPack})">
+            <summary>Reads the models it draws from packs, in the order a match is looked for.</summary>
+            <param name="packs">The packs, the first holding a name shadowing the rest.</param>
+            <returns><see langword="false"/> when there are none.</returns>
+            <remarks>For models of the game's own drawn in another game's level, whose packs are not that level's.</remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.Draw(OpenIGI.Game.Player.TitleFirstPersonView,OpenIGI.Core.Graphics.Camera3D@,OpenIGI.Core.Numerics.Matrix4f@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.DrawWorld(System.Collections.Generic.IReadOnlyList{OpenIGI.Game.Player.TitleWorldModel},OpenIGI.Core.Graphics.Camera3D@,OpenIGI.Core.Numerics.Matrix4f@,System.Single)">
+            <inheritdoc/>
+            <remarks>
+            A body is skinned once a tick, so the animated mesh's previous stream is the tick before's pose: drawn between the two
+            when the last two skins are a tick apart, and at the last alone when they are not -- a body that stood still, or was
+            out of view, has nothing to come from.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.DrawWorldOutlines(System.Collections.Generic.IReadOnlyList{OpenIGI.Game.Player.TitleWorldModel},System.Collections.Generic.IReadOnlyDictionary{System.Object,OpenIGI.Game.Player.BinocularMarkerColor},OpenIGI.Core.Graphics.Camera3D@,System.Single,System.Single)">
+            <summary>Draws one part, lit by the sun turned into its frame.</summary>
+            <summary>
+            Glows through walls the bodies of a world draw that stand for marked things, each in its own colour, where the last
+            <see cref="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.DrawWorld(System.Collections.Generic.IReadOnlyList{OpenIGI.Game.Player.TitleWorldModel},OpenIGI.Core.Graphics.Camera3D@,OpenIGI.Core.Numerics.Matrix4f@,System.Single)"/> drew it and posed as it was posed then.
+            </summary>
+            <param name="models">The models the world draw drew.</param>
+            <param name="marked">What was marked, by the instance its body is drawn for, and the class of contact each is.</param>
+            <param name="camera">The eye.</param>
+            <param name="radiusPixels">The glow's screen-space radius.</param>
+            <param name="blend">Where between the last two ticks the world draw stood.</param>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.Dispose">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.Lod">
+            <summary>Gets or sets how a body gives up detail with distance, or <see langword="null"/> to draw each whole.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.LodBiasHeld">
+            <summary>Gets or sets a value indicating whether a cutscene holds the model-detail bias off.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.DrawGroundDecals(System.Collections.Generic.IReadOnlyList{OpenIGI.Game.Player.TitleGroundDecal},OpenIGI.Core.Graphics.Camera3D@,OpenIGI.Core.Numerics.Matrix4f@)">
+            <inheritdoc/>
+            <remarks>
+            A square in the ground's own plane (<c>Real32x9_FromReal32x3</c> of its normal), its half-width either way of the point and
+            a hover above it, blended over the world and tested against its depth, written into none.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.DrawExplosions(OpenIGI.Game.World.IExplosionScene,OpenIGI.Core.Graphics.Camera3D@,OpenIGI.Core.Numerics.Matrix4f@,System.Single)">
+            <inheritdoc/>
+            <remarks>
+            <c>Explosion0_FireBallEnterHandler</c> is Project I.G.I.'s routine: the dome turned to face the eye, its size over 2048
+            across, its depth growing over its life, its texture's animation stepped once through. The fragments are models of the
+            level, drawn with the rest (<see cref="T:OpenIGI.Game.Player.ExplosionPieceModels"/>).
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.MuzzleMagicVertex">
+            <summary>The magic vertex a weapon object's muzzle is, <c>RigidDynCubeObj_GetMagicVertexPos(…, 2, …)</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.FlashSpan">
+            <summary>World units across the barrel a size of one makes; a first-person weapon's front quad uses <see cref="F:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.FirstPersonFrontSpan"/>.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.FirstPersonFrontSpan">
+            <summary>World units across the barrel a size of one makes for a weapon object drawn in the first-person layer.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.SideBehind">
+            <summary>How far behind the muzzle the side quad starts, in world units at a size of one.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.SideAhead">
+            <summary>How far ahead of the muzzle the side quad reaches, in world units at a size of one.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.FlashMaterial">
+            <summary>The flashes' surface: unlit, glowing as it is drawn, and left out of the occlusion and the history, as Project I.G.I.'s gun flame is.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.DrawWorldMuzzleFlashes(OpenIGI.Core.Graphics.Camera3D@,OpenIGI.Core.Numerics.Matrix4f@)">
+            <summary>
+            Draws the flashes the last <see cref="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.DrawWorld(System.Collections.Generic.IReadOnlyList{OpenIGI.Game.Player.TitleWorldModel},OpenIGI.Core.Graphics.Camera3D@,OpenIGI.Core.Numerics.Matrix4f@,System.Single)"/> queued, over the lit scene, against its depth: the host calls it in its
+            forward pass, where light is added rather than shaded.
+            </summary>
+            <param name="camera">The world camera.</param>
+            <param name="projection">The world projection.</param>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.QueueFlashes(System.Collections.Generic.IReadOnlyList{OpenIGI.Game.Player.TitleMuzzleFlash},System.String,OpenIGI.Core.Numerics.Vector3d,OpenIGI.Core.Numerics.Matrix3f)">
+            <summary>Notes a part's flashes to be drawn once the pass's solid models are down.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.DrawQueuedFlashes(OpenIGI.Core.Graphics.Camera3D@,System.Boolean)">
+            <summary>
+            Draws the queued flashes over the pass. Each sits at its weapon object's muzzle in the object's frame: the front quad across
+            the barrel, as strong as the eye looks down it (the squared cosine, times one and a half, less a quarter, held to nought to one),
+            and the side quad along it, turned about the barrel to face the eye, as strong as the rest. Both add white times the texture,
+            weighted by the flash's strength.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.DrawParticles(OpenIGI.Game.World.Particles.Particle2DModule,OpenIGI.Core.Graphics.Camera3D@,OpenIGI.Core.Numerics.Matrix4f@,System.Single)">
+            <inheritdoc/>
+            <remarks>The engine and its drawer are the ones both titles share; the sprites are I.G.I. 2's (<c>common/sprites/sprites.res</c>).</remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.ViewModel.Igi2ViewModelRenderer.DrawWorldSprites(System.Collections.Generic.IReadOnlyList{OpenIGI.Game.Player.TitleWorldSprite},OpenIGI.Core.Graphics.Camera3D@,OpenIGI.Core.Numerics.Matrix4f@)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.World.Igi2CubeFace">
+            <summary>
+            One face of a baked environment cube map, named by the direction it looks along in the engine's own
+            axes.
+            </summary>
+            <remarks>
+            <para>
+            The numeric value is three things at once, and that is not a coincidence: it is the number in the
+            face's filename, the index of the file in the array handed to <c>Envmap_LoadFromMemory</c>
+            (<c>igi2ed 0x581670</c>), and the <c>D3DCUBEMAP_FACES</c> slot that function loads it into — it loops
+            <c>i = 0..5</c> calling <c>GetCubeMapSurface(i, 0, …)</c> with <c>ppxRawData[i]</c>, so there is no
+            remapping anywhere.
+            </para>
+            <para>
+            The names here are the <b>engine's</b> axes (X east, Y north, Z up), which are not Direct3D's. The
+            two are related by the swizzle the water vertex shader applies to the reflection vector before
+            sampling — see <see cref="M:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.CubeDirection(OpenIGI.Core.Numerics.Vector3f,OpenIGI.Core.Numerics.Vector3f,System.Single)"/> — and that swizzle is exactly what
+            makes <see cref="F:OpenIGI.Presentation.Igi2.World.Igi2CubeFace.PositiveZ"/> land in the <c>POSITIVE_Y</c> slot and <see cref="F:OpenIGI.Presentation.Igi2.World.Igi2CubeFace.PositiveY"/> in
+            <c>POSITIVE_Z</c>. Both halves of that were read separately and agree: the bake in
+            <c>Envmap_CubeMapRender</c> (<c>igi2ed 0x581930</c>) points its camera at exactly these six
+            directions, in exactly this order.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2CubeFace.PositiveX">
+            <summary>Looking along engine +X. <c>Envmap_CubeMapRender</c> case 0; <c>D3DCUBEMAP_FACE_POSITIVE_X</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2CubeFace.NegativeX">
+            <summary>Looking along engine −X. Case 1; <c>D3DCUBEMAP_FACE_NEGATIVE_X</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2CubeFace.PositiveZ">
+            <summary>Looking straight up, along engine +Z. Case 2; <c>D3DCUBEMAP_FACE_POSITIVE_Y</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2CubeFace.NegativeZ">
+            <summary>Looking straight down, along engine −Z. Case 3; <c>D3DCUBEMAP_FACE_NEGATIVE_Y</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2CubeFace.PositiveY">
+            <summary>Looking along engine +Y. Case 4; <c>D3DCUBEMAP_FACE_POSITIVE_Z</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2CubeFace.NegativeY">
+            <summary>Looking along engine −Y. Case 5; <c>D3DCUBEMAP_FACE_NEGATIVE_Z</c>.</summary>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap">
+            <summary>
+            One of a water sheet's baked environment cube maps: six square faces, decoded and ready to become a
+            cube texture.
+            </summary>
+            <remarks>
+            <para>
+            <b>What it holds, and what it hands over.</b> The six faces as <see cref="T:OpenIGI.Core.Graphics.Bgra32"/>, in the order a
+            cube sampler wants them, with the sampling rule written down — and <see cref="M:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.Upload(OpenIGI.Rendering.IGraphicsDevice)"/>, which turns
+            them into a device cube map. When this type was first written the device had no cube entry point at
+            all and this remark listed what one would need; three of the four items are now
+            <c>CreateCubeTexture</c>, <c>UpdateCubeFace</c> and <c>SetEnvironmentCube</c>. The fourth, a draw
+            path with three-component texture coordinates, is not needed after all: I.G.I. 2's water is drawn
+            camera-relative, so a reflection direction can be built in the vertex stage out of the position and
+            normal the mesh already carries.
+            </para>
+            <para>
+            <b>Only water samples these.</b> <c>Envmap_LoadFromMemory</c> has exactly one caller,
+            <c>Water_LoadEnvmapData</c> (<c>igi2ed 0x646810</c>), and <c>Envmap_Create</c> (<c>0x5817C0</c>) has
+            exactly one, the editor's water rebake. The <c>*_DrawEnvmapHandler</c> and
+            <c>*_EnumerateEnvmapHandler</c> pairs on terrain, forests, the flat sky, rigid objects and spline
+            objects point the other way: they are what gets drawn <em>into</em> a map while it is baked.
+            <c>Terrain_DrawEnvmapHandler</c> (<c>0x632E10</c>) is a one-line forward to
+            <c>Terrain_EnterHandler</c>, which settles it.
+            </para>
+            <para>
+            <b>And only above quality zero.</b> <c>Water_LoadEnvmapData</c> returns before reading anything unless
+            <c>WaterRender_GetQualityLevel() &gt; 0</c>, and <c>WaterRender_Draw</c> (<c>0x577950</c>) binds the
+            cube to <em>stage 0</em> in that case; at quality zero it binds the sheet's two ordinary 2D textures
+            to stages 0 and 1 instead and the reflection is the flat <c>Envmap</c> image. So a port with no cube
+            support is not rendering something wrong — it is rendering the original's low quality setting.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.LogCategory">
+            <summary>The category load diagnostics are logged under.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.FaceCount">
+            <summary>How many faces a cube map has.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.ArchiveDirectory">
+            <summary>The directory, under a level, that holds the archives the faces ship in.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.TaskId">
+            <summary>Gets the level task id of the water this map belongs to.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.Index">
+            <summary>Gets the map's index within that water's <c>Resource list</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.Edge">
+            <summary>Gets the edge length of every face, in pixels.</summary>
+            <remarks>
+            One number for all six. The original creates the cube texture once, at the width
+            <c>D3DXGetImageInfoFromFileInMemory</c> reports for <em>face zero</em>, and then loads the other
+            five into it through <c>D3DXLoadSurfaceFromFileInMemory</c>, which would silently rescale a face
+            that disagreed. All 31 shipped maps agree, so nothing rescales; this loader refuses the case
+            rather than reproducing a stretch nobody has seen.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.Item(OpenIGI.Presentation.Igi2.World.Igi2CubeFace)">
+            <summary>Gets one face's pixels, row-major from its top-left corner.</summary>
+            <param name="face">The face.</param>
+            <returns><see cref="P:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.Edge"/> × <see cref="P:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.Edge"/> pixels.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="face"/> is not one of the six.</exception>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.Upload(OpenIGI.Rendering.IGraphicsDevice)">
+            <summary>Uploads the six faces as a device cube map.</summary>
+            <param name="device">The device to create the cube on.</param>
+            <returns>A handle to the cube, ready for <c>SetEnvironmentCube</c>.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="device"/> is <see langword="null"/>.</exception>
+            <remarks>
+            <para>
+            One cube at <see cref="P:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.Edge"/>, six faces written in order, no mip chain — which is exactly what
+            <c>Envmap_LoadFromMemory</c> (<c>igi2ed 0x581670</c>) builds: a single-mip <c>A8R8G8B8</c> cube at
+            face zero's width, with file <c>i</c> loaded into cube slot <c>i</c> and no remapping.
+            </para>
+            <para>
+            <b>The face order needs no translation and that is not a coincidence.</b> The engine bakes its
+            faces in engine axes — <c>Envmap_CubeMapRender</c>'s switch puts up and down in slots 2 and 3,
+            where a sampler expects ±Y — and the water shader swizzles <c>.xzy</c> on the way to the lookup,
+            which exchanges Y and Z and lines the two up again. So the file index, the
+            <see cref="T:OpenIGI.Presentation.Igi2.World.Igi2CubeFace"/> value and the sampler's slot are all the same number, and the caller
+            that has to do the exchange is whatever builds the direction, not this.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.ArchiveName(System.Int32)">
+            <summary>Names the archive a water task's baked faces ship in.</summary>
+            <param name="taskId">The water's level task id.</param>
+            <returns>The bare archive filename, which lives under <see cref="F:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.ArchiveDirectory"/>.</returns>
+            <remarks>
+            <c>Water_GetResourceFilename</c> (<c>igi2ed 0x6465C0</c>): <c>sprintf(zFilename, "water_%d.res",
+            Level_GetLevelQTaskIDFromQTask(ptQTask))</c>. The same level-table slot that names the faces
+            themselves, so a water's whole reflection is addressed by where the level put the task.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.Load(OpenIGI.Game.Igi2.World.WaterTask,System.Int32,OpenIGI.Formats.Ilff.IresArchive)">
+            <summary>Loads one of a water sheet's environment maps.</summary>
+            <param name="water">The sheet.</param>
+            <param name="index">One of <see cref="P:OpenIGI.Game.Igi2.World.WaterTask.EnvmapIndices"/>.</param>
+            <param name="archive">The sheet's <c>water_&lt;id&gt;.res</c>.</param>
+            <returns>The six decoded faces.</returns>
+            <exception cref="T:System.ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+            <exception cref="T:System.InvalidOperationException">
+            A face is missing from the archive, or the six do not agree on one square size.
+            </exception>
+            <exception cref="T:OpenIGI.Formats.Textures.BitmapFormatException">A face is not a bitmap this reader supports.</exception>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.LoadAll(OpenIGI.Game.Igi2.World.WaterTask,OpenIGI.Formats.Ilff.IresArchive,OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <summary>Loads every environment map a water sheet names.</summary>
+            <param name="water">The sheet.</param>
+            <param name="archive">The sheet's <c>water_&lt;id&gt;.res</c>.</param>
+            <param name="logger">Where load diagnostics go.</param>
+            <returns>The maps, in the order <c>Resource list</c> names them.</returns>
+            <exception cref="T:System.ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+            <remarks>
+            A sheet loads several because <c>Environmental map index</c> is a level expression rather than a
+            constant, so a mission can switch which one is reflected as it runs. The list is capped at five by
+            the <c>"%d %d %d %d %d"</c> the original parses it with, which <see cref="P:OpenIGI.Game.Igi2.World.WaterTask.EnvmapIndices"/>
+            already honours.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.CubeDirection(OpenIGI.Core.Numerics.Vector3f,OpenIGI.Core.Numerics.Vector3f,System.Single)">
+            <summary>
+            Builds the direction the water's reflection is sampled with — the cube-map texture coordinate.
+            </summary>
+            <param name="eyeToSurface">
+            The surface point relative to the eye, in the engine's axes. Need not be normalized.
+            </param>
+            <param name="normal">The water surface normal, in the engine's axes. Expected to be unit length.</param>
+            <param name="maxReflectionCosine">
+            The sheet's <see cref="P:OpenIGI.Game.Igi2.World.WaterTask.MaxReflectionAngle"/>, which the original clamps the view/normal
+            cosine to from below.
+            </param>
+            <returns>The three-component direction to sample the cube with.</returns>
+            <remarks>
+            <para>
+            This is the whole of the original's rule, and it is readable rather than inferred: the water
+            vertex shaders are not compiled into the binary, they are <b>assembly source strings</b> handed to
+            <c>D3DXAssembleShader</c> at start-up by <c>WaterRender_SetModeCallback</c>
+            (<c>igi2ed 0x579740</c>). The three of them live at <c>0x6B9B90</c>, <c>0x6B98D0</c> and
+            <c>0x6B95E8</c>, and the third is the one that samples a cube:
+            </para>
+            <code>
+            dp3 r0.x, v0, v0
+            rsq r0.x, r0.x
+            mul r0, r0.x, -v0                                   ; V = normalize(eye - surface)
+            dp3 r2.x, r0, v1                                    ; V·N
+            max r2.x, r2.x, c14.z                               ; clamped at vMaxReflectionAngle
+            mul r3.x, r2.x, c5.w                                ; c5.w = 2.0
+            mad oT0.xyz, v1.xzy, r3.xxx, -r0.xzy                ; (2(V·N)N - V).xzy
+            </code>
+            <para>
+            So the reflection is the ordinary one, and <b>the swizzle is the whole answer to which face is
+            which</b>: the vector handed to the sampler is <c>(R.x, R.z, R.y)</c>, the engine's Y and Z
+            exchanged. That is what puts the engine's up axis on Direct3D's, and it is why the bake's third
+            face — the camera looking along engine +Z, straight up — belongs in the <c>POSITIVE_Y</c> slot.
+            The bake and the sampler were read from different functions and agree on all six.
+            </para>
+            <para>
+            <b>The clamp is a parameter, not a constant.</b> <c>c14.z</c> is loaded from
+            <c>WaterContext_t::vMaxReflectionAngle</c> (offset <c>0x3C</c>, set at <c>0x5789FB</c>), the
+            task's <c>Max Reflection Angle (cos)</c>. Below that cosine the reflection stops opening out
+            toward the horizon and stays where the cutoff puts it, which is why a grazing view of these
+            sheets does not sample the sea floor. <c>c5</c> is the literal vector <c>(0, 0.5, 1, 2)</c>, set
+            at <c>0x578957</c>–<c>0x57896C</c>; that is where the 2 comes from.
+            </para>
+            <para>
+            The low-quality shader at <c>0x6B9B90</c> builds the same reflection and then does
+            <c>mul r1, r1, c11; add oT1, r1, c12</c> — a component-wise scale and offset, which cannot
+            swizzle and cannot address a cube. That one is for the flat <c>Envmap</c> image on stage 1.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.Project(OpenIGI.Core.Numerics.Vector3f)">
+            <summary>Picks the face a cube direction lands on.</summary>
+            <param name="direction">A direction already swizzled by <see cref="M:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.CubeDirection(OpenIGI.Core.Numerics.Vector3f,OpenIGI.Core.Numerics.Vector3f,System.Single)"/>.</param>
+            <returns>The face, and where on it the direction lands.</returns>
+            <exception cref="T:System.ArgumentException"><paramref name="direction"/> is the zero vector.</exception>
+            <remarks>
+            The selection and the two coordinates are Direct3D's cube rule, unchanged since Direct3D 8 and
+            identical in OpenGL and Vulkan: the largest-magnitude component picks the face, the other two
+            divided by it give <c>s</c> and <c>t</c> in −1…1, and <c>v</c> runs down the face image. That part
+            is the API's, not the game's — what the game contributes is the swizzle that makes its own axes
+            arrive in the right order, and the six camera directions it baked to match.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.Direction(OpenIGI.Presentation.Igi2.World.Igi2CubeFace,System.Single,System.Single)">
+            <summary>The inverse of <see cref="M:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.Project(OpenIGI.Core.Numerics.Vector3f)"/>: the direction one point on one face looks along.</summary>
+            <param name="face">The face.</param>
+            <param name="u">Across the face, 0 at its left edge and 1 at its right.</param>
+            <param name="v">Down the face, 0 at its top edge and 1 at its bottom.</param>
+            <returns>
+            The direction, in the same swizzled space <see cref="M:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.CubeDirection(OpenIGI.Core.Numerics.Vector3f,OpenIGI.Core.Numerics.Vector3f,System.Single)"/> produces. Not normalized.
+            </returns>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="face"/> is not one of the six.</exception>
+            <remarks>
+            Here so that the claim about face order is checkable against the shipped pixels rather than only
+            against the two functions it was read from: neighbouring faces have to agree along the edge they
+            share, and they only do if both the order and the orientation are right.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.Sample(OpenIGI.Core.Numerics.Vector3f)">
+            <summary>Reads the texel a direction lands on.</summary>
+            <param name="direction">A direction in the space <see cref="M:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.CubeDirection(OpenIGI.Core.Numerics.Vector3f,OpenIGI.Core.Numerics.Vector3f,System.Single)"/> produces.</param>
+            <returns>The nearest texel.</returns>
+            <exception cref="T:System.ArgumentException"><paramref name="direction"/> is the zero vector.</exception>
+            <remarks>
+            Nearest, not filtered. The original samples these with <c>D3DTEXF_LINEAR</c> on both filters and
+            <c>D3DTADDRESS_CLAMP</c> on both axes (<c>WaterRender_SetTextureState</c>, <c>igi2ed 0x579A90</c>),
+            so this is not what the hardware does — it is here to make the face layout inspectable from a
+            test, and for a CPU fallback that would rather be plainly wrong than subtly so.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2EnvironmentMap.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter">
+            <summary>
+            Draws I.G.I. 2's forests: one mesh per stand, the stand's trees culled through its own index, and each
+            surviving tree issued as a trunk and a foliage pass.
+            </summary>
+            <remarks>
+            <para>
+            The state is the original's, from <c>igi2ed.exe</c>. <c>ForestRender_SetGenericState_Trunk</c>
+            (<c>0x57C5A0</c>) draws opaque with <c>CULLMODE = CCW</c> — <b>the opposite winding to the
+            terrain</b>, which is <c>CW</c> — and with the fog density at
+            <c>DrawTerrainMesh_vFogDensity * 0.8</c>, so a wood fogs a fifth less than the ground it stands on.
+            </para>
+            <para>
+            <b>The foliage is one face group, and the model says which.</b>
+            <c>ForestRender_CreateBSPModel</c> (<c>0x57D160</c>) scans a level's face groups for the first whose
+            flags byte has bit 1 set and remembers its index; <c>ForestRender_Draw</c> (<c>0x57CA90</c>) then
+            compares every group it draws against that index and sends the match through
+            <c>ForestRender_DrawFoliageFaceGroup</c> and everything else through
+            <c>ForestRender_DrawTrunkFaceGroup</c>. So the split is not a texture heuristic: it is a bit in the
+            <c>DNER</c> record, at the byte this port's face-group reader treats as material properties.
+            </para>
+            <para>
+            The two are lit differently too, which is the corroboration: the trunk gets the grey average of the
+            baked light's three bytes and the foliage gets the light itself under <c>| 0xFF000000</c>.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.LogCategory">
+            <summary>The category load diagnostics are logged under.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.FoliageAlphaReference">
+            <summary>The alpha below which a foliage texel is cut away, out of 255.</summary>
+            <remarks>
+            <c>ForestRender_SetStates_Foliage</c> (<c>0x57BDF0</c>) sets <c>D3DRS_ALPHAREF</c> to this. It does
+            so on the branch its mode word takes the value 1 on, which is the lightmap draw; the two generic
+            state blocks it otherwise selects between (<c>0x57C770</c> alpha test, <c>0x57C900</c> alpha blend)
+            set neither the reference nor the test themselves. The port's own looks keep it for the view.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.RetailAlphaReference">
+            <summary>The cut the original's view draws trunks and foliage at: alpha over 64, the shared alpha-test state's.</summary>
+            <remarks><c>Direct3DRender_SetBlendStateAlphaTest</c>: <c>ALPHAREF</c> 64, <c>GREATER</c>; the device keeps at least its reference.</remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.RetailBlendedAlphaReference">
+            <summary>The cut the original's sorted foliage blends over: alpha over one (<c>Direct3DRender_SetBlendStateTransparent</c>).</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.FoliageFaceGroupFlag">
+            <summary>The face-group flag bit that marks the group as foliage rather than trunk.</summary>
+            <remarks><c>ForestRender_CreateBSPModel</c> tests <c>*groupByte0 &amp; 2</c> and takes the first hit.</remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.DefaultHorizontalHalfTangent">
+            <summary>The horizontal half field-of-view tangent a draw assumes when the caller names none.</summary>
+            <remarks>
+            The original reads it from a global the projection also builds from
+            (<c>flt_8DF1100</c>, used by both <c>Forest_DrawTrees</c> and <c>Forest_SetUpClippingPlanes</c>).
+            Nothing in this port owns that number yet, so a caller that has one should pass it: this is a
+            90° horizontal field of view, which is wider than the game's and therefore culls less.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.DefaultVerticalHalfTangent">
+            <summary>The vertical half field-of-view tangent a draw assumes when the caller names none.</summary>
+            <remarks>4:3 against <see cref="F:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.DefaultHorizontalHalfTangent"/>.</remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.#ctor(OpenIGI.Rendering.IGraphicsDevice,OpenIGI.Game.Igi2.World.Igi2Forest,System.Func{System.String,OpenIGI.Formats.World.MefModel},System.Func{System.String,System.Int32,OpenIGI.Rendering.TextureHandle},OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <summary>Builds the forests of one level.</summary>
+            <param name="device">The device to upload through.</param>
+            <param name="forest">The level's stands, already placed.</param>
+            <param name="models">Resolves a stand's model name to its mesh, or null when the level lacks it.</param>
+            <param name="textures">Resolves a model name and material slot to the texture handle it samples.</param>
+            <param name="logger">Where load diagnostics go.</param>
+            <exception cref="T:System.ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.TreeCount">
+            <summary>Gets how many trees the presenter holds, culled or not.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.StandCount">
+            <summary>Gets how many stands were uploaded.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.VisibleTreeCount">
+            <inheritdoc/>
+            <remarks>What the last <see cref="M:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.Draw(OpenIGI.Presentation.ForestFrame@)"/> kept after culling.</remarks>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.LodBias">
+            <summary>Gets or sets the renderer's level-of-detail bias, <c>ModelObj_GetLODBias()</c>.</summary>
+            <remarks>Zero is neutral: it makes the cut-off compare real distances against the stand's own.</remarks>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.SortedFoliage">
+            <summary>Gets or sets whether the foliage is alpha-blended and sorted rather than alpha-tested.</summary>
+            <remarks>
+            <c>ForestRender_EnableHighQualityForest</c> (<c>0x57C000</c>) sets the flag
+            <c>ForestRender_Draw</c> reads to decide whether a foliage group goes straight out through
+            <c>ForestRender_DrawFoliageFaceGroup</c> or through <c>SortRender_AllocItem</c> and back later as
+            <c>ForestRender_DrawSortedFaceGroup</c> (<c>0x57E270</c>). It also decides whether the tree's level
+            of detail comes from <c>ForestRender_GetLOD</c> or from the ordinary <c>ModelObj_GetLOD</c>.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.HighQualityForests">
+            <summary>Gets or sets whether the graphics options ask for high-quality forests, which the original's look sorts by.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.Summary">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.Draw(OpenIGI.Presentation.ForestFrame@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.Draw(OpenIGI.Core.Graphics.Camera3D@,System.Single,System.Single)">
+            <summary>Draws every tree the stand's index and the view distance keep.</summary>
+            <param name="camera">Where the world is seen from.</param>
+            <param name="horizontalHalfTangent">The tangent of the horizontal half field of view.</param>
+            <param name="verticalHalfTangent">The tangent of the vertical half field of view.</param>
+            <exception cref="T:System.ObjectDisposedException">The presenter has been disposed.</exception>
+            <remarks>
+            <para>
+            Three passes, because the original has three state blocks and switches between them per face
+            group. The trunks go first and opaque; then the foliage, which is alpha-tested and so still belongs
+            in the opaque pass — the original's alpha-test block leaves <c>ALPHABLENDENABLE</c> off; then, when
+            <see cref="P:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.SortedFoliage"/> is set, the foliage instead goes last and blended, back to front.
+            </para>
+            <para>
+            Grouping by pass rather than by tree is a departure: <c>ForestRender_Draw</c> walks one tree's face
+            groups and switches state between them, leaning on the batcher to coalesce. With one draw per
+            range here and no batcher underneath, issuing all the trunks and then all the foliage is the same
+            picture with two state changes instead of two per tree.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.OrientationOf(OpenIGI.Game.Igi2.World.Igi2Tree)">
+            <summary>Builds a tree's orientation, with its per-axis scale folded in.</summary>
+            <param name="tree">The tree.</param>
+            <returns>The matrix to draw it with.</returns>
+            <remarks>
+            Scale rides on the orientation because that is the only transform a draw carries. A quarter of
+            the corpus's trees are tilted rather than upright — the bake leans them to the ground they stand
+            on — so the angles are not decoration.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.FoliageFaceGroupOf(OpenIGI.Formats.World.MefModel)">
+            <summary>Finds the face group a model draws its leaves with.</summary>
+            <param name="model">The tree model.</param>
+            <returns>The index into the model's draw records, or −1 when no group is flagged.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="model"/> is <see langword="null"/>.</exception>
+            <remarks>
+            The flag is byte 0 of the <c>DNER</c> face-group record, which this port's model reader steps past
+            as material properties. It is read here from the raw chunk rather than added to the reader, so the
+            format stays as it was measured and only the forest, which is the one thing that needs the bit,
+            pays for knowing about it.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.Dispose">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.BoundsOf(OpenIGI.Formats.World.MefModel)">
+            <summary>The model's centre, its radius about that centre, and its height, all in model units.</summary>
+            <remarks>
+            <c>Forest_UpdateInternalDataHandler</c> (<c>0x64CDC0</c>) computes both numbers itself rather than
+            reading them: it walks the model's vertices, takes the greatest squared distance from the mesh's
+            stored centre as the radius (<c>ptForest + 1560</c>) and the span of Z as the height
+            (<c>+ 1564</c>). <b>The centre it measures from is the runtime mesh's own</b>, which this port does
+            not read, so the vertex bounding box's centre stands in for it. The two agree for a model whose
+            stored centre is its bounding centre and differ by however far apart they are otherwise, and the
+            radius is only ever used as a cull margin, where erring large is safe.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2ForestPresenter.BakeOf(OpenIGI.Core.Graphics.Bgra32,System.Boolean)">
+            <summary>Gets the single-texel texture holding one tree's baked colour, doubled.</summary>
+            <remarks>
+            <para>
+            <b>The trees are lit by nothing but this.</b> The original's foliage stage 0 is
+            <c>COLOROP = MODULATE2X</c> over <c>COLORARG1 = TEXTURE</c> and <c>COLORARG2 = DIFFUSE</c>
+            (<c>ForestRender_SetTextureState_AlphaTestFoliage</c>, <c>igi2ed 0x57C4B0</c>), and
+            <c>ForestRender_SetGenericState_AlphaTestFoliage</c> (<c>0x57C770</c>) writes
+            <c>D3DRS_LIGHTING = 0</c> beside it — so a tree's colour is its texture times the colour the
+            forest bake gave that tree, doubled, and nothing else touches it.
+            </para>
+            <para>
+            The port read that colour into <see cref="P:OpenIGI.Game.Igi2.World.Igi2Tree.Light"/> and then drew the trees without it,
+            at their full albedo. On location1/level1 the bake is around (20, 35, 53) — dark, and blue over
+            green over red, which is the night the level is authored for. Drawn without it a pine reads as
+            bright daylight green in the middle of that night, which is exactly what it looked like.
+            </para>
+            <para>
+            A single texel, because a tree is one draw and the port has no per-draw diffuse colour to put
+            this in — the forward push block is full. The lightmap slot is free here and the forward path
+            already multiplies it into the base colour, which is the product wanted; the deferred path is
+            told to do the same by <see cref="M:OpenIGI.Rendering.IGraphicsDevice.SetLightmapModulates(System.Boolean)"/>. Doubling is baked
+            into the texel rather than done in a shader, which is exact at these levels: the night values
+            are all well under half.
+            </para>
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.World.Igi2HostedLevelPresenter">
+            <summary>Draws a hosted level's I.G.I. 2 soldiers as I.G.I. 2 draws its own: each body posed by its skeleton, its weapon in hand.</summary>
+            <remarks>
+            The bodies are I.G.I. 2's world models (<see cref="M:OpenIGI.Game.Igi2.Systems.Igi2HostedLevel.Models"/>) of the soldiers in the world, as the tick last
+            posed them, read from the I.G.I. 2 packs the guest content opened and drawn by I.G.I. 2's own renderer of them, which skins
+            them all in one batch. Both games measure 4,096 units to the metre, so the bodies stand in the host's world as in their own.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2HostedLevelPresenter.#ctor(OpenIGI.Rendering.IGraphicsDevice,OpenIGI.Game.Igi2.Systems.Igi2GuestContent,OpenIGI.Game.Igi2.Systems.Igi2HostedLevel,OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Presentation.Igi2.World.Igi2HostedLevelPresenter"/> class.</summary>
+            <param name="device">The device to draw with.</param>
+            <param name="content">Where the models and their textures are read from.</param>
+            <param name="level">The hosted level, whose soldiers are drawn.</param>
+            <param name="logger">Where problems go.</param>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2HostedLevelPresenter.Draw(OpenIGI.Core.Graphics.Camera3D@,OpenIGI.Core.Numerics.Matrix4f@,System.Single)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2HostedLevelPresenter.DrawOutlines(System.Collections.Generic.IReadOnlyDictionary{System.Object,OpenIGI.Game.Player.BinocularMarkerColor},OpenIGI.Core.Graphics.Camera3D@,System.Single)">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2HostedLevelPresenter.CastsShadow">
+            <inheritdoc/>
+            <remarks>The soldiers stand in the level's light like its own: they shadow the ground under them and the lamps.</remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2HostedLevelPresenter.DrawMuzzleFlashes(OpenIGI.Core.Graphics.Camera3D@,OpenIGI.Core.Numerics.Matrix4f@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2HostedLevelPresenter.DrawParticles(OpenIGI.Core.Graphics.Camera3D@,OpenIGI.Core.Numerics.Matrix4f@,System.Single)">
+            <inheritdoc/>
+            <remarks>
+            The level's particles, whichever player stands in it: a guest player's own presenter leaves them to this one, so they
+            are drawn once.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2HostedLevelPresenter.Dispose">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.World.Igi2SkyDome">
+            <summary>
+            I.G.I. 2's sky dome: what the title fixes about the shared lattice, and how a level colours it.
+            </summary>
+            <remarks>
+            <para>
+            The geometry is not authored and does not vary, and it is not I.G.I. 2's own — it is
+            <see cref="T:OpenIGI.Presentation.Rendering.SkyDomeGeometry"/>, which both games build identically. What belongs here is the two
+            facts that are this title's: the radius <c>SkyDome_InitialiseVertexBuffer</c>
+            (<c>igi2ed 0x5717E0</c>) hard-codes, and the order <c>FlatSky_UpdateInternalDataHandler</c>
+            (<c>0x654730</c>) hands the level's five colours over in.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2SkyDome.Radius">
+            <summary>How far the dome's vertices sit from the viewer.</summary>
+            <remarks>
+            Fixed, where I.G.I. 1 scales its dome to the far plane. It makes no visible difference — the dome
+            is a backdrop drawn with depth off, so only the direction to each vertex matters.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2SkyDome.SkirtDepth">
+            <summary>How far below the horizon the skirt hangs.</summary>
+            <remarks>A flat <c>-4000</c> in the binary, which is <see cref="F:OpenIGI.Presentation.Rendering.SkyDomeGeometry.SkirtFraction"/> of the radius.</remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2SkyDome.RingCount">
+            <summary>How many rings the dome has below its apex.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2SkyDome.RingVertexCount">
+            <summary>How many vertices go round each ring.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2SkyDome.RingStep">
+            <summary>The angle between one ring and the next, in radians.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2SkyDome.VertexStep">
+            <summary>The angle between one vertex of a ring and the next, in radians.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2SkyDome.VertexCount">
+            <summary>How many vertices the whole dome has.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SkyDome.HalfAngleOf(System.Single)">
+            <summary>Turns a level's <c>SkyDome Angle</c> into the half angle the dome is banded by.</summary>
+            <param name="degrees">The angle as the level authors it.</param>
+            <returns>The half angle, in radians.</returns>
+            <remarks>
+            <c>FlatSky_UpdateInternalDataHandler</c> computes <c>angle * 3.1415927 * 0.0055555557</c> — a
+            degrees-to-radians conversion written as a multiplication by <c>1/180</c> — and passes it to
+            <c>SkyDome_SetHalfAngle</c>.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SkyDome.ColourTableFor(OpenIGI.Game.Igi2.World.FlatSkyTask)">
+            <summary>Fills the dome's six-entry colour table from a level's five settings.</summary>
+            <param name="sky">The level's sky.</param>
+            <returns>The table, in the order the dome indexes it.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="sky"/> is <see langword="null"/>.</exception>
+            <remarks>
+            <para>
+            <c>SkyDome_SetColour</c> (<c>igi2ed 0x571730</c>) writes six entries and
+            <c>FlatSky_UpdateInternalDataHandler</c> supplies them as
+            <c>(Top, Middle 2, Middle 1, Bottom 2, Bottom 1)</c> — so the pairs arrive the other way round
+            from how the level declares them, and the top is <b>duplicated</b> into the first two slots.
+            </para>
+            <para>
+            The parameter names say what the pairs are for: <c>ptHalfNorthColour</c> and
+            <c>ptHalfSouthColour</c>, <c>ptBottomNorthColour</c> and <c>ptBottomSouthColour</c>. The two are
+            blended <em>around the compass</em>, which is why a sky can be brighter on one side.
+            </para>
+            <para>
+            <c>Snap Colours</c> is what removes that: the handler copies Middle 2 over Middle 1 and Bottom 2
+            over Bottom 1 before building the table, so each pair becomes one colour and the horizon stops
+            varying with heading.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SkyDome.Build(OpenIGI.Core.Numerics.Vector3f[],System.Single)">
+            <summary>Builds the dome's vertices at this title's radius.</summary>
+            <param name="colours">The six-entry table from <see cref="M:OpenIGI.Presentation.Igi2.World.Igi2SkyDome.ColourTableFor(OpenIGI.Game.Igi2.World.FlatSkyTask)"/>.</param>
+            <param name="halfAngle">The half angle, in radians, from <see cref="M:OpenIGI.Presentation.Igi2.World.Igi2SkyDome.HalfAngleOf(System.Single)"/>.</param>
+            <returns>The positions and their colours, <see cref="F:OpenIGI.Presentation.Igi2.World.Igi2SkyDome.VertexCount"/> of each.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="colours"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentException"><paramref name="colours"/> does not hold six entries.</exception>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SkyDome.Shade(OpenIGI.Core.Numerics.Vector3f,OpenIGI.Core.Numerics.Vector3f,OpenIGI.Core.Numerics.Vector3f,OpenIGI.Core.Numerics.Vector3f,System.Single,System.Single)">
+            <summary>Blends four colours the way the dome's vertices are shaded.</summary>
+            <param name="northAbove">The northern colour of the band above.</param>
+            <param name="southAbove">The southern colour of the band above.</param>
+            <param name="northBelow">The northern colour of the band below.</param>
+            <param name="southBelow">The southern colour of the band below.</param>
+            <param name="around">How far round the compass, nought to one.</param>
+            <param name="down">How far down between the two bands, nought to one.</param>
+            <returns>The vertex colour, opaque.</returns>
+            <remarks>
+            <c>SkyDome_InterpolateVertexColour</c> (<c>igi2ed 0x5719B0</c>), which is
+            <see cref="M:OpenIGI.Presentation.Rendering.SkyDomeGeometry.Shade(OpenIGI.Core.Numerics.Vector3f,OpenIGI.Core.Numerics.Vector3f,OpenIGI.Core.Numerics.Vector3f,OpenIGI.Core.Numerics.Vector3f,System.Single,System.Single)"/>.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter">
+            <summary>
+            Draws I.G.I. 2's sky: the graded dome, then each scrolling cloud layer over it.
+            </summary>
+            <remarks>
+            <para>
+            That order is <c>FlatSky_EnterHandler</c>'s (<c>igi2ed 0x653E10</c>): <c>SkyDome_Draw</c> first, then
+            a walk of the task's <c>FlatSkyLayer</c> children. Both are drawn about the viewer with depth off,
+            because the sky is a backdrop — everything in the world comes out in front of it, and the layers come
+            out in front of the dome by being drawn after it.
+            </para>
+            <para>
+            The geometry is <see cref="T:OpenIGI.Presentation.Rendering.SkyDomeGeometry"/> and <see cref="T:OpenIGI.Presentation.Rendering.SkyCloudPlane"/>, which the two games
+            share. What this class holds is I.G.I. 2's half: its task types, its texture lookup, and its scroll,
+            which advances once a tick rather than by elapsed time.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.LogCategory">
+            <summary>The category load diagnostics are logged under.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.UnitsPerPosition">
+            <summary>
+            How many engine units one unit of the space this presenter draws in is worth.
+            </summary>
+            <remarks>
+            <b>4,096, because the frame's camera arrives in metres.</b> It used to be one, on the assumption
+            that the sequel drew its world in engine units — which was true of nothing by the time the ground
+            and the trees were both being drawn in metres. A cloud layer authored fourteen metres above the
+            camera was built fourteen <em>thousand</em> metres up, so the sky had a dome and no clouds in it.
+            The fade and the texture scale are authored against engine units either way, which is what this
+            number is for.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.#ctor(OpenIGI.Rendering.IGraphicsDevice,OpenIGI.Game.Igi2.World.FlatSkyTask,System.Func{System.String,OpenIGI.Rendering.TextureHandle},OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <summary>Builds one level's sky.</summary>
+            <param name="device">The device to upload through and draw with.</param>
+            <param name="sky">The level's <c>FlatSky</c>.</param>
+            <param name="textures">Resolves a layer's texture resource to a loaded texture.</param>
+            <param name="logger">Where load diagnostics go.</param>
+            <exception cref="T:System.ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+            <remarks>
+            The texture lookup is a delegate rather than a file system because what a layer names is a
+            resource — <c>MISSION:textures/&lt;bare name&gt;</c> — and the host already owns the cache that
+            turns one of those into a handle. A layer whose texture is missing draws untextured rather than
+            not at all, which is what the original does with a failed <c>Texture_Load</c>.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.Sky">
+            <summary>Gets the level's sky.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.LayerCount">
+            <summary>Gets how many cloud layers the sky has.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.FogColour">
+            <summary>Gets the colour the frame clears to, which the sky's fog names.</summary>
+            <remarks>
+            <c>FlatSky_UpdateInternalDataHandler</c> passes <c>Fog Colour × 255</c> to
+            <c>Display_SetBackgroundColourFn</c>, so the level's fog colour is literally what is behind
+            everything.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.HasSky">
+            <inheritdoc/>
+            <remarks>A level that declares a <c>FlatSky</c> at all has one; this presenter is not built otherwise.</remarks>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.FogAmount">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.PlaneHeight">
+            <inheritdoc/>
+            <remarks>In metres, as the task authors it, which is the unit the host seeds its fog from.</remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.TicksPerSecond">
+            <summary>How many simulation ticks make one second of cloud scroll.</summary>
+            <remarks>
+            <para>
+            Sixty, and it is read rather than assumed: <c>Water_SetVertexFunctionParameters</c>
+            (<c>igi2ed 0x6474A0</c>) sets <c>Water_vTime = Timer_nTicks * 0.016666667</c>, which puts the
+            engine's tick at a sixtieth of a second. The sky's own scroll advances once per task run rather
+            than by elapsed time, so this is what converts one to the other.
+            </para>
+            <para>
+            <b>Whole ticks only.</b> The remainder is carried rather than dropped, so a run of frames
+            advances the scroll by exactly as many ticks as the elapsed time contains — the same number of
+            calls to <see cref="M:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.Tick"/>, in the same order, whatever the frame rate. A fractional advance
+            would be smoother and would not be what the engine does.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.Tick">
+            <summary>Advances every layer's scroll by one simulation tick.</summary>
+            <exception cref="T:System.ObjectDisposedException">The presenter has been disposed.</exception>
+            <remarks>
+            Per tick, not per second: <c>FlatSkyLayer_RunHandler</c> (<c>igi2ed 0x654820</c>) adds
+            <c>X Speed</c> and <c>Y Speed</c> to the running offsets once each time it runs, then wraps each
+            back into <c>[0, 1)</c>. So a layer's speed is authored in texture widths per tick and the sky
+            scrolls with the simulation rather than with the frame rate.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.IsGameOwnSky">
+            <summary>The sequel authors a sky per mission, and it is a painted one.</summary>
+            <remarks>
+            A <c>FlatSky</c> carries the dome's own vertex colours and the layers added over it, and mission 1
+            is what makes keeping them necessary: it is authored at night, and an atmosphere put in its place
+            returned a daylight blue with a glare where the sun sits.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.Draw(OpenIGI.Presentation.SkyFrame@)">
+            <inheritdoc/>
+            <remarks>
+            Advances the scroll to the frame's time before drawing, in whole ticks, then draws. The clock is
+            the frame's rather than a count this presenter keeps, so a paused host draws a still sky.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.AdvanceTo(System.Double)">
+            <summary>Advances the scroll to a moment on the level's clock.</summary>
+            <param name="seconds">The level's elapsed time.</param>
+            <exception cref="T:System.ObjectDisposedException">The presenter has been disposed.</exception>
+            <remarks>
+            Idempotent in the sense that matters: called with the same time twice, the second call advances
+            nothing. Called with a time that has gone backwards — which a host restarting a level does — it
+            resets rather than winding the scroll back a million ticks.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.TowardsSun">
+            <summary>Gets or sets where the dome's Dirlight points, which the original's look turns the dome to; or none.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.DomeOrientation(OpenIGI.Core.Numerics.Vector3f)">
+            <summary>
+            The dome's turn about the vertical, <c>SkyDome_Draw</c>: <c>atan2(x, y) + π/2</c> of its Dirlight's direction, so the dome's
+            own north and south horizon colours lie to either side of the sun.
+            </summary>
+            <param name="towardsSun">The Dirlight's direction.</param>
+            <returns>The dome's orientation: a model point (x, y) is carried to (x·cos + y·sin, −x·sin + y·cos).</returns>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.Draw(OpenIGI.Core.Graphics.Camera3D@)">
+            <summary>Draws the sky behind everything.</summary>
+            <param name="camera">Where the world is seen from.</param>
+            <exception cref="T:System.ObjectDisposedException">The presenter has been disposed.</exception>
+            <remarks>
+            Centred on the camera, so the sky never moves relative to the viewer and the horizon stays at the
+            horizon however far the player walks.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.Dispose">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.Layer">
+            <summary>One <c>FlatSkyLayer</c>, its texture, its scroll and the mesh it is drawn through.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SkyPresenter.Layer.#ctor(OpenIGI.Game.Igi2.World.FlatSkyLayerTask,OpenIGI.Rendering.TextureHandle)">
+            <summary>One <c>FlatSkyLayer</c>, its texture, its scroll and the mesh it is drawn through.</summary>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.World.Igi2SpriteResources">
+            <summary>Cached retail screen and game sprites, with their fonts, owned by one presenter.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SpriteResources.#ctor(OpenIGI.Rendering.IGraphicsDevice,OpenIGI.Engine.Vfs.VirtualFileSystem,OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <summary>Loads the archives used by status screens and game sprites.</summary>
+            <param name="device">The upload device.</param>
+            <param name="files">The title's installed data.</param>
+            <param name="logger">Where invalid assets are reported.</param>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SpriteResources.Get(System.String)">
+            <summary>Gets a sprite by resource name, uploading it only on its first use.</summary>
+            <param name="name">
+            The resource name. A bare file name finds the first archive's file of that name; an alias-qualified one
+            (<c>WEAPONS:binoculars.spr</c>, <c>LOCAL:weapons/binoculars.spr</c>) finds only that file, as <c>QSprite_Load</c>
+            loads it, because the common sprites and the weapons' icons share names.
+            </param>
+            <returns>The uploaded sprite, or null when the archive does not contain it.</returns>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SpriteResources.GetTexture(System.String)">
+            <summary>Gets a Targa or JPEG picture by its full resource name, uploading it only on its first use.</summary>
+            <param name="name">The name, such as <c>LOCAL:common/textures/linefilter1.tga</c> or <c>computer/blueprint.jpg</c>.</param>
+            <returns>The texture, or <see cref="P:OpenIGI.Rendering.TextureHandle.None"/> when the archives do not hold it.</returns>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2SpriteResources.Dispose">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter">
+            <summary>
+            Draws I.G.I. 2's ground: one additive pass per material, over the tiles a level declares.
+            </summary>
+            <remarks>
+            <para>
+            The state this reproduces is the original's, read from <c>igi2ed.exe</c> rather than chosen:
+            <c>TerrainRender_SetBlendState</c> (<c>0x66BCB0</c>) gives <c>SRCBLEND = SRCALPHA</c> with
+            <c>DESTBLEND = ONE</c>, so the passes accumulate; <c>TerrainRender_SetTextureState</c>
+            (<c>0x66B810</c>) modulates the material texture by the vertex diffuse and the detail texture onto
+            that; and the vertex diffuse carries the baked terrain light in RGB with the material weight in
+            alpha. <see cref="F:OpenIGI.Rendering.BlendMode.Additive"/> and <see cref="M:OpenIGI.Rendering.IGraphicsDevice.SetTextureDetail(OpenIGI.Rendering.TextureHandle,OpenIGI.Rendering.TextureHandle)"/> are the
+            port's names for the same two things.
+            </para>
+            <para>
+            <b>A vertex buffer per material, which is also the original's shape.</b> A vertex's alpha is its
+            weight <em>for one material</em>, so it cannot be shared between passes — and
+            <c>TerrainRender_AllocateMaterialVertexBuffers</c> / <c>...UnlockMaterialVertexBuffers</c> say the
+            original reached the same conclusion. Each chunk therefore keeps only the vertices its own triangles
+            touch, compacted, so the alpha is free to mean one material's weight.
+            </para>
+            <para>
+            Positions are stored relative to their tile's centre and drawn through
+            <see cref="M:OpenIGI.Core.Graphics.Camera3D.CreateModelView(OpenIGI.Core.Numerics.Vector3d,OpenIGI.Core.Numerics.Matrix3f)"/>, which folds the camera in at double
+            precision. I.G.I. 2's coordinates reach millions of units, and the original solves the same problem
+            the same way — <c>TerrainRender_SetVertexShaderConstants</c> builds its world matrix about the
+            viewer.
+            </para>
+            <para>
+            <b>Two modes, and the constructor chooses.</b> Given
+            <see cref="M:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.#ctor(OpenIGI.Rendering.IGraphicsDevice,OpenIGI.Game.Igi2.World.Igi2TerrainSurface,OpenIGI.Game.Igi2.World.Igi2TerrainLodSettings,System.Func{System.String,OpenIGI.Rendering.TextureHandle},OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            a level's detail controls</see> it runs <see cref="T:OpenIGI.Game.Igi2.World.Igi2TerrainLod"/> every frame and streams the
+            result, which is what the original does — <c>TerrainRender_Draw</c> locks its vertex and index
+            buffers at the top of the frame and refills them from the quadtree. Without them it uploads every
+            tile at full detail once and draws all of it forever, which is correct and slow: 13,271,214
+            triangles across the corpus.
+            </para>
+            <para>
+            The full-detail path is kept rather than deleted because it is the reference the tessellated one is
+            measured against — a quadtree that drops geometry is a bug that only shows as a comparison.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.LogCategory">
+            <summary>The category load diagnostics are logged under.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.MaximumIndicesPerChunk">
+            <summary>The most indices one chunk holds before the next is started.</summary>
+            <remarks>
+            The original's own budget. <c>TerrainRender_DrawFace</c> (<c>igi2ed 0x66AAB0</c>) keeps appending
+            to a render chunk while its index count is <c>&lt;= 9997</c> and calls
+            <c>TerrainRender_AllocateRenderChunk</c> when it is not, so a chunk holds at most 10,000 indices.
+            Rounded down to a multiple of three here, which the original gets for free by appending three at
+            a time.
+            <para>
+            It also settles a problem the device would otherwise have: indices are 16-bit, and a 512-sample
+            tile drawn as one pass would want 262,144 vertices — four times what an index can name. Chunking
+            at the original's budget keeps a chunk to 9,999 vertices at the very worst.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.ChunkPoolSlots">
+            <summary>How many chunk pools take turns, one per frame.</summary>
+            <remarks>
+            <para>
+            <b>A chunk cannot be rewritten while a frame in flight is still reading it.</b> A storage mesh's
+            buffers are host-visible and <c>UploadMeshRange</c> writes them directly, with no staging copy
+            and no fence: the contract is that callers <em>append</em>, so the bytes a submitted frame reads
+            are never touched again. The tessellated ground is the one caller that does not append — it
+            refills the same chunks from offset zero every frame — so with two frames in flight the geometry
+            the GPU was drawing was being overwritten underneath it, and triangles came out built from two
+            frames' vertices at once: flat sheets and black wedges hanging off the ground, appearing only
+            while the camera moved, because a still camera rewrites the same bytes.
+            </para>
+            <para>
+            One more than <c>VulkanFrameLoop.MaxFramesInFlight</c>, which is the same ring
+            <c>TerrainShadowCaster</c> takes for the same reason: a pool written now was last submitted three
+            frames ago, and those have retired. It costs two more copies of the chunks actually used — about
+            half a megabyte each — rather than a stall.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.#ctor(OpenIGI.Rendering.IGraphicsDevice,OpenIGI.Game.Igi2.World.Igi2TerrainSurface,System.Func{System.String,OpenIGI.Rendering.TextureHandle},OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <summary>Builds the ground of one level at full detail, with no quadtree.</summary>
+            <param name="device">The device to upload through.</param>
+            <param name="surface">The level's tiles and materials.</param>
+            <param name="textures">
+            Resolves a terrain material's texture name to a handle, returning
+            <see cref="P:OpenIGI.Rendering.TextureHandle.None"/> for one the level does not ship.
+            </param>
+            <param name="logger">Where load diagnostics go.</param>
+            <exception cref="T:System.ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+            <remarks>
+            The textures arrive through a delegate rather than an archive, because which archive a name lives
+            in is the mission loader's business and resolving it here would make this type need one.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.#ctor(OpenIGI.Rendering.IGraphicsDevice,OpenIGI.Game.Igi2.World.Igi2TerrainSurface,OpenIGI.Game.Igi2.World.Igi2TerrainLodSettings,System.Func{System.String,OpenIGI.Rendering.TextureHandle},OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <summary>Builds the ground of one level and tessellates it per frame.</summary>
+            <param name="device">The device to upload through.</param>
+            <param name="surface">The level's tiles and materials.</param>
+            <param name="settings">
+            The level's <c>Detail</c> and <c>Adaption</c>, from <see cref="M:OpenIGI.Game.Igi2.World.Igi2TerrainLodSettings.Read(OpenIGI.Engine.Tasks.GameTask)"/>.
+            </param>
+            <param name="textures">Resolves a terrain material's texture name to a handle.</param>
+            <param name="logger">Where load diagnostics go.</param>
+            <exception cref="T:System.ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+            <remarks>
+            Nothing is uploaded here beyond the height pyramids the culling test needs. The geometry is built
+            by <see cref="M:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.Draw(OpenIGI.Presentation.TerrainFrame@)"/> into storage meshes taken from a pool that only ever grows, which is the
+            port's shape of <c>TerrainRender_tRenderChunkPool</c> — fifty chunks of 10,000 indices that the
+            original flushes and reuses within a frame.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.TriangleCount">
+            <summary>Gets how many triangles the ground draws.</summary>
+            <remarks>
+            For the full-detail path this is fixed at construction. For the tessellated one it is what the
+            last <see cref="M:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.Draw(OpenIGI.Presentation.TerrainFrame@)"/> issued, and it moves with the camera.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.ChunkCount">
+            <summary>Gets how many chunks the ground was drawn as.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.SquaresDrawn">
+            <summary>Gets how many quadtree leaves the last frame emitted, or zero at full detail.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.SquaresCulled">
+            <summary>Gets how many quadtree squares the clipping planes rejected last frame.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.IsTessellated">
+            <summary>Gets a value indicating whether the ground is tessellated per frame.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.Summary">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.Draw(OpenIGI.Presentation.TerrainFrame@)">
+            <inheritdoc/>
+            <remarks>
+            The tessellated path reads the frame's camera and projection, because that is what the quadtree
+            is a function of — <c>TerrainRender_Draw</c> measures every edge against the eye and
+            <c>TerrainRender_SetupClippingPlanes</c> builds its four half-spaces out of the projection's half
+            angles. The full-detail path ignores both rather than pretending to a selectivity it does not
+            have.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.FogTargetOf(OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.ChunkPass)">
+            <summary>The colour a ground pass fogs towards, as the original's state block for its mode writes it.</summary>
+            <remarks>
+            <c>TerrainRender_SetBlendMode</c> (<c>igi2ed 0x666B90</c>): modes 1 and 2 — the base and the
+            overlays — set <c>D3DRS_FOGCOLOR</c> to the fog colour times 127; mode 3 — the lightmap — sets it
+            to <c>0xFFFFFFFF</c>. The lightmap pass doubles what is under it, so at distance the three land
+            on <c>2 × (fog / 2) × 1</c>, the fog; nearer in the bake is fogged to the identity before the
+            texture is fogged to the haze, which is what keeps far rock textured. Fogging every pass to the
+            scene's colour instead multiplied the fog into itself, and the far hills went to fog squared —
+            a third the brightness the original draws them at.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.Describe(System.Collections.Generic.ICollection{System.String})">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.Dispose">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.UploadLightmap(OpenIGI.Game.Igi2.World.Igi2TerrainMesh,OpenIGI.Game.Igi2.World.Igi2TerrainTile,OpenIGI.Rendering.TextureHandle)">
+            <summary>Uploads the full-detail lightmap pass: every triangle once, at the tile's projection.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.CreateLightmap(OpenIGI.Rendering.IGraphicsDevice,OpenIGI.Game.Igi2.World.Igi2TerrainTile)">
+            <summary>Uploads one tile's baked lightmap as a texture.</summary>
+            <remarks>
+            Clamped, because the original's lightmap pass sets <c>ADDRESSU</c> and <c>ADDRESSV</c> to
+            <c>D3DTADDRESS_CLAMP</c> (<c>TerrainRender_SetBlendMode</c> case 3, <c>igi2ed 0x666B90</c>): the
+            quadtree's root reaches half a texel past the map on two sides, and wrapping there would fetch
+            the far edge's bake and draw a bright seam along the tile.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.BuildLightmapVertex(OpenIGI.Game.Igi2.World.Igi2TerrainMesh,System.Int32,OpenIGI.Core.Numerics.Vector3d,System.ValueTuple{System.Single,System.Single,System.Single,System.Single})">
+            <summary>Builds a vertex of the lightmap pass: the projection in place of the material's uv.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.StreamLightmap(OpenIGI.Game.Igi2.World.Igi2TerrainMesh,OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.Tile,OpenIGI.Core.Numerics.Matrix4f@)">
+            <summary>Streams one tile's lightmap pass: every leaf triangle once, multiplied over the ground.</summary>
+            <remarks>
+            The geometry is the union of the passes' BASE triangles, which is every triangle exactly once —
+            each is base to the one pass that established it. Taking the passes' whole index lists instead
+            would multiply the lightmap in again for every material a triangle straddles.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.ChunkPass">
+            <summary>Which of the ground's three passes a chunk belongs to.</summary>
+            <remarks>
+            The original's own three, and its own order: <c>TerrainRender_DrawFace</c>
+            (<c>igi2ed 0x66AAB0</c>) files a face under blend mode 1 for the first material that claims it,
+            mode 2 for every other material that claims it, and mode 3 once for the tile's lightmap.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.ChunkPass.Base">
+            <summary>Mode 1: the material that establishes the pixel, opaque and writing depth.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.ChunkPass.Overlay">
+            <summary>Mode 2: another material adding its share over it.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2TerrainPresenter.ChunkPass.Lightmap">
+            <summary>Mode 3: the tile's lightmap, multiplied over the lot.</summary>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.World.Igi2TextureLoader">
+            <summary>
+            Turns an I.G.I. 2 texture name into a handle on the device, once per name.
+            </summary>
+            <remarks>
+            <para>
+            Several materials share a texture — a level's ground is a handful of them over a great many tiles —
+            so decoding and uploading each on demand, once, is the whole of this type.
+            </para>
+            <para>
+            <b>A name is used exactly as written.</b> A terrain material carries a full alias-qualified path
+            with its own extension, <c>MISSION:textures/k_grass.jpg</c>, and that resolves through the file
+            system to a loose file beside the level's archive. Only a bare name — which is how a model's
+            materials name theirs — is expanded into <c>LOCAL:textures/&lt;name&gt;.tex</c>.
+            </para>
+            <para>
+            <b>Three formats, because the game does not decode two of them itself.</b>
+            <c>Direct3DTexture_DownloadFromFile</c> (<c>igi2ed 0x662FE0</c>) hands the raw bytes to
+            <c>D3DXCreateTextureFromFileInMemoryEx</c>, which sniffs and decodes whatever they are — so the
+            sequel names <c>.tex</c>, <c>.tga</c> and <c>.jpg</c> interchangeably and the engine never notices.
+            This sniffs the same way: a <c>LOOP</c> magic is the engine's own format, otherwise a TGA header
+            shape, otherwise nothing.
+            </para>
+            <para>
+            All three are read here, so the ground, the sky and the props all texture. The sniffing order
+            matters: <c>LOOP</c> and JPEG both have a magic number and TGA has none, so TGA is tried last and
+            only its header <em>shape</em> can be checked.
+            </para>
+            <para>
+            A name the level does not ship resolves to <see cref="P:OpenIGI.Rendering.TextureHandle.None"/> rather than throwing.
+            That is the original's own tolerance: a material whose texture is absent draws untextured, and the
+            corpus has materials painted with textures their author later removed.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2TextureLoader.LogCategory">
+            <summary>The category load diagnostics are logged under.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2TextureLoader.#ctor(OpenIGI.Rendering.IGraphicsDevice,OpenIGI.Engine.Resources.ResourceRegistry,OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <summary>Creates a loader.</summary>
+            <param name="device">The device to upload through.</param>
+            <param name="resources">The registry textures are read from.</param>
+            <param name="logger">Where load diagnostics go.</param>
+            <exception cref="T:System.ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2TextureLoader.Count">
+            <summary>Gets how many distinct textures were uploaded.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2TextureLoader.Resolve(System.String)">
+            <summary>Resolves a texture by its bare name, uploading it the first time.</summary>
+            <param name="name">The bare name, as a terrain material carries it.</param>
+            <returns>The handle, or <see cref="P:OpenIGI.Rendering.TextureHandle.None"/> when the level does not ship it.</returns>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2TextureLoader.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2TextureLoader.ResourceNameFor(System.String)">
+            <summary>Turns a material's texture name into the resource name it is registered under.</summary>
+            <param name="name">The name as the material carries it.</param>
+            <returns>The resource name.</returns>
+            <exception cref="T:System.ArgumentException"><paramref name="name"/> is null or empty.</exception>
+            <remarks>
+            Already-qualified names pass through untouched, because that is what a terrain material carries
+            and the file it names really is at that path.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.World.Igi2WaterLight">
+            <summary>The light a level's water is drawn in: its sun and the objects' ambient.</summary>
+            <param name="SunDirection">Towards the sun, unit length; zero where the level has none.</param>
+            <param name="SunColour">The sun's front colour; black where the level has none.</param>
+            <param name="Ambient">The objects' ambient light, <c>Mesh3D_atAmbientColor[1]</c>.</param>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2WaterLight.#ctor(OpenIGI.Core.Numerics.Vector3f,OpenIGI.Core.Numerics.Vector3f,OpenIGI.Core.Numerics.Vector3f)">
+            <summary>The light a level's water is drawn in: its sun and the objects' ambient.</summary>
+            <param name="SunDirection">Towards the sun, unit length; zero where the level has none.</param>
+            <param name="SunColour">The sun's front colour; black where the level has none.</param>
+            <param name="Ambient">The objects' ambient light, <c>Mesh3D_atAmbientColor[1]</c>.</param>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2WaterLight.SunDirection">
+            <summary>Towards the sun, unit length; zero where the level has none.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2WaterLight.SunColour">
+            <summary>The sun's front colour; black where the level has none.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2WaterLight.Ambient">
+            <summary>The objects' ambient light, <c>Mesh3D_atAmbientColor[1]</c>.</summary>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.World.Igi2WaterPresenter">
+            <summary>
+            Draws I.G.I. 2's water: a moving surface per sheet, reflecting the level's baked cube map.
+            </summary>
+            <remarks>
+            <para>
+            The surface itself is exact. Every vertex is <see cref="T:OpenIGI.Game.Igi2.World.Igi2WaterWaveField"/>, which is
+            <c>Water_VertexFunction</c> (<c>igi2ed 0x645B30</c>) read term for term: the sum of the sheet's wave
+            trains, flattened with the vertex's depth in front of the eye, with the normal differenced from two
+            neighbouring samples a hundredth of a wavelength away. The vertex the original builds is seven floats — a
+            position, that normal, and how shallow the water is there — which is the same vertex this writes.
+            </para>
+            <para>
+            <b>A sheet is a square.</b> <c>Water_IsUnderWater</c> (<c>0x6477D0</c>) tests X and Y against
+            <c>Size</c> independently rather than testing a distance, so what <c>Size</c> describes is a
+            half-extent.
+            </para>
+            <para>
+            <b>It is cut up again every frame, around the eye</b>, by <see cref="T:OpenIGI.Presentation.Igi2.World.Igi2WaterTessellation"/>, which is
+            <c>WaterRender_Draw</c>'s subdivision. That matters for more than the shape: the water's light is computed
+            at its vertices, so a sheet kilometres wide cut into an even grid shows every vertex as far away, and reads
+            as a mirror to the bank.
+            </para>
+            <para>
+            <b>It is drawn as the original's "High Water Quality".</b> <see cref="M:OpenIGI.Rendering.IGraphicsDevice.DrawWater(OpenIGI.Rendering.MeshHandle,System.Int32,System.Int32,OpenIGI.Core.Numerics.Matrix4f@,OpenIGI.Rendering.TextureHandle,OpenIGI.Rendering.WaterShading@)"/> is
+            <c>WaterRender_azVertexShader[2]</c> and its two texture stages: a Fresnel blend of the cube and the
+            water's own light, the scene behind kept by how shallow the water is, and no surface texture at all.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2WaterPresenter.LogCategory">
+            <summary>The category load diagnostics are logged under.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2WaterPresenter.#ctor(OpenIGI.Rendering.IGraphicsDevice,OpenIGI.Game.Igi2.World.Igi2WaterSurface,System.Func{OpenIGI.Game.Igi2.World.Igi2WaterSheet,System.Collections.Generic.IReadOnlyList{OpenIGI.Rendering.TextureHandle}},OpenIGI.Core.Diagnostics.IOpenIgiLogger,System.Func{System.Int32,System.Int32},System.Func{System.Double,System.Double,System.Nullable{System.Double}},OpenIGI.Presentation.Igi2.World.Igi2WaterLight)">
+            <summary>Builds one level's water.</summary>
+            <param name="device">The device to upload through and draw with.</param>
+            <param name="surface">The sheets the level places.</param>
+            <param name="cubes">Resolves a sheet's baked reflections to cube maps, one a slot of its resource list; empty for none.</param>
+            <param name="logger">Where load diagnostics go.</param>
+            <param name="envmapSlot">The slot a water task reflects now, by its id; the first without.</param>
+            <param name="ground">The ground's height under a world point, in world units, as the water's depth reads it; none for no ground.</param>
+            <param name="light">The level's sun and ambient.</param>
+            <exception cref="T:System.ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2WaterPresenter.SheetCount">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2WaterPresenter.Summary">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2WaterPresenter.ShallownessAt(System.Double,System.Nullable{System.Double},System.Single)">
+            <summary>How shallow the water is over a point, the vertex's delta (<c>Water_VertexFunction</c>).</summary>
+            <param name="surface">The surface's world height there, in world units.</param>
+            <param name="ground">The ground's, or <see langword="null"/> where there is none.</param>
+            <param name="absorptionLength">The sheet's absorption length, in metres.</param>
+            <returns>One at the ground, falling to nought an absorption length from it, and nought beyond.</returns>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2WaterPresenter.Draw(OpenIGI.Presentation.WaterFrame@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2WaterPresenter.Dispose">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2WaterPresenter.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.World.Igi2WaterPresenter.Sheet">
+            <summary>One sheet: its waves, its reflections, and the meshes it is drawn from in turn.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2WaterPresenter.Sheet.#ctor(OpenIGI.Game.Igi2.World.Igi2WaterSheet,OpenIGI.Game.Igi2.World.Igi2WaterWaveField,System.Collections.Generic.IReadOnlyList{OpenIGI.Rendering.TextureHandle})">
+            <summary>One sheet: its waves, its reflections, and the meshes it is drawn from in turn.</summary>
+        </member>
+        <member name="T:OpenIGI.Presentation.Igi2.World.Igi2WaterTessellation">
+            <summary>
+            Cuts a sheet of water into triangles for one frame, finely near the eye and coarsely far from it:
+            <c>WaterRender_Draw</c>'s subdivision.
+            </summary>
+            <remarks>
+            <para>
+            The sheet starts as its square's two triangles. Each triangle taken off the stack has its three edges
+            measured: an edge is split when it is longer than the sheet's <c>Detail</c> times its distance from the eye
+            (the nearest point on it), and never below half a metre. No edge split, the triangle is drawn; one, two or
+            three, it is cut into two, three or four, which go back on the stack. A new vertex is a full sample of the
+            surface (<c>Water_VertexFunction</c>) at the edge's middle, and then is drawn only part of the way from the
+            edge's own midpoint towards it -- <c>(length² / threshold − 1) × 0.3</c> of it, at most all -- so a vertex
+            grows out of its edge as the eye closes on it rather than popping
+            (<c>WaterRender_CalculateRenderVertex</c>). A triangle wholly off one side of the view is dropped.
+            </para>
+            <para>
+            The water's look is computed at the vertices, so this is what decides how the water looks, not just its
+            shape: the reflection, the Fresnel term and the shallowness are all only as fine as these triangles are.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2WaterTessellation.MaximumVertices">
+            <summary>The most vertices a sheet is cut into, <c>WaterRender_ptVertexBuffer</c>'s 420,000 bytes.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2WaterTessellation.MaximumIndices">
+            <summary>The most indices, <c>WaterRender_ptIndexBuffer</c>'s 90,000 bytes.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2WaterTessellation.ShortestSplitSquared">
+            <summary>The shortest edge ever split, squared, in engine units: half a metre.</summary>
+        </member>
+        <member name="F:OpenIGI.Presentation.Igi2.World.Igi2WaterTessellation.MorphRate">
+            <summary>How quickly a new vertex grows out of its edge.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2WaterTessellation.VertexCount">
+            <summary>Gets how many vertices the last <see cref="M:OpenIGI.Presentation.Igi2.World.Igi2WaterTessellation.Build(OpenIGI.Game.Igi2.World.Igi2WaterSheet@,OpenIGI.Game.Igi2.World.Igi2WaterWaveField,System.Double,OpenIGI.Core.Numerics.Vector3f,OpenIGI.Core.Numerics.Matrix3f,OpenIGI.Core.Numerics.Matrix4f@,System.Func{System.Double,System.Double,System.Nullable{System.Double}})"/> made.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2WaterTessellation.IndexCount">
+            <summary>Gets how many indices it made.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2WaterTessellation.Vertices">
+            <summary>Gets the vertices, in metres in the sheet's own space, how shallow the water is in the diffuse U.</summary>
+        </member>
+        <member name="P:OpenIGI.Presentation.Igi2.World.Igi2WaterTessellation.Indices">
+            <summary>Gets the triangles.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2WaterTessellation.Build(OpenIGI.Game.Igi2.World.Igi2WaterSheet@,OpenIGI.Game.Igi2.World.Igi2WaterWaveField,System.Double,OpenIGI.Core.Numerics.Vector3f,OpenIGI.Core.Numerics.Matrix3f,OpenIGI.Core.Numerics.Matrix4f@,System.Func{System.Double,System.Double,System.Nullable{System.Double}})">
+            <summary>Cuts the sheet up for one view.</summary>
+            <param name="sheet">The sheet.</param>
+            <param name="field">Its waves.</param>
+            <param name="seconds">The wave clock.</param>
+            <param name="eye">The eye, in the sheet's space and in engine units.</param>
+            <param name="orientation">The eye's axes: right, up and forward, row by row.</param>
+            <param name="projection">The view's projection, which says where the view's sides are.</param>
+            <param name="ground">The ground's height under a world point, in world units; none for no ground.</param>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2WaterTessellation.Context.DepthOf(System.Single,System.Single)">
+            <summary>How far in front of the eye a point of the sheet's plane is, the depth the waves flatten with.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2WaterTessellation.Context.Sample(System.Single,System.Single,System.Single)">
+            <summary><c>Water_VertexFunction</c> at a point of the sheet.</summary>
+        </member>
+        <member name="M:OpenIGI.Presentation.Igi2.World.Igi2WaterTessellation.Context.Outcode(OpenIGI.Core.Numerics.Vector3f)">
+            <summary>Which sides of the view a point is beyond, <c>WaterRender_CalculateRenderVertex</c>'s outcode.</summary>
+        </member>
+    </members>
+</doc>

@@ -1,0 +1,200 @@
+{
+  "module": "ReconstructionGuides",
+  "variant": "default",
+  "entryPoints": [
+    {
+      "name": "computeMain",
+      "stage": "Compute",
+      "workgroupSize": [
+        8,
+        8,
+        1
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "name": "uDepth",
+      "group": 0,
+      "binding": 0,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 0,
+        "space": 0
+      }
+    },
+    {
+      "name": "uBaseColour",
+      "group": 0,
+      "binding": 1,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 1,
+        "space": 0
+      }
+    },
+    {
+      "name": "uNormal",
+      "group": 0,
+      "binding": 2,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 2,
+        "space": 0
+      }
+    },
+    {
+      "name": "uMaterial",
+      "group": 0,
+      "binding": 3,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 3,
+        "space": 0
+      }
+    },
+    {
+      "name": "uDiffuseAlbedo",
+      "group": 0,
+      "binding": 4,
+      "kind": "StorageTexture",
+      "dimensions": 2,
+      "storageFormat": "Rgba16Float",
+      "wgslStorageFormat": "None",
+      "storageAccess": "WriteOnly",
+      "hlsl": {
+        "class": "UnorderedAccess",
+        "register": 0,
+        "space": 0
+      }
+    },
+    {
+      "name": "uSpecularAlbedo",
+      "group": 0,
+      "binding": 5,
+      "kind": "StorageTexture",
+      "dimensions": 2,
+      "storageFormat": "Rgba16Float",
+      "wgslStorageFormat": "None",
+      "storageAccess": "WriteOnly",
+      "hlsl": {
+        "class": "UnorderedAccess",
+        "register": 1,
+        "space": 0
+      }
+    },
+    {
+      "name": "uNormalRoughness",
+      "group": 0,
+      "binding": 6,
+      "kind": "StorageTexture",
+      "dimensions": 2,
+      "storageFormat": "Rgba16Float",
+      "wgslStorageFormat": "None",
+      "storageAccess": "WriteOnly",
+      "hlsl": {
+        "class": "UnorderedAccess",
+        "register": 2,
+        "space": 0
+      }
+    },
+    {
+      "name": "p",
+      "group": 0,
+      "binding": 7,
+      "kind": "UniformBuffer",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ConstantBuffer",
+        "register": 0,
+        "space": 0
+      }
+    },
+    {
+      "name": "uRigBaseColour",
+      "group": 0,
+      "binding": 8,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 4,
+        "space": 0
+      }
+    },
+    {
+      "name": "uRigNormal",
+      "group": 0,
+      "binding": 9,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 5,
+        "space": 0
+      }
+    },
+    {
+      "name": "uLit",
+      "group": 0,
+      "binding": 10,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 6,
+        "space": 0
+      }
+    },
+    {
+      "name": "uBeforeTransparency",
+      "group": 0,
+      "binding": 11,
+      "kind": "StorageTexture",
+      "dimensions": 2,
+      "storageFormat": "Rgba16Float",
+      "wgslStorageFormat": "None",
+      "storageAccess": "WriteOnly",
+      "hlsl": {
+        "class": "UnorderedAccess",
+        "register": 3,
+        "space": 0
+      }
+    }
+  ],
+  "pushBlock": null,
+  "specializationConstants": [],
+  "globals": null
+}

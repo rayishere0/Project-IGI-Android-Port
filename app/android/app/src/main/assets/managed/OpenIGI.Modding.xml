@@ -1,0 +1,411 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OpenIGI.Modding</name>
+    </assembly>
+    <members>
+        <member name="T:OpenIGI.Modding.IModBuilder">
+            <summary>What a mod can change in a game, grouped by what it changes.</summary>
+            <remarks>
+            Every member records what the mod says; nothing of the game is touched until the game starts with the mod on. The
+            groups' methods return their group, so a mod's calls to one chain.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Modding.IModBuilder.Manifest">
+            <summary>Gets the mod's manifest.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.IModBuilder.Title">
+            <summary>Gets the game being configured, one of those the manifest names.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.IModBuilder.Directory">
+            <summary>Gets the mod's directory, which holds its <c>mod.json</c> and whatever files it ships.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.IModBuilder.Settings">
+            <summary>Gets the mod's settings, which the settings screen lists on its Mods page.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.IModBuilder.Tasks">
+            <summary>Gets the task types the mod adds, and the game's it makes of its own classes.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.IModBuilder.Scripts">
+            <summary>Gets what the mod gives the game's scripts.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.IModBuilder.Events">
+            <summary>Gets the game's events, for the mod to be told of.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.IModBuilder.Properties">
+            <summary>
+            Gets what other assemblies that extend the builder keep for the mod, by key: the presenters the modding presentation
+            library's <c>Presenters</c> adds, for one.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Modding.IModBuilder.LevelSystems``1">
+            <summary>Gets the systems that bring each of the game's levels up, for the mod to add to, replace or remove.</summary>
+            <typeparam name="TBuild">The game's level build type, whose systems' names its game names.</typeparam>
+            <returns>The systems, as the mod edits them.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.IModBuilder.ReadConfig``1(System.String,System.Text.Json.Serialization.Metadata.JsonTypeInfo{``0})">
+            <summary>Reads a JSON file of the mod's: the player's copy in the mod's directory when there is one, else the one it embeds.</summary>
+            <typeparam name="T">What the file holds.</typeparam>
+            <param name="fileName">The file's name; the embedded copy is the mod assembly's resource of that name.</param>
+            <param name="typeInfo">The file's generated JSON shape.</param>
+            <returns>What the file holds.</returns>
+            <exception cref="T:OpenIGI.Core.Content.ModLoadException">Neither copy is there, or the one read is not valid.</exception>
+        </member>
+        <member name="M:OpenIGI.Modding.IModBuilder.AddModule(OpenIGI.Engine.Titles.IContentModule)">
+            <summary>
+            Adds a content module, which registers after the game's own: what the groups do not reach -- natives, services, tables.
+            </summary>
+            <param name="contentModule">The module.</param>
+            <returns>This builder.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.IModBuilder.MountTitleData(OpenIGI.Core.Titles.GameTitle,System.String)">
+            <summary>Mounts another game's installed data as a device of its own, for the mod to read that game's files.</summary>
+            <param name="title">The game whose data is mounted.</param>
+            <param name="deviceName">The device's name, without its colon: files are read as <c>NAME:path</c>.</param>
+            <returns>This builder.</returns>
+            <remarks>
+            Mounted when the session loads its tables, before any level. When the game is not installed nothing is mounted and a
+            warning says so; what the mod reads from the device is then missing, as any absent file is.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Modding.IModBuilder.OnStarted(System.Action{OpenIGI.Modding.IModContext})">
+            <summary>Runs once a session of the game has loaded its tables, with what the mod can read of it from then on.</summary>
+            <param name="started">What runs.</param>
+            <returns>This builder.</returns>
+            <remarks>Every session runs it: the one played, and the menu's preview of a mission.</remarks>
+        </member>
+        <member name="T:OpenIGI.Modding.IModContext">
+            <summary>What a mod reads of a game's session once the session has loaded its tables.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.IModContext.Manifest">
+            <summary>Gets the mod's manifest.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.IModContext.Title">
+            <summary>Gets the game.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.IModContext.Directory">
+            <summary>Gets the mod's directory.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.IModContext.Services">
+            <summary>Gets the tables and worlds the game's modules published.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.IModContext.Events">
+            <summary>Gets the session's events.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.IModContext.FileSystem">
+            <summary>Gets the virtual file system the game reads through.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.IModContext.Resources">
+            <summary>Gets the resource registry the game's archives are open in.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.IModContext.Logger">
+            <summary>Gets where diagnostics go.</summary>
+        </member>
+        <member name="M:OpenIGI.Modding.IModContext.TryGetDataRoot(OpenIGI.Core.Titles.GameTitle,System.String@)">
+            <summary>Finds where a game is installed.</summary>
+            <param name="title">The game.</param>
+            <param name="root">Receives its data directory.</param>
+            <returns>Whether it is installed.</returns>
+        </member>
+        <member name="T:OpenIGI.Modding.InstalledMod">
+            <summary>One mod as found: its manifest, where it lives, and its code when it has any.</summary>
+            <param name="Manifest">The mod's manifest.</param>
+            <param name="Directory">The mod's directory.</param>
+            <param name="Code">The mod's code, or <see langword="null"/> for a mod made of content alone.</param>
+        </member>
+        <member name="M:OpenIGI.Modding.InstalledMod.#ctor(OpenIGI.Core.Content.ModManifest,System.String,OpenIGI.Modding.IOpenIgiMod)">
+            <summary>One mod as found: its manifest, where it lives, and its code when it has any.</summary>
+            <param name="Manifest">The mod's manifest.</param>
+            <param name="Directory">The mod's directory.</param>
+            <param name="Code">The mod's code, or <see langword="null"/> for a mod made of content alone.</param>
+        </member>
+        <member name="P:OpenIGI.Modding.InstalledMod.Manifest">
+            <summary>The mod's manifest.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.InstalledMod.Directory">
+            <summary>The mod's directory.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.InstalledMod.Code">
+            <summary>The mod's code, or <see langword="null"/> for a mod made of content alone.</summary>
+        </member>
+        <member name="T:OpenIGI.Modding.IOpenIgiMod">
+            <summary>A mod's code: what it changes in a game, said once, before the game starts.</summary>
+            <remarks>
+            <para>
+            The loader makes the one public class of the mod's assembly that implements this, through its public parameterless
+            constructor, and calls <see cref="M:OpenIGI.Modding.IOpenIgiMod.Configure(OpenIGI.Modding.IModBuilder)"/> once for each game the mod applies to, before that game's content is
+            registered. Everything the mod changes it changes through the builder, so a game played without the mod is the game as it
+            ships.
+            </para>
+            <para>
+            <see cref="M:OpenIGI.Modding.IOpenIgiMod.Configure(OpenIGI.Modding.IModBuilder)"/> reads as the mod's whole wiring, top to bottom:
+            </para>
+            <code>
+            public sealed class MyMod : IOpenIgiMod
+            {
+                public void Configure(IModBuilder builder)
+                {
+                    BoolCVar loud = builder.Settings.Bool("loud", false, "Doubles every footstep.");
+                    builder.Scripts.Constant("MyMod_Answer", 42);
+                    builder.LevelSystems&lt;MissionLevelBuild&gt;().InsertAfter(MissionSystemNames.Player, "MyMod.Arrive", Arrive);
+                    builder.Events.On&lt;HumanKilled&gt;(killed =&gt; ...);
+                    builder.OnStarted(session =&gt; ...);
+                }
+            }
+            </code>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Modding.IOpenIgiMod.Configure(OpenIGI.Modding.IModBuilder)">
+            <summary>Says what the mod changes in one game.</summary>
+            <param name="builder">What the mod can change; <see cref="P:OpenIGI.Modding.IModBuilder.Title"/> says which game it is.</param>
+        </member>
+        <member name="T:OpenIGI.Modding.ModApi">
+            <summary>The modding API's version, which a manifest names.</summary>
+        </member>
+        <member name="F:OpenIGI.Modding.ModApi.Version">
+            <summary>The version of the API this build offers. A mod written against another is refused.</summary>
+            <remarks>
+            Version 1 is shipped: its surface is <c>PublicAPI.Shipped.txt</c>, which the analyzer holds the build to. Adding to it
+            is allowed; changing or removing anything in it is a new version.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Modding.ModBuilder">
+            <summary>What one mod says it changes in one game, gathered into the content modules the game's sessions register.</summary>
+            <remarks>
+            The task types, constants, mounts, listeners and start hooks the mod names go into one module of its own, made where the
+            first of them is said, so they register in the order the mod said them among the modules it adds itself.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Modding.ModBuilder.#ctor(OpenIGI.Modding.InstalledMod,OpenIGI.Core.Titles.GameTitle,System.Collections.Generic.List{OpenIGI.Engine.Titles.IContentModule},OpenIGI.Game.Level.LevelSystemEdits,OpenIGI.Core.Configuration.CVarRegistry)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Modding.ModBuilder"/> class.</summary>
+            <param name="mod">The mod.</param>
+            <param name="title">The game.</param>
+            <param name="modules">The modules the mods add, in order.</param>
+            <param name="edits">The level-system edits the mods make.</param>
+            <param name="settings">The registry the mod's settings are declared in.</param>
+        </member>
+        <member name="T:OpenIGI.Modding.ModContentModule">
+            <summary>A mod's own content module: what it registers, and what it does once a session has loaded its tables.</summary>
+            <param name="mod">The mod.</param>
+            <param name="title">The game.</param>
+        </member>
+        <member name="M:OpenIGI.Modding.ModContentModule.#ctor(OpenIGI.Modding.InstalledMod,OpenIGI.Core.Titles.GameTitle)">
+            <summary>A mod's own content module: what it registers, and what it does once a session has loaded its tables.</summary>
+            <param name="mod">The mod.</param>
+            <param name="title">The game.</param>
+        </member>
+        <member name="F:OpenIGI.Modding.ModContentModule.LogCategory">
+            <summary>The category the mods' diagnostics are logged under.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.ModContentModule.Registrations">
+            <summary>Gets what the mod registers, in the order it said it.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.ModContentModule.Loads">
+            <summary>Gets what the mod does once a session has loaded its tables, in the order it said it.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.ModContentModule.Name">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Modding.ModContentModule.Register(OpenIGI.Engine.Titles.ContentRegistrationContext)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Modding.ModContentModule.LoadTables(OpenIGI.Engine.Titles.ContentLoadContext)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Modding.ModEvents">
+            <summary>The game's events, for a mod to be told of: one of <c>OpenIGI.Game.Events</c>, as each happens in play.</summary>
+            <remarks>
+            A handler is told inside the tick, in the order the mods subscribed, and is told nothing the game would not have done
+            without it: an event no mod hears costs the game nothing, and one a mod hears changes nothing of play by being heard.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Modding.ModEvents.On``1(System.Action{``0})">
+            <summary>Asks to be told of one kind of event in every level the game plays.</summary>
+            <typeparam name="TEvent">The kind.</typeparam>
+            <param name="handler">What is told.</param>
+            <returns>This group.</returns>
+        </member>
+        <member name="T:OpenIGI.Modding.ModLevelSystems`1">
+            <summary>The systems that bring each of a game's levels up, as a mod edits them.</summary>
+            <typeparam name="TBuild">The game's level build type.</typeparam>
+            <remarks>
+            The game names its systems (<c>MissionSystemNames</c>, <c>Igi2LevelSystems</c>); a mod places its own among them by those
+            names, and names its own so another mod can place itself beside them. The edits are made over a fresh list for every level,
+            in the order the mods said them.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Modding.ModLevelSystems`1.Add(System.String,System.Action{`0})">
+            <summary>Adds a system after every other.</summary>
+            <param name="name">The system's name.</param>
+            <param name="build">What it does to the level being brought up.</param>
+            <returns>This group.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.ModLevelSystems`1.InsertBefore(System.String,System.String,System.Action{`0})">
+            <summary>Adds a system just before one of the game's, or another mod's.</summary>
+            <param name="existing">The system it goes before.</param>
+            <param name="name">The system's name.</param>
+            <param name="build">What it does to the level being brought up.</param>
+            <returns>This group.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.ModLevelSystems`1.InsertAfter(System.String,System.String,System.Action{`0})">
+            <summary>Adds a system just after one of the game's, or another mod's.</summary>
+            <param name="existing">The system it goes after.</param>
+            <param name="name">The system's name.</param>
+            <param name="build">What it does to the level being brought up.</param>
+            <returns>This group.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.ModLevelSystems`1.Replace(System.String,System.Action{`0})">
+            <summary>Does a system's work the mod's way instead, under its name.</summary>
+            <param name="existing">The system replaced.</param>
+            <param name="build">What it does instead.</param>
+            <returns>This group.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.ModLevelSystems`1.Remove(System.String)">
+            <summary>Leaves a system out of every level.</summary>
+            <param name="existing">The system left out.</param>
+            <returns>This group.</returns>
+        </member>
+        <member name="T:OpenIGI.Modding.ModScripts">
+            <summary>What a mod gives the game's scripts.</summary>
+        </member>
+        <member name="M:OpenIGI.Modding.ModScripts.Constant(System.String,System.Int32)">
+            <summary>Adds an integer constant the game's scripts can read by name.</summary>
+            <param name="name">The constant's name; prefixing it with the mod's keeps it apart from another mod's.</param>
+            <param name="value">Its value.</param>
+            <returns>This group.</returns>
+        </member>
+        <member name="T:OpenIGI.Modding.ModSet">
+            <summary>The mods a run plays with, in the order they apply: a later mod's changes are made over an earlier one's.</summary>
+            <remarks>
+            <see cref="M:OpenIGI.Modding.ModSet.Extend(OpenIGI.Engine.Titles.IGameTitleRuntime)"/> is the one place the mods reach a game: the game's runtime comes back with the mods' content modules
+            after its own and a module that publishes their <see cref="T:OpenIGI.Game.Level.LevelSystemEdits"/>, so every session of that game -- the one
+            played and the menu's preview -- registers them the same way.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Modding.ModSet.DataDirectoryName">
+            <summary>The folder in a mod's directory whose files stand in for the game's own at the same paths.</summary>
+        </member>
+        <member name="F:OpenIGI.Modding.ModSet.ShadersDirectoryName">
+            <summary>The folder in a mod's directory that holds its compiled shaders.</summary>
+        </member>
+        <member name="M:OpenIGI.Modding.ModSet.#ctor(System.Collections.Generic.IEnumerable{OpenIGI.Modding.InstalledMod})">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Modding.ModSet"/> class.</summary>
+            <param name="mods">The mods, in the order they apply.</param>
+            <exception cref="T:OpenIGI.Core.Content.ModLoadException">Two mods share an id, or one was written against another API.</exception>
+        </member>
+        <member name="P:OpenIGI.Modding.ModSet.None">
+            <summary>Gets a set of no mods: the games as they ship.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.ModSet.Mods">
+            <summary>Gets the mods, in the order they apply.</summary>
+        </member>
+        <member name="M:OpenIGI.Modding.ModSet.PropertiesOf(OpenIGI.Modding.InstalledMod,OpenIGI.Core.Titles.GameTitle)">
+            <summary>Gets what a mod's builder kept for a game as <see cref="M:OpenIGI.Modding.ModSet.Extend(OpenIGI.Engine.Titles.IGameTitleRuntime)"/> configured the mod into it.</summary>
+            <param name="mod">The mod.</param>
+            <param name="title">The game.</param>
+            <returns>What it kept, by key; nothing before the game is extended, or for a mod with no code.</returns>
+            <remarks>For the assemblies that extend <see cref="T:OpenIGI.Modding.IModBuilder"/>: the modding presentation library reads its presenters here.</remarks>
+        </member>
+        <member name="M:OpenIGI.Modding.ModSet.For(OpenIGI.Core.Titles.GameTitle)">
+            <summary>Gets the mods that apply to a game.</summary>
+            <param name="title">The game.</param>
+            <returns>The mods, in order.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.ModSet.Extend(OpenIGI.Engine.Titles.IGameTitleRuntime)">
+            <summary>Gets a game's runtime with the mods that apply to it configured in.</summary>
+            <param name="runtime">The game's runtime as it ships.</param>
+            <returns>
+            The same runtime when no mod applies; otherwise one whose modules are the game's and then the mods', whose content
+            folders are the mods' data, the last mod's first, and whose campaigns are the mods', in their order.
+            </returns>
+        </member>
+        <member name="T:OpenIGI.Modding.ModSettings">
+            <summary>A mod's settings: console variables of its own, which the settings screen lists on its Mods page.</summary>
+            <remarks>
+            <para>
+            Each is named <c>mod_&lt;id&gt;_&lt;name&gt;</c>, the mod's id with what is not a letter or a digit made an underscore, and
+            saved with the player's settings. A mod that is switched off keeps its values in the settings file until it is on again.
+            </para>
+            <para>
+            A mod's <see cref="M:OpenIGI.Modding.IOpenIgiMod.Configure(OpenIGI.Modding.IModBuilder)"/> runs for every game it applies to, and again for every session a test makes:
+            declaring a setting already declared under the same name and of the same kind gives back the one there is.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Modding.ModSettings.Bool(System.String,System.Boolean,System.String)">
+            <summary>Declares a switch.</summary>
+            <param name="name">The setting's own name: lowercase letters, digits and underscores.</param>
+            <param name="defaultValue">Its value until the player changes it.</param>
+            <param name="description">The line the settings screen and the console show for it.</param>
+            <returns>The setting.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.ModSettings.Int(System.String,System.Int32,System.Int32,System.Int32,System.String)">
+            <summary>Declares a whole number between two bounds.</summary>
+            <param name="name">The setting's own name: lowercase letters, digits and underscores.</param>
+            <param name="defaultValue">Its value until the player changes it.</param>
+            <param name="minimum">The least it may be.</param>
+            <param name="maximum">The most it may be.</param>
+            <param name="description">The line the settings screen and the console show for it.</param>
+            <returns>The setting.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.ModSettings.Float(System.String,System.Single,System.Single,System.Single,System.String)">
+            <summary>Declares a number between two bounds.</summary>
+            <param name="name">The setting's own name: lowercase letters, digits and underscores.</param>
+            <param name="defaultValue">Its value until the player changes it.</param>
+            <param name="minimum">The least it may be.</param>
+            <param name="maximum">The most it may be.</param>
+            <param name="description">The line the settings screen and the console show for it.</param>
+            <returns>The setting.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.ModSettings.NameOf(System.String)">
+            <summary>Gets the full name a setting of the mod's is saved and read under.</summary>
+            <param name="name">The setting's own name.</param>
+            <returns><c>mod_&lt;id&gt;_&lt;name&gt;</c>.</returns>
+        </member>
+        <member name="T:OpenIGI.Modding.ModTasks">
+            <summary>The task types a mod adds to a game, and the game's own it makes of classes of the mod's.</summary>
+            <remarks>
+            A mod's task class reads the parameters the level writes for it as the game's own do: its properties marked
+            <see cref="T:OpenIGI.Engine.Tasks.ScriptParamAttribute"/>, in the order the level writes them.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Modding.ModTasks.Add``1(System.String)">
+            <summary>Adds a task type of the mod's own, which the level data and scripts spawn by its name.</summary>
+            <typeparam name="TTask">The mod's class.</typeparam>
+            <param name="typeName">The type's name.</param>
+            <returns>This group.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.ModTasks.Add(System.String,System.Func{OpenIGI.Engine.Tasks.GameTask})">
+            <summary>Adds a task type of the mod's own, made as the mod says.</summary>
+            <param name="typeName">The type's name.</param>
+            <param name="factory">Makes an instance of the mod's class.</param>
+            <returns>This group.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.ModTasks.Replace``1(System.String)">
+            <summary>Makes the level's tasks of one of the game's types out of a class of the mod's, after the game registers its own.</summary>
+            <typeparam name="TTask">The mod's class, which reads the same parameters the game's did.</typeparam>
+            <param name="typeName">The task type's name, as the level's data spawns it.</param>
+            <returns>This group.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.ModTasks.Replace``1(System.String,OpenIGI.Engine.Tasks.ITaskParameterAdapter)">
+            <summary>Makes the level's tasks of one of the game's types out of a class of the mod's that reads other parameters.</summary>
+            <typeparam name="TTask">The mod's class.</typeparam>
+            <param name="typeName">The task type's name, as the level's data spawns it.</param>
+            <param name="adapter">Sets the class from the parameters the level writes for the type.</param>
+            <returns>This group.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.ModTasks.Replace(System.String,System.Func{OpenIGI.Engine.Tasks.GameTask})">
+            <summary>Makes the level's tasks of one of the game's types as the mod says, after the game registers its own.</summary>
+            <param name="typeName">The task type's name, as the level's data spawns it.</param>
+            <param name="factory">Makes an instance of the mod's class, which reads the same parameters the game's did.</param>
+            <returns>This group.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.ModTasks.Replace(System.String,System.Func{OpenIGI.Engine.Tasks.GameTask},OpenIGI.Engine.Tasks.ITaskParameterAdapter)">
+            <summary>Makes the level's tasks of one of the game's types as the mod says, from the parameters the level writes.</summary>
+            <param name="typeName">The task type's name, as the level's data spawns it.</param>
+            <param name="factory">Makes an instance of the mod's class.</param>
+            <param name="adapter">Sets the class from the parameters the level writes for the type.</param>
+            <returns>This group.</returns>
+        </member>
+    </members>
+</doc>

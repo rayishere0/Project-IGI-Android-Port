@@ -1,0 +1,103 @@
+namespace OpenIGI.Core.Configuration;
+
+/// <summary>
+/// The type-agnostic face of a console variable.
+/// </summary>
+/// <remarks>
+/// The console, the settings file and the options menu all work through this interface, so none of
+/// them needs to know a variable's concrete type. Code that owns a variable holds the typed
+/// <see cref="CVar{T}"/> instead and reads <see cref="CVar{T}.Value"/> without any conversion.
+/// </remarks>
+public interface ICVar
+{
+    /// <summary>Occurs after the value has changed.</summary>
+    event EventHandler<CVarChangedEventArgs>? Changed;
+
+    /// <summary>Gets the registry key, by convention lower case with an underscore-separated prefix.</summary>
+    /// <remarks>Prefixes group the registry: <c>r_</c> renderer, <c>snd_</c> audio, <c>ui_</c> shell, <c>g_</c> gameplay.</remarks>
+    string Name { get; }
+
+    /// <summary>Gets the one-line description shown by the console and the options menu.</summary>
+    string Help { get; }
+
+    /// <summary>Gets the variable's behavioural attributes.</summary>
+    CVarOptions Flags { get; }
+
+    /// <summary>Gets the type of the value the variable holds.</summary>
+    Type ValueType { get; }
+
+    /// <summary>Gets the current value rendered as text, in the form the settings file stores.</summary>
+    string ValueText { get; }
+
+    /// <summary>Gets the default value rendered as text.</summary>
+    string DefaultText { get; }
+
+    /// <summary>Gets a human-readable description of what the variable accepts, or an empty string when unconstrained.</summary>
+    /// <remarks>For example <c>"0 .. 4"</c> for a bounded number, or <c>"off | low | high"</c> for an enumeration.</remarks>
+    string RangeText { get; }
+
+    /// <summary>Gets every value the variable accepts, or an empty list when they cannot be enumerated.</summary>
+    /// <remarks>
+    /// <para>
+    /// What the console completes a half-typed <em>value</em> from, and the type-agnostic counterpart to
+    /// <see cref="RangeText"/>: that is prose for a human to read, this is the list a picker can offer.
+    /// A boolean yields its two forms and an enumeration its members; a number yields nothing, because a
+    /// range is not a set, and the console shows <see cref="RangeText"/> as a hint instead.
+    /// </para>
+    /// <para>
+    /// Defaulted so that adding it costs no existing implementation anything — a variable that cannot
+    /// enumerate its values simply says so by staying silent.
+    /// </para>
+    /// </remarks>
+    IReadOnlyList<string> ValueChoices => [];
+
+    /// <summary>Gets a value indicating whether the current value equals the default.</summary>
+    bool IsDefault { get; }
+
+    /// <summary>Parses <paramref name="text"/> and assigns it.</summary>
+    /// <param name="text">The value to parse.</param>
+    /// <param name="reason">Receives why the assignment failed, or <see langword="null"/> on success.</param>
+    /// <returns><see langword="true"/> when the value was parsed and assigned.</returns>
+    /// <remarks>
+    /// Out-of-range numbers are clamped rather than rejected, which is what a player dragging a slider
+    /// or typing a value expects; only text that does not parse at all is refused.
+    /// </remarks>
+    bool TrySetText(string text, out string? reason);
+
+    /// <summary>Whether <paramref name="text"/> denotes the value the variable currently holds.</summary>
+    /// <param name="text">The value to recognise.</param>
+    /// <returns><see langword="true"/> when <paramref name="text"/> parses to the current value.</returns>
+    /// <remarks>
+    /// <para>
+    /// Text equality is the wrong question to ask of a number. A float renders through its own shortest
+    /// round-trip form, so <c>0.70</c> is stored and read back as <c>0.7</c>; an out-of-range value is
+    /// clamped on the way in by <see cref="TrySetText"/>, which still reports success; and a boolean or an
+    /// enumeration accepts spellings it does not render. A caller comparing against
+    /// <see cref="ValueText"/> therefore fails to recognise values the variable genuinely holds — which is
+    /// how a graphics preset or a quality group comes to read as Custom for ever after.
+    /// </para>
+    /// <para>
+    /// Defaulted to that same text comparison so adding it costs no existing implementation anything;
+    /// <see cref="CVar{T}"/> overrides it with the parse every typed variable already carries.
+    /// </para>
+    /// </remarks>
+    bool MatchesText(string text) => string.Equals(text, ValueText, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Works out what <see cref="ValueText"/> would read after <see cref="TrySetText"/>, without assigning.</summary>
+    /// <param name="text">The value to parse.</param>
+    /// <param name="normalized">Receives the text the variable would hold: parsed, clamped and rendered.</param>
+    /// <returns><see langword="true"/> when <paramref name="text"/> parses, as <see cref="TrySetText"/> would.</returns>
+    /// <remarks>
+    /// For a change held back until the player confirms it -- the settings page's Apply -- which has to show
+    /// and compare the value the variable <em>will</em> hold. Defaulted to the text unchanged, which is right
+    /// for any variable whose text is its value; <see cref="CVar{T}"/> parses and renders it.
+    /// </remarks>
+    bool TryNormalizeText(string text, out string normalized)
+    {
+        normalized = text ?? string.Empty;
+        return true;
+    }
+
+    /// <summary>Restores the default value.</summary>
+    void Reset();
+}

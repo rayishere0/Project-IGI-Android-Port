@@ -1,0 +1,262 @@
+namespace OpenIGI.Game.Player;
+
+/// <summary>
+/// How a hit becomes damage, and how damage becomes death.
+/// </summary>
+/// <remarks>
+/// <para>
+/// From the human's hit handler (<c>0x45F930</c>), which is what the bullet resolution dispatches with
+/// the shot's <c>Damage Factor</c>. The whole model is four lines:
+/// </para>
+/// <code>
+/// zone    = ZoneOf(hit);
+/// damage  = zoneMultiplier[zone] * damageFactor;
+/// perZone[zone] += damage;
+/// total         += damage;
+/// if (total >= maximumHealth) dead = true;
+/// </code>
+/// <para>
+/// <b>The counter runs upward.</b> A human stores <i>accumulated damage</i> and a <i>maximum</i>, not a
+/// remaining-health value — the HUD draws <c>1 − total/maximum</c> to turn it back into a bar
+/// (<c>0x460400</c>). Nothing subtracts, so healing has to reduce the accumulator rather than add to a
+/// pool.
+/// </para>
+/// </remarks>
+public static class HumanDamage
+{
+    /// <summary>How many hit zones a human has.</summary>
+    /// <remarks>
+    /// Seventeen. Confirmed twice over: the mapping table names zones up to 16, and the human's
+    /// per-zone array of <c>{accumulated, multiplier}</c> pairs starts at <c>+608</c> and runs exactly
+    /// to <c>+743</c>, with the last-struck zone index stored at <c>+744</c> immediately after it.
+    /// </remarks>
+    public const int ZoneCount = 17;
+
+    /// <summary>The zone a hit lands in when nothing more specific applies.</summary>
+    /// <remarks>
+    /// Zone 12 is both the table's default for the first four sub-objects and the value the direction
+    /// tests refine — a hit that maps to anything else is taken at face value.
+    /// </remarks>
+    public const int DefaultZone = 12;
+
+    /// <summary>The zone a hit from behind resolves to.</summary>
+    public const int RearZone = 14;
+
+    /// <summary>The zone a hit from the front resolves to.</summary>
+    public const int FrontZone = 13;
+
+    /// <summary>The zone a hit close enough to the reference point resolves to.</summary>
+    /// <remarks>
+    /// Meant as the head: <c>0x489C60</c> asks for bone 4 of <c>000_01_1</c>. But the lookup (<c>0x414F40</c>) ends in
+    /// <c>0x4D0930</c>, which only writes zeros, so the point is the human's origin (<c>Human+32</c>, the pelvis) and the
+    /// zone goes to a front hit within <see cref="HeadProximityUnits"/> of it. A round to the head scores the neck's
+    /// zone (<see cref="NeckZone"/>). Probed on mission 4: squad members 404 and 405, each killed by a round to part 4,
+    /// fell with the neck row's clip.
+    /// </remarks>
+    public const int ProximityZone = 15;
+
+    /// <summary>How close to the reference bone a hit must land to take <see cref="ProximityZone"/>.</summary>
+    /// <remarks><c>614.4</c> world units — 15 centimetres.</remarks>
+    public const float HeadProximityUnits = 614.4f;
+
+    /// <summary>The bone the proximity test names -- bone 4 of <c>000_01_1</c>, whose lookup returns the origin.</summary>
+    /// <remarks>
+    /// Kept as the gate a pose must pass (one with this many bones is a human's); the distance itself is measured from
+    /// the origin. See <see cref="ProximityZone"/>.
+    /// </remarks>
+    public const int ProximityBoneIndex = 4;
+
+    /// <summary>The zone the head-and-neck chain maps to before the proximity test refines it.</summary>
+    /// <remarks>Carries the same lethal multiplier as <see cref="ProximityZone"/> on a soldier's table.</remarks>
+    public const int NeckZone = 16;
+
+    /// <summary>How many body parts the mapping table covers.</summary>
+    public const int MappedBodyPartCount = 30;
+
+    /// <summary>The first bone of the three-bone weapon chain, which is not a body part.</summary>
+    /// <remarks>
+    /// Bones 20, 21 and 22 hang off spine bone 1 and run more than a metre <i>forward</i> of the chest;
+    /// bone 22 is where a held weapon attaches (<see cref="HumanAttachPoints.ThirdPersonWeapon"/>). No
+    /// skinned human body references any of the three, so they carry no geometry to be shot.
+    /// </remarks>
+    public const int WeaponChainFirstBone = 20;
+
+    /// <summary>How many bones the weapon chain has.</summary>
+    public const int WeaponChainBoneCount = 3;
+
+    /// <summary>
+    /// Which zone each of a human's body parts belongs to, as the table at <c>0x5412A4</c> holds it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Group sizes <b>4, 4, 6, 6, 5, 5</b>, which is exactly how the 33-bone human rig divides into
+    /// pelvis-and-spine, neck-and-head, two arms and two legs <i>once the three-bone weapon chain is
+    /// taken out</i> — and 33 − 3 = 30, the table's own length and the bound the original tests.
+    /// </para>
+    /// <para>
+    /// Zones 13, 14 and 15 appear nowhere here because they are only ever reached by refining 12.
+    /// </para>
+    /// </remarks>
+    private static readonly int[] ZoneByBodyPart =
+    [
+        12, 12, 12, 12, 16, 16, 16, 16, 11, 10,
+        9, 9, 9, 9, 5, 4, 3, 3, 3, 3,
+        8, 7, 6, 6, 6, 2, 1, 0, 0, 0,
+    ];
+
+    /// <summary>Maps a struck body part to its hit zone.</summary>
+    /// <param name="bodyPart">The part index the hit record named.</param>
+    /// <returns>The zone, which is <see cref="DefaultZone"/> for anything past the table.</returns>
+    /// <remarks>
+    /// The bound is a plain <c>&lt; 30</c> with no lower check, matching the original — a negative index
+    /// would read behind the table there, so this returns the default instead rather than reproducing
+    /// an out-of-bounds read.
+    /// </remarks>
+    public static int ZoneOfBodyPart(int bodyPart) =>
+        bodyPart >= 0 && bodyPart < MappedBodyPartCount
+            ? ZoneByBodyPart[bodyPart]
+            : DefaultZone;
+
+    /// <summary>Turns a rig bone index into the body-part index the zone table is keyed by.</summary>
+    /// <param name="bone">The bone, in the 33-bone human rig's own numbering.</param>
+    /// <returns>The body part, or <c>-1</c> for a bone of the weapon chain.</returns>
+    /// <remarks>
+    /// Bones below the weapon chain keep their number and bones above it drop by three. This is the
+    /// compaction the rig's layout argues for: it is what makes the two legs symmetric, and no other reading of the
+    /// table is coherent.
+    /// </remarks>
+    public static int BodyPartOfBone(int bone)
+    {
+        if (bone < WeaponChainFirstBone)
+        {
+            return bone;
+        }
+
+        return bone < WeaponChainFirstBone + WeaponChainBoneCount
+            ? -1
+            : bone - WeaponChainBoneCount;
+    }
+
+    /// <summary>Maps a struck rig bone straight to its hit zone.</summary>
+    /// <param name="bone">The bone, in the 33-bone human rig's own numbering.</param>
+    /// <returns>The zone.</returns>
+    public static int ZoneOfBone(int bone) => ZoneOfBodyPart(BodyPartOfBone(bone));
+
+    /// <summary>Refines a default-zone hit by which way the round came in.</summary>
+    /// <param name="zone">The zone from <see cref="ZoneOfBone"/>.</param>
+    /// <param name="localForward">
+    /// The reversed travel direction's component along the human's facing, in its own frame.
+    /// </param>
+    /// <param name="localSide">The same direction's sideways component.</param>
+    /// <returns>The refined zone.</returns>
+    /// <remarks>
+    /// <para>
+    /// Only a hit that already mapped to <see cref="DefaultZone"/> is refined; anything that named a
+    /// limb keeps its zone. The test is a comparison of magnitudes, so a round arriving more from the
+    /// front or back than from the side takes a directional zone and a glancing one does not.
+    /// </para>
+    /// <para>
+    /// Both comparisons are <b>strict</b>, so a hit whose forward and sideways components are equal in
+    /// magnitude keeps the default zone rather than picking one. A <paramref name="localForward"/> of
+    /// exactly zero enters both of the original's branches and satisfies neither, so a perfectly
+    /// perpendicular hit is never refined.
+    /// </para>
+    /// </remarks>
+    public static int RefineByDirection(int zone, float localForward, float localSide)
+    {
+        if (zone != DefaultZone)
+        {
+            return zone;
+        }
+
+        float side = MathF.Abs(localSide);
+        int refined = zone;
+
+        if (localForward <= 0f && MathF.Abs(localForward) > side)
+        {
+            refined = RearZone;
+        }
+
+        if (localForward >= 0f && localForward > side)
+        {
+            refined = FrontZone;
+        }
+
+        return refined;
+    }
+
+    /// <summary>Whether a hit is close enough to the reference bone to take the proximity zone.</summary>
+    /// <param name="distanceFromBoneUnits">How far the impact is from the bone, in world units.</param>
+    /// <param name="localForward">The reversed direction's forward component.</param>
+    /// <returns><see langword="true"/> when the proximity zone applies.</returns>
+    /// <remarks>
+    /// The original only runs this test when the round came from the front or square on
+    /// (<c>localForward &gt;= 0</c>), so a hit from behind can never take it however close it lands.
+    /// </remarks>
+    public static bool TakesProximityZone(float distanceFromBoneUnits, float localForward) =>
+        localForward >= 0f && distanceFromBoneUnits < HeadProximityUnits;
+
+    /// <summary>A readable name for a hit zone — for the debug overlay and the damage log.</summary>
+    /// <param name="zone">The zone from <see cref="ZoneOfBone"/> and <see cref="RefineByDirection"/>.</param>
+    /// <returns>The body part the zone stands for.</returns>
+    /// <remarks>
+    /// The names follow the measured bone→zone grouping: the trunk (12, with 13/14 its front and rear),
+    /// the head (15, the lethal proximity zone) and neck (16), and each limb's three segments running
+    /// root-to-extremity down the 1.0/0.75/0.5 multipliers. Left and right follow the rig's own bone order
+    /// (the first arm and leg, bones 8–13 and 23–27, are the left); a swap would only mislabel a side.
+    /// </remarks>
+    public static string ZoneName(int zone) => zone switch
+    {
+        0 => "right foot",
+        1 => "right shin",
+        2 => "right thigh",
+        3 => "right hand",
+        4 => "right forearm",
+        5 => "right upper arm",
+        6 => "left foot",
+        7 => "left shin",
+        8 => "left thigh",
+        9 => "left hand",
+        10 => "left forearm",
+        11 => "left upper arm",
+        12 => "torso",
+        13 => "torso (front)",
+        14 => "torso (rear)",
+        15 => "HEAD",
+        16 => "neck",
+        _ => $"zone {zone}",
+    };
+
+    /// <summary>The damage one hit does.</summary>
+    /// <param name="zoneMultiplier">The struck zone's multiplier, from the human's own table.</param>
+    /// <param name="damageFactor">The weapon's <c>Damage Factor</c>, carried by the round.</param>
+    /// <returns>The damage to accumulate.</returns>
+    /// <remarks>
+    /// A plain product — nothing scales it by range, by the round's remaining energy, or by how many
+    /// surfaces it has already been through.
+    /// </remarks>
+    public static float DamageOfHit(float zoneMultiplier, float damageFactor) =>
+        zoneMultiplier * damageFactor;
+
+    /// <summary>Whether a human with this much accumulated damage is dead.</summary>
+    /// <param name="accumulatedDamage">The running total.</param>
+    /// <param name="maximumHealth">The human's maximum.</param>
+    /// <returns><see langword="true"/> when the human has died.</returns>
+    /// <remarks>The comparison is <c>&gt;=</c>, so exactly reaching the maximum kills.</remarks>
+    public static bool IsDead(float accumulatedDamage, float maximumHealth) =>
+        accumulatedDamage >= maximumHealth;
+
+    /// <summary>The fraction of health left, as the HUD draws it.</summary>
+    /// <param name="accumulatedDamage">The running total.</param>
+    /// <param name="maximumHealth">The human's maximum.</param>
+    /// <returns>The fraction, floored at zero.</returns>
+    /// <remarks>
+    /// <c>0x460400</c> computes <c>1 − total/maximum</c> and clamps the low end only, so an
+    /// over-killed human reads as zero rather than negative. There is no clamp above one.
+    /// </remarks>
+    public static float RemainingFraction(float accumulatedDamage, float maximumHealth)
+    {
+        float remaining = 1f - (accumulatedDamage / maximumHealth);
+        return remaining < 0f ? 0f : remaining;
+    }
+}

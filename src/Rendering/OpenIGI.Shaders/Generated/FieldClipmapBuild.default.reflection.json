@@ -1,0 +1,184 @@
+{
+  "module": "FieldClipmapBuild",
+  "variant": "default",
+  "entryPoints": [
+    {
+      "name": "computeMain",
+      "stage": "Compute",
+      "workgroupSize": [
+        4,
+        4,
+        4
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "name": "uClipmaps",
+      "group": 0,
+      "binding": 0,
+      "kind": "StorageTexture",
+      "dimensions": 3,
+      "storageFormat": "R8Unorm",
+      "wgslStorageFormat": "Rgba32Float",
+      "storageAccess": "WriteOnly",
+      "hlsl": {
+        "class": "UnorderedAccess",
+        "register": 0,
+        "space": 0
+      }
+    },
+    {
+      "name": "uInstances",
+      "group": 0,
+      "binding": 16,
+      "kind": "StorageBuffer",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "ReadOnly",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 1,
+        "space": 0,
+        "stride": 16
+      }
+    },
+    {
+      "name": "uCellOffsets",
+      "group": 0,
+      "binding": 17,
+      "kind": "StorageBuffer",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "ReadOnly",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 2,
+        "space": 0,
+        "stride": 4
+      }
+    },
+    {
+      "name": "uCellIndices",
+      "group": 0,
+      "binding": 18,
+      "kind": "StorageBuffer",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "ReadOnly",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 3,
+        "space": 0,
+        "stride": 4
+      }
+    },
+    {
+      "name": "uAtlas",
+      "group": 0,
+      "binding": 32,
+      "kind": "Texture",
+      "dimensions": 3,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 0,
+        "space": 0
+      }
+    },
+    {
+      "name": "g",
+      "group": 0,
+      "binding": 49,
+      "kind": "UniformBuffer",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ConstantBuffer",
+        "register": 0,
+        "space": 0
+      }
+    },
+    {
+      "name": "uAtlasSampler",
+      "group": 0,
+      "binding": 64,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 0,
+        "space": 0
+      }
+    }
+  ],
+  "pushBlock": null,
+  "specializationConstants": [],
+  "globals": {
+    "name": "g",
+    "group": 0,
+    "binding": 49,
+    "size": 48,
+    "fields": [
+      {
+        "name": "uResolution",
+        "offset": 0,
+        "size": 4,
+        "hlslOffset": 0
+      },
+      {
+        "name": "uLevel",
+        "offset": 4,
+        "size": 4,
+        "hlslOffset": 4
+      },
+      {
+        "name": "uCellsPerAxis",
+        "offset": 8,
+        "size": 4,
+        "hlslOffset": 8
+      },
+      {
+        "name": "uVoxelSize",
+        "offset": 12,
+        "size": 4,
+        "hlslOffset": 12
+      },
+      {
+        "name": "uCellSize",
+        "offset": 16,
+        "size": 4,
+        "hlslOffset": 16
+      },
+      {
+        "name": "uRange",
+        "offset": 20,
+        "size": 4,
+        "hlslOffset": 20
+      },
+      {
+        "name": "uOrigin",
+        "offset": 32,
+        "size": 12,
+        "hlslOffset": 32
+      },
+      {
+        "name": "uAtlas",
+        "offset": 44,
+        "size": 4,
+        "hlslOffset": 44
+      }
+    ],
+    "hlslSize": 48
+  }
+}
