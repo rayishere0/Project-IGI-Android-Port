@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core\ProjectIGI.Core\ProjectIGI.Core.csproj" />
+    <ProjectReference Include="..\ProjectIGI.Input\ProjectIGI.Input.csproj" />
+  </ItemGroup>
+
+</Project>

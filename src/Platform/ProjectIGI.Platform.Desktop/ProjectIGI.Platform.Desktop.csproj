@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- The Windows notification-area icon (TrayIcon) receives its clicks through a window procedure the
+         system calls by function pointer, and hands the shell fixed-size text buffers. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core\ProjectIGI.Core\ProjectIGI.Core.csproj" />
+    <ProjectReference Include="..\ProjectIGI.Platform\ProjectIGI.Platform.csproj" />
+    <ProjectReference Include="..\ProjectIGI.Input\ProjectIGI.Input.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The ProjectIGI icons: the game's, and the launcher's amber one made from it (tools/launcher-icon.sh). Each
+         executable carries its own (ApplicationIcon), and WindowIcon sets it on its windows, and TrayIcon in the
+         notification area, from these embedded copies. -->
+    <EmbeddedResource Include="Assets\ProjectIGI.ico" LogicalName="ProjectIGI.Platform.Desktop.Assets.ProjectIGI.ico" />
+    <EmbeddedResource Include="Assets\ProjectIGI-launcher.ico" LogicalName="ProjectIGI.Platform.Desktop.Assets.ProjectIGI-launcher.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.Windowing" />
+    <PackageReference Include="Silk.NET.Input" />
+  </ItemGroup>
+
+</Project>

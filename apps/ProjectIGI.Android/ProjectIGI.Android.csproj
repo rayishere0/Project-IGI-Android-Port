@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591;CS1591;CA1711;CA1805;CA2101;RS0030;IDE0011;CA1806</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Core\ProjectIGI.Core\ProjectIGI.Core.csproj" />
+    <ProjectReference Include="..\..\src\Engine\ProjectIGI.Engine\ProjectIGI.Engine.csproj" />
+    <ProjectReference Include="..\..\src\Game\ProjectIGI.Game\ProjectIGI.Game.csproj" />
+    <ProjectReference Include="..\..\src\Game\ProjectIGI.Game.Igi1\ProjectIGI.Game.Igi1.csproj" />
+    <ProjectReference Include="..\..\src\Game\ProjectIGI.Game.Igi2\ProjectIGI.Game.Igi2.csproj" />
+    <ProjectReference Include="..\..\src\Engine\ProjectIGI.Modding\ProjectIGI.Modding.csproj" />
+    <ProjectReference Include="..\..\src\Engine\ProjectIGI.Modding.Loader\ProjectIGI.Modding.Loader.csproj" />
+    <ProjectReference Include="..\..\src\Engine\ProjectIGI.Modding.Presentation\ProjectIGI.Modding.Presentation.csproj" />
+    <ProjectReference Include="..\..\src\Core\ProjectIGI.Formats\ProjectIGI.Formats.csproj" />
+    <ProjectReference Include="..\..\src\Core\ProjectIGI.Scripting\ProjectIGI.Scripting.csproj" />
+    <ProjectReference Include="..\..\src\Rendering\ProjectIGI.Rendering\ProjectIGI.Rendering.csproj" />
+    <ProjectReference Include="..\..\src\Game\ProjectIGI.Presentation\ProjectIGI.Presentation.csproj" />
+    <ProjectReference Include="..\..\src\Engine\ProjectIGI.Host\ProjectIGI.Host.csproj" />
+    <ProjectReference Include="..\..\src\Rendering\ProjectIGI.Rendering.Vulkan\ProjectIGI.Rendering.Vulkan.csproj" />
+    <ProjectReference Include="..\..\src\Rendering\ProjectIGI.Rendering.Pipeline\ProjectIGI.Rendering.Pipeline.csproj" />
+    <ProjectReference Include="..\..\src\UI\ProjectIGI.UI\ProjectIGI.UI.csproj" />
+    <ProjectReference Include="..\..\src\Game\ProjectIGI.Frontend\ProjectIGI.Frontend.csproj" />
+    <ProjectReference Include="..\..\src\Audio\ProjectIGI.Audio\ProjectIGI.Audio.csproj" />
+    <ProjectReference Include="..\..\src\Audio\ProjectIGI.Audio.OpenAL\ProjectIGI.Audio.OpenAL.csproj" />
+    <ProjectReference Include="..\..\src\Platform\ProjectIGI.Input\ProjectIGI.Input.csproj" />
+    <ProjectReference Include="..\..\src\Platform\ProjectIGI.Platform\ProjectIGI.Platform.csproj" />
+    <ProjectReference Include="..\..\src\Platform\ProjectIGI.Platform.Desktop\ProjectIGI.Platform.Desktop.csproj" />
+    <ProjectReference Include="..\ProjectIGI.Composition\ProjectIGI.Composition.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.Vulkan" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" />
+  </ItemGroup>
+
+</Project>

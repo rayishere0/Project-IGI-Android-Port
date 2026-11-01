@@ -1,0 +1,138 @@
+using System.Buffers.Binary;
+using ProjectIGI.Core;
+using ProjectIGI.Core.Graphics;
+
+namespace ProjectIGI.Formats.Textures;
+
+/// <summary>
+/// A standalone <c>.tex</c> texture: the Innerloop <c>"LOOP"</c> magic, a version, a header whose
+/// layout depends on that version, and an uncompressed mip chain.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The original's loader (<c>Texture_LoadFile</c>, <c>0x4B24C0</c>) accepts exactly two versions —
+/// <b>2</b> and <b>11</b> — and rejects everything else with <c>"'%s' is not a valid Texture file."</c>.
+/// The version 9 files in the retail tree (the per-level <c>terrain.tex</c>) are not textures at all:
+/// they are multi-frame sprites and go through the sprite loader instead.
+/// </para>
+/// <para>
+/// Nothing here is compressed; the payload size is exactly the sum of the mip levels' strides. See
+/// <c>docs/formats/tex-spr-fnt.md</c>.
+/// </para>
+/// </remarks>
+public static class TexFile
+{
+    /// <summary>The size of the magic and version prefix that precedes every <c>"LOOP"</c> header.</summary>
+    public const int PrefixSize = 8;
+
+    /// <summary>The older texture version: a 24-byte header that stores its stride directly.</summary>
+    public const uint Version2 = 2;
+
+    /// <summary>The newer texture version: a 32-byte header that stores an allocated width and a byte depth.</summary>
+    public const uint Version11 = 11;
+
+    /// <summary>Gets the Innerloop raw-asset magic shared by <c>.tex</c> and <c>.spr</c>.</summary>
+    public static FourCc Magic { get; } = FourCc.FromString("LOOP");
+
+    /// <summary>Determines whether <paramref name="data"/> starts with the <c>"LOOP"</c> magic.</summary>
+    /// <param name="data">The bytes to test.</param>
+    /// <returns><see langword="true"/> when the first four bytes are <c>LOOP</c>.</returns>
+    public static bool IsLoopAsset(ReadOnlySpan<byte> data) =>
+        data.Length >= PrefixSize && FourCc.FromBytes(data) == Magic;
+
+    /// <summary>Reads the version word of a <c>"LOOP"</c> asset.</summary>
+    /// <param name="data">The asset bytes.</param>
+    /// <returns>The version.</returns>
+    /// <exception cref="TextureFormatException">The bytes do not start with the <c>"LOOP"</c> magic.</exception>
+    public static uint ReadVersion(ReadOnlySpan<byte> data)
+    {
+        if (!IsLoopAsset(data))
+        {
+            throw new TextureFormatException("Not a 'LOOP' asset: the magic does not match.");
+        }
+
+        return BinaryPrimitives.ReadUInt32LittleEndian(data[4..]);
+    }
+
+    /// <summary>Determines whether <paramref name="data"/> is a version the texture loader accepts.</summary>
+    /// <param name="data">The file bytes.</param>
+    /// <returns><see langword="true"/> for a version 2 or version 11 <c>"LOOP"</c> asset.</returns>
+    public static bool IsTexture(ReadOnlySpan<byte> data)
+    {
+        if (!IsLoopAsset(data))
+        {
+            return false;
+        }
+
+        uint version = BinaryPrimitives.ReadUInt32LittleEndian(data[4..]);
+
+        // Version 12 is not the original's. It is what a generated pack writes, and it is accepted here
+        // so a replacement can stand in for a retail texture without every caller learning a second
+        // name for "a picture". Nothing in an installation is version 12 until a pack is installed.
+        return version is Version2 or Version11 || PackPicture.Is(data);
+    }
+
+    /// <summary>Reads the header of a <c>.tex</c> file and reports where its payload starts.</summary>
+    /// <param name="data">The file bytes.</param>
+    /// <param name="payloadOffset">Receives the offset of the first payload byte.</param>
+    /// <returns>The normalised descriptor.</returns>
+    /// <exception cref="TextureFormatException">The bytes are not a usable <c>.tex</c> file.</exception>
+    public static TextureDescriptor ReadHeader(ReadOnlySpan<byte> data, out int payloadOffset)
+    {
+        uint version = ReadVersion(data);
+        switch (version)
+        {
+            case Version2:
+                payloadOffset = TextureDescriptor.TexVersion2HeaderSize;
+                return TextureDescriptor.ReadTexVersion2(data);
+            case Version11:
+                payloadOffset = TextureDescriptor.TexVersion11HeaderSize;
+                return TextureDescriptor.ReadTexVersion11(data);
+            case PackPicture.Version:
+                // Accepted by IsTexture and decoded by Load, so it must not be called corrupt here. It has
+                // no retail header to describe: a pack picture is a CONTAINER of frames, and its payload
+                // does not begin at a fixed offset the way version 2 and 11 do. Named rather than left to
+                // the default so the two entry points agree about what this file is.
+                throw new TextureFormatException(
+                    $"Texture version {version} is a pack picture, which has no retail header to read; "
+                        + "decode it with Load or PackPicture.Read.");
+            default:
+                throw new TextureFormatException(
+                    $"Texture version {version} is not one the original loads; it accepts only {Version2} and {Version11}.");
+        }
+    }
+
+    /// <summary>Loads and decodes a <c>.tex</c> file.</summary>
+    /// <param name="data">The file bytes.</param>
+    /// <param name="palette">The palette to use if the texture is paletted.</param>
+    /// <returns>The decoded image.</returns>
+    /// <exception cref="TextureFormatException">The bytes are not a usable <c>.tex</c> file.</exception>
+    public static TextureImage Load(ReadOnlySpan<byte> data, ReadOnlySpan<Bgra32> palette = default)
+    {
+        if (PackPicture.Is(data))
+        {
+            // A pack picture can hold several frames. Asked for one texture, it gives the first, which
+            // is what a container replacing a single-picture .tex will have written.
+            PackPicture.Frame frame = PackPicture.ReadFirstFrame(data);
+            return frame.Compressed is { } compressed ? compressed.Decode() : frame.Image;
+        }
+
+        TextureDescriptor descriptor = ReadHeader(data, out int payloadOffset);
+        return TextureDecoder.Decode(descriptor, data[payloadOffset..], palette);
+    }
+
+    /// <summary>Loads a <c>.tex</c> file's top level only, without building the chain a pack picture asks for.</summary>
+    /// <param name="data">The file bytes.</param>
+    /// <param name="palette">The palette to use if the texture is paletted.</param>
+    /// <returns>The decoded image; level zero is all a caller should read.</returns>
+    /// <exception cref="TextureFormatException">The bytes are not a usable <c>.tex</c> file.</exception>
+    /// <remarks>
+    /// For a caller that measures a texture rather than draws it -- the lamp detector's brightness, the
+    /// lightmap baker's tint. With a texture pack installed, building a chain for each was most of what
+    /// measuring a level's textures cost, and every chain went straight to the garbage collector.
+    /// </remarks>
+    public static TextureImage LoadLevelZero(ReadOnlySpan<byte> data, ReadOnlySpan<Bgra32> palette = default) =>
+        PackPicture.Is(data)
+            ? PackPicture.ReadFirstFrame(data, buildMips: false).Image
+            : Load(data, palette);
+}

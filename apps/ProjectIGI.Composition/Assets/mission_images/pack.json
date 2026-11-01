@@ -1,0 +1,286 @@
+{
+  "Version": 1,
+  "Source": "Project IGI\\menusystem\\missionsprites.res",
+  "Assets": [
+    {
+      "Path": "mission1.spr",
+      "Shape": 2,
+      "LogicalWidth": 168,
+      "LogicalHeight": 124,
+      "Frames": [
+        {
+          "File": "mission1.png",
+          "Width": 168,
+          "Height": 124,
+          "Advance": 0,
+          "OffsetX": 0,
+          "OffsetY": 0
+        }
+      ],
+      "Archive": "missionsprites.res",
+      "Entry": "LOCAL:menusystem/mission1.spr",
+      "GridColumns": 1,
+      "GridRows": 1
+    },
+    {
+      "Path": "mission2.spr",
+      "Shape": 2,
+      "LogicalWidth": 168,
+      "LogicalHeight": 124,
+      "Frames": [
+        {
+          "File": "mission2.png",
+          "Width": 168,
+          "Height": 124,
+          "Advance": 0,
+          "OffsetX": 0,
+          "OffsetY": 0
+        }
+      ],
+      "Archive": "missionsprites.res",
+      "Entry": "LOCAL:menusystem/mission2.spr",
+      "GridColumns": 1,
+      "GridRows": 1
+    },
+    {
+      "Path": "mission3.spr",
+      "Shape": 2,
+      "LogicalWidth": 168,
+      "LogicalHeight": 124,
+      "Frames": [
+        {
+          "File": "mission3.png",
+          "Width": 168,
+          "Height": 124,
+          "Advance": 0,
+          "OffsetX": 0,
+          "OffsetY": 0
+        }
+      ],
+      "Archive": "missionsprites.res",
+      "Entry": "LOCAL:menusystem/mission3.spr",
+      "GridColumns": 1,
+      "GridRows": 1
+    },
+    {
+      "Path": "mission4.spr",
+      "Shape": 2,
+      "LogicalWidth": 168,
+      "LogicalHeight": 124,
+      "Frames": [
+        {
+          "File": "mission4.png",
+          "Width": 168,
+          "Height": 124,
+          "Advance": 0,
+          "OffsetX": 0,
+          "OffsetY": 0
+        }
+      ],
+      "Archive": "missionsprites.res",
+      "Entry": "LOCAL:menusystem/mission4.spr",
+      "GridColumns": 1,
+      "GridRows": 1
+    },
+    {
+      "Path": "mission5.spr",
+      "Shape": 2,
+      "LogicalWidth": 168,
+      "LogicalHeight": 124,
+      "Frames": [
+        {
+          "File": "mission5.png",
+          "Width": 168,
+          "Height": 124,
+          "Advance": 0,
+          "OffsetX": 0,
+          "OffsetY": 0
+        }
+      ],
+      "Archive": "missionsprites.res",
+      "Entry": "LOCAL:menusystem/mission5.spr",
+      "GridColumns": 1,
+      "GridRows": 1
+    },
+    {
+      "Path": "mission6.spr",
+      "Shape": 2,
+      "LogicalWidth": 168,
+      "LogicalHeight": 124,
+      "Frames": [
+        {
+          "File": "mission6.png",
+          "Width": 168,
+          "Height": 124,
+          "Advance": 0,
+          "OffsetX": 0,
+          "OffsetY": 0
+        }
+      ],
+      "Archive": "missionsprites.res",
+      "Entry": "LOCAL:menusystem/mission6.spr",
+      "GridColumns": 1,
+      "GridRows": 1
+    },
+    {
+      "Path": "mission7.spr",
+      "Shape": 2,
+      "LogicalWidth": 168,
+      "LogicalHeight": 124,
+      "Frames": [
+        {
+          "File": "mission7.png",
+          "Width": 168,
+          "Height": 124,
+          "Advance": 0,
+          "OffsetX": 0,
+          "OffsetY": 0
+        }
+      ],
+      "Archive": "missionsprites.res",
+      "Entry": "LOCAL:menusystem/mission7.spr",
+      "GridColumns": 1,
+      "GridRows": 1
+    },
+    {
+      "Path": "mission8.spr",
+      "Shape": 2,
+      "LogicalWidth": 168,
+      "LogicalHeight": 124,
+      "Frames": [
+        {
+          "File": "mission8.png",
+          "Width": 168,
+          "Height": 124,
+          "Advance": 0,
+          "OffsetX": 0,
+          "OffsetY": 0
+        }
+      ],
+      "Archive": "missionsprites.res",
+      "Entry": "LOCAL:menusystem/mission8.spr",
+      "GridColumns": 1,
+      "GridRows": 1
+    },
+    {
+      "Path": "mission9.spr",
+      "Shape": 2,
+      "LogicalWidth": 168,
+      "LogicalHeight": 124,
+      "Frames": [
+        {
+          "File": "mission9.png",
+          "Width": 168,
+          "Height": 124,
+          "Advance": 0,
+          "OffsetX": 0,
+          "OffsetY": 0
+        }
+      ],
+      "Archive": "missionsprites.res",
+      "Entry": "LOCAL:menusystem/mission9.spr",
+      "GridColumns": 1,
+      "GridRows": 1
+    },
+    {
+      "Path": "mission10.spr",
+      "Shape": 2,
+      "LogicalWidth": 168,
+      "LogicalHeight": 124,
+      "Frames": [
+        {
+          "File": "mission10.png",
+          "Width": 168,
+          "Height": 124,
+          "Advance": 0,
+          "OffsetX": 0,
+          "OffsetY": 0
+        }
+      ],
+      "Archive": "missionsprites.res",
+      "Entry": "LOCAL:menusystem/mission10.spr",
+      "GridColumns": 1,
+      "GridRows": 1
+    },
+    {
+      "Path": "mission11.spr",
+      "Shape": 2,
+      "LogicalWidth": 168,
+      "LogicalHeight": 124,
+      "Frames": [
+        {
+          "File": "mission11.png",
+          "Width": 168,
+          "Height": 124,
+          "Advance": 0,
+          "OffsetX": 0,
+          "OffsetY": 0
+        }
+      ],
+      "Archive": "missionsprites.res",
+      "Entry": "LOCAL:menusystem/mission11.spr",
+      "GridColumns": 1,
+      "GridRows": 1
+    },
+    {
+      "Path": "mission12.spr",
+      "Shape": 2,
+      "LogicalWidth": 168,
+      "LogicalHeight": 124,
+      "Frames": [
+        {
+          "File": "mission12.png",
+          "Width": 168,
+          "Height": 124,
+          "Advance": 0,
+          "OffsetX": 0,
+          "OffsetY": 0
+        }
+      ],
+      "Archive": "missionsprites.res",
+      "Entry": "LOCAL:menusystem/mission12.spr",
+      "GridColumns": 1,
+      "GridRows": 1
+    },
+    {
+      "Path": "mission13.spr",
+      "Shape": 2,
+      "LogicalWidth": 168,
+      "LogicalHeight": 124,
+      "Frames": [
+        {
+          "File": "mission13.png",
+          "Width": 168,
+          "Height": 124,
+          "Advance": 0,
+          "OffsetX": 0,
+          "OffsetY": 0
+        }
+      ],
+      "Archive": "missionsprites.res",
+      "Entry": "LOCAL:menusystem/mission13.spr",
+      "GridColumns": 1,
+      "GridRows": 1
+    },
+    {
+      "Path": "mission14.spr",
+      "Shape": 2,
+      "LogicalWidth": 168,
+      "LogicalHeight": 124,
+      "Frames": [
+        {
+          "File": "mission14.png",
+          "Width": 168,
+          "Height": 124,
+          "Advance": 0,
+          "OffsetX": 0,
+          "OffsetY": 0
+        }
+      ],
+      "Archive": "missionsprites.res",
+      "Entry": "LOCAL:menusystem/mission14.spr",
+      "GridColumns": 1,
+      "GridRows": 1
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+<Project>
+
+  <!-- Applies to every project in the repository. Keep project files free of boilerplate. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NuGetAudit>false</NuGetAudit>
+
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CA1720;CS1591</NoWarn>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+
+    <Version Condition="'$(Version)' == ''">0.0.0-dev</Version>
+
+    <Product>ProjectIGI</Product>
+    <Authors>ProjectIGI Contributors</Authors>
+    <Copyright>Copyright (c) ProjectIGI Contributors</Copyright>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <RepositoryType>git</RepositoryType>
+
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+    <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([MSBuild]::MakeRelative('$(MSBuildThisFileDirectory)', '$(MSBuildProjectDirectory)').StartsWith('src'))
+                            and '$(MSBuildProjectName)' != 'ProjectIGI.Generators'
+                            and '$(MSBuildProjectName)' != 'ProjectIGI.Rendering.Vulkan'
+                            and '$(MSBuildProjectName)' != 'ProjectIGI.Rendering.D3D12'
+                            and '$(MSBuildProjectName)' != 'ProjectIGI.Modding.Loader'">
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" Link="BannedSymbols.txt" Visible="false" />
+  </ItemGroup>
+
+</Project>

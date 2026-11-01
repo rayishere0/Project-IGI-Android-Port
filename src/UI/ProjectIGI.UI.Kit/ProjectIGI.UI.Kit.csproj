@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- The design kit: the typography, motion and composite widgets of the ProjectIGI design, shared by the
+         game's menus and HUD and by the launcher. It draws only through ProjectIGI.UI, so it never knows
+         whether a sprite batch or a Skia canvas is underneath. -->
+    <ProjectReference Include="..\..\Core\ProjectIGI.Core\ProjectIGI.Core.csproj" />
+    <ProjectReference Include="..\..\Platform\ProjectIGI.Input\ProjectIGI.Input.csproj" />
+    <ProjectReference Include="..\ProjectIGI.UI\ProjectIGI.UI.csproj" />
+  </ItemGroup>
+
+</Project>

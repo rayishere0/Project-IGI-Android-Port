@@ -1,0 +1,320 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OpenIGI.Platform</name>
+    </assembly>
+    <members>
+        <member name="T:OpenIGI.Platform.IFramePacer">
+            <summary>Holds a loop to a frame rate, where the platform leaves that to the loop.</summary>
+            <remarks>
+            A desktop loop renders as fast as it is let, and a screen that changes no faster than the display
+            shows it -- the menu -- is held to the display's rate by waiting out each frame's remainder. A browser
+            paces every frame itself, from its animation callback, and a loop that also waited would halve its
+            own rate at best and hang the page at worst; there the pacer does nothing.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Platform.IFramePacer.Pace(System.Int32)">
+            <summary>Waits until the current frame's interval has elapsed, then schedules the next.</summary>
+            <param name="targetHertz">The rate to hold to; nothing happens at or below zero.</param>
+        </member>
+        <member name="M:OpenIGI.Platform.IFramePacer.Reset">
+            <summary>Forgets the cadence, so the next <see cref="M:OpenIGI.Platform.IFramePacer.Pace(System.Int32)"/> starts fresh rather than catching up.</summary>
+        </member>
+        <member name="T:OpenIGI.Platform.NoOpFramePacer">
+            <summary>A pacer for a platform that paces the loop itself: it never waits.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.NoOpFramePacer.Instance">
+            <summary>Gets the shared instance; it holds no state.</summary>
+        </member>
+        <member name="M:OpenIGI.Platform.NoOpFramePacer.Pace(System.Int32)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Platform.NoOpFramePacer.Reset">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Platform.IGameWindow">
+            <summary>
+            The host window: a surface to render into, a message pump, and the input state that pump feeds.
+            </summary>
+            <remarks>
+            <para>
+            The original's window lives in <c>WinMain</c> (<c>0x48F530</c>) and its message loop drives
+            everything: it pumps messages, then calls the root task's update, then repeats. This interface
+            keeps that shape — <see cref="M:OpenIGI.Platform.IGameWindow.PumpEvents"/> is the message pump, and the caller owns the loop, so
+            the game loop's frame arbiter stays in charge of when work happens.
+            </para>
+            <para>
+            All members must be called from the thread that created the window.
+            </para>
+            </remarks>
+        </member>
+        <member name="E:OpenIGI.Platform.IGameWindow.Resized">
+            <summary>Occurs when the client area has changed size.</summary>
+        </member>
+        <member name="E:OpenIGI.Platform.IGameWindow.CloseRequested">
+            <summary>Occurs when the user has asked to close the window.</summary>
+            <remarks>
+            The original's <c>WM_DESTROY</c> clears its running flag and lets the loop exit on its own
+            terms rather than tearing down inline; hosts should do the same and treat this as a request.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.IGameWindow.Title">
+            <summary>Gets or sets the window title.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.IGameWindow.Width">
+            <summary>Gets the client area width in pixels.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.IGameWindow.Height">
+            <summary>Gets the client area height in pixels.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.IGameWindow.Mode">
+            <summary>Gets or sets how the window relates to the screen it is on.</summary>
+            <remarks>
+            Assigning this switches modes in place; the framebuffer follows through <see cref="E:OpenIGI.Platform.IGameWindow.Resized"/>,
+            so a caller does not have to rebuild the device.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.IGameWindow.IsFullscreen">
+            <summary>Gets a value indicating whether the window covers the screen.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.IGameWindow.RefreshRate">
+            <summary>Gets the refresh rate the window is presenting at, in hertz, or zero if unknown.</summary>
+            <remarks>
+            Under <see cref="F:OpenIGI.Platform.WindowMode.BorderlessFullscreen"/> this is the desktop's rate, which is the only
+            one a composited window can be presented at — a borderless window cannot drive the display faster
+            than the desktop it sits on.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.IGameWindow.CursorVisible">
+            <summary>Gets or sets a value indicating whether the system cursor is shown over the window.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.IGameWindow.RenderScaleMode">
+            <summary>Gets or sets the internal graphics rendering scale (0 = Performance 720p, 1 = Balanced 900p, 2 = Native).</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.IGameWindow.CursorLocked">
+            <summary>Gets or sets a value indicating whether the cursor is held inside the window.</summary>
+            <remarks>
+            A locked cursor is hidden and cannot leave, so mouse motion keeps arriving however far the user
+            drags. That is what a look-around control needs: without it the pointer reaches the edge of the
+            screen and the view stops turning. Merely hiding the cursor is not enough, which is why this is
+            separate from <see cref="P:OpenIGI.Platform.IGameWindow.CursorVisible"/>.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.IGameWindow.ClipboardText">
+            <summary>Gets or sets the system clipboard's text.</summary>
+            <remarks>
+            <para>
+            On the window because the clipboard belongs to the windowing system, not to the input devices:
+            the platform backend already owns the handle that reaches it, and putting it here keeps every
+            layer above free of a platform reference. A host that cannot reach a clipboard returns an empty
+            string and discards what is set, so a caller never has to ask whether one exists.
+            </para>
+            <para>
+            Reading is a synchronous call into the window system and is not free; read it when a paste is
+            actually asked for rather than polling it.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.IGameWindow.IsFocused">
+            <summary>Gets a value indicating whether the window has input focus.</summary>
+            <remarks>
+            The original releases every key when its input device cannot be read, which is what focus loss
+            looks like from the inside; hosts should clear <see cref="P:OpenIGI.Platform.IGameWindow.Input"/> the same way rather than
+            leaving keys latched down.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.IGameWindow.IsClosing">
+            <summary>Gets a value indicating whether a close has been requested and the loop should end.</summary>
+        </member>
+        <member name="M:OpenIGI.Platform.IGameWindow.GetDisplayModes">
+            <summary>Lists the display modes the monitor this window is on reports.</summary>
+            <returns>The modes, in whatever order the platform gives them.</returns>
+            <remarks>
+            The graphics configuration screen needs real modes to offer; a window that cannot enumerate
+            them returns only the one it is running at, which is honest rather than empty.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Platform.IGameWindow.Resize(System.Int32,System.Int32)">
+            <summary>Resizes the window's client area.</summary>
+            <param name="width">The new width in pixels.</param>
+            <param name="height">The new height in pixels.</param>
+            <remarks>
+            What the graphics screen's resolution list acts on. The back buffer follows through the
+            <see cref="E:OpenIGI.Platform.IGameWindow.Resized"/> event, so a caller does not have to rebuild the device. It has no effect
+            under <see cref="F:OpenIGI.Platform.WindowMode.BorderlessFullscreen"/>, whose size is the desktop's by definition.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.IGameWindow.Input">
+            <summary>Gets the input state this window's message pump feeds.</summary>
+        </member>
+        <member name="M:OpenIGI.Platform.IGameWindow.Show">
+            <summary>Makes the window visible.</summary>
+        </member>
+        <member name="M:OpenIGI.Platform.IGameWindow.PumpEvents">
+            <summary>Processes pending window messages and updates <see cref="P:OpenIGI.Platform.IGameWindow.Input"/> for the new frame.</summary>
+        </member>
+        <member name="M:OpenIGI.Platform.IGameWindow.Close">
+            <summary>Requests that the window close, as though the user had asked.</summary>
+        </member>
+        <member name="T:OpenIGI.Platform.IPlatformHost">
+            <summary>
+            Creates the windows a platform can host.
+            </summary>
+            <remarks>
+            One implementation per platform family — desktop, mobile, web. The composition root picks one and
+            nothing above it knows which.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.IPlatformHost.Name">
+            <summary>Gets a human-readable name for the platform, for logs and the options screen.</summary>
+        </member>
+        <member name="M:OpenIGI.Platform.IPlatformHost.CreateWindow(OpenIGI.Platform.WindowSettings@)">
+            <summary>Creates a window.</summary>
+            <param name="settings">How the window should be created.</param>
+            <returns>The new window, not yet visible. Call <see cref="M:OpenIGI.Platform.IGameWindow.Show"/> to display it.</returns>
+            <exception cref="T:OpenIGI.Platform.PlatformException">The window could not be created.</exception>
+        </member>
+        <member name="M:OpenIGI.Platform.IPlatformHost.CreateFramePacer">
+            <summary>Creates the pacer a loop on this platform holds itself to a rate with.</summary>
+            <returns>A pacer that waits, or one that never does where the platform paces the loop itself.</returns>
+        </member>
+        <member name="T:OpenIGI.Platform.PlatformException">
+            <summary>Thrown when a platform host cannot create or drive a window.</summary>
+        </member>
+        <member name="M:OpenIGI.Platform.PlatformException.#ctor">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Platform.PlatformException"/> class.</summary>
+        </member>
+        <member name="M:OpenIGI.Platform.PlatformException.#ctor(System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Platform.PlatformException"/> class with a message.</summary>
+            <param name="message">The message that describes the failure.</param>
+        </member>
+        <member name="M:OpenIGI.Platform.PlatformException.#ctor(System.String,System.Exception)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Platform.PlatformException"/> class with a message and an inner exception.</summary>
+            <param name="message">The message that describes the failure.</param>
+            <param name="innerException">The exception that caused this one.</param>
+        </member>
+        <member name="T:OpenIGI.Platform.WindowMode">
+            <summary>
+            How a game window relates to the screen it is on.
+            </summary>
+            <remarks>
+            The original only knows two of these: <c>WinMain</c> creates a <c>WS_POPUP</c> window covering the
+            screen unless <c>-window</c> was passed, and the Direct3D device is then created in exclusive mode.
+            <see cref="F:OpenIGI.Platform.WindowMode.BorderlessFullscreen"/> is an addition —
+            the same screen-covering picture without taking the display away from the desktop compositor, which
+            is what alt-tabbing out of a modern build is expected to feel like.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Platform.WindowMode.Windowed">
+            <summary>A normal, decorated, resizable window.</summary>
+        </member>
+        <member name="F:OpenIGI.Platform.WindowMode.BorderlessFullscreen">
+            <summary>
+            An undecorated window positioned at the monitor's origin and sized to its whole desktop area.
+            </summary>
+            <remarks>
+            The display mode is not changed, so the picture is composited at whatever resolution and refresh
+            rate the desktop is running at. Switching away is instant and nothing else on the machine is
+            resized, which is the point of it.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Platform.WindowMode.ExclusiveFullscreen">
+            <summary>The monitor is taken over and switched to the requested display mode.</summary>
+        </member>
+        <member name="T:OpenIGI.Platform.WindowResizedEventArgs">
+            <summary>Carries the new client size of a resized window.</summary>
+        </member>
+        <member name="M:OpenIGI.Platform.WindowResizedEventArgs.#ctor(System.Int32,System.Int32)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Platform.WindowResizedEventArgs"/> class.</summary>
+            <param name="width">The new client width in pixels.</param>
+            <param name="height">The new client height in pixels.</param>
+        </member>
+        <member name="P:OpenIGI.Platform.WindowResizedEventArgs.Width">
+            <summary>Gets the new client width in pixels.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.WindowResizedEventArgs.Height">
+            <summary>Gets the new client height in pixels.</summary>
+        </member>
+        <member name="T:OpenIGI.Platform.WindowSettings">
+            <summary>
+            How a game window is created.
+            </summary>
+            <param name="Title">The window title.</param>
+            <param name="Width">The client width in pixels, or zero for the monitor's own.</param>
+            <param name="Height">The client height in pixels, or zero for the monitor's own.</param>
+            <param name="Mode">How the window relates to the screen.</param>
+            <param name="CursorVisible">Whether the system cursor is shown over the window.</param>
+            <param name="VSync">Whether presentation waits for the vertical blank.</param>
+            <param name="RefreshRate">
+            The refresh rate in hertz to ask the monitor for, or zero for the highest it reports at the chosen
+            resolution.
+            </param>
+            <remarks>
+            <para>
+            The original's boot is a 640×480 client area, centred, fullscreen unless <c>-window</c> was passed,
+            with the cursor hidden (<c>WinMain</c> calls <c>ShowCursor(0)</c> right after <c>CreateWindowExA</c>).
+            </para>
+            <para>
+            <see cref="P:OpenIGI.Platform.WindowSettings.Width"/> and <see cref="P:OpenIGI.Platform.WindowSettings.Height"/> are ignored under
+            <see cref="F:OpenIGI.Platform.WindowMode.BorderlessFullscreen"/>: a borderless window that is not exactly the size of
+            the desktop is not fullscreen, it is a window with no title bar. <see cref="P:OpenIGI.Platform.WindowSettings.RefreshRate"/> is
+            likewise ignored there, because the desktop's mode is what the picture is composited at.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Platform.WindowSettings.#ctor(System.String,System.Int32,System.Int32,OpenIGI.Platform.WindowMode,System.Boolean,System.Boolean,System.Int32)">
+            <summary>
+            How a game window is created.
+            </summary>
+            <param name="Title">The window title.</param>
+            <param name="Width">The client width in pixels, or zero for the monitor's own.</param>
+            <param name="Height">The client height in pixels, or zero for the monitor's own.</param>
+            <param name="Mode">How the window relates to the screen.</param>
+            <param name="CursorVisible">Whether the system cursor is shown over the window.</param>
+            <param name="VSync">Whether presentation waits for the vertical blank.</param>
+            <param name="RefreshRate">
+            The refresh rate in hertz to ask the monitor for, or zero for the highest it reports at the chosen
+            resolution.
+            </param>
+            <remarks>
+            <para>
+            The original's boot is a 640×480 client area, centred, fullscreen unless <c>-window</c> was passed,
+            with the cursor hidden (<c>WinMain</c> calls <c>ShowCursor(0)</c> right after <c>CreateWindowExA</c>).
+            </para>
+            <para>
+            <see cref="P:OpenIGI.Platform.WindowSettings.Width"/> and <see cref="P:OpenIGI.Platform.WindowSettings.Height"/> are ignored under
+            <see cref="F:OpenIGI.Platform.WindowMode.BorderlessFullscreen"/>: a borderless window that is not exactly the size of
+            the desktop is not fullscreen, it is a window with no title bar. <see cref="P:OpenIGI.Platform.WindowSettings.RefreshRate"/> is
+            likewise ignored there, because the desktop's mode is what the picture is composited at.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.WindowSettings.Title">
+            <summary>The window title.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.WindowSettings.Width">
+            <summary>The client width in pixels, or zero for the monitor's own.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.WindowSettings.Height">
+            <summary>The client height in pixels, or zero for the monitor's own.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.WindowSettings.Mode">
+            <summary>How the window relates to the screen.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.WindowSettings.CursorVisible">
+            <summary>Whether the system cursor is shown over the window.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.WindowSettings.VSync">
+            <summary>Whether presentation waits for the vertical blank.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.WindowSettings.RefreshRate">
+            <summary>
+            The refresh rate in hertz to ask the monitor for, or zero for the highest it reports at the chosen
+            resolution.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Platform.WindowSettings.Default">
+            <summary>Gets the settings the original boots with.</summary>
+        </member>
+    </members>
+</doc>

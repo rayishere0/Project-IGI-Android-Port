@@ -1,0 +1,286 @@
+using ProjectIGI.Core.Graphics;
+using ProjectIGI.Core.Numerics;
+using ProjectIGI.Game.Ai;
+using ProjectIGI.Game.Igi1.Player;
+using ProjectIGI.Game.Player;
+using ProjectIGI.Game.World;
+
+namespace ProjectIGI.Game.Igi1.Ai;
+
+/// <summary>The binocular detector's scan of the soldiers: the native ten-slot overlay, and the bodies it marked.</summary>
+/// <remarks>
+/// The overlay is the original's (<c>FUN_00471B60</c> and the slots it fills); the contacts it marked are kept so the
+/// remastered optics can glow exactly those bodies through cover without re-deriving the detector's own visibility.
+/// </remarks>
+/// <param name="context">The soldiers, their brains and the sight cast.</param>
+internal sealed class SoldierBinocularScan(SoldierContext context)
+{
+    // The slot key a joined human's marker is kept under: past any runtime id the level's own soldiers take.
+    private const int JoinedSlotBase = 0x40000000;
+
+    private readonly SoldierContext _context = context;
+
+    /// <summary>Gets the detector's slots.</summary>
+    public EnemyDetectorOverlay Overlay { get; } = new();
+
+    /// <summary>Gets the soldiers the last binocular scan drew a contact for, and the team colour their marker uses.</summary>
+    // Kept so the remastered optics can glow exactly those bodies through cover without re-deriving the
+    // detector's own visibility, keyed by view so the outline pass can find each one's mesh and group.
+    public Dictionary<SoldierView, BinocularMarkerColor> Detected { get; } = [];
+
+    /// <summary>Gets each soldier's line of sight from the eye, as last cast on <see cref="VisibilityTick"/>.</summary>
+    // LOS is a simulation fact, not a render fact. Cache it for the fixed tick so a second render
+    // of the same simulation state does not cast the same ray again.
+    public Dictionary<SoldierView, bool> Visibility { get; } = [];
+
+    /// <summary>Gets the joined humans the last scan drew a contact for, and the team colour their marker uses.</summary>
+    public Dictionary<IAiDetectable, BinocularMarkerColor> JoinedDetected { get; } = [];
+
+    /// <summary>Gets each joined human's line of sight from the eye, as last cast on <see cref="VisibilityTick"/>.</summary>
+    public Dictionary<IAiDetectable, bool> JoinedVisibility { get; } = [];
+
+    /// <summary>
+    /// Gets or sets the humans another game made for the level (<see cref="LevelJoiners.Seen"/>), whom the detector marks after
+    /// the level's own soldiers, or <see langword="null"/> when none joined.
+    /// </summary>
+    public LevelJoiners? Joined { get; set; }
+
+    /// <summary>Gets or sets the fixed tick <see cref="Visibility"/> was cast on.</summary>
+    public int VisibilityTick { get; set; } = int.MinValue;
+
+    /// <summary>Projects living, visible soldiers through the native ten-slot binocular detector.</summary>
+    /// <param name="camera">The presented eye the contacts are projected through.</param>
+    /// <param name="horizontalTangent">The optics' horizontal half-angle tangent (the zoom).</param>
+    /// <param name="screenWidth">The back buffer width in pixels.</param>
+    /// <param name="screenHeight">The back buffer height in pixels.</param>
+    /// <param name="tick">The millisecond tick driving slot lifetime and the entry pulse.</param>
+    /// <param name="maxDetectionMetres">
+    /// The furthest a contact may be and still be marked, in metres of forward distance. The remastered
+    /// optics pass a finite range; the vanilla optics pass positive infinity, staying retail-uncapped.
+    /// </param>
+    /// <param name="simulationTick">
+    /// The fixed simulation tick used to cache line-of-sight results. Leave it at its default when
+    /// calling this method from a one-off diagnostic projection.
+    /// </param>
+    public IReadOnlyList<EnemyOverlayBox> BinocularTargets(
+        Camera3D camera,
+        float horizontalTangent,
+        int screenWidth,
+        int screenHeight,
+        int tick,
+        float maxDetectionMetres,
+        int simulationTick = int.MinValue)
+    {
+        if (horizontalTangent <= 0f)
+        {
+            Overlay.Clear();
+            return [];
+        }
+
+        if (simulationTick != int.MinValue && VisibilityTick != simulationTick)
+        {
+            Visibility.Clear();
+            JoinedVisibility.Clear();
+            VisibilityTick = simulationTick;
+        }
+
+        Overlay.BeginScan();
+        Detected.Clear();
+        JoinedDetected.Clear();
+        float verticalTangent = horizontalTangent * screenHeight / Math.Max(1f, screenWidth);
+        Vector3d eyeUnits = new(
+            camera.Position.X * WorldScene.UnitsPerMetre,
+            camera.Position.Y * WorldScene.UnitsPerMetre,
+            camera.Position.Z * WorldScene.UnitsPerMetre);
+
+        foreach ((SoldierView view, Igi1HumanAi brain) in _context.Brains)
+        {
+            if (view.IsDead || !ConditionalContainerGate.IsTaskActive(view.Soldier))
+            {
+                continue;
+            }
+
+            // 0x470F70 sizes the marker as projectionScale * Human+0xA0 / depth, where Human+0xA0 is the model's authored
+            // MESH+0x78 bound (~0.94 m for the soldier LODs), and 0x471B60 centres it on the human's origin (Human+32).
+            if (!_context.DetectorMarkerScaleMetres.TryGetValue(view, out float markerScaleMetres)
+                || markerScaleMetres <= 0f)
+            {
+                continue;
+            }
+
+            Vector3d targetUnits = SoldierContext.OccupantOrigin(view);
+            Vector3d delta = new(
+                targetUnits.X / WorldScene.UnitsPerMetre - camera.Position.X,
+                targetUnits.Y / WorldScene.UnitsPerMetre - camera.Position.Y,
+                targetUnits.Z / WorldScene.UnitsPerMetre - camera.Position.Z);
+            Vector3d viewPosition = camera.Orientation.Transposed().Transform(delta);
+            if (viewPosition.Z <= 0f)
+            {
+                continue;
+            }
+
+            // The remastered detector has a maximum range: a contact past it is not marked at all.
+            // Measured on the forward depth, which is the distance the marker label reports, so the cap
+            // is the number the player reads. Skipped here, before the occlusion sweep, so a distant
+            // soldier costs nothing.
+            if (viewPosition.Z > maxDetectionMetres)
+            {
+                continue;
+            }
+
+            float screenX = screenWidth * 0.5f
+                + (float)(viewPosition.X / (viewPosition.Z * horizontalTangent) * screenWidth * 0.5f);
+            float screenY = screenHeight * 0.5f
+                - (float)(viewPosition.Y / (viewPosition.Z * verticalTangent) * screenHeight * 0.5f);
+            // 0x471B60 culls the human's bounding sphere (Human+0xA0) against the view's sides (0x4D03D0): one that only
+            // reaches into the view from off the screen's edge is still a contact.
+            if (OutsideView(viewPosition, markerScaleMetres, horizontalTangent, verticalTangent))
+            {
+                continue;
+            }
+
+            // 0x471B60 then casts one line from the camera to the human's eye with the detection ray's filter (the player
+            // looking, the human looked at), and a contact the line comes back from at a fraction of exactly 0 -- a wall, the
+            // ground -- is occluded: it keeps its slot, refreshed, but is not drawn.
+            bool visible = true;
+            if (_context.SightTrace is { } trace)
+            {
+                if (simulationTick == int.MinValue || !Visibility.TryGetValue(view, out visible))
+                {
+                    int seen = view.Soldier.Id;
+                    visible = SoldierSightQueries.HasLineOfSight(
+                        trace,
+                        eyeUnits,
+                        brain.EyePosition(),
+                        double.Epsilon,
+                        standsAside: owner => _context.GunStandsAside(owner, AiDetectionCandidate.PlayerId, seen));
+                    if (simulationTick != int.MinValue)
+                    {
+                        Visibility[view] = visible;
+                    }
+                }
+            }
+
+            // FUN_00470EC0 writes the transformed depth into the value passed to FUN_00471F60;
+            // the retail slot's distance is view-space Z, not Euclidean eye-to-target distance.
+            float distance = (float)viewPosition.Z;
+
+            float boxWidth = (float)(markerScaleMetres * screenWidth
+                / (Math.Max(0.001, viewPosition.Z) * horizontalTangent));
+            float boxHeight = (float)(markerScaleMetres * screenHeight
+                / (Math.Max(0.001, viewPosition.Z) * verticalTangent));
+
+            // FUN_00471B60 passes the target's colour flags to FUN_00471F60: extraParam1 is the
+            // green flag (Team != 1, Human+0x252) and extraParam2 is the blue flag (the +0x3317
+            // non-collidable byte). Live scanned soldiers are collidable, so extraParam2 stays 0;
+            // team-1 guards fall through to the retail hostile-red rectangle.
+            Overlay.Upsert(
+                brain.RuntimeId,
+                distance,
+                configFlag: 1,
+                screenX,
+                screenY,
+                eventParam: visible ? 0 : 1,
+                extraParam1: view.Soldier.Team != 1 ? 1 : 0,
+                extraParam2: 0,
+                tick,
+                boxWidth,
+                boxHeight);
+
+            if (!visible)
+            {
+                continue;
+            }
+
+            // Record the contact for the through-wall glow, in the same team colour its marker uses.
+            Detected[view] = view.Soldier.Team != 1
+                ? BinocularMarkerColor.Team
+                : BinocularMarkerColor.Hostile;
+        }
+
+        // Another game's humans, marked as the level's own: where each stands and its side, from what it tells a detector; the
+        // marker sized and lifted by half its eye height, as a soldier's model bound is about. Their slots follow the soldiers'.
+        int joined = 0;
+        foreach (IAiDetectable human in Joined?.Seen ?? [])
+        {
+            int slot = JoinedSlotBase + joined++;
+            AiDetectionInfo info = human.DetectionInfo();
+            if (!info.IsAlive || !info.IsActive || human.IsGone)
+            {
+                continue;
+            }
+
+            Vector3d feetUnits = info.Feet;
+            double halfUnits = Math.Max(0.0, info.Head.Z - info.Feet.Z) * 0.5;
+            if (halfUnits <= 0.0)
+            {
+                continue;
+            }
+
+            Vector3d targetUnits = new(feetUnits.X, feetUnits.Y, feetUnits.Z + halfUnits);
+            Vector3d delta = new(
+                targetUnits.X / WorldScene.UnitsPerMetre - camera.Position.X,
+                targetUnits.Y / WorldScene.UnitsPerMetre - camera.Position.Y,
+                targetUnits.Z / WorldScene.UnitsPerMetre - camera.Position.Z);
+            Vector3d viewPosition = camera.Orientation.Transposed().Transform(delta);
+            if (viewPosition.Z <= 0f || viewPosition.Z > maxDetectionMetres)
+            {
+                continue;
+            }
+
+            float screenX = screenWidth * 0.5f
+                + (float)(viewPosition.X / (viewPosition.Z * horizontalTangent) * screenWidth * 0.5f);
+            float screenY = screenHeight * 0.5f
+                - (float)(viewPosition.Y / (viewPosition.Z * verticalTangent) * screenHeight * 0.5f);
+            if (screenX < -8f || screenX > screenWidth + 8f || screenY < -8f || screenY > screenHeight + 8f)
+            {
+                continue;
+            }
+
+            if (_context.Sight is { } lineOfSight)
+            {
+                if (simulationTick == int.MinValue || !JoinedVisibility.TryGetValue(human, out bool visible))
+                {
+                    visible = SoldierSightQueries.HasLineOfSight(lineOfSight, eyeUnits, targetUnits)
+                        || SoldierSightQueries.HasLineOfSight(lineOfSight, eyeUnits, info.Head)
+                        || SoldierSightQueries.HasLineOfSight(lineOfSight, eyeUnits, feetUnits);
+                    if (simulationTick != int.MinValue)
+                    {
+                        JoinedVisibility[human] = visible;
+                    }
+                }
+
+                if (!visible)
+                {
+                    continue;
+                }
+            }
+
+            double markerScaleMetres = halfUnits / WorldScene.UnitsPerMetre;
+            Overlay.Upsert(
+                slot,
+                (float)viewPosition.Z,
+                configFlag: 1,
+                screenX,
+                screenY,
+                eventParam: 0,
+                extraParam1: info.Team != 1 ? 1 : 0,
+                extraParam2: 0,
+                tick,
+                (float)(markerScaleMetres * screenWidth / (Math.Max(0.001, viewPosition.Z) * horizontalTangent)),
+                (float)(markerScaleMetres * screenHeight / (Math.Max(0.001, viewPosition.Z) * verticalTangent)));
+            JoinedDetected[human] = info.Team != 1 ? BinocularMarkerColor.Team : BinocularMarkerColor.Hostile;
+        }
+
+        Overlay.ExpireInactive(tick);
+        return Overlay.OverlayBoxes(tick);
+    }
+
+    // Whether a sphere about a view-space point lies wholly outside one of the four side planes of a view whose half-angle
+    // tangents are given: its centre is further outside a plane than its radius.
+    private static bool OutsideView(Vector3d point, double radius, double tanX, double tanY) =>
+        Outside(point.X, point.Z, radius, tanX) || Outside(point.Y, point.Z, radius, tanY);
+
+    private static bool Outside(double across, double depth, double radius, double tangent) =>
+        ((depth * tangent) - Math.Abs(across)) / Math.Sqrt(1.0 + (tangent * tangent)) < -radius;
+}

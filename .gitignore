@@ -1,0 +1,26 @@
+# Build outputs
+**/bin/
+**/obj/
+**/build/
+**/.gradle/
+**/.cxx/
+*.apk
+*.aab
+
+# Local configuration & IDE
+local.properties
+.artifacts/
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosv
+*.sln.docstates
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store

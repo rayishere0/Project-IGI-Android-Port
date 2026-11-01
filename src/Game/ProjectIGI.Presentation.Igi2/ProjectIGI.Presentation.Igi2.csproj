@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ProjectIGI.Game.Igi2.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- How I.G.I. 2 draws: its terrain, sky, water, forest, HUD and first-person view, over the title-agnostic passes.
+         The game itself is ProjectIGI.Game.Igi2, which knows nothing of this; only an app composition root names both. -->
+    <ProjectReference Include="..\..\Core\ProjectIGI.Core\ProjectIGI.Core.csproj" />
+    <ProjectReference Include="..\..\Engine\ProjectIGI.Engine\ProjectIGI.Engine.csproj" />
+    <ProjectReference Include="..\..\Core\ProjectIGI.Formats\ProjectIGI.Formats.csproj" />
+    <ProjectReference Include="..\ProjectIGI.Game\ProjectIGI.Game.csproj" />
+    <ProjectReference Include="..\ProjectIGI.Game.Igi2\ProjectIGI.Game.Igi2.csproj" />
+    <ProjectReference Include="..\..\Rendering\ProjectIGI.Rendering\ProjectIGI.Rendering.csproj" />
+    <ProjectReference Include="..\ProjectIGI.Presentation\ProjectIGI.Presentation.csproj" />
+  </ItemGroup>
+
+</Project>

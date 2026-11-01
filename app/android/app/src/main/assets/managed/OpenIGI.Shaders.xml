@@ -1,0 +1,1580 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OpenIGI.Shaders</name>
+    </assembly>
+    <members>
+        <member name="T:OpenIGI.Shaders.ComputeBindingSpace">
+            <summary>
+            Where a compute module's resources sit in its descriptor set, as
+            <c>Source/Common/ComputeBindings.slang</c> places them.
+            </summary>
+            <remarks>
+            The engine's compute seam binds a resource by the number the shader declared it at AND by what kind it
+            is: an image at slot zero and a storage buffer at slot zero are two different resources, because the
+            dialect these shaders came from gives each kind its own numbering. Vulkan gives a set one numbering
+            for all of them, so each kind takes a block of sixteen and the backend recovers the kind and the slot
+            by division. There is no table to keep in step -- only these numbers and the macros that mirror them,
+            which <c>ComputeBindingSpaceTests</c> pins together.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Shaders.ComputeBindingSpace.SlotsPerKind">
+            <summary>How many slots each kind is given.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ComputeBindingSpace.ImageBase">
+            <summary>The first binding a storage image may occupy.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ComputeBindingSpace.BufferBase">
+            <summary>The first binding a storage buffer may occupy.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ComputeBindingSpace.TextureBase">
+            <summary>The first binding a sampled image may occupy.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ComputeBindingSpace.SceneBinding">
+            <summary>The binding the world's acceleration structure occupies. There is only ever one.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ComputeBindingSpace.GlobalsBinding">
+            <summary>The binding the gathered parameter block occupies.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ComputeBindingSpace.SamplerBase">
+            <summary>The first binding a sampler declared apart from its texture may occupy.</summary>
+            <remarks>
+            A module may declare a texture and its sampler apart, which is the only shape WGSL has, and the
+            two share a slot: binding the texture binds both. A module that instead declares one combined type
+            is Vulkan-only and uses no binding here at all.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Shaders.ComputeBindingSpace.SlotOf(System.Int32)">
+            <summary>The slot a binding stands for within its own kind.</summary>
+            <param name="binding">The binding the module declared.</param>
+            <returns>Its slot, counting from nought within its kind's block.</returns>
+        </member>
+        <member name="T:OpenIGI.Shaders.ExternalShaderModule">
+            <summary>A shader module from outside the library: a mod's, compiled by the same tool into the same forms.</summary>
+            <remarks>
+            Registered with <see cref="M:OpenIGI.Shaders.ShaderCatalog.Register(OpenIGI.Shaders.ExternalShaderModule)"/>, it is looked up by the id that gives it like any of the library's, so a
+            pass and every backend build it without knowing where it came from. Only its default variant is read.
+            </remarks>
+            <param name="Name">The module's name, as the mod's own manifest lists it.</param>
+            <param name="Reflection">What it binds and declares.</param>
+            <param name="Spirv">Its SPIR-V, or <see langword="null"/> where it was not compiled for Vulkan.</param>
+            <param name="Wgsl">Its WGSL, or <see langword="null"/> where it was not compiled for WebGPU.</param>
+            <param name="Dxil">Its DXIL, one blob a stage; empty where it was not compiled for Direct3D 12.</param>
+        </member>
+        <member name="M:OpenIGI.Shaders.ExternalShaderModule.#ctor(System.String,OpenIGI.Shaders.ShaderReflection,System.Byte[],System.String,System.Collections.Generic.IReadOnlyDictionary{OpenIGI.Shaders.ShaderStage,System.Byte[]})">
+            <summary>A shader module from outside the library: a mod's, compiled by the same tool into the same forms.</summary>
+            <remarks>
+            Registered with <see cref="M:OpenIGI.Shaders.ShaderCatalog.Register(OpenIGI.Shaders.ExternalShaderModule)"/>, it is looked up by the id that gives it like any of the library's, so a
+            pass and every backend build it without knowing where it came from. Only its default variant is read.
+            </remarks>
+            <param name="Name">The module's name, as the mod's own manifest lists it.</param>
+            <param name="Reflection">What it binds and declares.</param>
+            <param name="Spirv">Its SPIR-V, or <see langword="null"/> where it was not compiled for Vulkan.</param>
+            <param name="Wgsl">Its WGSL, or <see langword="null"/> where it was not compiled for WebGPU.</param>
+            <param name="Dxil">Its DXIL, one blob a stage; empty where it was not compiled for Direct3D 12.</param>
+        </member>
+        <member name="P:OpenIGI.Shaders.ExternalShaderModule.Name">
+            <summary>The module's name, as the mod's own manifest lists it.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ExternalShaderModule.Reflection">
+            <summary>What it binds and declares.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ExternalShaderModule.Spirv">
+            <summary>Its SPIR-V, or <see langword="null"/> where it was not compiled for Vulkan.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ExternalShaderModule.Wgsl">
+            <summary>Its WGSL, or <see langword="null"/> where it was not compiled for WebGPU.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ExternalShaderModule.Dxil">
+            <summary>Its DXIL, one blob a stage; empty where it was not compiled for Direct3D 12.</summary>
+        </member>
+        <member name="M:OpenIGI.Shaders.ExternalShaderModule.Read(System.String,System.String)">
+            <summary>Reads a module the shader tool compiled into a folder: <c>{name}.default.*</c>, as the library files its own.</summary>
+            <param name="directory">The folder, a mod's compiled shaders.</param>
+            <param name="name">The module's name.</param>
+            <returns>The module.</returns>
+            <exception cref="T:System.InvalidOperationException">Its reflection is not there or cannot be read.</exception>
+        </member>
+        <member name="M:OpenIGI.Shaders.ExternalShaderModule.Compiles(OpenIGI.Shaders.ShaderTarget)">
+            <summary>Gets whether the module has a form for a target.</summary>
+            <param name="target">The code a backend consumes.</param>
+            <returns>Whether it does.</returns>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderCatalog">
+            <summary>
+            The compiled shader library: SPIR-V for Vulkan, WGSL for WebGPU and the reflection that
+            describes both, all produced at build time and read from the assembly's resources.
+            </summary>
+            <remarks>
+            <para>
+            Nothing here compiles anything. Every artefact was produced by
+            <c>dotnet run --project tools/OpenIGI.Tools.ShaderBuild</c> and committed, which is what lets the
+            browser target exist at all — there is no shader compiler to ship to it — and what took the
+            load-time GLSL compiles off the render thread on the desktop.
+            </para>
+            <para>
+            Lookups are cached because a pipeline rebuild asks for the same module repeatedly, and a
+            manifest read or a JSON parse per pipeline would put the cost back where it was taken from.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderCatalog.FirstExternalId">
+            <summary>The first id an external module is given; the library's own are all below it.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderCatalog.Manifest">
+            <summary>Gets the manifest listing every module the library carries.</summary>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderCatalog.Compiles(OpenIGI.Shaders.ShaderModuleId,OpenIGI.Shaders.ShaderVariant,OpenIGI.Shaders.ShaderTarget)">
+            <summary>Gets whether a variant of a module has a form for a target.</summary>
+            <param name="id">The module.</param>
+            <param name="variant">The variant.</param>
+            <param name="target">The code a backend consumes.</param>
+            <returns>
+            <see langword="true"/> when the library carries it. A pass whose modules are not all carried for a
+            backend asks this and stands down, rather than being refused halfway through building itself.
+            </returns>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderCatalog.Register(OpenIGI.Shaders.ExternalShaderModule)">
+            <summary>Adds a module from outside the library, which is then looked up by the id this returns like any of its own.</summary>
+            <param name="module">The module.</param>
+            <returns>Its id, at or past <see cref="F:OpenIGI.Shaders.ShaderCatalog.FirstExternalId"/>.</returns>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderCatalog.TryGetExternal(OpenIGI.Shaders.ShaderModuleId,OpenIGI.Shaders.ExternalShaderModule@)">
+            <summary>Gets a module from outside the library by the id it was given.</summary>
+            <param name="id">The id.</param>
+            <param name="module">Receives the module.</param>
+            <returns>Whether the id is an external module's.</returns>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderCatalog.GetSpirv(OpenIGI.Shaders.ShaderModuleId,OpenIGI.Shaders.ShaderVariant)">
+            <summary>Gets one variant's SPIR-V, holding every entry point the module declares.</summary>
+            <param name="id">The module wanted.</param>
+            <param name="variant">The variant wanted.</param>
+            <returns>The SPIR-V words, as bytes.</returns>
+            <exception cref="T:System.InvalidOperationException">The variant was never compiled.</exception>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderCatalog.GetSpirv(OpenIGI.Shaders.ShaderModuleId)">
+            <summary>Gets the default variant's SPIR-V.</summary>
+            <param name="id">The module wanted.</param>
+            <returns>The SPIR-V words, as bytes.</returns>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderCatalog.GetWgsl(OpenIGI.Shaders.ShaderModuleId,OpenIGI.Shaders.ShaderVariant)">
+            <summary>Gets one variant's WGSL, holding every entry point the module declares.</summary>
+            <param name="id">The module wanted.</param>
+            <param name="variant">The variant wanted.</param>
+            <returns>The WGSL source.</returns>
+            <exception cref="T:System.InvalidOperationException">The variant was never compiled.</exception>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderCatalog.GetWgsl(OpenIGI.Shaders.ShaderModuleId)">
+            <summary>Gets the default variant's WGSL.</summary>
+            <param name="id">The module wanted.</param>
+            <returns>The WGSL source.</returns>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderCatalog.GetReflection(OpenIGI.Shaders.ShaderModuleId,OpenIGI.Shaders.ShaderVariant)">
+            <summary>Gets one variant's reflection: its entry points, bindings, push block and constants.</summary>
+            <param name="id">The module wanted.</param>
+            <param name="variant">The variant wanted.</param>
+            <returns>The reflection.</returns>
+            <exception cref="T:System.InvalidOperationException">The variant was never compiled, or its reflection is unreadable.</exception>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderCatalog.GetReflection(OpenIGI.Shaders.ShaderModuleId)">
+            <summary>Gets the default variant's reflection.</summary>
+            <param name="id">The module wanted.</param>
+            <returns>The reflection.</returns>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderCatalog.StageName(OpenIGI.Shaders.ShaderStage)">
+            <summary>The name a stage's compiled form is filed under, where a target compiles each stage apart.</summary>
+            <param name="stage">The stage.</param>
+            <returns><c>vertex</c>, <c>fragment</c> or <c>compute</c>.</returns>
+            <remarks>DXIL is compiled one entry point to a blob: <c>Generated/{Id}.{variant}.{stage}.dxil</c>.</remarks>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderCatalog.ResourceName(OpenIGI.Shaders.ShaderModuleId,OpenIGI.Shaders.ShaderVariant,System.String)">
+            <summary>Builds the resource name one generated artefact is embedded under.</summary>
+            <param name="id">The module.</param>
+            <param name="variant">The variant.</param>
+            <param name="extension">The artefact's extension, without a leading dot.</param>
+            <returns>The embedded resource name.</returns>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderTarget">
+            <summary>Which compiled form a variant is produced in.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderTarget.Spirv">
+            <summary>SPIR-V, for Vulkan.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderTarget.Wgsl">
+            <summary>WGSL, for WebGPU.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderTarget.Dxil">
+            <summary>DXIL, for Direct3D 12.</summary>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderTargetForms">
+            <summary>What each compiled form does differently, where a host has to know.</summary>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderTargetForms.ReadsImageHistories(OpenIGI.Shaders.ShaderTarget)">
+            <summary>Whether a target's form reads a read-back image from a copy taken before the dispatch.</summary>
+            <param name="target">The target.</param>
+            <returns><see langword="true"/> for WGSL alone.</returns>
+            <remarks>
+            WGSL cannot read and write an <c>rgba16float</c> storage image in one dispatch, so its form writes
+            the image and reads a <c>History</c> copy the host takes first (<c>Source/Common/ImageHistory.slang</c>,
+            keyed on <c>OPENIGI_TARGET_WGSL</c>). SPIR-V and DXIL read the image itself: Direct3D 12 guarantees
+            typed UAV loads of <c>R16G16B16A16_FLOAT</c>.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderVariantEntry">
+            <summary>One variant of a module, as the manifest declares it.</summary>
+            <param name="Name">The variant's name; part of its generated file names.</param>
+            <param name="Defines">Preprocessor defines handed to <c>slangc</c> for this variant.</param>
+            <param name="Targets">
+            The forms to compile, or empty for all three. A variant that traces rays lists SPIR-V and DXIL:
+            WGSL has no ray tracing, so there is nothing for that target to be compiled to, and the backend
+            that reads it stands the feature down the way MoltenVK does.
+            </param>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderVariantEntry.#ctor(System.String,System.Collections.Generic.IReadOnlyDictionary{System.String,System.String},System.Collections.Generic.IReadOnlyList{OpenIGI.Shaders.ShaderTarget})">
+            <summary>One variant of a module, as the manifest declares it.</summary>
+            <param name="Name">The variant's name; part of its generated file names.</param>
+            <param name="Defines">Preprocessor defines handed to <c>slangc</c> for this variant.</param>
+            <param name="Targets">
+            The forms to compile, or empty for all three. A variant that traces rays lists SPIR-V and DXIL:
+            WGSL has no ray tracing, so there is nothing for that target to be compiled to, and the backend
+            that reads it stands the feature down the way MoltenVK does.
+            </param>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderVariantEntry.Name">
+            <summary>The variant's name; part of its generated file names.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderVariantEntry.Defines">
+            <summary>Gets the defines, treating an absent map as an empty one.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderVariantEntry.Targets">
+            <summary>Gets the targets to compile, substituting all three when none are declared.</summary>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderVariantEntry.Compiles(OpenIGI.Shaders.ShaderTarget)">
+            <summary>Whether this variant is compiled for a target.</summary>
+            <param name="target">The target asked about.</param>
+            <returns><see langword="true"/> when the variant is compiled for it.</returns>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderModuleEntry">
+            <summary>One module, as the manifest declares it.</summary>
+            <param name="Name">
+            The module's name, its <c>id</c>: the library's own match a <see cref="T:OpenIGI.Shaders.ShaderModuleId"/> value, a mod's are its own.
+            </param>
+            <param name="Source">The Slang source's path relative to <c>Source/</c>.</param>
+            <param name="Variants">The variants to compile; empty means the default variant alone.</param>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderModuleEntry.#ctor(System.String,System.String,System.Collections.Generic.IReadOnlyList{OpenIGI.Shaders.ShaderVariantEntry})">
+            <summary>One module, as the manifest declares it.</summary>
+            <param name="Name">
+            The module's name, its <c>id</c>: the library's own match a <see cref="T:OpenIGI.Shaders.ShaderModuleId"/> value, a mod's are its own.
+            </param>
+            <param name="Source">The Slang source's path relative to <c>Source/</c>.</param>
+            <param name="Variants">The variants to compile; empty means the default variant alone.</param>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderModuleEntry.Name">
+            <summary>
+            The module's name, its <c>id</c>: the library's own match a <see cref="T:OpenIGI.Shaders.ShaderModuleId"/> value, a mod's are its own.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderModuleEntry.Source">
+            <summary>The Slang source's path relative to <c>Source/</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderModuleEntry.Id">
+            <summary>Gets the module's value in the library, or <see cref="F:OpenIGI.Shaders.ShaderModuleId.External"/> for one from outside it.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderModuleEntry.Variants">
+            <summary>Gets the variants to compile, substituting the default when none are declared.</summary>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderModuleEntry.Variant(OpenIGI.Shaders.ShaderVariant)">
+            <summary>Finds one variant of the module by name.</summary>
+            <param name="variant">The variant; an unnamed one is the default, as the catalogue reads it.</param>
+            <returns>The variant, or <see langword="null"/> when the module has none by that name.</returns>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderManifest">
+            <summary>
+            The list of shader modules and the Slang release that compiled them: the single source of truth
+            the build tool reads and the catalogue resolves names through.
+            </summary>
+            <param name="SlangVersion">The <c>slangc -v</c> string the committed output was produced with.</param>
+            <param name="Modules">The modules the library carries.</param>
+            <param name="DxcVersion">
+            The DXC release the committed DXIL was produced with, as its <c>dxc --version</c> begins (<c>1.9.2609</c>).
+            Pinned apart from slangc because slangc hands DXIL to whatever DXC it is pointed at, and the Vulkan SDK's
+            own build of the same minor version emits different bytes.
+            </param>
+            <remarks>
+            One list, read by both sides, so a module cannot be compiled but unreachable or named but never
+            compiled. It is embedded in the assembly rather than read from disk because the catalogue has to
+            work from a published single file and, later, from a browser.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderManifest.#ctor(System.String,System.Collections.Generic.IReadOnlyList{OpenIGI.Shaders.ShaderModuleEntry},System.String)">
+            <summary>
+            The list of shader modules and the Slang release that compiled them: the single source of truth
+            the build tool reads and the catalogue resolves names through.
+            </summary>
+            <param name="SlangVersion">The <c>slangc -v</c> string the committed output was produced with.</param>
+            <param name="Modules">The modules the library carries.</param>
+            <param name="DxcVersion">
+            The DXC release the committed DXIL was produced with, as its <c>dxc --version</c> begins (<c>1.9.2609</c>).
+            Pinned apart from slangc because slangc hands DXIL to whatever DXC it is pointed at, and the Vulkan SDK's
+            own build of the same minor version emits different bytes.
+            </param>
+            <remarks>
+            One list, read by both sides, so a module cannot be compiled but unreachable or named but never
+            compiled. It is embedded in the assembly rather than read from disk because the catalogue has to
+            work from a published single file and, later, from a browser.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderManifest.SlangVersion">
+            <summary>The <c>slangc -v</c> string the committed output was produced with.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderManifest.Modules">
+            <summary>The modules the library carries.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderManifest.DxcVersion">
+            <summary>
+            The DXC release the committed DXIL was produced with, as its <c>dxc --version</c> begins (<c>1.9.2609</c>).
+            Pinned apart from slangc because slangc hands DXIL to whatever DXC it is pointed at, and the Vulkan SDK's
+            own build of the same minor version emits different bytes.
+            </summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderManifest.FileName">
+            <summary>The manifest's file name, at the project root and embedded into the assembly.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderManifest.ResourceName">
+            <summary>The resource name the manifest is embedded under.</summary>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderManifest.ReleaseOf(System.String)">
+            <summary>The release a <c>slangc -v</c> string names, without the build that produced it.</summary>
+            <param name="version">A version string as <c>slangc -v</c> reports it.</param>
+            <returns>The release, which is everything before the first hyphen.</returns>
+            <remarks>
+            A release is distributed more than once: the Vulkan SDK ships its own build of it, which reports
+            the tag plus the commits past it (<c>2026.13.1-1-g84792eb15</c>), while the tagged download
+            reports the tag alone. Measured against the whole library, the two produce byte-identical output,
+            so the build is information and the release is the thing that has to match.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderManifest.Accepts(System.String)">
+            <summary>Whether a compiler produces the output this library committed.</summary>
+            <param name="version">The compiler's version, as <c>slangc -v</c> reports it.</param>
+            <returns><see langword="true"/> when it is a build of the pinned release.</returns>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderManifest.Module(OpenIGI.Shaders.ShaderModuleId)">
+            <summary>Finds a module's entry.</summary>
+            <param name="id">The module wanted.</param>
+            <returns>That module's entry.</returns>
+            <exception cref="T:System.InvalidOperationException">The manifest does not list the module.</exception>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderModuleId">
+            <summary>
+            The shader modules the library carries. One value per <c>.slang</c> source under
+            <c>Source/</c>, whatever stages that source declares.
+            </summary>
+            <remarks>
+            <para>
+            A hand-kept enumeration rather than a generated one, so a module is named in code the way any
+            other constant is and a typo is a compile error. <c>ShaderManifestTests</c> pins it to the
+            manifest and the manifest to the directory, so the three cannot drift apart: adding a
+            <c>.slang</c> file without listing it, or listing one without a value here, fails the build.
+            </para>
+            <para>
+            A module is one source with all of its entry points, not one stage. That is how Slang compiles
+            and how WebGPU binds — a shader module holds every entry point and a pipeline names the one it
+            wants — and the Vulkan backend does the same rather than carry a second convention.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Sprite2D">
+            <summary>The screen-space shader every 2D draw funnels through.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.SdfText">
+            <summary>Distance-field text: crisp glyph edges at any size, with an outline and a glow.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Loading">
+            <summary>The loading backdrop: a held frame of the level, defocused and graded.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Mesh3D">
+            <summary>The world pipeline's forward shader: the original's direct-path look.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Shadow">
+            <summary>The sun shadow pass: depth only, cutting the holes the G-buffer cuts.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Card">
+            <summary>Captures a patch of a model into a page of the card atlas, as material rather than picture.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.GBuffer">
+            <summary>The geometry pass: albedo, world normal, material and baked light, all linear.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Glass">
+            <summary>The glazing transmission draw: what a pane lets through.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Rain">
+            <summary>A falling raindrop: the scene behind it refracted through the streak.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.GlassLayer">
+            <summary>The glazing front-layer draw: which pane is nearest, and which way it faces.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Occlusion">
+            <summary>The depth-only box an asynchronous visibility query draws.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Outline">
+            <summary>The selection outline: a shell pushed out along the silhouette in screen space.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.BloomDownsample">
+            <summary>Bloom: halve the resolution with the four-tap box that also does the first blur.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.BloomBlur">
+            <summary>Bloom: one axis of the separable gaussian.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.BloomCombine">
+            <summary>Bloom: sum the pyramid with per-stage tints.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.SunShafts">
+            <summary>Light shafts radiating from the sun, blurred in screen space and laid onto the bloom.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.UpscaleRejectionDilate">
+            <summary>Temporal resolve: spread the shading rejection to a rejecting pixel's neighbours.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.UpscaleResolveHistory">
+            <summary>Temporal resolve: Mitchell-Netravali downsample of the history into the frame.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.ShadowAccumulate">
+            <summary>Averages the traced shadow mask over a bounded window of frames.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.UpscaleSpatialAntiAliasing">
+            <summary>Temporal resolve: the sub-pixel offset that puts a pixel on the right side of an edge.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.UpscaleThinGeometry">
+            <summary>Temporal resolve: find geometry too fine to resolve, and relax the parallax verdict over it.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.UpscaleDecimateHistory">
+            <summary>Temporal resolve: how much history survives at each pixel -- the parallax verdict.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.UpscaleDilateVelocity">
+            <summary>Temporal resolve: each pixel's motion taken from the closest surface around it.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.MotionBlurFlatten">
+            <summary>Motion blur: one velocity per pixel, and each tile reduced to its fastest and slowest.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.MotionBlurDilate">
+            <summary>Motion blur: spread each tile's fastest velocity over the tiles its swept shape covers.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.MotionBlurApply">
+            <summary>Motion blur: gather along the tile's velocity, weighted by depth and reach.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.FogScatter">
+            <summary>Volumetric fog: what the medium is at each froxel, and the light it sends at the eye.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.FogIntegrate">
+            <summary>Volumetric fog: each column accumulated front to back into what a pixel sees.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.UpscaleRejectShading">
+            <summary>Temporal upscaler: how much of the reprojected history this frame's shading contradicts.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.UpscaleUpdateHistory">
+            <summary>Temporal upscaler: this frame accumulated into the super-sampled history.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.LampDenoiseTemporal">
+            <summary>Lamp shadows: the traced visibility reprojected and accumulated over time.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.LampDenoiseSpatial">
+            <summary>Lamp shadows: a variance-guided filter over the accumulated visibility.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.LampShadow">
+            <summary>Lamp shadows: one traced ray per pixel, at the lamp a reservoir kept.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Velocity">
+            <summary>The screen motion each pixel's depth reprojects to.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.ObjectVelocity">
+            <summary>The screen motion of meshes that move on their own, rasterised over the camera's.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Ssao">
+            <summary>Screen-space ambient occlusion, gathered over a hemisphere and accumulated.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.ShadowDenoise">
+            <summary>The traced sun shadow, spread over the penumbra its occluder distance implies.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.ExposureHistogram">
+            <summary>The frame's luminance counted into sixty-four logarithmic buckets.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.SunShadow">
+            <summary>The sun's traced visibility and the distance to whatever stopped the ray.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.SkyTransmittance">
+            <summary>Atmosphere: how much light survives between an altitude and space.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.SkyMultiScatter">
+            <summary>Atmosphere: the light that arrives having bounced more than once.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.SkyView">
+            <summary>Atmosphere: the sky's luminance in every direction from the camera.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.SkyIrradiance">
+            <summary>Atmosphere: the sky projected onto nine spherical-harmonic coefficients.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.GlazingReflect">
+            <summary>Glazing: what every window pane reflects, traced or marched.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Reflect">
+            <summary>Reflections: what each surface reflects, traced or marched.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.ReflectCompositeDraw">
+            <summary>Reflections: the reflection laid over the lit scene by blending, for either backend.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Shading">
+            <summary>Deferred: the lighting subpass, which shades the G-buffer into the scene's colour.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Resolve">
+            <summary>Deferred: the lit scene brought to the display, with everything the lens does.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.FieldClipmapRead">
+            <summary>Distance field: one clipmap level read back for the validation.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.FieldClipmapBuild">
+            <summary>Distance field: the per-mesh fields resampled into one clipmap level.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.CardsScreenFilter">
+            <summary>Surface cache: the accumulated screen probes smoothed across their neighbours.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.CardsScreenResolve">
+            <summary>Surface cache: the sparse screen probes upsampled and accumulated over time.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.CardsRadianceCache">
+            <summary>Surface cache: the world-space radiance cache, one slab of probes a frame.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.CardsScreenGather">
+            <summary>Surface cache: one screen probe every few pixels, gathered over its hemisphere.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.CardsScreenGatherTemporal">
+            <summary>Surface cache: the screen gather pooled across its workgroup and accumulated.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.CardsLighting">
+            <summary>Surface cache: what a captured card receives, bounces, and finally sends onward.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.CopyDepth">
+            <summary>Deferred: this frame's depth copied into a colour target, for the next frame to read.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.ReactiveMask">
+            <summary>Post: the lit image's additive marker turned into the mask an NVIDIA reconstruction reads.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Compose">
+            <summary>Post: the interface layer laid over the finished picture, when the two were drawn apart.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.RigGuides">
+            <summary>World: the first-person rig's base colour and normal, for the guides the G-buffer cannot give it.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.ReconstructionGuides">
+            <summary>Post: what each pixel is made of, the guides DLSS ray reconstruction reads beside the colour.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.FlashlightShadow">
+            <summary>The flashlight's shadow: one ray a pixel to a point on its lens, traced or marched.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.FlashlightShadowFilter">
+            <summary>The flashlight's shadow spread over the penumbra its occluders imply.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Water">
+            <summary>World: I.G.I. 2's water, Fresnel-weighted reflection over its own light, as its vertex shader builds it.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Tracer">
+            <summary>A round's tracer: the original's thin unfogged line, or the remaster's glowing streak.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.ModDisplay">
+            <summary>Post: the finished picture the mods' passes over it left, put where the tone map would have drawn it.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.HudFx">
+            <summary>UI: the remastered heads-up display laid over the picture as if projected on a visor.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.ScopeGlint">
+            <summary>A sniper's scope catching the light: a star of streaks added over the picture (<c>Ui/ScopeGlint.slang</c>).</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.Silhouette">
+            <summary>Post: what the binoculars marked, a fill inside a soft outline laid over the finished picture (<c>Post/Silhouette.slang</c>).</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderModuleId.External">
+            <summary>
+            A module from outside the library: a mod's, compiled by the same tool from a manifest of its own. Its reflection is
+            labelled so; the catalogue gives each one an id of its own as it is registered (<see cref="M:OpenIGI.Shaders.ShaderCatalog.Register(OpenIGI.Shaders.ExternalShaderModule)"/>).
+            </summary>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderBindingKind">
+            <summary>What a resource a shader binds actually is.</summary>
+            <remarks>
+            The distinctions a bind-group or descriptor-set layout has to make, and no more. Slang reports a
+            richer type graph; the build reduces it to this because the backends only ever branch on these.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderBindingKind.Texture">
+            <summary>A sampled texture, of any dimension.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderBindingKind.Sampler">
+            <summary>A sampler, declared separately from the texture it is used with.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderBindingKind.StorageTexture">
+            <summary>A read-write storage texture.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderBindingKind.UniformBuffer">
+            <summary>A uniform (constant) buffer.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderBindingKind.StorageBuffer">
+            <summary>A storage (structured or byte-address) buffer.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderBindingKind.AccelerationStructure">
+            <summary>An acceleration structure, bound only on a backend that ray traces.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderBindingKind.CombinedImageSampler">
+            <summary>A texture and its sampler in one descriptor, which WGSL has no form for.</summary>
+            <remarks>
+            Only a module compiled for SPIR-V alone may declare one. Everything that has a WGSL form
+            declares its textures and samplers apart, because that is the only shape both targets share.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderBindingKind.InputAttachment">
+            <summary>A subpass input attachment, which WebGPU has no equivalent of at all.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderBindingKind.AccelerationStructureArray">
+            <summary>An unbounded array of acceleration structures, reached by index from a bindless heap.</summary>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderStorageFormat">
+            <summary>What one texel of a storage texture holds, as a module declares it.</summary>
+            <remarks>
+            The formats this library's modules actually declare, and the ones a compiler widens them to. An
+            unknown format is a build failure rather than a value silently dropped: a storage binding's format
+            is what a WebGPU bind group layout is validated against, so a wrong one binds nothing.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageFormat.None">
+            <summary>Not a storage texture.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageFormat.R8Unorm">
+            <summary>One unsigned byte, normalised.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageFormat.Rg8Unorm">
+            <summary>Two unsigned bytes, normalised.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageFormat.Rgba8Unorm">
+            <summary>Four unsigned bytes, normalised.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageFormat.R16Float">
+            <summary>One 16-bit float.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageFormat.Rg16Float">
+            <summary>Two 16-bit floats.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageFormat.Rgba16Float">
+            <summary>Four 16-bit floats.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageFormat.R32Float">
+            <summary>One 32-bit float.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageFormat.R32Uint">
+            <summary>One 32-bit unsigned integer.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageFormat.Rg32Float">
+            <summary>Two 32-bit floats.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageFormat.Rgba32Float">
+            <summary>Four 32-bit floats.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageFormat.Rgb10A2Unorm">
+            <summary>Ten bits each of red, green and blue with two of alpha.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageFormat.Rg11B10Ufloat">
+            <summary>Eleven bits each of red and green and ten of blue, unsigned float.</summary>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderSampleType">
+            <summary>What a shader reads out of a sampled texture.</summary>
+            <remarks>
+            A WebGPU bind group layout states it and is validated against it: a depth texture bound to a slot
+            that says float binds nothing. A Vulkan descriptor set does not distinguish them, so this is another
+            difference only the browser can find. Read out of the emitted WGSL, which spells each one in the
+            type itself.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderSampleType.Float">
+            <summary>Floating point, the ordinary case.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderSampleType.Depth">
+            <summary>A depth texture, which is what a comparison lookup reads.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderSampleType.Uint">
+            <summary>Unsigned integer.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderSampleType.Sint">
+            <summary>Signed integer.</summary>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderBinding">
+            <summary>One resource a module binds, as both targets agree it is bound.</summary>
+            <param name="Name">The name the Slang source declares.</param>
+            <param name="Group">The descriptor set on Vulkan, the bind group on WebGPU.</param>
+            <param name="Binding">The binding index within that group.</param>
+            <param name="Kind">What the resource is.</param>
+            <remarks>
+            There is deliberately no "which stages read this". Slang reports module-scope parameters for
+            every entry point whether or not that entry point touches them -- compiling with <c>-entry</c>
+            alone does not narrow it -- so the information is not available here, and a field claiming it
+            would be wrong rather than merely absent. Stage visibility stays with the code that builds the
+            layout, which knows what it binds.
+            </remarks>
+            <param name="Dimensions">
+            How many dimensions a texture has, or nought for a resource that is not one. A backend that binds a
+            placeholder where a level provides nothing has to bind one of the right shape, and a two-dimensional
+            view written into a three-dimensional slot is a device loss rather than a wrong picture.
+            </param>
+            <param name="StorageFormat">
+            What one texel of a storage texture holds, as the source declared it and as the SPIR-V carries it.
+            <see cref="F:OpenIGI.Shaders.ShaderStorageFormat.None"/> for everything that is not a storage texture.
+            </param>
+            <param name="WgslStorageFormat">
+            What the same binding came out as for the WGSL target, which is not always what was declared: WGSL
+            allows a storage binding on a short list of formats and the compiler widens anything narrower. It is
+            recorded because a WebGPU bind group layout is validated against the format the module DECLARES, so
+            the host has to allocate that one -- and a host that reproduced the compiler's widening rule instead
+            of reading it would be a second place for that rule to live.
+            <see cref="F:OpenIGI.Shaders.ShaderStorageFormat.None"/> where the variant has no WGSL form.
+            </param>
+            <param name="StorageAccess">
+            How a storage binding may be reached, as the module's own type says: a bind group layout states it
+            and is validated against what was declared, so a write-only binding described as read-write binds
+            nothing. <see cref="F:OpenIGI.Shaders.ShaderStorageAccess.None"/> for everything that is not a storage binding.
+            </param>
+            <param name="WgslStorageAccess">
+            How the WGSL form reaches the same binding, where that differs from <paramref name="StorageAccess"/>:
+            an image a module reads back is read-write in the SPIR-V and written only in the WGSL, which reads
+            what it held from a copy instead. <see cref="F:OpenIGI.Shaders.ShaderStorageAccess.None"/> where the two agree, or the
+            variant has no WGSL form.
+            </param>
+            <param name="Arrayed">
+            Whether a texture is an array of slices rather than one image. A bind group layout states the view
+            dimension and is validated against it, so an array bound as a plain texture binds nothing — and the
+            two are the same in a descriptor set, so nothing on the Vulkan side would ever have caught it.
+            </param>
+            <param name="Comparison">
+            Whether a sampler compares rather than filters: the shadow sampler, which answers whether a depth
+            is nearer than the texel instead of returning it. Read out of the emitted WGSL, which is the only
+            place it is written down — Slang's reflection reports a comparison sampler and an ordinary one
+            identically, and SPIR-V does not distinguish them either. <see langword="false"/> for a variant with
+            no WGSL form, which is a variant no WebGPU layout can be built from anyway.
+            </param>
+            <param name="SampleType">
+            What a shader reads out of a sampled texture, which a bind group layout also states. Read from the
+            emitted WGSL for the same reason the comparison flag is, and <see cref="F:OpenIGI.Shaders.ShaderSampleType.Float"/>
+            for everything that is not a sampled texture.
+            </param>
+            <param name="Hlsl">
+            Where the DXIL form reaches the same binding: its register class, register and space. Matched to this
+            binding by name when the variant is compiled for Direct3D 12, and null where it is not.
+            </param>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderBinding.#ctor(System.String,System.Int32,System.Int32,OpenIGI.Shaders.ShaderBindingKind,System.Int32,OpenIGI.Shaders.ShaderStorageFormat,OpenIGI.Shaders.ShaderStorageFormat,OpenIGI.Shaders.ShaderStorageAccess,OpenIGI.Shaders.ShaderStorageAccess,System.Boolean,System.Boolean,OpenIGI.Shaders.ShaderSampleType,OpenIGI.Shaders.ShaderHlslRegister)">
+            <summary>One resource a module binds, as both targets agree it is bound.</summary>
+            <param name="Name">The name the Slang source declares.</param>
+            <param name="Group">The descriptor set on Vulkan, the bind group on WebGPU.</param>
+            <param name="Binding">The binding index within that group.</param>
+            <param name="Kind">What the resource is.</param>
+            <remarks>
+            There is deliberately no "which stages read this". Slang reports module-scope parameters for
+            every entry point whether or not that entry point touches them -- compiling with <c>-entry</c>
+            alone does not narrow it -- so the information is not available here, and a field claiming it
+            would be wrong rather than merely absent. Stage visibility stays with the code that builds the
+            layout, which knows what it binds.
+            </remarks>
+            <param name="Dimensions">
+            How many dimensions a texture has, or nought for a resource that is not one. A backend that binds a
+            placeholder where a level provides nothing has to bind one of the right shape, and a two-dimensional
+            view written into a three-dimensional slot is a device loss rather than a wrong picture.
+            </param>
+            <param name="StorageFormat">
+            What one texel of a storage texture holds, as the source declared it and as the SPIR-V carries it.
+            <see cref="F:OpenIGI.Shaders.ShaderStorageFormat.None"/> for everything that is not a storage texture.
+            </param>
+            <param name="WgslStorageFormat">
+            What the same binding came out as for the WGSL target, which is not always what was declared: WGSL
+            allows a storage binding on a short list of formats and the compiler widens anything narrower. It is
+            recorded because a WebGPU bind group layout is validated against the format the module DECLARES, so
+            the host has to allocate that one -- and a host that reproduced the compiler's widening rule instead
+            of reading it would be a second place for that rule to live.
+            <see cref="F:OpenIGI.Shaders.ShaderStorageFormat.None"/> where the variant has no WGSL form.
+            </param>
+            <param name="StorageAccess">
+            How a storage binding may be reached, as the module's own type says: a bind group layout states it
+            and is validated against what was declared, so a write-only binding described as read-write binds
+            nothing. <see cref="F:OpenIGI.Shaders.ShaderStorageAccess.None"/> for everything that is not a storage binding.
+            </param>
+            <param name="WgslStorageAccess">
+            How the WGSL form reaches the same binding, where that differs from <paramref name="StorageAccess"/>:
+            an image a module reads back is read-write in the SPIR-V and written only in the WGSL, which reads
+            what it held from a copy instead. <see cref="F:OpenIGI.Shaders.ShaderStorageAccess.None"/> where the two agree, or the
+            variant has no WGSL form.
+            </param>
+            <param name="Arrayed">
+            Whether a texture is an array of slices rather than one image. A bind group layout states the view
+            dimension and is validated against it, so an array bound as a plain texture binds nothing — and the
+            two are the same in a descriptor set, so nothing on the Vulkan side would ever have caught it.
+            </param>
+            <param name="Comparison">
+            Whether a sampler compares rather than filters: the shadow sampler, which answers whether a depth
+            is nearer than the texel instead of returning it. Read out of the emitted WGSL, which is the only
+            place it is written down — Slang's reflection reports a comparison sampler and an ordinary one
+            identically, and SPIR-V does not distinguish them either. <see langword="false"/> for a variant with
+            no WGSL form, which is a variant no WebGPU layout can be built from anyway.
+            </param>
+            <param name="SampleType">
+            What a shader reads out of a sampled texture, which a bind group layout also states. Read from the
+            emitted WGSL for the same reason the comparison flag is, and <see cref="F:OpenIGI.Shaders.ShaderSampleType.Float"/>
+            for everything that is not a sampled texture.
+            </param>
+            <param name="Hlsl">
+            Where the DXIL form reaches the same binding: its register class, register and space. Matched to this
+            binding by name when the variant is compiled for Direct3D 12, and null where it is not.
+            </param>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderBinding.Name">
+            <summary>The name the Slang source declares.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderBinding.Group">
+            <summary>The descriptor set on Vulkan, the bind group on WebGPU.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderBinding.Binding">
+            <summary>The binding index within that group.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderBinding.Kind">
+            <summary>What the resource is.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderBinding.Dimensions">
+            <summary>
+            How many dimensions a texture has, or nought for a resource that is not one. A backend that binds a
+            placeholder where a level provides nothing has to bind one of the right shape, and a two-dimensional
+            view written into a three-dimensional slot is a device loss rather than a wrong picture.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderBinding.StorageFormat">
+            <summary>
+            What one texel of a storage texture holds, as the source declared it and as the SPIR-V carries it.
+            <see cref="F:OpenIGI.Shaders.ShaderStorageFormat.None"/> for everything that is not a storage texture.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderBinding.WgslStorageFormat">
+            <summary>
+            What the same binding came out as for the WGSL target, which is not always what was declared: WGSL
+            allows a storage binding on a short list of formats and the compiler widens anything narrower. It is
+            recorded because a WebGPU bind group layout is validated against the format the module DECLARES, so
+            the host has to allocate that one -- and a host that reproduced the compiler's widening rule instead
+            of reading it would be a second place for that rule to live.
+            <see cref="F:OpenIGI.Shaders.ShaderStorageFormat.None"/> where the variant has no WGSL form.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderBinding.StorageAccess">
+            <summary>
+            How a storage binding may be reached, as the module's own type says: a bind group layout states it
+            and is validated against what was declared, so a write-only binding described as read-write binds
+            nothing. <see cref="F:OpenIGI.Shaders.ShaderStorageAccess.None"/> for everything that is not a storage binding.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderBinding.WgslStorageAccess">
+            <summary>
+            How the WGSL form reaches the same binding, where that differs from <paramref name="StorageAccess"/>:
+            an image a module reads back is read-write in the SPIR-V and written only in the WGSL, which reads
+            what it held from a copy instead. <see cref="F:OpenIGI.Shaders.ShaderStorageAccess.None"/> where the two agree, or the
+            variant has no WGSL form.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderBinding.Arrayed">
+            <summary>
+            Whether a texture is an array of slices rather than one image. A bind group layout states the view
+            dimension and is validated against it, so an array bound as a plain texture binds nothing — and the
+            two are the same in a descriptor set, so nothing on the Vulkan side would ever have caught it.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderBinding.Comparison">
+            <summary>
+            Whether a sampler compares rather than filters: the shadow sampler, which answers whether a depth
+            is nearer than the texel instead of returning it. Read out of the emitted WGSL, which is the only
+            place it is written down — Slang's reflection reports a comparison sampler and an ordinary one
+            identically, and SPIR-V does not distinguish them either. <see langword="false"/> for a variant with
+            no WGSL form, which is a variant no WebGPU layout can be built from anyway.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderBinding.SampleType">
+            <summary>
+            What a shader reads out of a sampled texture, which a bind group layout also states. Read from the
+            emitted WGSL for the same reason the comparison flag is, and <see cref="F:OpenIGI.Shaders.ShaderSampleType.Float"/>
+            for everything that is not a sampled texture.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderBinding.Hlsl">
+            <summary>
+            Where the DXIL form reaches the same binding: its register class, register and space. Matched to this
+            binding by name when the variant is compiled for Direct3D 12, and null where it is not.
+            </summary>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderHlslClass">
+            <summary>Which register a resource binds in under HLSL: what Direct3D 12 calls a descriptor range's type.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderHlslClass.ShaderResource">
+            <summary>A <c>t</c> register: a shader resource view -- a sampled texture, a read-only buffer, a scene.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderHlslClass.UnorderedAccess">
+            <summary>A <c>u</c> register: an unordered-access view -- a storage image or a read-write buffer.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderHlslClass.ConstantBuffer">
+            <summary>A <c>b</c> register: a constant buffer.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderHlslClass.Sampler">
+            <summary>An <c>s</c> register: a sampler.</summary>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderHlslRegister">
+            <summary>Where a resource landed in the HLSL a DXIL form was compiled from.</summary>
+            <param name="Class">Which kind of register.</param>
+            <param name="Register">The register number.</param>
+            <param name="Space">The register space.</param>
+            <param name="Stride">
+            The element size of a structured buffer, which a Direct3D 12 view states and the shader's
+            <c>StructuredBuffer&lt;T&gt;</c> must agree with; nought for anything else, a raw buffer included.
+            </param>
+            <remarks>
+            Slang assigns HLSL registers itself and ignores the Vulkan binding attributes, so the numbers here are
+            not the SPIR-V ones. A Direct3D 12 root signature is built from these, one range per binding, so the
+            order a bind group lists its entries in is free of them.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderHlslRegister.#ctor(OpenIGI.Shaders.ShaderHlslClass,System.Int32,System.Int32,System.Int32)">
+            <summary>Where a resource landed in the HLSL a DXIL form was compiled from.</summary>
+            <param name="Class">Which kind of register.</param>
+            <param name="Register">The register number.</param>
+            <param name="Space">The register space.</param>
+            <param name="Stride">
+            The element size of a structured buffer, which a Direct3D 12 view states and the shader's
+            <c>StructuredBuffer&lt;T&gt;</c> must agree with; nought for anything else, a raw buffer included.
+            </param>
+            <remarks>
+            Slang assigns HLSL registers itself and ignores the Vulkan binding attributes, so the numbers here are
+            not the SPIR-V ones. A Direct3D 12 root signature is built from these, one range per binding, so the
+            order a bind group lists its entries in is free of them.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderHlslRegister.Class">
+            <summary>Which kind of register.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderHlslRegister.Register">
+            <summary>The register number.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderHlslRegister.Space">
+            <summary>The register space.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderHlslRegister.Stride">
+            <summary>
+            The element size of a structured buffer, which a Direct3D 12 view states and the shader's
+            <c>StructuredBuffer&lt;T&gt;</c> must agree with; nought for anything else, a raw buffer included.
+            </summary>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderStorageAccess">
+            <summary>How a storage binding may be reached.</summary>
+            <remarks>
+            Recorded because a bind group layout states it and is validated against what the module declared: a
+            write-only binding described as read-write binds nothing, and the failure names neither. The modules
+            say which by the type they use — <c>WTexture2D</c> writes, <c>RWTexture2D</c> does both.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageAccess.None">
+            <summary>Not a storage binding.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageAccess.WriteOnly">
+            <summary>Written and not read.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageAccess.ReadWrite">
+            <summary>Read and written.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStorageAccess.ReadOnly">
+            <summary>Read and not written: a storage buffer declared without RW.</summary>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderUniformField">
+            <summary>One field of a uniform block, for a host that sets its parameters by name.</summary>
+            <param name="Name">The name the Slang source declares.</param>
+            <param name="Offset">Where the field starts in the block, in bytes, as SPIR-V and WGSL lay it out.</param>
+            <param name="Size">How many bytes the field occupies.</param>
+            <param name="HlslOffset">
+            Where it starts in the DXIL form's block, which HLSL's constant-buffer packing can put earlier: an array's
+            last element is not padded, and a two-component vector shares a register with the scalar before it.
+            Absent for a module with no DXIL form.
+            </param>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderUniformField.#ctor(System.String,System.Int32,System.Int32,System.Nullable{System.Int32})">
+            <summary>One field of a uniform block, for a host that sets its parameters by name.</summary>
+            <param name="Name">The name the Slang source declares.</param>
+            <param name="Offset">Where the field starts in the block, in bytes, as SPIR-V and WGSL lay it out.</param>
+            <param name="Size">How many bytes the field occupies.</param>
+            <param name="HlslOffset">
+            Where it starts in the DXIL form's block, which HLSL's constant-buffer packing can put earlier: an array's
+            last element is not padded, and a two-component vector shares a register with the scalar before it.
+            Absent for a module with no DXIL form.
+            </param>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderUniformField.Name">
+            <summary>The name the Slang source declares.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderUniformField.Offset">
+            <summary>Where the field starts in the block, in bytes, as SPIR-V and WGSL lay it out.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderUniformField.Size">
+            <summary>How many bytes the field occupies.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderUniformField.HlslOffset">
+            <summary>
+            Where it starts in the DXIL form's block, which HLSL's constant-buffer packing can put earlier: an array's
+            last element is not padded, and a two-component vector shares a register with the scalar before it.
+            Absent for a module with no DXIL form.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderUniformField.OffsetFor(OpenIGI.Shaders.ShaderTarget)">
+            <summary>Where the field starts in the block a target's form of the module reads.</summary>
+            <param name="target">The target.</param>
+            <returns>The offset in bytes.</returns>
+            <exception cref="T:System.InvalidOperationException">The target is DXIL and the module has no DXIL form.</exception>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderUniformBlock">
+            <summary>A uniform block whose fields a host sets one at a time, by name.</summary>
+            <param name="Name">The block's name.</param>
+            <param name="Group">The descriptor set it is bound in.</param>
+            <param name="Binding">The binding index within that set.</param>
+            <param name="Size">The block's size in bytes, as SPIR-V and WGSL lay it out.</param>
+            <param name="Fields">Its fields, in declaration order.</param>
+            <param name="HlslSize">The DXIL form's size in bytes, or null for a module with no DXIL form.</param>
+            <remarks>
+            Reported only for a block the module names <c>Globals</c>, which is the convention a module follows
+            when it wants to be driven the way the engine's own compute seam drives one: a call per parameter,
+            by name, rather than a struct the host fills. Every other constant buffer is an ordinary binding and
+            carries no field table, because nothing would read it and it would only be a second thing to keep in
+            step.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderUniformBlock.#ctor(System.String,System.Int32,System.Int32,System.Int32,System.Collections.Generic.IReadOnlyList{OpenIGI.Shaders.ShaderUniformField},System.Nullable{System.Int32})">
+            <summary>A uniform block whose fields a host sets one at a time, by name.</summary>
+            <param name="Name">The block's name.</param>
+            <param name="Group">The descriptor set it is bound in.</param>
+            <param name="Binding">The binding index within that set.</param>
+            <param name="Size">The block's size in bytes, as SPIR-V and WGSL lay it out.</param>
+            <param name="Fields">Its fields, in declaration order.</param>
+            <param name="HlslSize">The DXIL form's size in bytes, or null for a module with no DXIL form.</param>
+            <remarks>
+            Reported only for a block the module names <c>Globals</c>, which is the convention a module follows
+            when it wants to be driven the way the engine's own compute seam drives one: a call per parameter,
+            by name, rather than a struct the host fills. Every other constant buffer is an ordinary binding and
+            carries no field table, because nothing would read it and it would only be a second thing to keep in
+            step.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderUniformBlock.Name">
+            <summary>The block's name.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderUniformBlock.Group">
+            <summary>The descriptor set it is bound in.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderUniformBlock.Binding">
+            <summary>The binding index within that set.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderUniformBlock.Size">
+            <summary>The block's size in bytes, as SPIR-V and WGSL lay it out.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderUniformBlock.Fields">
+            <summary>Its fields, in declaration order.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderUniformBlock.HlslSize">
+            <summary>The DXIL form's size in bytes, or null for a module with no DXIL form.</summary>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderUniformBlock.SizeFor(OpenIGI.Shaders.ShaderTarget)">
+            <summary>The block's size for a target's form of the module.</summary>
+            <param name="target">The target.</param>
+            <returns>The size in bytes.</returns>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderPushBlock">
+            <summary>
+            The block of constants pushed per draw: a Vulkan push constant, and on WebGPU a uniform buffer
+            bound at <see cref="P:OpenIGI.Shaders.ShaderPushBlock.Group"/>.
+            </summary>
+            <param name="Name">The name the Slang source declares.</param>
+            <param name="Size">The block's size in bytes.</param>
+            <param name="Group">The bind group the WGSL target places it in.</param>
+            <param name="Binding">The binding index within that group on the WGSL target.</param>
+            <param name="Hlsl">The constant-buffer register the DXIL form reads it from, as root constants.</param>
+            <remarks>
+            The two targets do not lay the block out identically: WGSL receives it as a uniform buffer and so
+            uses std140, while the SPIR-V push block is std430. The two agree for a block of vectors and
+            matrices and disagree the moment one holds a bare three-component field or an array, so a block
+            that grows one must be checked rather than assumed.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderPushBlock.#ctor(System.String,System.Int32,System.Int32,System.Int32,OpenIGI.Shaders.ShaderHlslRegister)">
+            <summary>
+            The block of constants pushed per draw: a Vulkan push constant, and on WebGPU a uniform buffer
+            bound at <see cref="P:OpenIGI.Shaders.ShaderPushBlock.Group"/>.
+            </summary>
+            <param name="Name">The name the Slang source declares.</param>
+            <param name="Size">The block's size in bytes.</param>
+            <param name="Group">The bind group the WGSL target places it in.</param>
+            <param name="Binding">The binding index within that group on the WGSL target.</param>
+            <param name="Hlsl">The constant-buffer register the DXIL form reads it from, as root constants.</param>
+            <remarks>
+            The two targets do not lay the block out identically: WGSL receives it as a uniform buffer and so
+            uses std140, while the SPIR-V push block is std430. The two agree for a block of vectors and
+            matrices and disagree the moment one holds a bare three-component field or an array, so a block
+            that grows one must be checked rather than assumed.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderPushBlock.Name">
+            <summary>The name the Slang source declares.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderPushBlock.Size">
+            <summary>The block's size in bytes.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderPushBlock.Group">
+            <summary>The bind group the WGSL target places it in.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderPushBlock.Binding">
+            <summary>The binding index within that group on the WGSL target.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderPushBlock.Hlsl">
+            <summary>The constant-buffer register the DXIL form reads it from, as root constants.</summary>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderSpecializationConstant">
+            <summary>A constant fixed when a pipeline is created rather than when the module is compiled.</summary>
+            <param name="Name">The name the Slang source declares.</param>
+            <param name="Id">The identifier both targets use: a SPIR-V <c>SpecId</c>, a WGSL <c>@id</c>.</param>
+            <param name="Default">
+            The value the source declares, as thirty-two bits: what a pipeline that does not supply the constant
+            reads. Written down for Direct3D 12, which fills the constants itself; the other targets carry it.
+            </param>
+            <param name="HlslOffset">
+            Where it sits in the constant buffer the DXIL form reads it from, in bytes. HLSL has no specialisation
+            constants: Slang gathers them into one constant buffer, <see cref="P:OpenIGI.Shaders.ShaderReflection.HlslConstants"/>,
+            which the Direct3D 12 backend fills per pipeline.
+            </param>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderSpecializationConstant.#ctor(System.String,System.Int32,System.UInt32,System.Nullable{System.Int32})">
+            <summary>A constant fixed when a pipeline is created rather than when the module is compiled.</summary>
+            <param name="Name">The name the Slang source declares.</param>
+            <param name="Id">The identifier both targets use: a SPIR-V <c>SpecId</c>, a WGSL <c>@id</c>.</param>
+            <param name="Default">
+            The value the source declares, as thirty-two bits: what a pipeline that does not supply the constant
+            reads. Written down for Direct3D 12, which fills the constants itself; the other targets carry it.
+            </param>
+            <param name="HlslOffset">
+            Where it sits in the constant buffer the DXIL form reads it from, in bytes. HLSL has no specialisation
+            constants: Slang gathers them into one constant buffer, <see cref="P:OpenIGI.Shaders.ShaderReflection.HlslConstants"/>,
+            which the Direct3D 12 backend fills per pipeline.
+            </param>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderSpecializationConstant.Name">
+            <summary>The name the Slang source declares.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderSpecializationConstant.Id">
+            <summary>The identifier both targets use: a SPIR-V <c>SpecId</c>, a WGSL <c>@id</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderSpecializationConstant.Default">
+            <summary>
+            The value the source declares, as thirty-two bits: what a pipeline that does not supply the constant
+            reads. Written down for Direct3D 12, which fills the constants itself; the other targets carry it.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderSpecializationConstant.HlslOffset">
+            <summary>
+            Where it sits in the constant buffer the DXIL form reads it from, in bytes. HLSL has no specialisation
+            constants: Slang gathers them into one constant buffer, <see cref="P:OpenIGI.Shaders.ShaderReflection.HlslConstants"/>,
+            which the Direct3D 12 backend fills per pipeline.
+            </summary>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderEntryPoint">
+            <summary>One entry point of a module.</summary>
+            <param name="Name">The function name, which is what a pipeline names to select it.</param>
+            <param name="Stage">The stage it is for.</param>
+            <param name="WorkgroupSize">The compute workgroup size, or <see langword="null"/> for other stages.</param>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderEntryPoint.#ctor(System.String,OpenIGI.Shaders.ShaderStage,System.Collections.Generic.IReadOnlyList{System.Int32})">
+            <summary>One entry point of a module.</summary>
+            <param name="Name">The function name, which is what a pipeline names to select it.</param>
+            <param name="Stage">The stage it is for.</param>
+            <param name="WorkgroupSize">The compute workgroup size, or <see langword="null"/> for other stages.</param>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderEntryPoint.Name">
+            <summary>The function name, which is what a pipeline names to select it.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderEntryPoint.Stage">
+            <summary>The stage it is for.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderEntryPoint.WorkgroupSize">
+            <summary>The compute workgroup size, or <see langword="null"/> for other stages.</summary>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderReflection">
+            <summary>Everything a backend needs to build layouts and pipelines for one compiled variant.</summary>
+            <param name="Module">The module this describes.</param>
+            <param name="Variant">The variant this describes.</param>
+            <param name="EntryPoints">The module's entry points.</param>
+            <param name="Bindings">The resources it binds, ordered by group then binding.</param>
+            <param name="PushBlock">The pushed constant block, or <see langword="null"/> if it has none.</param>
+            <param name="SpecializationConstants">The constants a pipeline may fix at creation.</param>
+            <param name="Globals">
+            The field table of a block the module named <c>Globals</c>, for a host that sets its parameters one
+            at a time by name, or <see langword="null"/> where the module declares no such block.
+            </param>
+            <param name="HlslConstants">
+            The constant-buffer register the DXIL form reads its specialisation constants from, or
+            <see langword="null"/> where it has none or no DXIL form.
+            </param>
+            <remarks>
+            Written by <c>OpenIGI.Tools.ShaderBuild</c> from Slang's own reflection and committed beside the
+            compiled output, so nothing at runtime parses SPIR-V or WGSL to find out how to bind a shader.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderReflection.#ctor(OpenIGI.Shaders.ShaderModuleId,System.String,System.Collections.Generic.IReadOnlyList{OpenIGI.Shaders.ShaderEntryPoint},System.Collections.Generic.IReadOnlyList{OpenIGI.Shaders.ShaderBinding},OpenIGI.Shaders.ShaderPushBlock,System.Collections.Generic.IReadOnlyList{OpenIGI.Shaders.ShaderSpecializationConstant},OpenIGI.Shaders.ShaderUniformBlock,OpenIGI.Shaders.ShaderHlslRegister)">
+            <summary>Everything a backend needs to build layouts and pipelines for one compiled variant.</summary>
+            <param name="Module">The module this describes.</param>
+            <param name="Variant">The variant this describes.</param>
+            <param name="EntryPoints">The module's entry points.</param>
+            <param name="Bindings">The resources it binds, ordered by group then binding.</param>
+            <param name="PushBlock">The pushed constant block, or <see langword="null"/> if it has none.</param>
+            <param name="SpecializationConstants">The constants a pipeline may fix at creation.</param>
+            <param name="Globals">
+            The field table of a block the module named <c>Globals</c>, for a host that sets its parameters one
+            at a time by name, or <see langword="null"/> where the module declares no such block.
+            </param>
+            <param name="HlslConstants">
+            The constant-buffer register the DXIL form reads its specialisation constants from, or
+            <see langword="null"/> where it has none or no DXIL form.
+            </param>
+            <remarks>
+            Written by <c>OpenIGI.Tools.ShaderBuild</c> from Slang's own reflection and committed beside the
+            compiled output, so nothing at runtime parses SPIR-V or WGSL to find out how to bind a shader.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderReflection.Module">
+            <summary>The module this describes.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderReflection.Variant">
+            <summary>The variant this describes.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderReflection.EntryPoints">
+            <summary>The module's entry points.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderReflection.Bindings">
+            <summary>The resources it binds, ordered by group then binding.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderReflection.PushBlock">
+            <summary>The pushed constant block, or <see langword="null"/> if it has none.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderReflection.SpecializationConstants">
+            <summary>The constants a pipeline may fix at creation.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderReflection.Globals">
+            <summary>
+            The field table of a block the module named <c>Globals</c>, for a host that sets its parameters one
+            at a time by name, or <see langword="null"/> where the module declares no such block.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderReflection.HlslConstants">
+            <summary>
+            The constant-buffer register the DXIL form reads its specialisation constants from, or
+            <see langword="null"/> where it has none or no DXIL form.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderReflection.EntryPointFor(OpenIGI.Shaders.ShaderStage)">
+            <summary>Finds the entry point for a stage.</summary>
+            <param name="stage">The stage wanted.</param>
+            <returns>That stage's entry point.</returns>
+            <exception cref="T:System.InvalidOperationException">The module has no entry point for the stage.</exception>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderJsonContext">
+            <summary>Serialisation for the generated reflection files, source generated so trimming keeps it.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.Boolean">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderBinding">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderBindingKind">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderEntryPoint">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderHlslClass">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderHlslRegister">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderManifest">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderModuleEntry">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderModuleId">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderPushBlock">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderReflection">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderSampleType">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderSpecializationConstant">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderStage">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderStorageAccess">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderStorageFormat">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderTarget">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderUniformBlock">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderUniformField">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.ShaderVariantEntry">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.IReadOnlyDictionaryStringString">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.IReadOnlyListShaderBinding">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.IReadOnlyListShaderEntryPoint">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.IReadOnlyListShaderModuleEntry">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.IReadOnlyListShaderSpecializationConstant">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.IReadOnlyListShaderTarget">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.IReadOnlyListShaderUniformField">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.IReadOnlyListShaderVariantEntry">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.IReadOnlyListInt32">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.Int32">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.NullableInt32">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.String">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.UInt32">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.Default">
+            <summary>
+            The default <see cref="T:System.Text.Json.Serialization.JsonSerializerContext"/> associated with a default <see cref="T:System.Text.Json.JsonSerializerOptions"/> instance.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderJsonContext.GeneratedSerializerOptions">
+            <summary>
+            The source-generated options associated with this context.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderJsonContext.#ctor">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderJsonContext.#ctor(System.Text.Json.JsonSerializerOptions)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderJsonContext.GetTypeInfo(System.Type)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderStage">
+            <summary>Which stage of the pipeline an entry point is for.</summary>
+            <remarks>
+            Named here rather than in a backend so that both the Vulkan and the WebGPU implementations, and
+            the pass code above them, describe a stage the same way and without a dependency on either API.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStage.Vertex">
+            <summary>The vertex stage.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStage.Fragment">
+            <summary>The fragment stage.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderStage.Compute">
+            <summary>The compute stage.</summary>
+        </member>
+        <member name="T:OpenIGI.Shaders.ShaderVariant">
+            <summary>One compiled form of a module, selected by the preprocessor defines it was built with.</summary>
+            <remarks>
+            <para>
+            Only differences the <em>preprocessor</em> makes need a variant. A value that merely changes at
+            pipeline-creation time does not: Vulkan specialization constants and their WGSL <c>override</c>
+            counterpart are both applied when the pipeline is created, from one compiled module, so the
+            alpha-cut-out threshold and the level's sun colour cost no extra build output.
+            </para>
+            <para>
+            Every module has <see cref="P:OpenIGI.Shaders.ShaderVariant.Default"/>. Modules that need more list them in the manifest, and the
+            build compiles each one for both targets.
+            </para>
+            </remarks>
+            <param name="Name">The variant's name, which is also part of its generated file names.</param>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderVariant.#ctor(System.String)">
+            <summary>One compiled form of a module, selected by the preprocessor defines it was built with.</summary>
+            <remarks>
+            <para>
+            Only differences the <em>preprocessor</em> makes need a variant. A value that merely changes at
+            pipeline-creation time does not: Vulkan specialization constants and their WGSL <c>override</c>
+            counterpart are both applied when the pipeline is created, from one compiled module, so the
+            alpha-cut-out threshold and the level's sun colour cost no extra build output.
+            </para>
+            <para>
+            Every module has <see cref="P:OpenIGI.Shaders.ShaderVariant.Default"/>. Modules that need more list them in the manifest, and the
+            build compiles each one for both targets.
+            </para>
+            </remarks>
+            <param name="Name">The variant's name, which is also part of its generated file names.</param>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderVariant.Name">
+            <summary>The variant's name, which is also part of its generated file names.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.ShaderVariant.DefaultName">
+            <summary>The name borne by the variant every module has.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.ShaderVariant.Default">
+            <summary>Gets the variant every module is compiled for, with no extra defines.</summary>
+        </member>
+        <member name="M:OpenIGI.Shaders.ShaderVariant.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Shaders.UpscaleRejectShadingVariants">
+            <summary>
+            Chooses which compiled form of <see cref="F:OpenIGI.Shaders.ShaderModuleId.UpscaleRejectShading"/> an adapter can run.
+            </summary>
+            <remarks>
+            <para>
+            The pass tiles a five-stage chain of 3x3 filters through group-shared memory, and the tiles are the
+            group plus an apron, so their cost grows with the group and not with the frame. At the preferred
+            sixteen-wide group that is 46.5 KiB, which fits the 48 KiB a desktop adapter reports and does not fit
+            the 32 KiB Metal allows. Exceeding the limit is not a slow path: pipeline creation fails outright, so
+            the choice has to be made before the module is handed to the driver.
+            </para>
+            <para>
+            The two forms differ only in the define the build compiled them with. The measure is identical; the
+            narrower group simply carries a worse apron ratio, loading a 20x20 tile to shade 64 pixels where the
+            wider one loads 28x28 to shade 256.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Shaders.UpscaleRejectShadingVariants.PreferredGroupSize">
+            <summary>The group size the pass is written for where shared memory allows it.</summary>
+        </member>
+        <member name="F:OpenIGI.Shaders.UpscaleRejectShadingVariants.CompactGroupSize">
+            <summary>The group size to fall back to where it does not.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.UpscaleRejectShadingVariants.Preferred">
+            <summary>Gets the variant built at <see cref="F:OpenIGI.Shaders.UpscaleRejectShadingVariants.PreferredGroupSize"/>.</summary>
+        </member>
+        <member name="P:OpenIGI.Shaders.UpscaleRejectShadingVariants.Compact">
+            <summary>Gets the variant built at <see cref="F:OpenIGI.Shaders.UpscaleRejectShadingVariants.CompactGroupSize"/>.</summary>
+        </member>
+        <member name="M:OpenIGI.Shaders.UpscaleRejectShadingVariants.SharedBytes(System.Int32)">
+            <summary>Gets how much shared memory the module claims at a given group size.</summary>
+            <param name="groupSize">The group's edge, in pixels.</param>
+            <returns>The total size of the six tiles, in bytes.</returns>
+            <remarks>
+            The six tiles the source declares, each a float per channel: two at radius six, one at five and
+            three at four. <c>UpscaleRejectShadingVariantTests</c> reads the radii back out of the Slang source,
+            so the two cannot drift apart without a test saying so.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Shaders.UpscaleRejectShadingVariants.Select(System.UInt32)">
+            <summary>Chooses the widest variant an adapter's shared memory can hold.</summary>
+            <param name="maxSharedMemoryBytes">What the adapter reports it allows one group.</param>
+            <returns>The variant to load, and the group edge it dispatches in.</returns>
+        </member>
+    </members>
+</doc>

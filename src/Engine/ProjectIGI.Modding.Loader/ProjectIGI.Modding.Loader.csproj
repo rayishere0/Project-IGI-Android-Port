@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Loads mod assemblies at run time, which only a JIT build can; the browser and AOT builds never reference it. -->
+  <ItemGroup>
+    <ProjectReference Include="..\ProjectIGI.Modding\ProjectIGI.Modding.csproj" />
+    <ProjectReference Include="..\..\Core\ProjectIGI.Core\ProjectIGI.Core.csproj" />
+  </ItemGroup>
+
+</Project>

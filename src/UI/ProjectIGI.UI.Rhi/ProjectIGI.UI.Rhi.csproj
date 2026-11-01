@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- The game's renderer for ProjectIGI.UI: the painter's quads and glyphs go into the engine's sprite
+         batch, so the interface interleaves with the HUD in submission order. The only UI project that
+         knows a graphics device exists; the launcher uses ProjectIGI.UI.Skia instead. -->
+    <ProjectReference Include="..\..\Core\ProjectIGI.Core\ProjectIGI.Core.csproj" />
+    <ProjectReference Include="..\..\Rendering\ProjectIGI.Rendering\ProjectIGI.Rendering.csproj" />
+    <ProjectReference Include="..\ProjectIGI.UI\ProjectIGI.UI.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,61 @@
+namespace ProjectIGI.Engine.Tasks;
+
+/// <summary>
+/// A boolean task field paired with the previous tick's value, so scripts can detect edges.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Every latched boolean in retail level data has a <c>Last</c>-prefixed shadow —
+/// <c>isPressed</c>/<c>isLastPressed</c>, <c>isInUse</c>/<c>isLastInUse</c> — because mission scripts
+/// have no memory between ticks and need to ask "did this just become true?". The owning task copies
+/// the value into the shadow at the end of its own update; both are exported as live script variables.
+/// </para>
+/// <para>
+/// Confirmed in <c>location0/level1</c>: <c>Switch_94.isLastPressed</c>, <c>Switch_92.isLastPressed</c>.
+/// </para>
+/// </remarks>
+public sealed class ScriptFlag
+{
+    /// <summary>Initializes a new instance of the <see cref="ScriptFlag"/> class.</summary>
+    /// <param name="value">The initial value, which also seeds the shadow.</param>
+    public ScriptFlag(bool value = false)
+    {
+        Value = value;
+        Last = value;
+    }
+
+    /// <summary>Gets or sets the current value.</summary>
+    public bool Value { get; set; }
+
+    /// <summary>Gets the value as of the end of the previous tick.</summary>
+    public bool Last { get; private set; }
+
+    /// <summary>Gets a value indicating whether the flag became true this tick.</summary>
+    public bool IsRisingEdge => Value && !Last;
+
+    /// <summary>Gets a value indicating whether the flag became false this tick.</summary>
+    public bool IsFallingEdge => !Value && Last;
+
+    /// <summary>Copies the current value into the shadow. Call at the end of the owner's update.</summary>
+    public void CommitTick() => Last = Value;
+
+    /// <summary>Ends a held pulse and exposes its previous value through the shadow for one tick.</summary>
+    /// <remarks>
+    /// IGI1 switches keep <c>isLastPressed</c> false while <c>isPressed</c> is held. When the three-tick
+    /// press expires they clear <c>isPressed</c> and copy its old value to <c>isLastPressed</c>; the next
+    /// ordinary commit clears the shadow again.
+    /// </remarks>
+    public void EndPulse() => Shift(false);
+
+    /// <summary>Takes a new value, its old one going to the shadow, as a task that writes both in one step does.</summary>
+    /// <param name="value">The new value.</param>
+    /// <remarks>A switch pressed (<c>0x444BC0</c>) shifts <c>isPressed</c> into <c>isLastPressed</c> and sets it.</remarks>
+    public void Shift(bool value)
+    {
+        Last = Value;
+        Value = value;
+    }
+
+    /// <inheritdoc/>
+    public override string ToString() => $"{Value} (was {Last})";
+}

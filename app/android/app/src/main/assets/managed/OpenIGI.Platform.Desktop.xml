@@ -1,0 +1,551 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OpenIGI.Platform.Desktop</name>
+    </assembly>
+    <members>
+        <member name="T:OpenIGI.Platform.Desktop.DesktopConsole">
+            <summary>Connects a windowed game to the terminal it was started from, if any.</summary>
+            <remarks>
+            <para>
+            On Windows the game is a windowed (WinExe) program, so starting it never opens a console window of its
+            own. That also means Windows gives it no console at all: started from a terminal, its output would go
+            nowhere. <see cref="M:OpenIGI.Platform.Desktop.DesktopConsole.AttachToParent"/> borrows the parent's console in that case, so a capture or soak run
+            from a shell still prints its log. When the output is already redirected — a launcher reading it, a
+            script piping it to a file — the inherited handles are used as they are.
+            </para>
+            <para>
+            On macOS and Linux a program always has its parent's streams, and none of this applies.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.DesktopConsole.HasOutput">
+            <summary>Gets a value indicating whether standard output reaches anything: a terminal, a pipe or a file.</summary>
+            <remarks>Answered by <see cref="M:OpenIGI.Platform.Desktop.DesktopConsole.AttachToParent"/>; always true off Windows.</remarks>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.DesktopConsole.AttachToParent">
+            <summary>On Windows, attaches to the parent's console when output is not already redirected. Call before anything touches <c>System.Console</c>.</summary>
+            <returns><see cref="P:OpenIGI.Platform.Desktop.DesktopConsole.HasOutput"/>.</returns>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.DesktopConsole.ShowFailure(System.String,System.String)">
+            <summary>Tells the player why the game stopped, when there is nowhere it could be printed.</summary>
+            <param name="title">The dialog's title.</param>
+            <param name="text">What went wrong and what to do about it.</param>
+            <remarks>Shows a dialog on Windows when <see cref="P:OpenIGI.Platform.Desktop.DesktopConsole.HasOutput"/> is false; does nothing otherwise, since the log already holds the text.</remarks>
+        </member>
+        <member name="T:OpenIGI.Platform.Desktop.DesktopDisplay">
+            <summary>
+            What a monitor reports, and the size and refresh rate chosen from it for a window.
+            </summary>
+            <param name="Origin">The monitor's top-left corner in desktop coordinates.</param>
+            <param name="WorkArea">
+            The part of the monitor left over once the taskbar and other appbars are subtracted, as the backend
+            reports it. Kept only so a window that comes up the wrong size can be diagnosed against it.
+            </param>
+            <param name="DesktopSize">The monitor's current desktop resolution in pixels.</param>
+            <param name="DesktopRefreshRate">The refresh rate the desktop is running at, in hertz, or zero if unreported.</param>
+            <param name="Size">The client size chosen for the window.</param>
+            <param name="RefreshRate">The refresh rate chosen for the window, in hertz, or zero if unreported.</param>
+            <param name="MaxRefreshRate">The highest rate the monitor reports at <paramref name="Size"/>, or zero.</param>
+            <remarks>
+            The distinction between <paramref name="RefreshRate"/> and <paramref name="DesktopRefreshRate"/> is
+            the whole reason this exists. A mode change is something only an exclusive-fullscreen window gets to
+            make; a borderless one is composited by the desktop and therefore presents at the desktop's rate, so
+            asking for 165 Hz on a desktop set to 60 Hz silently gets 60. Reporting both lets the caller say so
+            rather than claim a rate it is not achieving.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.DesktopDisplay.#ctor(Silk.NET.Maths.Vector2D{System.Int32},Silk.NET.Maths.Rectangle{System.Int32},Silk.NET.Maths.Vector2D{System.Int32},System.Int32,Silk.NET.Maths.Vector2D{System.Int32},System.Int32,System.Int32)">
+            <summary>
+            What a monitor reports, and the size and refresh rate chosen from it for a window.
+            </summary>
+            <param name="Origin">The monitor's top-left corner in desktop coordinates.</param>
+            <param name="WorkArea">
+            The part of the monitor left over once the taskbar and other appbars are subtracted, as the backend
+            reports it. Kept only so a window that comes up the wrong size can be diagnosed against it.
+            </param>
+            <param name="DesktopSize">The monitor's current desktop resolution in pixels.</param>
+            <param name="DesktopRefreshRate">The refresh rate the desktop is running at, in hertz, or zero if unreported.</param>
+            <param name="Size">The client size chosen for the window.</param>
+            <param name="RefreshRate">The refresh rate chosen for the window, in hertz, or zero if unreported.</param>
+            <param name="MaxRefreshRate">The highest rate the monitor reports at <paramref name="Size"/>, or zero.</param>
+            <remarks>
+            The distinction between <paramref name="RefreshRate"/> and <paramref name="DesktopRefreshRate"/> is
+            the whole reason this exists. A mode change is something only an exclusive-fullscreen window gets to
+            make; a borderless one is composited by the desktop and therefore presents at the desktop's rate, so
+            asking for 165 Hz on a desktop set to 60 Hz silently gets 60. Reporting both lets the caller say so
+            rather than claim a rate it is not achieving.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.DesktopDisplay.Origin">
+            <summary>The monitor's top-left corner in desktop coordinates.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.DesktopDisplay.WorkArea">
+            <summary>
+            The part of the monitor left over once the taskbar and other appbars are subtracted, as the backend
+            reports it. Kept only so a window that comes up the wrong size can be diagnosed against it.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.DesktopDisplay.DesktopSize">
+            <summary>The monitor's current desktop resolution in pixels.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.DesktopDisplay.DesktopRefreshRate">
+            <summary>The refresh rate the desktop is running at, in hertz, or zero if unreported.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.DesktopDisplay.Size">
+            <summary>The client size chosen for the window.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.DesktopDisplay.RefreshRate">
+            <summary>The refresh rate chosen for the window, in hertz, or zero if unreported.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.DesktopDisplay.MaxRefreshRate">
+            <summary>The highest rate the monitor reports at <paramref name="Size"/>, or zero.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.DesktopDisplay.IsBelowMaxRefreshRate">
+            <summary>Gets a value indicating whether the chosen rate is below what the monitor can do.</summary>
+            <remarks>
+            True only when the shortfall is real and known: an unreported rate is zero on both sides and is
+            not something to warn about.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.DesktopDisplay.Resolve(Silk.NET.Windowing.IMonitor,OpenIGI.Platform.WindowSettings@)">
+            <summary>Chooses the size and refresh rate a window should open with.</summary>
+            <param name="monitor">The monitor the window will be on.</param>
+            <param name="settings">What the caller asked for.</param>
+            <returns>The resolved display description.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="monitor"/> is <see langword="null"/>.</exception>
+            <remarks>
+            Borderless takes the monitor's own resolution, because that is what "covers the screen" means.
+            The other two take the requested size, falling back to the monitor's when none was given. In
+            every case the rate is the highest the monitor reports <em>at that resolution</em> unless one was
+            named — a monitor's fastest mode is often only offered at its lowest resolution, so picking the
+            fastest mode overall would quietly hand back a smaller picture.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Platform.Desktop.DesktopFramePacer">
+            <summary>
+            Holds a loop to a target frame rate by waiting out the remainder of each frame's interval, for the
+            menu, which renders uncapped and has nothing to gain past the display's own rate.
+            </summary>
+            <remarks>
+            <para>
+            A menu that renders as fast as the machine can pegs the GPU at full load for a picture that changes
+            only as fast as the display shows it. That costs heat and noise for nothing, and it costs something
+            visible too: with the queue always full, the small uploads the menu does between frames -- a
+            backdrop's residency, a preview being adopted -- land as hitches, because there is no slack for them
+            to land in.
+            </para>
+            <para>
+            The wait is a sleep for the coarse part and a spin for the last stretch, because a bare sleep on
+            Windows is granted in whole scheduler ticks and would overshoot by up to one.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.DesktopFramePacer.Pace(System.Int32)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.DesktopFramePacer.Reset">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Platform.Desktop.DesktopKeyMap">
+            <summary>
+            Translates the host toolkit's key identifiers into the DirectInput scan codes the engine indexes
+            by.
+            </summary>
+            <remarks>
+            The engine's key arrays are indexed by <c>DIK_*</c> scan code because that is what the original's
+            configuration files store. Silk.NET reports GLFW-style key identifiers, so every host key has to be
+            mapped rather than cast. Both sets are positional, so the mapping is layout-independent.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.DesktopKeyMap.MappedKeyCount">
+            <summary>Gets the number of host keys that have a scan code.</summary>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.DesktopKeyMap.Translate(Silk.NET.Input.Key)">
+            <summary>Translates a host key to its scan code.</summary>
+            <param name="key">The host key.</param>
+            <returns>The scan code, or <see cref="F:OpenIGI.Input.KeyCode.None"/> for a key the original has no code for.</returns>
+        </member>
+        <member name="T:OpenIGI.Platform.Desktop.DesktopPlatformHost">
+            <summary>
+            The Windows, macOS and Linux platform host: Silk.NET windowing with an OpenGL 3.3 core context.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.DesktopPlatformHost.Name">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.DesktopPlatformHost.CreateWindow(OpenIGI.Platform.WindowSettings@)">
+            <inheritdoc/>
+            <returns>A <see cref="T:OpenIGI.Platform.Desktop.SilkGameWindow"/>, already initialised so its GL context can be used.</returns>
+            <remarks>
+            A zero width or height is not an error: it means "whatever the monitor is", which is what
+            borderless always uses and what the other modes fall back to. A negative one is a caller bug.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.DesktopPlatformHost.CreateFramePacer">
+            <inheritdoc/>
+            <remarks>A sleep for the coarse part of the wait and a spin for the rest; see <see cref="T:OpenIGI.Platform.Desktop.DesktopFramePacer"/>.</remarks>
+        </member>
+        <member name="T:OpenIGI.Platform.Desktop.DesktopWindowSystem">
+            <summary>Which window system a desktop window's native handles belong to.</summary>
+        </member>
+        <member name="F:OpenIGI.Platform.Desktop.DesktopWindowSystem.Win32">
+            <summary>A Win32 window: a module instance and a window handle.</summary>
+        </member>
+        <member name="F:OpenIGI.Platform.Desktop.DesktopWindowSystem.Xlib">
+            <summary>An X11 window through Xlib: a display and a window identifier.</summary>
+        </member>
+        <member name="F:OpenIGI.Platform.Desktop.DesktopWindowSystem.Wayland">
+            <summary>A Wayland surface: a display and a surface.</summary>
+        </member>
+        <member name="T:OpenIGI.Platform.Desktop.DesktopWindowHandles">
+            <summary>A desktop window's native handles, as its own window system names them.</summary>
+            <param name="System">Which window system they belong to.</param>
+            <param name="Display">The Win32 module instance, the Xlib display, or the Wayland display.</param>
+            <param name="Window">The Win32 window handle, the X11 window identifier, or the Wayland surface.</param>
+            <remarks>
+            For a graphics API that makes its surface from the window itself rather than from a Vulkan surface
+            the window hands over. Named here rather than in that API's terms so the platform layer names no
+            graphics backend; the composition root translates.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.DesktopWindowHandles.#ctor(OpenIGI.Platform.Desktop.DesktopWindowSystem,System.IntPtr,System.IntPtr)">
+            <summary>A desktop window's native handles, as its own window system names them.</summary>
+            <param name="System">Which window system they belong to.</param>
+            <param name="Display">The Win32 module instance, the Xlib display, or the Wayland display.</param>
+            <param name="Window">The Win32 window handle, the X11 window identifier, or the Wayland surface.</param>
+            <remarks>
+            For a graphics API that makes its surface from the window itself rather than from a Vulkan surface
+            the window hands over. Named here rather than in that API's terms so the platform layer names no
+            graphics backend; the composition root translates.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.DesktopWindowHandles.System">
+            <summary>Which window system they belong to.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.DesktopWindowHandles.Display">
+            <summary>The Win32 module instance, the Xlib display, or the Wayland display.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.DesktopWindowHandles.Window">
+            <summary>The Win32 window handle, the X11 window identifier, or the Wayland surface.</summary>
+        </member>
+        <member name="T:OpenIGI.Platform.Desktop.FolderPicker">
+            <summary>Asks the player for a folder with the system's own folder picker.</summary>
+            <remarks>
+            <para>
+            Windows: the shell's file dialog in folder mode (<c>IFileOpenDialog</c> with <c>FOS_PICKFOLDERS</c>), the
+            one Explorer uses, on a thread of its own because the dialog wants a single-threaded COM apartment and
+            runs its own message loop. It is owned by the caller's window, so it stays in front of it.
+            </para>
+            <para>
+            macOS: <c>osascript</c>'s <c>choose folder</c>. Linux: <c>zenity</c>, else <c>kdialog</c>, whichever the
+            desktop has; with neither, there is no picker and the answer is <see langword="null"/>, the same as cancelling.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.FolderPicker.PickAsync(System.String,System.String,System.IntPtr)">
+            <summary>Shows the picker and waits for the player's answer without blocking the caller's thread.</summary>
+            <param name="title">What the picker asks.</param>
+            <param name="initial">The folder it opens on, if it exists.</param>
+            <param name="owner">The window it belongs to, on Windows; 0 for none.</param>
+            <returns>The folder chosen, or <see langword="null"/> when the player cancelled or there is no picker.</returns>
+        </member>
+        <member name="T:OpenIGI.Platform.Desktop.Logging.FileSink">
+            <summary>Writes records to a log file from a background thread, keeping the previous sessions' files beside it.</summary>
+            <remarks>
+            <para>
+            Desktop only: a browser has no file to write and no thread to write it from. The thread that logs only
+            queues the record. The writer thread formats it, and flushes to disk every time
+            the queue runs dry, so the file is never more than a moment behind the game. That matters most when the
+            process dies without unwinding — an access violation inside a graphics driver — which is exactly the
+            run a log is wanted for. <see cref="M:OpenIGI.Platform.Desktop.Logging.FileSink.Flush"/> waits for the queue to drain.
+            </para>
+            <para>
+            Opening a log rotates the earlier ones: <c>runtime.log</c> becomes <c>runtime.1.log</c>, and so on, up
+            to the number kept. When another process is still writing the file — a second copy run for a capture
+            or a comparison — rotation is impossible, so this session writes <c>runtime.&lt;pid&gt;.log</c> beside it
+            instead.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.Logging.FileSink.Path">
+            <summary>Gets the file this session writes, which is not the requested path when another process held it.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.Logging.FileSink.MinimumLevel">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.Logging.FileSink.Open(System.String,System.Int32,OpenIGI.Core.Diagnostics.LogLevel)">
+            <summary>Opens a session's log, rotating the earlier ones.</summary>
+            <param name="path">The log's path, for example <c>…/runtime.log</c>.</param>
+            <param name="keep">How many earlier sessions' files are kept.</param>
+            <param name="minimumLevel">The lowest level written.</param>
+            <returns>The sink.</returns>
+            <exception cref="T:System.IO.IOException">Neither the file nor the per-process fallback could be opened.</exception>
+            <exception cref="T:System.UnauthorizedAccessException">The folder cannot be written.</exception>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.Logging.FileSink.Emit(OpenIGI.Core.Diagnostics.LogRecord@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.Logging.FileSink.Flush">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.Logging.FileSink.Dispose">
+            <summary>Writes what is queued, then closes the file.</summary>
+        </member>
+        <member name="T:OpenIGI.Platform.Desktop.SilkGameWindow">
+            <summary>
+            A desktop game window backed by Silk.NET windowing, with its input events fed into an
+            <see cref="T:OpenIGI.Input.InputState"/>.
+            </summary>
+            <remarks>
+            <para>
+            The window is created and initialised eagerly so that <see cref="P:OpenIGI.Platform.Desktop.SilkGameWindow.VkSurface"/> exists before the
+            caller builds a graphics device against it. It does <em>not</em> run Silk's own render loop: the game
+            loop owns the frame, exactly as the original's <c>WinMain</c> message loop does, and
+            <see cref="M:OpenIGI.Platform.Desktop.SilkGameWindow.PumpEvents"/> is the message pump. Presentation belongs to the device's swapchain, so
+            there is no present callback for the window to offer.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.SilkGameWindow.#cctor">
+            <summary>Names the windowing and input backend, rather than leaving Silk to go looking.</summary>
+            <remarks>
+            <para>
+            Silk finds its platforms by reflecting over the assemblies it can see, and a SINGLE-FILE publish
+            takes that away: the backend assemblies are bundled inside the executable rather than sitting
+            beside it, nothing enumerates them, and <see cref="M:Silk.NET.Windowing.Window.Create(Silk.NET.Windowing.WindowOptions)"/> fails with "Couldn't find a
+            suitable window platform" before a frame is drawn. The game builds and runs perfectly from a
+            normal output directory and cannot start at all from a published one, which is a difference that
+            only shows up at the very end.
+            </para>
+            <para>
+            Registering the backend by name is the documented answer and costs nothing in the ordinary case
+            — it is the same platform the search would have found. Input needs saying separately from
+            windowing; registering only the window leaves the mouse and keyboard dead in the same builds.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.NoVulkanLoaderMessage">
+            <summary>What to say when no Vulkan loader could be opened at all.</summary>
+            <remarks>
+            Worth spelling out per platform, because the fix is completely different on each and the failure
+            looks identical. On macOS there is no system Vulkan to be missing: the loader is MoltenVK, which
+            the build carries under the one name GLFW will dlopen. GLFW then looks in exactly two places for
+            it -- the working directory, and the bundle's Contents/Frameworks -- so this is a build started
+            from somewhere neither of them names.
+            </remarks>
+        </member>
+        <member name="E:OpenIGI.Platform.Desktop.SilkGameWindow.Resized">
+            <inheritdoc/>
+        </member>
+        <member name="E:OpenIGI.Platform.Desktop.SilkGameWindow.CloseRequested">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.VkSurface">
+            <summary>Gets the Vulkan surface source this window exposes.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.NativeHandles">
+            <summary>Gets the window's native handles, or null on a window system that has none to give.</summary>
+            <remarks>
+            macOS has none here: a surface there is made from a Metal layer, which this window does not create.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.Title">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.Width">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.Height">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.Display">
+            <summary>Gets what the monitor this window opened on reports, and what was chosen from it.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.BackendState">
+            <summary>Gets the backend's own description of the window, for confirming what it really is.</summary>
+            <remarks>
+            Borderless and exclusive look alike from the outside — both cover the screen — but only one of
+            them takes the display away from the desktop. This reports which actually happened rather than
+            which was asked for.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.SupportsRawMouseMotion">
+            <summary>Gets whether a locked cursor reports the sensor's own counts rather than accelerated ones.</summary>
+            <remarks>
+            This is what makes the look a fixed number of radians per mouse count. Without it the lock falls
+            back to an ordinary hidden-and-captured cursor, the desktop's pointer ballistics stay in the path,
+            and slow movements are scaled toward zero before they ever reach the game — which is the classic
+            "small movements do not register" of a mouse look. Reported rather than silently accepted,
+            because the difference is invisible from inside the game and impossible to guess from outside it.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.Mode">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.RefreshRate">
+            <inheritdoc/>
+            <remarks>
+            Borderless presents through the compositor, so its rate is the desktop's whatever the monitor is
+            capable of; only an exclusive window gets the mode that was asked for.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.CursorVisible">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.CursorLocked">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.ClipboardText">
+            <inheritdoc/>
+            <remarks>
+            Reached through the first keyboard, which is where the backend hangs it. A machine with no
+            keyboard attached reports an empty clipboard and swallows writes rather than throwing: a paste
+            that quietly does nothing is a far better failure than a developer tool that crashes the game.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.IsFocused">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.IsClosing">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.SilkGameWindow.Input">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.SilkGameWindow.Show">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.SilkGameWindow.GetDisplayModes">
+            <inheritdoc/>
+            <remarks>
+            Every mode the monitor reports, from <c>IMonitor.GetAllVideoModes</c>. The caller
+            de-duplicates by size, because the menu's list is of resolutions rather than of modes and two
+            entries differing only in refresh rate would read as a repeat.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.SilkGameWindow.Resize(System.Int32,System.Int32)">
+            <inheritdoc/>
+            <remarks>
+            Ignored while borderless: the window's size is the desktop's, and shrinking it would leave an
+            undecorated window floating over the wallpaper with no way to move it.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.SilkGameWindow.ResizeClientArea(System.Int32,System.Int32)">
+            <summary>Resizes a decorated window to an exact drawable client area.</summary>
+            <remarks>
+            On Win32 Silk's <c>IWindow.Size</c> is the outer rectangle while the engine-facing
+            <see cref="P:OpenIGI.Platform.Desktop.SilkGameWindow.Width"/> and <see cref="P:OpenIGI.Platform.Desktop.SilkGameWindow.Height"/> are the framebuffer. Applying the requested size
+            directly therefore lost the title-bar height (2560x1440 became 2560x1421), invalidating native
+            resolution captures and benchmarks. One correction using the measured decoration delta is
+            sufficient and remains a no-op on backends where <c>Size</c> already means client size.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.SilkGameWindow.BorderlessSize(OpenIGI.Platform.Desktop.DesktopDisplay@)">
+            <summary>The client size a borderless window covering <paramref name="display"/> is given.</summary>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.SilkGameWindow.ApplyMode">
+            <summary>Moves the window between windowed, borderless and exclusive without recreating it.</summary>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.SilkGameWindow.PumpEvents">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.SilkGameWindow.Close">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.SilkGameWindow.Dispose">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Platform.Desktop.TrayMenuItem">
+            <summary>One item of a <see cref="T:OpenIGI.Platform.Desktop.TrayIcon"/>'s menu.</summary>
+            <param name="Text">What the item says.</param>
+            <param name="Run">What choosing it does.</param>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.TrayMenuItem.#ctor(System.String,System.Action)">
+            <summary>One item of a <see cref="T:OpenIGI.Platform.Desktop.TrayIcon"/>'s menu.</summary>
+            <param name="Text">What the item says.</param>
+            <param name="Run">What choosing it does.</param>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.TrayMenuItem.Text">
+            <summary>What the item says.</summary>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.TrayMenuItem.Run">
+            <summary>What choosing it does.</summary>
+        </member>
+        <member name="T:OpenIGI.Platform.Desktop.TrayIcon">
+            <summary>An icon in the Windows notification area, with a menu, that also shows the program's notifications.</summary>
+            <remarks>
+            <para>
+            GLFW has no notion of the notification area, so this talks to the shell directly. It owns a message-only
+            window, created on the thread that runs the program's event loop, so the clicks the shell sends it arrive
+            through that loop's own event wait, with nothing else to pump. A left click raises <see cref="E:OpenIGI.Platform.Desktop.TrayIcon.Activated"/>;
+            a right click opens the menu. When Explorer restarts, the icon is put back.
+            </para>
+            <para>
+            Windows only: GLFW gives macOS and Linux nothing equivalent, and a program there minimises to the Dock or
+            the taskbar instead.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.TrayIcon.#ctor(System.String,System.Collections.Generic.IReadOnlyList{OpenIGI.Platform.Desktop.TrayMenuItem})">
+            <summary>Initialises a new instance of the <see cref="T:OpenIGI.Platform.Desktop.TrayIcon"/> class and shows the icon.</summary>
+            <param name="tooltip">What hovering over the icon says.</param>
+            <param name="menu">The right-click menu, top to bottom.</param>
+            <exception cref="T:System.InvalidOperationException">The icon's window could not be created.</exception>
+        </member>
+        <member name="E:OpenIGI.Platform.Desktop.TrayIcon.Activated">
+            <summary>Occurs when the icon is clicked: the program's window should come back.</summary>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.TrayIcon.Notify(System.String,System.String)">
+            <summary>Shows a notification from the icon, which Windows 10 and 11 show as a toast.</summary>
+            <param name="title">The heading.</param>
+            <param name="message">The line under it.</param>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.TrayIcon.Dispose">
+            <summary>Removes the icon and releases its window.</summary>
+        </member>
+        <member name="T:OpenIGI.Platform.Desktop.TrayIcon.WindowClass">
+            <summary>WNDCLASSEXW.</summary>
+        </member>
+        <member name="T:OpenIGI.Platform.Desktop.TrayIcon.NotifyIconData">
+            <summary>NOTIFYICONDATAW, as Windows Vista and later lay it out.</summary>
+        </member>
+        <member name="T:OpenIGI.Platform.Desktop.WindowIcon">
+            <summary>The OpenIGI icon, for a window's title bar, the taskbar, the window switcher and the notification area.</summary>
+            <remarks>
+            <para>
+            A GLFW window has no icon of its own: the one embedded in the executable is the file's, and the window
+            gets the system's blank default however it was started. So the icon is set on the window, from the same
+            icon the executable carries, embedded here: <c>openigi.ico</c> for the game, and for the launcher the amber
+            <c>openigi-launcher.ico</c> made from it, so the two are told apart in the taskbar.
+            </para>
+            <para>
+            Not on macOS, where windows have no icons and GLFW reports the attempt as an error; the Dock shows the
+            application bundle's.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Platform.Desktop.WindowIcon.Kind">
+            <summary>Gets or sets which program's icon is shown: the game's, or the launcher's.</summary>
+            <remarks>Set once at start, before any window or notification-area icon is made; it is read on first use.</remarks>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.WindowIcon.Apply(Silk.NET.Windowing.IWindow)">
+            <summary>Sets the icon on a window that has been initialised.</summary>
+            <param name="window">The window.</param>
+        </member>
+        <member name="M:OpenIGI.Platform.Desktop.WindowIcon.CreateWindowsIcon(System.Int32)">
+            <summary>Creates a Windows icon handle from the frame nearest a size, for the notification area.</summary>
+            <param name="size">The size wanted, in pixels.</param>
+            <returns>The handle, which the caller destroys with <c>DestroyIcon</c>; 0 when none could be made.</returns>
+        </member>
+        <member name="T:OpenIGI.Platform.Desktop.WindowIconKind">
+            <summary>Which of OpenIGI's programs an icon is for.</summary>
+        </member>
+        <member name="F:OpenIGI.Platform.Desktop.WindowIconKind.Game">
+            <summary>The game: the green emblem.</summary>
+        </member>
+        <member name="F:OpenIGI.Platform.Desktop.WindowIconKind.Launcher">
+            <summary>The launcher: the same emblem in the launcher's amber.</summary>
+        </member>
+    </members>
+</doc>

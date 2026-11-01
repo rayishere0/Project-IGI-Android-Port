@@ -1,0 +1,272 @@
+using System.Text;
+
+namespace ProjectIGI.Core.Configuration;
+
+/// <summary>
+/// Reads and writes <c>settings.cfg</c>.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The file is a console script, not a second configuration format: loading it is just executing its
+/// lines, so anything that can be typed can be saved and vice versa, and a player can hand-edit it
+/// with the same vocabulary the console taught them.
+/// </para>
+/// <para>
+/// Only variables flagged <see cref="CVarOptions.Archive"/> <em>and</em> differing from their default are
+/// written. Recording a diff rather than a snapshot means a default that is later re-tuned — a fog
+/// density, a shadow resolution — takes effect for everyone who never overrode it.
+/// </para>
+/// </remarks>
+public static class SettingsFile
+{
+    /// <summary>The prefix every mod's variable is named with: <c>mod_&lt;id&gt;_</c>.</summary>
+    /// <remarks>A line for one nothing declares is kept and written back (<see cref="ConsoleSystem.KeptSettings"/>).</remarks>
+    public const string ModVariablePrefix = "mod_";
+
+    /// <summary>Loads settings by executing the file's contents.</summary>
+    /// <param name="console">The console to execute against.</param>
+    /// <param name="path">The file to read.</param>
+    /// <returns><see langword="true"/> when the file existed and was read.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="console"/> is <see langword="null"/>.</exception>
+    public static bool Load(ConsoleSystem console, string path)
+    {
+        ArgumentNullException.ThrowIfNull(console);
+
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return false;
+        }
+
+        string[] lines;
+        try
+        {
+            lines = File.ReadAllLines(path);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+
+        foreach (string line in lines)
+        {
+            foreach (string statement in CommandTokenizer.SplitStatements(line))
+            {
+                if (!IsRetiredSetting(console, statement))
+                {
+                    console.Execute(statement);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Reads the value a settings file gives one variable, without executing anything.</summary>
+    /// <param name="path">The file to read.</param>
+    /// <param name="name">The variable.</param>
+    /// <returns>The last value the file assigns it, or <see langword="null"/> where it assigns none or cannot be read.</returns>
+    /// <remarks>
+    /// For what has to be known before there is a console to load the file into: the graphics API, which the
+    /// device the console's own font is uploaded to is built over.
+    /// </remarks>
+    public static string? ReadAssignment(string path, string name)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            return LastAssignment(File.ReadAllLines(path), name);
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Finds the value the last of some console lines to assign a variable gives it.</summary>
+    /// <param name="lines">The lines, each one or more statements, as a settings file or the command line holds them.</param>
+    /// <param name="name">The variable.</param>
+    /// <returns>The value, or <see langword="null"/> where none assigns it.</returns>
+    /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
+    public static string? LastAssignment(IEnumerable<string> lines, string name)
+    {
+        ArgumentNullException.ThrowIfNull(lines);
+        ArgumentNullException.ThrowIfNull(name);
+
+        string? value = null;
+        foreach (string line in lines)
+        {
+            foreach (string statement in CommandTokenizer.SplitStatements(line))
+            {
+                IReadOnlyList<string> tokens = CommandTokenizer.Tokenize(statement);
+                if (tokens.Count >= 2 && tokens[0].Equals(name, StringComparison.OrdinalIgnoreCase))
+                {
+                    value = tokens[1];
+                }
+            }
+        }
+
+        return value;
+    }
+
+    /// <summary>Whether a saved statement assigns a setting this build no longer has.</summary>
+    /// <remarks>
+    /// A file written by an earlier build can name a variable since removed. Assigned, it reported an
+    /// unknown variable on every launch until the next save happened to drop it, for a setting the player
+    /// cannot see or change; skipped, the save that ends this session writes the file without it.
+    /// </remarks>
+    private static bool IsRetiredSetting(ConsoleSystem console, string statement)
+    {
+        IReadOnlyList<string> tokens = CommandTokenizer.Tokenize(statement);
+        if (tokens.Count < 2)
+        {
+            return false;
+        }
+
+        string name = tokens[0];
+        bool retired = !console.Variables.TryGet(name, out _)
+            && !console.Commands.TryGet(name, out _)
+            && !console.Aliases.ContainsKey(name);
+
+        // A switched-off mod's setting is not retired: it is kept for when the mod is on again.
+        if (retired && name.StartsWith(ModVariablePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            console.KeepSetting(name, tokens[1]);
+        }
+
+        return retired;
+    }
+
+    /// <summary>Writes the current settings.</summary>
+    /// <param name="console">The console whose registry, aliases and bindings are written.</param>
+    /// <param name="path">The file to write.</param>
+    /// <returns><see langword="true"/> when the file was written.</returns>
+    /// <remarks>
+    /// The write is atomic — a temporary file beside the target is replaced into place — so a crash
+    /// or a power cut during the save cannot leave a truncated settings file behind.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="console"/> is <see langword="null"/>.</exception>
+    public static bool Save(ConsoleSystem console, string path)
+    {
+        ArgumentNullException.ThrowIfNull(console);
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        string text = Render(console);
+        string temporary = path + ".tmp";
+
+        try
+        {
+            string? directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            File.WriteAllText(temporary, text, Encoding.UTF8);
+
+            if (File.Exists(path))
+            {
+                File.Replace(temporary, path, destinationBackupFileName: null);
+            }
+            else
+            {
+                File.Move(temporary, path);
+            }
+
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Renders the settings that would be written.</summary>
+    /// <param name="console">The console whose registry, aliases and bindings are rendered.</param>
+    /// <returns>The file's contents.</returns>
+    /// <remarks>Exposed so tests and the <c>dump_settings</c> command can inspect it without writing a file.</remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="console"/> is <see langword="null"/>.</exception>
+    public static string Render(ConsoleSystem console)
+    {
+        ArgumentNullException.ThrowIfNull(console);
+
+        StringBuilder builder = new();
+        builder.AppendLine("// ProjectIGI settings. Written by the game; safe to edit by hand.");
+        builder.AppendLine("// Only values that differ from their default are recorded.");
+        builder.AppendLine();
+
+        List<ICVar> modified = [.. console.Variables.Modified(CVarOptions.Archive)];
+        List<KeyValuePair<string, string>> kept =
+            [.. Ordered(console.KeptSettings).Where(entry => !console.Variables.TryGet(entry.Key, out _))];
+        if (modified.Count > 0 || kept.Count > 0)
+        {
+            builder.AppendLine("// Variables");
+            foreach (ICVar variable in modified)
+            {
+                builder.Append(variable.Name)
+                    .Append(' ')
+                    .AppendLine(CommandTokenizer.Quote(variable.ValueText));
+            }
+
+            // A switched-off mod's settings, as they were read.
+            foreach (KeyValuePair<string, string> setting in kept)
+            {
+                builder.Append(setting.Key)
+                    .Append(' ')
+                    .AppendLine(CommandTokenizer.Quote(setting.Value));
+            }
+
+            builder.AppendLine();
+        }
+
+        if (console.Aliases.Count > 0)
+        {
+            builder.AppendLine("// Aliases");
+            foreach (KeyValuePair<string, string> alias in Ordered(console.Aliases))
+            {
+                builder.Append("alias ")
+                    .Append(CommandTokenizer.Quote(alias.Key))
+                    .Append(' ')
+                    .AppendLine(CommandTokenizer.Quote(alias.Value));
+            }
+
+            builder.AppendLine();
+        }
+
+        if (console.Binds.Count > 0)
+        {
+            builder.AppendLine("// Key bindings");
+            foreach (KeyValuePair<string, string> bind in Ordered(console.Binds))
+            {
+                builder.Append("bind ")
+                    .Append(CommandTokenizer.Quote(bind.Key))
+                    .Append(' ')
+                    .AppendLine(CommandTokenizer.Quote(bind.Value));
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static IEnumerable<KeyValuePair<string, string>> Ordered(IReadOnlyDictionary<string, string> table) =>
+        table.OrderBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase);
+}

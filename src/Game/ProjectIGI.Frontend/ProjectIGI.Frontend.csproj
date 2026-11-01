@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- The cinematic shell: the game's own layers (missions, profiles, the menu data) drawn through
+         the ProjectIGI.UI framework. Like ProjectIGI.UI it references the abstraction projects only and never
+         a concrete backend; the backend is wired in the app composition root. See README.md. -->
+    <ProjectReference Include="..\..\Core\ProjectIGI.Core\ProjectIGI.Core.csproj" />
+    <ProjectReference Include="..\..\Rendering\ProjectIGI.Rendering\ProjectIGI.Rendering.csproj" />
+    <ProjectReference Include="..\..\Platform\ProjectIGI.Input\ProjectIGI.Input.csproj" />
+    <ProjectReference Include="..\..\UI\ProjectIGI.UI\ProjectIGI.UI.csproj" />
+    <ProjectReference Include="..\..\UI\ProjectIGI.UI.Kit\ProjectIGI.UI.Kit.csproj" />
+    <ProjectReference Include="..\ProjectIGI.Frontend.Settings\ProjectIGI.Frontend.Settings.csproj" />
+    <ProjectReference Include="..\ProjectIGI.Game\ProjectIGI.Game.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,108 @@
+namespace ProjectIGI.Rendering;
+
+/// <summary>
+/// The stages of a frame that are timed separately.
+/// </summary>
+/// <remarks>
+/// <para>
+/// One entry per stage the remaster track set a budget for, in the order the frame runs them, plus the
+/// two that are not optional — the G-buffer fill and the forward pass — because a budget for the
+/// effects means nothing without the cost of the frame they are added to.
+/// </para>
+/// <para>
+/// These are <em>coarse</em> on purpose. A timer query is a synchronisation point for the driver's
+/// pipelining, so one per draw call would change the thing it is measuring; one per stage answers the
+/// question the budget asks ("what does the fog cost") without perturbing it.
+/// </para>
+/// </remarks>
+public enum RenderStage
+{
+    /// <summary>
+    /// Framebuffer binds, viewport changes and clears before scene rasterisation, and the compute that
+    /// has to happen before any render pass opens: the sky atmosphere's lookup tables and the probe
+    /// field's upload.
+    /// </summary>
+    /// <remarks>
+    /// The sky tables and the probe upload are here because a render pass is the one place a dispatch
+    /// cannot be recorded, so they run at the very top of the frame -- where, until they earned a stage,
+    /// nothing timed them.
+    /// </remarks>
+    Setup,
+
+    /// <summary>
+    /// Building and refitting the ray-tracing acceleration structures the traced shadow and the traced
+    /// indirect are cast against.
+    /// </summary>
+    /// <remarks>
+    /// Its own line rather than part of <see cref="Setup"/> because it is the one stage whose cost is
+    /// driven by how much of the world moved rather than by any setting, so a budget for it would mean
+    /// something quite different from a budget for the rest of the frame's preamble.
+    /// </remarks>
+    AccelerationStructure,
+
+    /// <summary>Every shadow cascade's depth render, together.</summary>
+    Shadows,
+
+    /// <summary>
+    /// The real-time global-illumination update: the distance-field clipmap refresh, the surface-cache
+    /// relight and the per-frame radiosity bounce, and the screen-space probe gather and filter.
+    /// </summary>
+    /// <remarks>
+    /// This is compute work that runs before the G-buffer fill and was, until it earned a stage, timed by
+    /// nothing at all -- the reason a frame could read six milliseconds on the overlay while taking
+    /// thirty-five. It is here so the bounce that dominates a real-time-GI frame is a line on the budget
+    /// like every other pass.
+    /// </remarks>
+    GlobalIllumination,
+
+    /// <summary>Opaque world rasterisation, including Vanilla's direct forward path.</summary>
+    Geometry,
+
+    /// <summary>Multisample or G-buffer resolve work after opaque rasterisation.</summary>
+    GeometryResolve,
+
+    /// <summary>The low-resolution horizon search for ambient occlusion and screen-space bounce.</summary>
+    AmbientOcclusionSearch,
+
+    /// <summary>Depth- and normal-aware reconstruction of the occlusion result.</summary>
+    AmbientOcclusionReconstruct,
+
+    /// <summary>The deferred lighting pass, including the probe field's contribution.</summary>
+    Lighting,
+
+    /// <summary>The screen-space reflection march.</summary>
+    Reflections,
+
+    /// <summary>The low-resolution volumetric fog integration.</summary>
+    FogIntegrate,
+
+    /// <summary>The depth-aware full-resolution fog composite.</summary>
+    FogComposite,
+
+    /// <summary>The forward pass — translucent surfaces and the view model.</summary>
+    Forward,
+
+    /// <summary>The temporal resolve, reprojection and resolution transfer.</summary>
+    TemporalResolve,
+
+    /// <summary>Depth of field, motion blur and other camera/lens effects.</summary>
+    CameraEffects,
+
+    /// <summary>Bloom extraction and blur.</summary>
+    Bloom,
+
+    /// <summary>Luminance reduction and exposure adaptation.</summary>
+    Exposure,
+
+    /// <summary>Tone mapping, colour grading, vignette and final encode.</summary>
+    ToneMapGrade,
+
+    /// <summary>The display-space anti-aliasing filter.</summary>
+    SpatialAntiAliasing,
+
+    /// <summary>Desktop-owned HUD, menus and other two-dimensional rasterisation.</summary>
+    UserInterface,
+
+    /// <summary>Debug panels, primitives and developer overlays.</summary>
+    DebugRendering,
+}

@@ -1,0 +1,469 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OpenIGI.Frontend.Settings</name>
+    </assembly>
+    <members>
+        <member name="T:OpenIGI.Frontend.Settings.BindingGate">
+            <summary>A re-entrancy guard so a value pushed one way does not echo back the other.</summary>
+            <remarks>
+            Every settings binding is two-way — the widget writes the variable, the variable's change event writes
+            the widget — which is a loop unless one direction stands down while the other is running. Shared by
+            <see cref="T:OpenIGI.Frontend.Settings.CVarBinding"/> and <see cref="T:OpenIGI.Frontend.Settings.QualityBinding"/> because both have exactly that loop, and a
+            preset or a quality step that rewrites a dozen variables at once has to survive it a dozen times.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.BindingGate.Busy">
+            <summary>Gets a value indicating whether a push is in progress and the other direction should stand down.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.BindingGate.Run(System.Action)">
+            <summary>Runs an action with <see cref="P:OpenIGI.Frontend.Settings.BindingGate.Busy"/> set, unless one is already running.</summary>
+            <param name="action">The push to run.</param>
+        </member>
+        <member name="T:OpenIGI.Frontend.Settings.CVarBinding">
+            <summary>
+            Builds a bound control for a console variable — a toggle, a slider or a dropdown, wired to the CVar
+            both ways so the widget writes it live and an external change writes the widget back.
+            </summary>
+            <remarks>
+            <para>
+            This is the heart of the settings screen: a row is a CVar rendered as the control its type calls for.
+            A boolean is a toggle, an enum is a dropdown over its choices, and a numeric with both bounds is a
+            slider; an unbounded number or free text has no gamepad-friendly control and returns none, so the
+            screen shows it read-only. Writing the widget calls <see cref="M:OpenIGI.Core.Configuration.ICVar.TrySetText(System.String,System.String@)"/>, whose
+            <see cref="E:OpenIGI.Core.Configuration.ICVar.Changed"/> event the game already listens to, so a change previews immediately.
+            </para>
+            <para>
+            The two directions are guarded against feeding back into each other: while the binding pushes a value
+            one way it ignores the echo coming the other, so a preset that rewrites a dozen CVars updates their
+            widgets without each update bouncing back through <c>TrySetText</c>.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.CVarBinding.CanBind(OpenIGI.Core.Configuration.ICVar)">
+            <summary>Determines whether a control can be built for a CVar.</summary>
+            <param name="cvar">The variable.</param>
+            <returns><see langword="true"/> when it is a boolean, an enum, or a bounded number.</returns>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.CVarBinding.CreateControl(OpenIGI.UI.Widgets.UiTheme,OpenIGI.Core.Configuration.ICVar,System.String,System.Collections.Generic.ICollection{System.IDisposable},System.Collections.Generic.IReadOnlyDictionary{System.String,System.String})">
+            <summary>Builds a control bound to a CVar, or <see langword="null"/> when its type has no control.</summary>
+            <param name="theme">The theme the control draws from.</param>
+            <param name="cvar">The variable to bind.</param>
+            <param name="label">A caption, or <see langword="null"/> to derive one from the CVar name.</param>
+            <param name="lifetime">
+            Receives a handle that unhooks the control from the CVar when disposed. Without one the CVar holds
+            the control for as long as the CVar lives, which is only right for a screen that lives as long —
+            a screen rebuilt on every resize, or one that comes and goes, should pass one and dispose it.
+            </param>
+            <param name="choiceCaptions">
+            What an enum's choices are called on screen, keyed by the stored value; a choice not named here shows
+            as it is stored.
+            </param>
+            <returns>The bound control, or <see langword="null"/>.</returns>
+            <exception cref="T:System.ArgumentNullException">An argument is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.CVarBinding.CreateChoiceControl(OpenIGI.UI.Widgets.UiTheme,OpenIGI.Core.Configuration.ICVar,System.String,System.Collections.Generic.IReadOnlyList{System.ValueTuple{System.String,System.String}},System.Collections.Generic.ICollection{System.IDisposable})">
+            <summary>Builds a dropdown bound to a CVar over a list of the values it may hold.</summary>
+            <param name="theme">The theme the control draws from.</param>
+            <param name="cvar">The variable to bind; any type, written and read as text.</param>
+            <param name="label">The caption.</param>
+            <param name="choices">The values offered, each with what it is called on screen, in the order shown.</param>
+            <param name="lifetime">Receives the handle that unhooks the control; see <see cref="M:OpenIGI.Frontend.Settings.CVarBinding.CreateControl(OpenIGI.UI.Widgets.UiTheme,OpenIGI.Core.Configuration.ICVar,System.String,System.Collections.Generic.ICollection{System.IDisposable},System.Collections.Generic.IReadOnlyDictionary{System.String,System.String})"/>.</param>
+            <returns>The bound dropdown.</returns>
+            <remarks>
+            For a variable whose useful values are a short list its type does not spell out: a resolution the
+            display offers, or a frame-rate cap. A value the variable holds that is not in the list is added to
+            it, so the dropdown never shows a choice other than the one in force.
+            </remarks>
+            <exception cref="T:System.ArgumentNullException">An argument is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.CVarBinding.Humanize(System.String)">
+            <summary>Turns a CVar name into a caption: drops a known prefix and title-cases the rest.</summary>
+            <param name="name">The CVar name, e.g. <c>snd_music_volume</c>.</param>
+            <returns>A caption, e.g. <c>Music Volume</c>.</returns>
+        </member>
+        <member name="T:OpenIGI.Frontend.Settings.GraphicsSetting">
+            <summary>One row of the graphics page that is a single variable shown as itself.</summary>
+            <param name="Variable">The variable the row drives.</param>
+            <param name="Caption">The row's caption, as the player reads it.</param>
+            <param name="Help">What the row does, in a sentence written for a player.</param>
+            <param name="Choices">
+            What a choice variable's values are called on screen, keyed by the stored value, or null to show them
+            as stored.
+            </param>
+            <remarks>
+            The caption and the help are written here rather than taken from the variable, and that is the whole
+            point of the type. A variable's own <c>Help</c> is written for whoever is reading the renderer — it
+            says things like "windowed inverse square", "L1-SH layout" and "the pi-over-N estimator" — and it is
+            the right text for the console to print. It is the wrong text to put in front of somebody who wants
+            the picture to look nice.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.GraphicsSetting.#ctor(System.String,System.String,System.String,System.Collections.Generic.IReadOnlyDictionary{System.String,System.String})">
+            <summary>One row of the graphics page that is a single variable shown as itself.</summary>
+            <param name="Variable">The variable the row drives.</param>
+            <param name="Caption">The row's caption, as the player reads it.</param>
+            <param name="Help">What the row does, in a sentence written for a player.</param>
+            <param name="Choices">
+            What a choice variable's values are called on screen, keyed by the stored value, or null to show them
+            as stored.
+            </param>
+            <remarks>
+            The caption and the help are written here rather than taken from the variable, and that is the whole
+            point of the type. A variable's own <c>Help</c> is written for whoever is reading the renderer — it
+            says things like "windowed inverse square", "L1-SH layout" and "the pi-over-N estimator" — and it is
+            the right text for the console to print. It is the wrong text to put in front of somebody who wants
+            the picture to look nice.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.GraphicsSetting.Variable">
+            <summary>The variable the row drives.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.GraphicsSetting.Caption">
+            <summary>The row's caption, as the player reads it.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.GraphicsSetting.Help">
+            <summary>What the row does, in a sentence written for a player.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.GraphicsSetting.Choices">
+            <summary>
+            What a choice variable's values are called on screen, keyed by the stored value, or null to show them
+            as stored.
+            </summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Settings.GraphicsSection">
+            <summary>A titled run of rows on the graphics page.</summary>
+            <param name="Title">The heading shown above the rows.</param>
+            <param name="Groups">The quality choices in this section, in the order they are shown.</param>
+            <param name="Settings">The single-variable rows in this section, shown after the groups.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.GraphicsSection.#ctor(System.String,System.Collections.Generic.IReadOnlyList{OpenIGI.Frontend.Settings.QualityGroup},System.Collections.Generic.IReadOnlyList{OpenIGI.Frontend.Settings.GraphicsSetting})">
+            <summary>A titled run of rows on the graphics page.</summary>
+            <param name="Title">The heading shown above the rows.</param>
+            <param name="Groups">The quality choices in this section, in the order they are shown.</param>
+            <param name="Settings">The single-variable rows in this section, shown after the groups.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.GraphicsSection.Title">
+            <summary>The heading shown above the rows.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.GraphicsSection.Groups">
+            <summary>The quality choices in this section, in the order they are shown.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.GraphicsSection.Settings">
+            <summary>The single-variable rows in this section, shown after the groups.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Settings.GraphicsMenu">
+            <summary>
+            What the graphics page offers: the choices a player expects to find in a game's options, each
+            standing in for however many of the renderer's own variables it takes to mean something.
+            </summary>
+            <remarks>
+            <para>
+            The renderer exposes about a hundred graphics variables, and that is the right number for a renderer
+            to expose. It is the wrong number to put in a menu — and, this page having learned it the hard way,
+            it is the wrong number to put in a menu even behind a door marked Advanced. Somebody who wants light
+            to bounce around a room is looking for "Global Illumination". They are not looking for a card atlas
+            density, a distance-field voxel resolution, a relight amortisation window and a probe gather cadence,
+            four values that are meaningless apart and have to move together to mean anything at all.
+            </para>
+            <para>
+            So there is one page and no second half. Every row here is a name for an idea the player already has,
+            and the console remains what it always was: the place where every variable is reachable by anyone who
+            knows what it is called. That is a better advanced interface than a list of a hundred sliders was,
+            because it comes with completion, help text, a search and the ability to say what you mean.
+            </para>
+            <para>
+            The steps a group offers are exactly the values the four graphics presets use, which is what makes the
+            page and the preset agree: a player on High finds every row reading High rather than Custom, and a row
+            moved on its own drops the preset to Custom because the settings really are no longer any of the four.
+            <c>GraphicsMenuPresetAlignmentTests</c> is what keeps that true — it was written because it had
+            silently stopped being true, three rows having drifted from the table they claim to quote.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.GraphicsMenu.Sections">
+            <summary>Gets the page's sections, in the order they are shown.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.GraphicsMenu.InterfaceSettings">
+            <summary>
+            Gets the rows that are graphics variables but are not graphics <em>quality</em>, shown on the
+            Gameplay page instead.
+            </summary>
+            <remarks>
+            Every one of these is an <c>r_</c> variable, so the old page collected them by prefix and put them
+            among the quality settings. That is where the prefix stops being a good guide: whether the
+            remastered HUD is drawn, whether spotted enemies are outlined, and whether rounds leave marks are
+            choices about what the player is shown and what the game does, not about how well it is drawn. They
+            belong beside the other gameplay and interface options, and a player looking for them looks there.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.GraphicsMenu.DisplaySettings">
+            <summary>Gets the rows shown on the Display page, with captions written for a player.</summary>
+            <remarks>
+            <para>
+            The ones every game's display options have, in the order a player looks for them: what draws, the
+            window, its size, then how frames reach it. Captioned here rather than by machine from their
+            variable names, which would turn one of them into "Smooth" — which says nothing.
+            </para>
+            <para>
+            <c>r_resolution</c> and <c>r_frame_limit</c> are not choices their types spell out — one is the
+            display's modes, the other a number — so the page builds their lists itself; see
+            <see cref="P:OpenIGI.Frontend.Settings.GraphicsMenu.FrameRateCaps"/>.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.GraphicsMenu.FrameRateCaps">
+            <summary>Gets the frame-rate caps the Display page offers, in frames a second; nought is none.</summary>
+            <remarks>The rates displays commonly run at, and the fractions of them a steady cap is chosen from.</remarks>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.GraphicsMenu.Groups">
+            <summary>Gets every quality group on the page, in the order they are shown.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.GraphicsMenu.Settings">
+            <summary>Gets every single-variable row on the page, in the order they are shown.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.GraphicsMenu.ConsoleOnly">
+            <summary>
+            Gets the archived graphics variables the page deliberately does not show, each with the reason.
+            </summary>
+            <remarks>
+            <para>
+            A list rather than an absence, so that "not on the page" is a decision somebody made and can be
+            argued with, rather than something that fell off. A new archived <c>r_</c> variable has to be given
+            a row or a line here; <c>GraphicsMenuPresetAlignmentTests</c> fails until it is.
+            </para>
+            <para>
+            Everything here is still reachable, and reachable the same way it always was: by name, from the
+            console, with completion and its own help text. That is the advanced interface. What was removed
+            was a menu page that listed all of them as sliders, which served nobody — a player could not tell
+            which of "screen probe gather cadence" and "surface-cache relight amortisation" to move, and anyone
+            who could already knew the console.
+            </para>
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Frontend.Settings.QualityBinding">
+            <summary>
+            Builds the control for a <see cref="T:OpenIGI.Frontend.Settings.QualityGroup"/>: one dropdown that writes every variable under it,
+            and reads them back to say which step they currently are.
+            </summary>
+            <remarks>
+            <para>
+            The counterpart to <see cref="T:OpenIGI.Frontend.Settings.CVarBinding"/>, which binds one control to one variable. Here one control
+            stands over several, so the two directions are not symmetrical: choosing a step writes them all, while
+            reading back has to <em>recognise</em> a step from what the variables happen to say — and sometimes none
+            of them fits, because a variable has been set from the console on its own. That is what the extra
+            <c>Custom</c> step is for. It is shown so the row can tell the truth, and disabled so it cannot be
+            chosen: there is nothing for "make it custom" to write.
+            </para>
+            <para>
+            A group whose variables are not all registered builds nothing rather than a row that half works.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Frontend.Settings.QualityBinding.CustomOption">
+            <summary>The step shown when the variables match none of the group's own.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.QualityBinding.CreateControl(OpenIGI.UI.Widgets.UiTheme,OpenIGI.Core.Configuration.CVarRegistry,OpenIGI.Frontend.Settings.QualityGroup,System.Collections.Generic.ICollection{System.IDisposable})">
+            <summary>Builds a dropdown bound to a quality group, or <see langword="null"/> when it cannot be.</summary>
+            <param name="theme">The theme the control draws from.</param>
+            <param name="cvars">The registry the group's variables live in.</param>
+            <param name="group">The group to bind.</param>
+            <param name="lifetime">
+            Receives a handle that unhooks the dropdown from its variables when disposed. Without one the
+            variables -- which live for the process -- hold the dropdown, and the page it sits on, for as long.
+            </param>
+            <returns>The bound dropdown, or <see langword="null"/> when a variable the group names is missing.</returns>
+            <exception cref="T:System.ArgumentNullException">An argument is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.QualityBinding.CreateControl(OpenIGI.UI.Widgets.UiTheme,System.Func{System.String,OpenIGI.Core.Configuration.ICVar},OpenIGI.Frontend.Settings.QualityGroup,System.Collections.Generic.ICollection{System.IDisposable})">
+            <summary>Builds a dropdown over a quality group's variables as some view of them has them.</summary>
+            <param name="theme">The theme the control draws from.</param>
+            <param name="find">
+            Finds a variable by name, or <see langword="null"/>: the registry's, or a <see cref="T:OpenIGI.Frontend.Settings.SettingsDraft"/>'s
+            staged stand-ins, so the row writes only to the draft.
+            </param>
+            <param name="group">The group to bind.</param>
+            <param name="lifetime">Receives the handle that unhooks the dropdown; see the registry overload.</param>
+            <returns>The bound dropdown, or <see langword="null"/> when a variable the group names is missing.</returns>
+            <exception cref="T:System.ArgumentNullException">An argument is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.QualityBinding.Detect(OpenIGI.Core.Configuration.CVarRegistry,OpenIGI.Frontend.Settings.QualityGroup)">
+            <summary>Works out which of a group's steps the current values are, if any.</summary>
+            <param name="cvars">The registry to read.</param>
+            <param name="group">The group to recognise.</param>
+            <returns>The step's index, or <see langword="null"/> when the values match none of them.</returns>
+            <exception cref="T:System.ArgumentNullException">An argument is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.QualityBinding.Detect(System.Func{System.String,OpenIGI.Core.Configuration.ICVar},OpenIGI.Frontend.Settings.QualityGroup)">
+            <summary>Works out which of a group's steps some view of its variables is at, if any.</summary>
+            <param name="find">Finds a variable by name, or <see langword="null"/>.</param>
+            <param name="group">The group to recognise.</param>
+            <returns>The step's index, or <see langword="null"/> when the values match none of them.</returns>
+            <exception cref="T:System.ArgumentNullException">An argument is <see langword="null"/>.</exception>
+        </member>
+        <member name="T:OpenIGI.Frontend.Settings.QualityLevel">
+            <summary>One step of a coarse quality choice, and what it sets each variable under it to.</summary>
+            <param name="Name">The step's caption, as the player reads it — <c>Off</c>, <c>High</c>.</param>
+            <param name="Values">Each variable this step writes, paired with the text it writes.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.QualityLevel.#ctor(System.String,System.Collections.Generic.IReadOnlyList{System.ValueTuple{System.String,System.String}})">
+            <summary>One step of a coarse quality choice, and what it sets each variable under it to.</summary>
+            <param name="Name">The step's caption, as the player reads it — <c>Off</c>, <c>High</c>.</param>
+            <param name="Values">Each variable this step writes, paired with the text it writes.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.QualityLevel.Name">
+            <summary>The step's caption, as the player reads it — <c>Off</c>, <c>High</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.QualityLevel.Values">
+            <summary>Each variable this step writes, paired with the text it writes.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.QualityLevel.#ctor(System.String,System.ValueTuple{System.String,System.String}[])">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Settings.QualityLevel"/> class from a value list.</summary>
+            <param name="name">The step's caption.</param>
+            <param name="values">Each variable the step writes, paired with its value.</param>
+        </member>
+        <member name="T:OpenIGI.Frontend.Settings.QualityGroup">
+            <summary>
+            A coarse quality choice on the graphics page: one caption the player understands over several variables
+            they should not have to.
+            </summary>
+            <remarks>
+            <para>
+            A group is a named point in the space its variables span. Choosing <c>Shadow Quality: High</c> writes
+            six shadow variables at once, and the point of the type is that six is the number it takes for the
+            answer to mean anything — a shadow resolution without its cascade count and its distance is not a
+            setting, it is a third of one.
+            </para>
+            <para>
+            Nothing is hidden by this and nothing is duplicated in the settings file: every variable a group names
+            is still itself, still archived under its own name, and still reachable from the console — which is
+            where somebody goes who wants one of the six on its own.
+            </para>
+            <para>
+            It follows that a group has to be able to say "none of my steps": the moment one of those variables is
+            set by hand the group is between its steps, and reporting the step it used to be on would be a lie the
+            player can see through. That reading is <see cref="M:OpenIGI.Frontend.Settings.QualityBinding.Detect(OpenIGI.Core.Configuration.CVarRegistry,OpenIGI.Frontend.Settings.QualityGroup)"/>'s, and is the same rule
+            <c>GraphicsPresetRegistry</c> applies to the overall preset.
+            </para>
+            </remarks>
+            <param name="Caption">The row's caption.</param>
+            <param name="Help">What the choice does, for the tooltip and the footer.</param>
+            <param name="Levels">The steps, in the order they are offered — quietest first.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.QualityGroup.#ctor(System.String,System.String,System.Collections.Generic.IReadOnlyList{OpenIGI.Frontend.Settings.QualityLevel})">
+            <summary>
+            A coarse quality choice on the graphics page: one caption the player understands over several variables
+            they should not have to.
+            </summary>
+            <remarks>
+            <para>
+            A group is a named point in the space its variables span. Choosing <c>Shadow Quality: High</c> writes
+            six shadow variables at once, and the point of the type is that six is the number it takes for the
+            answer to mean anything — a shadow resolution without its cascade count and its distance is not a
+            setting, it is a third of one.
+            </para>
+            <para>
+            Nothing is hidden by this and nothing is duplicated in the settings file: every variable a group names
+            is still itself, still archived under its own name, and still reachable from the console — which is
+            where somebody goes who wants one of the six on its own.
+            </para>
+            <para>
+            It follows that a group has to be able to say "none of my steps": the moment one of those variables is
+            set by hand the group is between its steps, and reporting the step it used to be on would be a lie the
+            player can see through. That reading is <see cref="M:OpenIGI.Frontend.Settings.QualityBinding.Detect(OpenIGI.Core.Configuration.CVarRegistry,OpenIGI.Frontend.Settings.QualityGroup)"/>'s, and is the same rule
+            <c>GraphicsPresetRegistry</c> applies to the overall preset.
+            </para>
+            </remarks>
+            <param name="Caption">The row's caption.</param>
+            <param name="Help">What the choice does, for the tooltip and the footer.</param>
+            <param name="Levels">The steps, in the order they are offered — quietest first.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.QualityGroup.Caption">
+            <summary>The row's caption.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.QualityGroup.Help">
+            <summary>What the choice does, for the tooltip and the footer.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.QualityGroup.Levels">
+            <summary>The steps, in the order they are offered — quietest first.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.QualityGroup.#ctor(System.String,System.String,OpenIGI.Frontend.Settings.QualityLevel[])">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Settings.QualityGroup"/> class from a level list.</summary>
+            <param name="caption">The row's caption.</param>
+            <param name="help">What the choice does.</param>
+            <param name="levels">The steps, quietest first.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.QualityGroup.Variables">
+            <summary>Gets every variable any of the steps writes, once each, in the order first named.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Settings.SettingsDraft">
+            <summary>
+            Changes made on a settings page that have not been applied: what the page's rows show and write, held
+            back from the variables themselves until the player confirms them.
+            </summary>
+            <remarks>
+            <para>
+            Every graphics and display row used to write its variable the moment it moved, which is a preview for a
+            slider but no way to choose a graphics API -- picking Direct3D 12 rebuilt the game there and then, on the
+            way to picking anything else -- or a resolution the display cannot show. Here a row is bound to a
+            <see cref="M:OpenIGI.Frontend.Settings.SettingsDraft.Stage(OpenIGI.Core.Configuration.ICVar)">staged</see> stand-in for its variable instead: the stand-in reads what was chosen and
+            writes nothing, until <see cref="M:OpenIGI.Frontend.Settings.SettingsDraft.Commit(System.Func{OpenIGI.Core.Configuration.ICVar,System.Boolean})"/> writes the lot at once, or <see cref="M:OpenIGI.Frontend.Settings.SettingsDraft.Discard"/> forgets it.
+            </para>
+            <para>
+            The stand-in is an <see cref="T:OpenIGI.Core.Configuration.ICVar"/> itself, so the row bindings (<see cref="T:OpenIGI.Frontend.Settings.CVarBinding"/>,
+            <see cref="T:OpenIGI.Frontend.Settings.QualityBinding"/>) work over it unchanged, and a change made to the variable from elsewhere --
+            the console, the host -- still reaches the row where nothing is staged over it.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.SettingsDraft.#ctor(OpenIGI.Core.Configuration.CVarRegistry)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Settings.SettingsDraft"/> class.</summary>
+            <param name="cvars">The registry the staged variables live in.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="cvars"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="E:OpenIGI.Frontend.Settings.SettingsDraft.Changed">
+            <summary>Occurs whenever what the draft shows changes: a value staged, applied, discarded, or changed underneath.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.SettingsDraft.HasChanges">
+            <summary>Gets a value indicating whether any variable has a change waiting to be applied.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Settings.SettingsDraft.Pending">
+            <summary>Gets each variable with a change waiting, and the value it will be given, in the order they were chosen.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.SettingsDraft.Stage(OpenIGI.Core.Configuration.ICVar)">
+            <summary>Gets the staged stand-in for a variable, made on first use.</summary>
+            <param name="variable">The variable.</param>
+            <returns>An <see cref="T:OpenIGI.Core.Configuration.ICVar"/> that reads the draft's value and writes only to the draft.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="variable"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.SettingsDraft.Find(System.String)">
+            <summary>Finds a variable by name and returns its staged stand-in.</summary>
+            <param name="name">The variable's name.</param>
+            <returns>The stand-in, or <see langword="null"/> when no such variable is registered.</returns>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.SettingsDraft.Holds(OpenIGI.Core.Configuration.ICVar,System.String)">
+            <summary>Whether a variable, with any staged change over it, holds a value.</summary>
+            <param name="variable">The real variable.</param>
+            <param name="text">The value in question.</param>
+            <returns><see langword="true"/> when the value the draft shows for it is <paramref name="text"/>.</returns>
+            <remarks>Answers without staging the variable, for reading a whole preset's worth of them.</remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.SettingsDraft.Commit(System.Func{OpenIGI.Core.Configuration.ICVar,System.Boolean})">
+            <summary>Writes every staged change to its variable, and empties the draft.</summary>
+            <param name="last">
+            Which variables to write after all the others, or <see langword="null"/>: for one whose change does
+            more than set a value -- the graphics API rebuilds the game -- and should see the rest in force.
+            </param>
+            <returns>Each variable written, with the value it held before, for putting it back.</returns>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.SettingsDraft.Discard">
+            <summary>Forgets every staged change, so each row shows its variable again.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Settings.SettingsDraft.Dispose">
+            <summary>Unhooks every stand-in from its variable. The draft's changes are dropped, not applied.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Settings.SettingsDraft.StagedCVar">
+            <summary>A variable as the draft shows it: its staged value if it has one, its own otherwise.</summary>
+        </member>
+    </members>
+</doc>

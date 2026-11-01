@@ -1,0 +1,657 @@
+using System.Numerics;
+using ProjectIGI.Input;
+using Silk.NET.Core.Contexts;
+using Silk.NET.Input;
+using Silk.NET.Maths;
+using Silk.NET.Input.Glfw;
+using Silk.NET.Windowing;
+using Silk.NET.Windowing.Glfw;
+using SilkMouseButton = Silk.NET.Input.MouseButton;
+
+namespace ProjectIGI.Platform.Desktop;
+
+/// <summary>
+/// A desktop game window backed by Silk.NET windowing, with its input events fed into an
+/// <see cref="InputState"/>.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The window is created and initialised eagerly so that <see cref="VkSurface"/> exists before the
+/// caller builds a graphics device against it. It does <em>not</em> run Silk's own render loop: the game
+/// loop owns the frame, exactly as the original's <c>WinMain</c> message loop does, and
+/// <see cref="PumpEvents"/> is the message pump. Presentation belongs to the device's swapchain, so
+/// there is no present callback for the window to offer.
+/// </para>
+/// </remarks>
+public sealed class SilkGameWindow : IGameWindow
+{
+    // Keep borderless presentation composited by DWM. An exact monitor-sized client area can be
+    // classified by the desktop compositor/driver as an exclusive-style surface, which causes the
+    // level image to flash when the presentation surface is re-used.
+    private const int BorderlessOverhang = 1;
+
+    private readonly IWindow _window;
+    private readonly IInputContext _input;
+    private readonly Vector2D<int> _windowedSize;
+    private WindowMode _mode;
+    private bool _cursorVisible;
+    private bool _cursorLocked;
+    private bool _disposed;
+
+    // What the last pointer report said, and the baseline this frame's motion is measured from. It is
+    // deliberately NOT MouseState.X/Y: that is the position game code reads, and it must survive a
+    // discontinuity that the motion must not. Null means "no baseline" -- the next report establishes
+    // one and contributes no motion, which is how a pointer that has been moved out from under us
+    // arrives as a new starting point rather than as a movement the player never made.
+    private Vector2? _pointerBaseline;
+    private Vector2 _virtualPointer;
+
+    internal SilkGameWindow(in WindowSettings settings)
+    {
+        // The monitor has to be resolved before the window exists, because borderless is a size and a
+        // position rather than a state and both come from it.
+        IMonitor monitor = Silk.NET.Windowing.Monitor.GetMainMonitor(null);
+        DesktopDisplay display = DesktopDisplay.Resolve(monitor, settings);
+
+        _mode = settings.Mode;
+        _windowedSize = settings.Width > 0 && settings.Height > 0
+            ? new Vector2D<int>(settings.Width, settings.Height)
+            : display.DesktopSize;
+
+        WindowOptions options = WindowOptions.Default with
+        {
+            Title = settings.Title,
+            Size = settings.Mode == WindowMode.BorderlessFullscreen
+                ? BorderlessSize(display)
+                : display.Size,
+            WindowState = settings.Mode == WindowMode.ExclusiveFullscreen
+                ? WindowState.Fullscreen
+                : WindowState.Normal,
+
+            // Borderless is exactly this: no decoration, and a client area placed over the whole of the
+            // monitor's desktop area. Silk has no state for it, because as far as the platform is
+            // concerned it *is* a normal window.
+            WindowBorder = settings.Mode == WindowMode.BorderlessFullscreen
+                ? WindowBorder.Hidden
+                : WindowOptions.Default.WindowBorder,
+
+            // Placed at creation, because nothing else ever places a window that starts borderless:
+            // ApplyMode runs only from the Mode setter and from the exclusive-fullscreen paths, so a
+            // borderless window left on Silk's default position sits 50px in from the corner and hangs
+            // the same distance off the far edge -- a fullscreen window missing a strip of the screen.
+            Position = settings.Mode == WindowMode.BorderlessFullscreen
+                ? display.Origin
+                : WindowOptions.Default.Position,
+
+            // Asked for only when the display mode is actually ours to set. A borderless window that
+            // names a video mode is asking the backend to switch the monitor, which is the one thing
+            // borderless exists not to do.
+            VideoMode = settings.Mode == WindowMode.ExclusiveFullscreen
+                ? new VideoMode(display.Size, display.RefreshRate)
+                : WindowOptions.Default.VideoMode,
+            VSync = settings.VSync,
+
+            // A window that has never been shown reports a zero framebuffer on macOS, and the swapchain
+            // is sized from it; borderless remains hidden until Show(), while exclusive fullscreen must
+            // be visible for the monitor state to take.
+            IsVisible = settings.Mode == WindowMode.ExclusiveFullscreen,
+            ShouldSwapAutomatically = false,
+        };
+
+        Display = display;
+        _window = CreateWindow(options, display);
+        _input = _window.CreateInput();
+        _cursorVisible = settings.CursorVisible;
+
+        // Asked for again now the window exists and is on screen. Creating it with the state set is not
+        // enough on its own: the backend reports it back as Normal with a border and a title bar, and
+        // the size that comes with that is the one the device would be built against.
+        if (_mode == WindowMode.ExclusiveFullscreen)
+        {
+            ApplyMode();
+            _window.DoEvents();
+        }
+        else if (_mode == WindowMode.Windowed)
+        {
+            ResizeClientArea(_windowedSize.X, _windowedSize.Y);
+        }
+
+        HookEvents();
+        ApplyCursorMode();
+    }
+
+    /// <summary>Names the windowing and input backend, rather than leaving Silk to go looking.</summary>
+    /// <remarks>
+    /// <para>
+    /// Silk finds its platforms by reflecting over the assemblies it can see, and a SINGLE-FILE publish
+    /// takes that away: the backend assemblies are bundled inside the executable rather than sitting
+    /// beside it, nothing enumerates them, and <see cref="Window.Create"/> fails with "Couldn't find a
+    /// suitable window platform" before a frame is drawn. The game builds and runs perfectly from a
+    /// normal output directory and cannot start at all from a published one, which is a difference that
+    /// only shows up at the very end.
+    /// </para>
+    /// <para>
+    /// Registering the backend by name is the documented answer and costs nothing in the ordinary case
+    /// — it is the same platform the search would have found. Input needs saying separately from
+    /// windowing; registering only the window leaves the mouse and keyboard dead in the same builds.
+    /// </para>
+    /// </remarks>
+    static SilkGameWindow()
+    {
+        GlfwWindowing.RegisterPlatform();
+        GlfwInput.RegisterPlatform();
+    }
+
+    private static IWindow CreateWindow(WindowOptions options, DesktopDisplay display)
+    {
+        // Created once, with no client-API context at all; Silk then exposes a VkSurface the device
+        // builds its swapchain against. There is no version fallback ladder because the device, not the
+        // window, negotiates the API version. Direct3D 12 presents through the same window by its handle.
+        WindowOptions attempt = options with { API = GraphicsAPI.DefaultVulkan };
+        IWindow window = Window.Create(attempt);
+
+        try
+        {
+            window.Initialize();
+        }
+        catch (InvalidOperationException ex)
+        {
+            // GLFW decides whether Vulkan exists by dlopen'ing the loader, and it throws this the moment
+            // it cannot find one -- before a surface, a device or any of the reporting below. Left
+            // uncaught it reaches the user as a stack trace naming GLFW, which says nothing about the
+            // thing that is actually missing. Restated as the platform failure it is, so the caller's
+            // existing PlatformException path reports it like any other.
+            window.Dispose();
+
+            // Windows has another way to draw: the same window with no client API at all, which
+            // Direct3D 12 presents to by its handle. The game then has no Vulkan to fall back to.
+            if (OperatingSystem.IsWindows())
+            {
+                return CreateWithoutVulkan(options);
+            }
+
+            throw new PlatformException(NoVulkanLoaderMessage, ex);
+        }
+
+        if (window.VkSurface is null)
+        {
+            window.Dispose();
+            throw new PlatformException(
+                $"Could not create a {display.Size.X}x{display.Size.Y} Vulkan window. "
+                + "A driver supporting Vulkan 1.2 or newer is required.");
+        }
+
+        WindowIcon.Apply(window);
+        return window;
+    }
+
+    private static IWindow CreateWithoutVulkan(WindowOptions options)
+    {
+        IWindow window = Window.Create(options with { API = GraphicsAPI.None });
+        window.Initialize();
+        WindowIcon.Apply(window);
+        return window;
+    }
+
+    /// <summary>What to say when no Vulkan loader could be opened at all.</summary>
+    /// <remarks>
+    /// Worth spelling out per platform, because the fix is completely different on each and the failure
+    /// looks identical. On macOS there is no system Vulkan to be missing: the loader is MoltenVK, which
+    /// the build carries under the one name GLFW will dlopen. GLFW then looks in exactly two places for
+    /// it -- the working directory, and the bundle's Contents/Frameworks -- so this is a build started
+    /// from somewhere neither of them names.
+    /// </remarks>
+    private static string NoVulkanLoaderMessage =>
+        OperatingSystem.IsMacOS()
+            ? "No Vulkan loader could be opened. macOS has no Vulkan of its own, so the build ships "
+                + "MoltenVK as libvulkan.1.dylib, which is only found in the working directory or in an "
+                + "app bundle's Contents/Frameworks. Run ProjectIGI.app (tools/package-macos.sh builds it), "
+                + "or start the executable from the folder it was built into."
+            : "No Vulkan loader could be opened. Install or update the graphics driver for this adapter; "
+                + "a driver supporting Vulkan 1.2 or newer is required.";
+
+    /// <inheritdoc/>
+    public event EventHandler<WindowResizedEventArgs>? Resized;
+
+    /// <inheritdoc/>
+    public event EventHandler? CloseRequested;
+
+    /// <summary>Gets the Vulkan surface source this window exposes.</summary>
+    public IVkSurface? VkSurface => _window.VkSurface;
+
+    /// <summary>Gets the window's native handles, or null on a window system that has none to give.</summary>
+    /// <remarks>
+    /// macOS has none here: a surface there is made from a Metal layer, which this window does not create.
+    /// </remarks>
+    public DesktopWindowHandles? NativeHandles
+    {
+        get
+        {
+            INativeWindow? native = _window.Native;
+
+            if (native?.Win32 is { } win32)
+            {
+                return new DesktopWindowHandles(DesktopWindowSystem.Win32, win32.HInstance, win32.Hwnd);
+            }
+
+            if (native?.Wayland is { } wayland)
+            {
+                return new DesktopWindowHandles(DesktopWindowSystem.Wayland, wayland.Display, wayland.Surface);
+            }
+
+            if (native?.X11 is { } x11)
+            {
+                return new DesktopWindowHandles(DesktopWindowSystem.Xlib, x11.Display, (nint)x11.Window);
+            }
+
+            return null;
+        }
+    }
+
+    /// <inheritdoc/>
+    public string Title
+    {
+        get => _window.Title;
+        set => _window.Title = value;
+    }
+
+    /// <inheritdoc/>
+    public int Width => _window.FramebufferSize.X > 0
+        ? _window.FramebufferSize.X
+        : _window.Size.X > 0 ? _window.Size.X : Display.Size.X;
+
+    /// <inheritdoc/>
+    public int Height => _window.FramebufferSize.Y > 0
+        ? _window.FramebufferSize.Y
+        : _window.Size.Y > 0 ? _window.Size.Y : Display.Size.Y;
+
+    /// <summary>Gets what the monitor this window opened on reports, and what was chosen from it.</summary>
+    public DesktopDisplay Display { get; }
+
+    /// <summary>Gets the backend's own description of the window, for confirming what it really is.</summary>
+    /// <remarks>
+    /// Borderless and exclusive look alike from the outside — both cover the screen — but only one of
+    /// them takes the display away from the desktop. This reports which actually happened rather than
+    /// which was asked for.
+    /// </remarks>
+    public string BackendState =>
+        $"state {_window.WindowState}, border {_window.WindowBorder}, "
+            + $"position ({_window.Position.X},{_window.Position.Y}), size {_window.Size.X}x{_window.Size.Y}, "
+            + $"raw mouse motion {(SupportsRawMouseMotion ? "available" : "UNAVAILABLE")}";
+
+    /// <summary>Gets whether a locked cursor reports the sensor's own counts rather than accelerated ones.</summary>
+    /// <remarks>
+    /// This is what makes the look a fixed number of radians per mouse count. Without it the lock falls
+    /// back to an ordinary hidden-and-captured cursor, the desktop's pointer ballistics stay in the path,
+    /// and slow movements are scaled toward zero before they ever reach the game — which is the classic
+    /// "small movements do not register" of a mouse look. Reported rather than silently accepted,
+    /// because the difference is invisible from inside the game and impossible to guess from outside it.
+    /// </remarks>
+    public bool SupportsRawMouseMotion =>
+        _input.Mice.Count > 0 && _input.Mice[0].Cursor.IsSupported(CursorMode.Raw);
+
+    /// <inheritdoc/>
+    public WindowMode Mode
+    {
+        get => _mode;
+        set
+        {
+            if (_mode == value)
+            {
+                return;
+            }
+
+            _mode = value;
+            ApplyMode();
+        }
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Borderless presents through the compositor, so its rate is the desktop's whatever the monitor is
+    /// capable of; only an exclusive window gets the mode that was asked for.
+    /// </remarks>
+    public int RefreshRate => _mode == WindowMode.BorderlessFullscreen
+        ? Display.DesktopRefreshRate
+        : Display.RefreshRate;
+
+    /// <inheritdoc/>
+    public bool CursorVisible
+    {
+        get => _cursorVisible;
+        set
+        {
+            if (_cursorVisible == value)
+            {
+                return;
+            }
+
+            _cursorVisible = value;
+            ApplyCursorMode();
+        }
+    }
+
+    /// <inheritdoc/>
+    public bool CursorLocked
+    {
+        get => _cursorLocked;
+        set
+        {
+            if (_cursorLocked == value)
+            {
+                return;
+            }
+
+            _cursorLocked = value;
+            ApplyCursorMode();
+        }
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Reached through the first keyboard, which is where the backend hangs it. A machine with no
+    /// keyboard attached reports an empty clipboard and swallows writes rather than throwing: a paste
+    /// that quietly does nothing is a far better failure than a developer tool that crashes the game.
+    /// </remarks>
+    public string ClipboardText
+    {
+        get
+        {
+            IKeyboard? keyboard = _input.Keyboards.Count > 0 ? _input.Keyboards[0] : null;
+            return keyboard?.ClipboardText ?? string.Empty;
+        }
+
+        set
+        {
+            if (_input.Keyboards.Count > 0)
+            {
+                _input.Keyboards[0].ClipboardText = value ?? string.Empty;
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    public bool IsFocused { get; private set; } = true;
+
+    /// <inheritdoc/>
+    public bool IsClosing => _window.IsClosing;
+
+    /// <inheritdoc/>
+    public InputState Input { get; } = new();
+
+    /// <inheritdoc/>
+    public void Show()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _window.IsVisible = true;
+
+        if (OperatingSystem.IsMacOS() && _mode == WindowMode.Windowed)
+        {
+            _window.Size = _windowedSize;
+            _window.Position = new Vector2D<int>(100, 100);
+        }
+        _window.DoEvents();
+
+        if (OperatingSystem.IsMacOS() && _mode == WindowMode.BorderlessFullscreen)
+        {
+            _window.Position = Display.Origin;
+            _window.DoEvents();
+        }
+        _window.Focus();
+
+        // Exclusive fullscreen has to be asked for again now that the window is on screen.
+        //
+        // The window is created hidden, and the other two modes survive that because they are not
+        // states: borderless is a size, a position and a dropped border, and windowed is a size --
+        // all of which a hidden window holds perfectly well and carries into being shown. Fullscreen
+        // is a state the platform grants against a monitor, and it will not grant one to a window
+        // that is not visible. Asked for at creation it was quietly dropped, and because nothing
+        // re-asserted it afterwards -- ApplyMode runs only from the Mode setter, which early-returns
+        // when the mode has not changed -- -fullscreen came up as an ordinary window every time.
+        if (_mode == WindowMode.ExclusiveFullscreen)
+        {
+            ApplyMode();
+        }
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Every mode the monitor reports, from <c>IMonitor.GetAllVideoModes</c>. The caller
+    /// de-duplicates by size, because the menu's list is of resolutions rather than of modes and two
+    /// entries differing only in refresh rate would read as a repeat.
+    /// </remarks>
+    public IReadOnlyList<(int Width, int Height, int RefreshRate)> GetDisplayModes()
+    {
+        IMonitor monitor = _window.Monitor ?? Silk.NET.Windowing.Monitor.GetMainMonitor(_window);
+        List<(int Width, int Height, int RefreshRate)> modes = [];
+
+        foreach (VideoMode mode in monitor.GetAllVideoModes())
+        {
+            if (mode.Resolution is { } size)
+            {
+                modes.Add((size.X, size.Y, mode.RefreshRate ?? 0));
+            }
+        }
+
+        // A monitor that reports nothing still has to offer the mode it is on.
+        return modes.Count > 0 ? modes : [(Width, Height, 0)];
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Ignored while borderless: the window's size is the desktop's, and shrinking it would leave an
+    /// undecorated window floating over the wallpaper with no way to move it.
+    /// </remarks>
+    public void Resize(int width, int height)
+    {
+        if (width > 0 && height > 0 && _mode != WindowMode.BorderlessFullscreen)
+        {
+            ResizeClientArea(width, height);
+        }
+    }
+
+    /// <summary>Resizes a decorated window to an exact drawable client area.</summary>
+    /// <remarks>
+    /// On Win32 Silk's <c>IWindow.Size</c> is the outer rectangle while the engine-facing
+    /// <see cref="Width"/> and <see cref="Height"/> are the framebuffer. Applying the requested size
+    /// directly therefore lost the title-bar height (2560x1440 became 2560x1421), invalidating native
+    /// resolution captures and benchmarks. One correction using the measured decoration delta is
+    /// sufficient and remains a no-op on backends where <c>Size</c> already means client size.
+    /// </remarks>
+    private void ResizeClientArea(int width, int height)
+    {
+        _window.Size = new Vector2D<int>(width, height);
+        _window.DoEvents();
+
+        int widthDelta = width - _window.FramebufferSize.X;
+        int heightDelta = height - _window.FramebufferSize.Y;
+        if (widthDelta != 0 || heightDelta != 0)
+        {
+            _window.Size += new Vector2D<int>(widthDelta, heightDelta);
+            _window.DoEvents();
+        }
+    }
+
+    /// <summary>The client size a borderless window covering <paramref name="display"/> is given.</summary>
+    private static Vector2D<int> BorderlessSize(in DesktopDisplay display) =>
+        display.DesktopSize + new Vector2D<int>(BorderlessOverhang, BorderlessOverhang);
+
+    /// <summary>Moves the window between windowed, borderless and exclusive without recreating it.</summary>
+    private void ApplyMode()
+    {
+        switch (_mode)
+        {
+            case WindowMode.BorderlessFullscreen:
+                // Order matters: leaving the fullscreen state first gives the platform back a normal
+                // window to undecorate, and the position has to be set after the border is dropped
+                // because dropping it moves the client area by the old border's thickness.
+                _window.WindowState = WindowState.Normal;
+                _window.WindowBorder = WindowBorder.Hidden;
+                if (!OperatingSystem.IsMacOS() || _window.IsVisible)
+                {
+                    _window.Position = Display.Origin;
+                }
+                _window.Size = BorderlessSize(Display);
+                break;
+
+            case WindowMode.ExclusiveFullscreen:
+                _window.WindowBorder = WindowBorder.Resizable;
+                _window.WindowState = WindowState.Fullscreen;
+                break;
+
+            default:
+                _window.WindowState = WindowState.Normal;
+                _window.WindowBorder = WindowBorder.Resizable;
+                _window.Size = _windowedSize;
+                break;
+        }
+    }
+
+    /// <inheritdoc/>
+    public void PumpEvents()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        // Shadow first, then dispatch: the events this call delivers belong to the frame about to run.
+        Input.BeginFrame();
+        _window.DoEvents();
+    }
+
+    /// <inheritdoc/>
+    public void Close()
+    {
+        if (!_disposed && !_window.IsClosing)
+        {
+            _window.Close();
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _input.Dispose();
+        _window.Dispose();
+    }
+
+    private void HookEvents()
+    {
+        _window.Closing += () => CloseRequested?.Invoke(this, EventArgs.Empty);
+
+        _window.FramebufferResize += size =>
+            Resized?.Invoke(this, new WindowResizedEventArgs(size.X, size.Y));
+
+        _window.FocusChanged += focused =>
+        {
+            IsFocused = focused;
+            // Losing focus releases a locked cursor and regaining it re-centres one, both of which move
+            // the pointer without the player touching it. Neither may be read as motion.
+            _pointerBaseline = null;
+
+            if (!focused)
+            {
+                // The original's device read fails when it loses focus and it zeroes the whole key
+                // array; anything else leaves keys latched down for as long as the window is away.
+                Input.Keyboard.Release();
+                Input.Mouse.Reset();
+            }
+        };
+
+        foreach (IKeyboard keyboard in _input.Keyboards)
+        {
+            keyboard.KeyDown += (_, key, _) => SetKey(key, down: true);
+            keyboard.KeyUp += (_, key, _) => SetKey(key, down: false);
+            keyboard.KeyChar += (_, character) => Input.Keyboard.EnqueueCharacter(character);
+        }
+
+        foreach (IMouse mouse in _input.Mice)
+        {
+            mouse.MouseDown += (_, button) => SetButton(button, down: true);
+            mouse.MouseUp += (_, button) => SetButton(button, down: false);
+            mouse.MouseMove += (_, position) =>
+            {
+                // Motion is the step from the last report, not from MouseState's position. The two
+                // differ exactly when the backend moves the pointer itself: locking the cursor re-centres
+                // GLFW's virtual pointer, so measuring against a position carried across that reset turns
+                // the reset into a violent flick of the view. Dropping the baseline instead loses one
+                // report's worth of motion, which is nothing, and is what ApplyCursorMode does below.
+                if (_pointerBaseline is { } previous)
+                {
+                    float deltaX = position.X - previous.X;
+                    float deltaY = position.Y - previous.Y;
+                    Input.Mouse.AddMotion(deltaX, deltaY);
+
+                    if (OperatingSystem.IsMacOS() && !_cursorLocked)
+                    {
+                        _virtualPointer = new Vector2(
+                            Math.Clamp(_virtualPointer.X + deltaX, 0f, Math.Max(1, Width - 1)),
+                            Math.Clamp(_virtualPointer.Y + deltaY, 0f, Math.Max(1, Height - 1)));
+                    }
+                }
+
+                _pointerBaseline = position;
+                Input.Mouse.SetPosition(
+                    OperatingSystem.IsMacOS() && !_cursorLocked ? _virtualPointer.X : position.X,
+                    OperatingSystem.IsMacOS() && !_cursorLocked ? _virtualPointer.Y : position.Y);
+            };
+            mouse.Scroll += (_, wheel) => Input.Mouse.AddWheel(wheel.Y);
+        }
+    }
+
+    private void SetKey(Key key, bool down)
+    {
+        KeyCode code = DesktopKeyMap.Translate(key);
+        if (code != KeyCode.None)
+        {
+            Input.Keyboard.SetKey(code, down);
+        }
+    }
+
+    private void SetButton(SilkMouseButton button, bool down)
+    {
+        Input.MouseButton? mapped = button switch
+        {
+            SilkMouseButton.Left => ProjectIGI.Input.MouseButton.Left,
+            SilkMouseButton.Right => ProjectIGI.Input.MouseButton.Right,
+            SilkMouseButton.Middle => ProjectIGI.Input.MouseButton.Middle,
+            SilkMouseButton.Button4 => ProjectIGI.Input.MouseButton.Extra1,
+            SilkMouseButton.Button5 => ProjectIGI.Input.MouseButton.Extra2,
+            _ => null,
+        };
+
+        if (mapped is not null)
+        {
+            Input.Mouse.SetButton(mapped.Value, down);
+        }
+    }
+
+    private void ApplyCursorMode()
+    {
+        // Every one of these transitions moves the pointer: locking it re-centres the backend's virtual
+        // position, unlocking it restores the pointer to where the desktop left it. The next report is a
+        // new starting point, not a movement.
+        _pointerBaseline = null;
+
+        if (OperatingSystem.IsMacOS() && !_cursorLocked)
+        {
+            _virtualPointer = new Vector2(Math.Max(1, Width - 1) / 2f, Math.Max(1, Height - 1) / 2f);
+        }
+
+        foreach (IMouse mouse in _input.Mice)
+        {
+            // Raw is the same lock as Disabled but without the desktop's pointer acceleration applied,
+            // which is what a look control wants; not every backend offers it, so Disabled is the
+            // fallback and both hide the cursor on their own.
+            mouse.Cursor.CursorMode = _cursorLocked
+                ? (mouse.Cursor.IsSupported(CursorMode.Raw) ? CursorMode.Raw : CursorMode.Disabled)
+                : OperatingSystem.IsMacOS()
+                    ? CursorMode.Disabled
+                    : _cursorVisible ? CursorMode.Normal : CursorMode.Hidden;
+        }
+    }
+}

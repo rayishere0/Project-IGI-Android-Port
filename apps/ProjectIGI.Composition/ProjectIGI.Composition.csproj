@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- What every host composes the same way: the titles a build runs, and the lookups that turn one
+       into the pieces the game host is handed. The desktop and the browser each name their own window,
+       graphics and sound, and share this. -->
+  <PropertyGroup>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- What the host reads beside the application (AppContext.BaseDirectory/Assets): fonts, the per-mission
+         atmosphere, colour grades, weather textures. Data rather than code so a level can be re-tuned without
+         a rebuild. Copied into every app that references this; the browser build puts them in its file
+         system instead (apps/ProjectIGI.Web). -->
+    <None Include="Assets\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Core\ProjectIGI.Core\ProjectIGI.Core.csproj" />
+    <ProjectReference Include="..\..\src\Engine\ProjectIGI.Engine\ProjectIGI.Engine.csproj" />
+    <ProjectReference Include="..\..\src\Game\ProjectIGI.Game\ProjectIGI.Game.csproj" />
+    <ProjectReference Include="..\..\src\Game\ProjectIGI.Game.Igi1\ProjectIGI.Game.Igi1.csproj" />
+    <ProjectReference Include="..\..\src\Game\ProjectIGI.Presentation.Igi1\ProjectIGI.Presentation.Igi1.csproj" />
+    <ProjectReference Include="..\..\src\Game\ProjectIGI.Game.Igi2\ProjectIGI.Game.Igi2.csproj" />
+    <ProjectReference Include="..\..\src\Game\ProjectIGI.Presentation.Igi2\ProjectIGI.Presentation.Igi2.csproj" />
+    <ProjectReference Include="..\..\src\Engine\ProjectIGI.Host\ProjectIGI.Host.csproj" />
+    <ProjectReference Include="..\..\src\Game\ProjectIGI.Presentation\ProjectIGI.Presentation.csproj" />
+  </ItemGroup>
+
+</Project>
