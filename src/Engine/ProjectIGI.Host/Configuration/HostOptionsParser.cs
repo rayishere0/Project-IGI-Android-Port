@@ -432,10 +432,12 @@ internal static class HostOptionsParser
             else if (arg.Equals("-vulkan", StringComparison.OrdinalIgnoreCase))
             {
                 // Accept internally passed Android renderer flags without throwing ArgumentException
+                continue;
             }
             else if (arg.Equals("-gles3", StringComparison.OrdinalIgnoreCase))
             {
                 // Accept internally passed Android renderer flags without throwing ArgumentException
+                continue;
             }
             else
             {
