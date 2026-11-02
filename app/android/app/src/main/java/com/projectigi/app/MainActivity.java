@@ -1,7 +1,11 @@
 package com.projectigi.app;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.ContentValues;
+import android.content.DialogInterface;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
@@ -12,6 +16,8 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -27,16 +33,20 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private static final String TAG = "ProjectIGI";
-    private static final String ASSET_VERSION = "v17_tiny_gear";
+    private static final String ASSET_VERSION = "v18_logcat_exporter";
 
     private SurfaceView surfaceView;
     private FrameLayout rootLayout;
@@ -141,30 +151,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         new Thread(this::prepareAssetsAndStart).start();
     }
 
-    private void addCornerBracket(FrameLayout parent, int gravity, int size, int stroke, int color) {
-        FrameLayout corner = new FrameLayout(this);
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(size, size);
-        lp.gravity = gravity;
-        int margin = (int)(18 * getResources().getDisplayMetrics().density);
-        lp.setMargins(margin, margin, margin, margin);
-
-        View vBar = new View(this);
-        vBar.setBackgroundColor(color);
-        FrameLayout.LayoutParams vLp = new FrameLayout.LayoutParams(stroke, (int)(size * 0.55f));
-        vLp.gravity = ((gravity & Gravity.TOP) != 0 ? Gravity.TOP : Gravity.BOTTOM)
-                    | ((gravity & Gravity.START) != 0 ? Gravity.START : Gravity.END);
-        corner.addView(vBar, vLp);
-
-        View hBar = new View(this);
-        hBar.setBackgroundColor(color);
-        FrameLayout.LayoutParams hLp = new FrameLayout.LayoutParams((int)(size * 0.55f), stroke);
-        hLp.gravity = ((gravity & Gravity.TOP) != 0 ? Gravity.TOP : Gravity.BOTTOM)
-                    | ((gravity & Gravity.START) != 0 ? Gravity.START : Gravity.END);
-        corner.addView(hBar, hLp);
-
-        parent.addView(corner, lp);
-    }
-
     private void prepareAssetsAndStart() {
         File filesDir = getFilesDir();
         File marker = new File(filesDir, ".installed_" + ASSET_VERSION);
@@ -243,11 +229,116 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
         isExtracted = true;
         runOnUiThread(() -> {
-            statusText.setText("Starting OpenGL renderer...");
+            statusText.setText("Asset loading complete. Starting renderer...");
+            showLogcatExportPrompt();
             if (pendingHolder != null && !isGameStarted) {
                 startGameWithHolder(pendingHolder);
             }
         });
+    }
+
+    private void showLogcatExportPrompt() {
+        if (isFinishing() || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && isDestroyed())) {
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert);
+
+        TextView titleView = new TextView(this);
+        titleView.setText("DIAGNOSTICS & LOGCAT EXPORT");
+        titleView.setTextColor(Color.rgb(57, 227, 101)); // #39e365
+        titleView.setTextSize(16);
+        titleView.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        titleView.setPadding(40, 30, 40, 10);
+        builder.setCustomTitle(titleView);
+
+        TextView messageView = new TextView(this);
+        messageView.setText("Do you want to fetch active Logcat runtime logs and export them as 'projectigi_logs.txt' into your Downloads folder for diagnostics?");
+        messageView.setTextColor(Color.rgb(200, 230, 205));
+        messageView.setTextSize(14);
+        messageView.setTypeface(Typeface.MONOSPACE);
+        messageView.setPadding(40, 10, 40, 20);
+        builder.setView(messageView);
+
+        builder.setPositiveButton("YES", (dialog, which) -> checkStoragePermissionAndExport());
+        builder.setNegativeButton("NO", (dialog, which) -> dialog.dismiss());
+
+        AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.rgb(10, 24, 14)));
+        }
+        dialog.show();
+
+        if (dialog.getButton(DialogInterface.BUTTON_POSITIVE) != null) {
+            dialog.getButton(DialogInterface.BUTTON_POSITIVE).setTextColor(Color.rgb(57, 227, 101));
+            dialog.getButton(DialogInterface.BUTTON_POSITIVE).setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        }
+        if (dialog.getButton(DialogInterface.BUTTON_NEGATIVE) != null) {
+            dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setTextColor(Color.rgb(180, 190, 180));
+            dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setTypeface(Typeface.MONOSPACE);
+        }
+    }
+
+    private void checkStoragePermissionAndExport() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1001);
+                return;
+            }
+        }
+        exportLogcatToDownloads();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 1001) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                exportLogcatToDownloads();
+            } else {
+                Toast.makeText(this, "Storage permission denied; cannot export logs.", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void exportLogcatToDownloads() {
+        new Thread(() -> {
+            try {
+                Process process = Runtime.getRuntime().exec("logcat -d -v time");
+                BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                StringBuilder logBuilder = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    logBuilder.append(line).append("\n");
+                }
+
+                File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                if (!downloadsDir.exists()) {
+                    downloadsDir.mkdirs();
+                }
+
+                File logFile = new File(downloadsDir, "projectigi_logs.txt");
+                try (FileOutputStream fos = new FileOutputStream(logFile)) {
+                    fos.write(logBuilder.toString().getBytes(StandardCharsets.UTF_8));
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    try {
+                        ContentValues values = new ContentValues();
+                        values.put(MediaStore.Downloads.DISPLAY_NAME, "projectigi_logs.txt");
+                        values.put(MediaStore.Downloads.MIME_TYPE, "text/plain");
+                        values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+                        getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                    } catch (Throwable ignored) {}
+                }
+
+                Log.i(TAG, "Logcat exported successfully to " + logFile.getAbsolutePath());
+                runOnUiThread(() -> Toast.makeText(this, "Logs saved to Downloads/projectigi_logs.txt", Toast.LENGTH_LONG).show());
+            } catch (Exception e) {
+                Log.e(TAG, "Logcat export error", e);
+                runOnUiThread(() -> Toast.makeText(this, "Failed to export logs: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        }).start();
     }
 
     private void deleteRecursively(File fileOrDir) {

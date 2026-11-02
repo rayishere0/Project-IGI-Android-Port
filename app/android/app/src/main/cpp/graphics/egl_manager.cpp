@@ -39,33 +39,19 @@ bool EglManager::createEGL(ANativeWindow* window) {
 
     // 3. Choose configuration for OpenGL ES 3.0
     const EGLint attribs[] = {
-        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,
         EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
         EGL_BLUE_SIZE, 8,
         EGL_GREEN_SIZE, 8,
         EGL_RED_SIZE, 8,
-        EGL_ALPHA_SIZE, 8,
-        EGL_DEPTH_SIZE, 24,
-        EGL_STENCIL_SIZE, 8,
+        EGL_DEPTH_SIZE, 16,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,
         EGL_NONE
     };
 
     EGLint numConfigs = 0;
     if (!eglChooseConfig(display_, attribs, &config_, 1, &numConfigs) || numConfigs <= 0) {
-        LOGW("24-bit depth config unavailable, trying 16-bit depth fallback...");
-        const EGLint fallbackAttribs[] = {
-            EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,
-            EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-            EGL_BLUE_SIZE, 8,
-            EGL_GREEN_SIZE, 8,
-            EGL_RED_SIZE, 8,
-            EGL_DEPTH_SIZE, 16,
-            EGL_NONE
-        };
-        if (!eglChooseConfig(display_, fallbackAttribs, &config_, 1, &numConfigs) || numConfigs <= 0) {
-            LOGE("eglChooseConfig failed: 0x%x", eglGetError());
-            return false;
-        }
+        LOGE("eglChooseConfig failed: 0x%x", eglGetError());
+        return false;
     }
 
     // Match Android native window format to EGL config

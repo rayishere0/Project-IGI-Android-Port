@@ -71,8 +71,8 @@ GLuint Gles3Renderer::compileShader(GLenum type, const char* source) {
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
         char infoLog[512];
-        glGetShaderInfoLog(shader, sizeof(infoLog), nullptr, infoLog);
-        LOGE("Shader compilation failed: %s", infoLog);
+        glGetShaderInfoLog(shader, 512, NULL, infoLog);
+        __android_log_print(ANDROID_LOG_ERROR, "ProjectIGI", "Shader Compile Error: %s", infoLog);
         glDeleteShader(shader);
         return 0;
     }
