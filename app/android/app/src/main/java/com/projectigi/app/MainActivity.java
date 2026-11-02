@@ -85,6 +85,30 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             getWindow().setSustainedPerformanceMode(true);
         }
 
+        // Handle offline intent extras/saved state strictly null-safe to prevent crash
+        if (savedInstanceState != null) {
+            try {
+                String safeExtra = savedInstanceState.getString("engine_mode");
+                if (safeExtra == null) {
+                    Log.d(TAG, "engine_mode is null, ignoring.");
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Safe intent extra read bypassed.");
+            }
+        }
+        
+        Intent intent = getIntent();
+        if (intent != null && intent.getExtras() != null) {
+            try {
+                String targetMap = intent.getExtras().getString("map_name");
+                if (targetMap == null) {
+                    Log.d(TAG, "map_name intent string is null, using offline fallback.");
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Safe intent extras parsing bypassed.");
+            }
+        }
+
         // Request storage permissions on app startup
         requestStoragePermissionsOnStart();
 

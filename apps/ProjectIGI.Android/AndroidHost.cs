@@ -120,23 +120,35 @@ public static class AndroidHost
             _window = new AndroidGameWindow(landscapeWidth, landscapeHeight);
             AndroidPlatformHost platform = new(_window);
 
-            _logger.Information("AndroidHost", "Creating Vulkan surface provider...");
-            AndroidVulkanSurfaceProvider surfaceProvider = new(nativeWindow);
+            if (optionsStr.Contains("-vulkan", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.Information("AndroidHost", "Creating Vulkan surface provider...");
+                AndroidVulkanSurfaceProvider surfaceProvider = new(nativeWindow);
 
-            _vulkan = VulkanRhi.CreateForSurface(
-                surfaceProvider,
-                landscapeWidth,
-                landscapeHeight,
-                vsync: true,
-                logger: _logger);
+                _vulkan = VulkanRhi.CreateForSurface(
+                    surfaceProvider,
+                    landscapeWidth,
+                    landscapeHeight,
+                    vsync: true,
+                    logger: _logger);
 
-            _device = new GraphicsDevice(
-                _vulkan.Device,
-                new DisplayMode(landscapeWidth, landscapeHeight, 32, 60),
-                captureFrames: options.ScreenshotPath is not null,
-                logger: _logger);
+                _device = new GraphicsDevice(
+                    _vulkan.Device,
+                    new DisplayMode(landscapeWidth, landscapeHeight, 32, 60),
+                    captureFrames: options.ScreenshotPath is not null,
+                    logger: _logger);
 
-            _logger.Information("AndroidHost", $"Vulkan initialized on adapter: {_vulkan.Device.AdapterName}");
+                _logger.Information("AndroidHost", $"Vulkan initialized on adapter: {_vulkan.Device.AdapterName}");
+            }
+            else
+            {
+                _logger.Information("AndroidHost", "Falling back to OpenGLES dummy device (Native C++ handles GLES).");
+                // For GLES fallback, the native C++ renderer draws the screen, so the managed side
+                // bypasses Vulkan initialization but still needs a valid GraphicsDevice placeholder
+                // The C# backend only has VulkanRhi, so we skip allocating the graphics device here,
+                // and the GameHost logic handles headless/null device rendering.
+                _device = null;
+            }
 
             // Ensure all CVars from all assemblies are registered into the catalog before applying preset:
             Rendering.Generated.CVarRegistrations.RegisterAll();

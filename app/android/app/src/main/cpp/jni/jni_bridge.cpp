@@ -9,6 +9,9 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include <vulkan/vulkan.h>
+#include "../graphics/egl_manager.h"
+#include "../graphics/gles3_renderer.h"
 
 #define LOG_TAG "ProjectIGI-NDK"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -179,6 +182,90 @@ static bool initialize_coreclr(const std::string& filesDir, const std::string& n
     return true;
 }
 
+static bool check_vulkan_support() {
+    void* libvulkan = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
+    if (!libvulkan) {
+        LOGW("libvulkan.so not found on this device.");
+        return false;
+    }
+
+    auto pfn_vkCreateInstance = (PFN_vkCreateInstance)dlsym(libvulkan, "vkCreateInstance");
+    auto pfn_vkEnumeratePhysicalDevices = (PFN_vkEnumeratePhysicalDevices)dlsym(libvulkan, "vkEnumeratePhysicalDevices");
+    auto pfn_vkGetPhysicalDeviceProperties = (PFN_vkGetPhysicalDeviceProperties)dlsym(libvulkan, "vkGetPhysicalDeviceProperties");
+    auto pfn_vkEnumerateDeviceExtensionProperties = (PFN_vkEnumerateDeviceExtensionProperties)dlsym(libvulkan, "vkEnumerateDeviceExtensionProperties");
+    auto pfn_vkDestroyInstance = (PFN_vkDestroyInstance)dlsym(libvulkan, "vkDestroyInstance");
+
+    if (!pfn_vkCreateInstance || !pfn_vkEnumeratePhysicalDevices || !pfn_vkGetPhysicalDeviceProperties ||
+        !pfn_vkEnumerateDeviceExtensionProperties || !pfn_vkDestroyInstance) {
+        LOGW("Vulkan functions not found in libvulkan.so.");
+        dlclose(libvulkan);
+        return false;
+    }
+
+    VkApplicationInfo appInfo = {};
+    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    appInfo.pApplicationName = "ProjectIGI Probe";
+    appInfo.apiVersion = VK_API_VERSION_1_1;
+
+    VkInstanceCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    createInfo.pApplicationInfo = &appInfo;
+
+    VkInstance instance = VK_NULL_HANDLE;
+    if (pfn_vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
+        LOGW("Vulkan vkCreateInstance failed.");
+        dlclose(libvulkan);
+        return false;
+    }
+
+    uint32_t deviceCount = 0;
+    pfn_vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+    if (deviceCount == 0) {
+        LOGW("No Vulkan physical devices found.");
+        pfn_vkDestroyInstance(instance, nullptr);
+        dlclose(libvulkan);
+        return false;
+    }
+
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    pfn_vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+
+    bool supportsDynRender = false;
+    for (const auto& device : devices) {
+        VkPhysicalDeviceProperties props;
+        pfn_vkGetPhysicalDeviceProperties(device, &props);
+
+        if (VK_VERSION_MAJOR(props.apiVersion) > 1 || (VK_VERSION_MAJOR(props.apiVersion) == 1 && VK_VERSION_MINOR(props.apiVersion) >= 3)) {
+            supportsDynRender = true;
+            break;
+        }
+
+        uint32_t extCount = 0;
+        pfn_vkEnumerateDeviceExtensionProperties(device, nullptr, &extCount, nullptr);
+        std::vector<VkExtensionProperties> exts(extCount);
+        pfn_vkEnumerateDeviceExtensionProperties(device, nullptr, &extCount, exts.data());
+
+        for (const auto& ext : exts) {
+            if (strcmp(ext.extensionName, "VK_KHR_dynamic_rendering") == 0) {
+                supportsDynRender = true;
+                break;
+            }
+        }
+        if (supportsDynRender) break;
+    }
+
+    pfn_vkDestroyInstance(instance, nullptr);
+    dlclose(libvulkan);
+
+    if (!supportsDynRender) {
+        LOGW("VK_KHR_dynamic_rendering not supported. Falling back to OpenGL ES.");
+        return false;
+    }
+
+    LOGI("Vulkan dynamic rendering is supported!");
+    return true;
+}
+
 extern "C" {
 
 JNIEXPORT jboolean JNICALL Java_com_projectigi_app_NativeEngine_nativeStartGame
@@ -225,10 +312,26 @@ JNIEXPORT jboolean JNICALL Java_com_projectigi_app_NativeEngine_nativeStartGame
     LOGI("ANativeWindow_setBuffersGeometry(%dx%d) returned %d", landscapeWidth, landscapeHeight, setGeoRes);
 
     std::string dataDir = filesDir + "/Project IGI";
+    bool useVulkan = check_vulkan_support();
+
+    if (useVulkan) {
+        options += " -vulkan";
+    } else {
+        LOGW("Vulkan failed or missing VK_KHR_dynamic_rendering. Falling back to OpenGL ES 3.0...");
+        options += " -gles3";
+        if (!projectigi::EglManager::instance().createEGL(g_native_window)) {
+            LOGE("Fallback EGL initialization failed.");
+            return JNI_FALSE;
+        }
+        if (!projectigi::Gles3Renderer::instance().initialize(landscapeWidth, landscapeHeight)) {
+            LOGE("Fallback GLES3 initialization failed.");
+            return JNI_FALSE;
+        }
+    }
 
     g_game_running.store(true);
-    g_game_thread = std::thread([landscapeWidth, landscapeHeight, dataDir, options]() {
-        LOGI("Game thread started. Entering ProjectIGI managed game host via Vulkan (%dx%d)...", landscapeWidth, landscapeHeight);
+    g_game_thread = std::thread([landscapeWidth, landscapeHeight, dataDir, options, useVulkan]() {
+        LOGI("Game thread started. Entering ProjectIGI managed game host via %s (%dx%d)...", useVulkan ? "Vulkan" : "OpenGLES", landscapeWidth, landscapeHeight);
         int exitCode = g_run_fn((intptr_t)g_native_window, landscapeWidth, landscapeHeight, (intptr_t)dataDir.c_str(), (intptr_t)options.c_str());
         LOGI("ProjectIGI managed game loop ended with exit code: %d", exitCode);
         g_game_running.store(false);
@@ -244,6 +347,7 @@ JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnSurfaceChang
     if (g_native_window) {
         ANativeWindow_setBuffersGeometry(g_native_window, landscapeWidth, landscapeHeight, 0);
     }
+    projectigi::Gles3Renderer::instance().resize(landscapeWidth, landscapeHeight);
     if (g_resize_fn) {
         g_resize_fn(landscapeWidth, landscapeHeight);
     }
@@ -258,6 +362,8 @@ JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnSurfaceDestr
     if (g_game_thread.joinable()) {
         g_game_thread.join();
     }
+    projectigi::Gles3Renderer::instance().shutdown();
+    projectigi::EglManager::instance().destroyEGL();
     if (g_native_window) {
         ANativeWindow_release(g_native_window);
         g_native_window = nullptr;
@@ -287,6 +393,8 @@ JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeShutdown
     if (g_game_thread.joinable()) {
         g_game_thread.join();
     }
+    projectigi::Gles3Renderer::instance().shutdown();
+    projectigi::EglManager::instance().destroyEGL();
     if (g_native_window) {
         ANativeWindow_release(g_native_window);
         g_native_window = nullptr;
