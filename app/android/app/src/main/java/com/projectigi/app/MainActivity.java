@@ -472,12 +472,15 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             return;
         }
 
-        showLogcatPromptAndStartGame();
+        // Start game process immediately so renderer and engine loop do not freeze or wait!
+        launchGameNow();
+
+        // Display non-blocking logcat prompt overlay
+        showLogcatPromptOverlay();
     }
 
-    private void showLogcatPromptAndStartGame() {
+    private void showLogcatPromptOverlay() {
         if (isFinishing() || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && isDestroyed())) {
-            launchGameNow();
             return;
         }
 
@@ -492,7 +495,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         builder.setCustomTitle(titleView);
 
         TextView messageView = new TextView(this);
-        messageView.setText("Do you want to record active runtime logs during this session and save 'projectigi_logs.txt' into your Downloads folder for diagnostics?");
+        messageView.setText("Do you want to record active runtime logs during this session and save 'projectigi_logs.txt' into your Downloads folder?");
         messageView.setTextColor(Color.rgb(200, 230, 205));
         messageView.setTextSize(14);
         messageView.setTypeface(Typeface.MONOSPACE);
@@ -502,13 +505,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         builder.setPositiveButton("YES", (dialog, which) -> {
             dialog.dismiss();
             exportLogcatToDownloads();
-            launchGameNow();
         });
 
-        builder.setNegativeButton("NO", (dialog, which) -> {
-            dialog.dismiss();
-            launchGameNow();
-        });
+        builder.setNegativeButton("NO", (dialog, which) -> dialog.dismiss());
 
         AlertDialog dialog = builder.create();
         if (dialog.getWindow() != null) {
@@ -536,8 +535,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private void exportLogcatToDownloads() {
         new Thread(() -> {
             try {
-                // Sleep briefly to capture initial CoreCLR and NativeEngine boot logs
-                Thread.sleep(1500);
+                // Sleep 2 seconds to capture full CoreCLR boot, JNI bridge, and Vulkan/GLES renderer logs
+                Thread.sleep(2000);
 
                 Process process = Runtime.getRuntime().exec("logcat -d -v time");
                 BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
@@ -552,8 +551,13 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                     downloadsDir.mkdirs();
                 }
 
+                // Force override existing projectigi_logs.txt if present
                 File logFile = new File(downloadsDir, "projectigi_logs.txt");
-                try (FileOutputStream fos = new FileOutputStream(logFile)) {
+                if (logFile.exists()) {
+                    logFile.delete();
+                }
+
+                try (FileOutputStream fos = new FileOutputStream(logFile, false)) {
                     fos.write(logBuilder.toString().getBytes(StandardCharsets.UTF_8));
                 }
 
@@ -568,7 +572,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 }
 
                 Log.i(TAG, "Logcat exported successfully to " + logFile.getAbsolutePath());
-                runOnUiThread(() -> Toast.makeText(this, "Logs saved to Downloads/projectigi_logs.txt", Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> Toast.makeText(this, "Logs saved & overridden: Downloads/projectigi_logs.txt", Toast.LENGTH_LONG).show());
             } catch (Exception e) {
                 Log.e(TAG, "Logcat export error", e);
                 runOnUiThread(() -> Toast.makeText(this, "Failed to export logs: " + e.getMessage(), Toast.LENGTH_SHORT).show());
