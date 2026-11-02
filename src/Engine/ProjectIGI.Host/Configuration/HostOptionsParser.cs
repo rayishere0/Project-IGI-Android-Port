@@ -429,6 +429,14 @@ internal static class HostOptionsParser
             {
                 startScreen = NextInt(args, ref i, "screen", 0, "a screen id");
             }
+            else if (arg.Equals("-vulkan", StringComparison.OrdinalIgnoreCase))
+            {
+                // Accept internally passed Android renderer flags without throwing ArgumentException
+            }
+            else if (arg.Equals("-gles3", StringComparison.OrdinalIgnoreCase))
+            {
+                // Accept internally passed Android renderer flags without throwing ArgumentException
+            }
             else
             {
                 throw new ArgumentException($"Unknown option '{args[i]}'.", nameof(args));
