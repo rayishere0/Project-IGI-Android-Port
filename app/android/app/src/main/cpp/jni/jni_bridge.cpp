@@ -240,9 +240,6 @@ JNIEXPORT jboolean JNICALL Java_com_projectigi_app_NativeEngine_nativeStartGame
         return JNI_FALSE;
     }
 
-    // Exclusively pass -gles3 argument to CoreCLR host for OpenIGI OpenGL ES render path
-    options += " -gles3";
-
     g_game_running.store(true);
     g_game_thread = std::thread([landscapeWidth, landscapeHeight, dataDir, options]() {
         LOGI("Game thread started. Entering ProjectIGI managed game host via OpenGLES (%dx%d)...", landscapeWidth, landscapeHeight);
