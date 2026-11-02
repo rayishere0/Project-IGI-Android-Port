@@ -9,8 +9,30 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
-#include "../graphics/egl_manager.h"
-#include "../graphics/gles3_renderer.h"
+
+#ifndef NATIVE_WINDOW_API_EGL
+#define NATIVE_WINDOW_API_EGL 1
+#endif
+
+#ifndef NATIVE_WINDOW_DISCONNECT
+#define NATIVE_WINDOW_DISCONNECT 14
+#endif
+
+struct ANativeWindow_Internal {
+    int32_t (*setBuffersGeometry)(ANativeWindow_Internal* window, int32_t width, int32_t height, int32_t format);
+    int32_t (*lock)(ANativeWindow_Internal* window, void* outBuffer, void* inOutDirtyBounds);
+    int32_t (*unlockAndPost)(ANativeWindow_Internal* window);
+    int32_t (*perform)(ANativeWindow_Internal* window, int operation, ...);
+};
+
+static inline int native_window_api_disconnect(ANativeWindow* window, int api) {
+    if (!window) return 0;
+    auto internalWin = reinterpret_cast<ANativeWindow_Internal*>(window);
+    if (internalWin->perform) {
+        return internalWin->perform(internalWin, NATIVE_WINDOW_DISCONNECT, api);
+    }
+    return 0;
+}
 
 #define LOG_TAG "ProjectIGI-NDK"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -167,10 +189,10 @@ static bool initialize_coreclr(const std::string& filesDir, const std::string& n
     LOGI("CoreCLR initialized successfully (domain %u). Binding delegates...", g_domain_id);
 
     int res1 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "Run", (void**)&g_run_fn);
-    int res2 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnTouch", (void**)&g_touch_fn);
-    int res3 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnKey", (void**)&g_key_fn);
-    int res4 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnResize", (void**)&g_resize_fn);
-    int res5 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "Stop", (void**)&g_stop_fn);
+    (void)coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnTouch", (void**)&g_touch_fn);
+    (void)coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnKey", (void**)&g_key_fn);
+    (void)coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnResize", (void**)&g_resize_fn);
+    (void)coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "Stop", (void**)&g_stop_fn);
 
     if (res1 < 0 || !g_run_fn) {
         LOGE("Failed to bind AndroidHost.Run: 0x%08X", res1);
@@ -228,21 +250,14 @@ JNIEXPORT jboolean JNICALL Java_com_projectigi_app_NativeEngine_nativeStartGame
 
     std::string dataDir = filesDir + "/Project IGI";
 
-    // Universal OpenGL ES 3.0 Architecture: Exclusively initialize EGL context
-    LOGI("Initializing universal OpenGL ES 3.0 EGL context (8-bit color, 16-bit depth)...");
-    if (!projectigi::EglManager::instance().createEGL(g_native_window)) {
-        LOGE("EGL OpenGL ES 3.0 initialization failed.");
-        return JNI_FALSE;
-    }
-
-    if (!projectigi::Gles3Renderer::instance().initialize(landscapeWidth, landscapeHeight)) {
-        LOGE("GLES3 Renderer initialization failed.");
-        return JNI_FALSE;
-    }
+    // Force disconnect any EGL binding on the ANativeWindow surface to unlock it completely for C# Vulkan engine
+    LOGI("Executing native_window_api_disconnect(EGL) to ensure window surface is completely unlocked for C# Vulkan engine...");
+    int disconnectRes = native_window_api_disconnect(g_native_window, NATIVE_WINDOW_API_EGL);
+    LOGI("native_window_api_disconnect returned %d", disconnectRes);
 
     g_game_running.store(true);
     g_game_thread = std::thread([landscapeWidth, landscapeHeight, dataDir, options]() {
-        LOGI("Game thread started. Entering ProjectIGI managed game host via OpenGLES (%dx%d)...", landscapeWidth, landscapeHeight);
+        LOGI("Game thread started. Entering ProjectIGI managed game host via Vulkan (%dx%d)...", landscapeWidth, landscapeHeight);
         int exitCode = g_run_fn((intptr_t)g_native_window, landscapeWidth, landscapeHeight, (intptr_t)dataDir.c_str(), (intptr_t)options.c_str());
         LOGI("ProjectIGI managed game loop ended with exit code: %d", exitCode);
         g_game_running.store(false);
@@ -258,7 +273,6 @@ JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnSurfaceChang
     if (g_native_window) {
         ANativeWindow_setBuffersGeometry(g_native_window, landscapeWidth, landscapeHeight, 0);
     }
-    projectigi::Gles3Renderer::instance().resize(landscapeWidth, landscapeHeight);
     if (g_resize_fn) {
         g_resize_fn(landscapeWidth, landscapeHeight);
     }
@@ -273,8 +287,6 @@ JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnSurfaceDestr
     if (g_game_thread.joinable()) {
         g_game_thread.join();
     }
-    projectigi::Gles3Renderer::instance().shutdown();
-    projectigi::EglManager::instance().destroyEGL();
     if (g_native_window) {
         ANativeWindow_release(g_native_window);
         g_native_window = nullptr;
@@ -304,8 +316,6 @@ JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeShutdown
     if (g_game_thread.joinable()) {
         g_game_thread.join();
     }
-    projectigi::Gles3Renderer::instance().shutdown();
-    projectigi::EglManager::instance().destroyEGL();
     if (g_native_window) {
         ANativeWindow_release(g_native_window);
         g_native_window = nullptr;
