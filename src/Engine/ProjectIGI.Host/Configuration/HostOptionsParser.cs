@@ -440,7 +440,7 @@ internal static class HostOptionsParser
             else
             {
                 // To safely prevent random args from throwing fatal exceptions on Android:
-                // throw new ArgumentException($"Unknown option '{args[i]}'.", nameof(args));
+                // Do not throw ArgumentException.
             }
         }
 
