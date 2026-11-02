@@ -8,6 +8,20 @@ This project runs the complete game natively on Android ARM64 devices (`com.proj
 
 ---
 
+## User Instructions (How to Play)
+
+For copyright compliance, this APK contains **no copyrighted game data**. To play the game:
+
+1. **Install the APK** on your Android device (ARM64 device running Android 7.0+).
+2. **Copy your PC Game Folder** to your Android device storage (e.g., in `/sdcard/Download/Project IGI`). Your game directory must contain the original PC game folders (`common/`, `missions/`, `weapons/`, `menusystem/`, `sounds/`, `humanplayer/`, `config.qvm`, `IGI.exe`).
+3. **Launch Project I.G.I.** on your device.
+4. On the launcher splash screen, tap **`SELECT GAME FOLDER`**.
+5. Select your copied game folder using Android's system file picker.
+6. The app will automatically verify the game file structure and enable the **`PLAY`** button.
+7. Tap **`PLAY`** to launch into the game!
+
+---
+
 ## Architecture: How It's Made & How It Runs
 
 ```
@@ -33,7 +47,7 @@ This project runs the complete game natively on Android ARM64 devices (`com.proj
 
 1. **Android Shell (`app/android`)**:
    - `MainActivity.java` creates an immersive fullscreen `SurfaceView` and hands its `ANativeWindow` handle down to native C++ via JNI.
-   - Automatically synchronizes managed assemblies and authentic game assets (`public/Assets` and `public/Project IGI`) to internal storage on launch.
+   - Includes a standalone SAF game folder selector and verifier to load external authentic game files.
 
 2. **Native Layer (`app/android/app/src/main/cpp`)**:
    - `jni_bridge.cpp` boots the embedded .NET CoreCLR host, passes display parameters, and registers low-latency touch and keyboard callbacks.
@@ -50,6 +64,7 @@ This project runs the complete game natively on Android ARM64 devices (`com.proj
 
 ## Key Features & Current Build Highlights
 
+- **Decoupled Game Files**: 100% clean repository and APK with no bundled copyrighted game data.
 - **Optimized 30 FPS Target Pacing**: Frame loop pacer strictly enforces a **30 FPS** target frame limit by default for smooth battery-friendly mobile gameplay.
 - **Authentic Retail Experience**: Includes all 14 campaign missions, cutscenes, briefing audio, textures, weapon models, sound effects, and retail menu screens.
 - **Responsive Touch HUD & Controls**:
@@ -62,7 +77,6 @@ This project runs the complete game natively on Android ARM64 devices (`com.proj
   - **Infinite Health** (zero damage from bullets, falls, explosions, electric fences)
   - **Infinite Ammunition** (reserves never deplete)
   - **All Weapons** (unlocks full arsenal for the mission)
-- **Seamless State Navigation**: Mission abort and restart handlers reload seamlessly back to the homepage without freezing or leaking resources.
 
 ---
 
