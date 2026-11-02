@@ -153,19 +153,74 @@ internal sealed unsafe class VulkanRhiCommandEncoder : IRhiCommandEncoder
             occlusion.NeedsReset = false;
         }
 
-        fixed (RenderingAttachmentInfo* firstColour = colours)
+        if (_device.UseDynamicRendering)
         {
-            RenderingInfo info = new()
+            fixed (RenderingAttachmentInfo* firstColour = colours)
             {
-                SType = StructureType.RenderingInfo,
-                RenderArea = new Rect2D(new Offset2D(0, 0), new Extent2D((uint)width, (uint)height)),
-                LayerCount = 1,
-                ColorAttachmentCount = (uint)descriptor.ColorAttachments.Count,
-                PColorAttachments = descriptor.ColorAttachments.Count > 0 ? firstColour : null,
-                PDepthAttachment = hasDepth ? &depth : null,
-            };
+                RenderingInfo info = new()
+                {
+                    SType = StructureType.RenderingInfo,
+                    RenderArea = new Rect2D(new Offset2D(0, 0), new Extent2D((uint)width, (uint)height)),
+                    LayerCount = 1,
+                    ColorAttachmentCount = (uint)descriptor.ColorAttachments.Count,
+                    PColorAttachments = descriptor.ColorAttachments.Count > 0 ? firstColour : null,
+                    PDepthAttachment = hasDepth ? &depth : null,
+                };
 
-            _vk.CmdBeginRendering(_command, &info);
+                _vk.CmdBeginRendering(_command, &info);
+            }
+        }
+        else
+        {
+            Format[] colorFormats = new Format[descriptor.ColorAttachments.Count];
+            ImageView[] fbAttachments = new ImageView[descriptor.ColorAttachments.Count + (hasDepth ? 1 : 0)];
+            ClearValue[] clearValues = new ClearValue[descriptor.ColorAttachments.Count + (hasDepth ? 1 : 0)];
+
+            for (int i = 0; i < descriptor.ColorAttachments.Count; i++)
+            {
+                VulkanRhiTextureView view = (VulkanRhiTextureView)descriptor.ColorAttachments[i].View;
+                colorFormats[i] = VulkanRhiTranslation.TextureFormat(view.Owner.Format);
+                fbAttachments[i] = view.Handle;
+                clearValues[i] = new ClearValue
+                {
+                    Color = new ClearColorValue(
+                        descriptor.ColorAttachments[i].ClearValue.R,
+                        descriptor.ColorAttachments[i].ClearValue.G,
+                        descriptor.ColorAttachments[i].ClearValue.B,
+                        descriptor.ColorAttachments[i].ClearValue.A)
+                };
+            }
+
+            Format depthFormat = Format.Undefined;
+            if (hasDepth && descriptor.DepthAttachment is { } dAtt)
+            {
+                VulkanRhiTextureView view = (VulkanRhiTextureView)dAtt.View;
+                depthFormat = VulkanRhiTranslation.TextureFormat(view.Owner.Format);
+                int depthIdx = descriptor.ColorAttachments.Count;
+                fbAttachments[depthIdx] = view.Handle;
+                clearValues[depthIdx] = new ClearValue
+                {
+                    DepthStencil = new ClearDepthStencilValue(dAtt.DepthClearValue, 0)
+                };
+            }
+
+            RenderPass renderPass = _device.GetOrCreateRenderPass(colorFormats, depthFormat);
+            Framebuffer framebuffer = _device.GetOrCreateFramebuffer(renderPass, fbAttachments, (uint)width, (uint)height);
+
+            fixed (ClearValue* pClearValues = clearValues)
+            {
+                RenderPassBeginInfo beginInfo = new RenderPassBeginInfo
+                {
+                    SType = StructureType.RenderPassBeginInfo,
+                    RenderPass = renderPass,
+                    Framebuffer = framebuffer,
+                    RenderArea = new Rect2D(new Offset2D(0, 0), new Extent2D((uint)width, (uint)height)),
+                    ClearValueCount = (uint)clearValues.Length,
+                    PClearValues = pClearValues,
+                };
+
+                _vk.CmdBeginRenderPass(_command, &beginInfo, SubpassContents.Inline);
+            }
         }
 
         return new VulkanRhiRenderPassEncoder(

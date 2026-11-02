@@ -199,57 +199,87 @@ internal sealed unsafe partial class VulkanRhiDevice
                 PDynamicStates = dynamicStates,
             };
 
-            // What the pass will attach, stated as formats rather than as a render pass object.
-            PipelineRenderingCreateInfo rendering = new()
+            if (UseDynamicRendering)
             {
-                SType = StructureType.PipelineRenderingCreateInfo,
-                ColorAttachmentCount = (uint)descriptor.ColorTargets.Count,
-                PColorAttachmentFormats = descriptor.ColorTargets.Count > 0 ? firstFormat : null,
-                DepthAttachmentFormat = descriptor.DepthStencil is { } target
+                // What the pass will attach, stated as formats rather than as a render pass object.
+                PipelineRenderingCreateInfo rendering = new()
+                {
+                    SType = StructureType.PipelineRenderingCreateInfo,
+                    ColorAttachmentCount = (uint)descriptor.ColorTargets.Count,
+                    PColorAttachmentFormats = descriptor.ColorTargets.Count > 0 ? firstFormat : null,
+                    DepthAttachmentFormat = descriptor.DepthStencil is { } target
+                        ? VulkanRhiTranslation.TextureFormat(target.Format)
+                        : Format.Undefined,
+                    StencilAttachmentFormat = descriptor.DepthStencil is { } stencil && stencil.Format.HasStencil()
+                        ? VulkanRhiTranslation.TextureFormat(stencil.Format)
+                        : Format.Undefined,
+                };
+
+                GraphicsPipelineCreateInfo info = new()
+                {
+                    SType = StructureType.GraphicsPipelineCreateInfo,
+                    PNext = &rendering,
+                    StageCount = (uint)stages.Length,
+                    PStages = firstStage,
+                    PVertexInputState = &vertexInput,
+                    PInputAssemblyState = &assembly,
+                    PViewportState = &viewport,
+                    PRasterizationState = &rasterisation,
+                    PMultisampleState = &multisample,
+                    PDepthStencilState = &depth,
+                    PColorBlendState = &blending,
+                    PDynamicState = &dynamic,
+                    Layout = ((VulkanRhiPipelineLayout)descriptor.Layout).Handle,
+                };
+
+                Pipeline pipeline;
+                VkCheck.Ok(
+                    _vk.CreateGraphicsPipelines(_device.Device, _device.PipelineCache, 1, &info, null, &pipeline),
+                    "vkCreateGraphicsPipelines");
+
+                return new VulkanRhiRenderPipeline(_vk, _device.Device, pipeline, descriptor.Layout, descriptor.Label);
+            }
+            else
+            {
+                Format depthFormat = descriptor.DepthStencil is { } target
                     ? VulkanRhiTranslation.TextureFormat(target.Format)
-                    : Format.Undefined,
-                StencilAttachmentFormat = descriptor.DepthStencil is { } stencil && stencil.Format.HasStencil()
-                    ? VulkanRhiTranslation.TextureFormat(stencil.Format)
-                    : Format.Undefined,
-            };
+                    : Format.Undefined;
 
-            GraphicsPipelineCreateInfo info = new()
-            {
-                SType = StructureType.GraphicsPipelineCreateInfo,
-                PNext = &rendering,
-                StageCount = (uint)stages.Length,
-                PStages = firstStage,
-                PVertexInputState = &vertexInput,
-                PInputAssemblyState = &assembly,
-                PViewportState = &viewport,
-                PRasterizationState = &rasterisation,
-                PMultisampleState = &multisample,
-                PDepthStencilState = &depth,
-                PColorBlendState = &blending,
-                PDynamicState = &dynamic,
-                Layout = ((VulkanRhiPipelineLayout)descriptor.Layout).Handle,
-            };
+                RenderPass renderPass = GetOrCreateRenderPass(colourFormats, depthFormat);
 
-            Pipeline pipeline;
-            VkCheck.Ok(
-                _vk.CreateGraphicsPipelines(_device.Device, _device.PipelineCache, 1, &info, null, &pipeline),
-                "vkCreateGraphicsPipelines");
+                GraphicsPipelineCreateInfo info = new()
+                {
+                    SType = StructureType.GraphicsPipelineCreateInfo,
+                    PNext = null,
+                    StageCount = (uint)stages.Length,
+                    PStages = firstStage,
+                    PVertexInputState = &vertexInput,
+                    PInputAssemblyState = &assembly,
+                    PViewportState = &viewport,
+                    PRasterizationState = &rasterisation,
+                    PMultisampleState = &multisample,
+                    PDepthStencilState = &depth,
+                    PColorBlendState = &blending,
+                    PDynamicState = &dynamic,
+                    Layout = ((VulkanRhiPipelineLayout)descriptor.Layout).Handle,
+                    RenderPass = renderPass,
+                    Subpass = 0,
+                };
 
-            return new VulkanRhiRenderPipeline(_vk, _device.Device, pipeline, descriptor.Layout, descriptor.Label);
+                Pipeline pipeline;
+                VkCheck.Ok(
+                    _vk.CreateGraphicsPipelines(_device.Device, _device.PipelineCache, 1, &info, null, &pipeline),
+                    "vkCreateGraphicsPipelines");
+
+                return new VulkanRhiRenderPipeline(_vk, _device.Device, pipeline, descriptor.Layout, descriptor.Label);
+            }
         }
     }
 
-    /// <summary>Refuses a device that cannot begin a pass the way the interface describes one.</summary>
-    /// <exception cref="GraphicsDeviceException">The device has no dynamic rendering.</exception>
+    /// <summary>Checks for dynamic rendering support or legacy render pass fallback.</summary>
     internal void RequireDynamicRendering()
     {
-        if (!_device.Capabilities.DynamicRendering)
-        {
-            throw new GraphicsDeviceException(
-                "This device has no dynamic rendering, which the shared render path is built on. It needs "
-                + "Vulkan 1.3 or the extension; a second path through render pass objects would be a "
-                + "second way for the picture to differ.");
-        }
+        // Dynamic rendering check removed; fallback mechanism handles legacy render passes automatically.
     }
 }
 

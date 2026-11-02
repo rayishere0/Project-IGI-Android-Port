@@ -61,6 +61,7 @@ internal sealed unsafe partial class VulkanRhiDevice : IRhiDevice
         _allocator = allocator;
         _commands = commands;
         _logger = logger;
+        UseDynamicRendering = device.Capabilities.DynamicRendering;
 
         // A one-off goes to the queue around the frame, so anything it may read that is still queued here
         // -- a texture created or written since the last submission -- has to reach the queue before it.
@@ -82,6 +83,12 @@ internal sealed unsafe partial class VulkanRhiDevice : IRhiDevice
     }
 
     private readonly VulkanRhiAccelerationStructures? _accelerationStructures;
+    private readonly Dictionary<string, RenderPass> _renderPassCache = new();
+    private readonly Dictionary<string, Framebuffer> _framebufferCache = new();
+    private readonly object _legacyCacheLock = new();
+
+    /// <summary>Gets whether this device supports VK_KHR_dynamic_rendering or Vulkan 1.3 dynamic rendering.</summary>
+    public bool UseDynamicRendering { get; }
 
     /// <inheritdoc/>
     public string AdapterName { get; }
@@ -534,6 +541,21 @@ internal sealed unsafe partial class VulkanRhiDevice : IRhiDevice
         _disposed = true;
         _vk.DeviceWaitIdle(_device.Device);
 
+        lock (_legacyCacheLock)
+        {
+            foreach (Framebuffer fb in _framebufferCache.Values)
+            {
+                _vk.DestroyFramebuffer(_device.Device, fb, null);
+            }
+            _framebufferCache.Clear();
+
+            foreach (RenderPass rp in _renderPassCache.Values)
+            {
+                _vk.DestroyRenderPass(_device.Device, rp, null);
+            }
+            _renderPassCache.Clear();
+        }
+
         _accelerationStructures?.Dispose();
         DestroySubmissionState();
         DestroyFrameSync();
@@ -545,6 +567,123 @@ internal sealed unsafe partial class VulkanRhiDevice : IRhiDevice
 
         _pools.Clear();
         _setFrees.Clear();
+    }
+
+    internal RenderPass GetOrCreateRenderPass(Format[] colorFormats, Format depthFormat, SampleCountFlags sampleCount = SampleCountFlags.Count1Bit)
+    {
+        string key = string.Join(",", colorFormats) + "|" + depthFormat + "|" + sampleCount;
+        lock (_legacyCacheLock)
+        {
+            if (_renderPassCache.TryGetValue(key, out RenderPass existing))
+            {
+                return existing;
+            }
+
+            int attachmentCount = colorFormats.Length + (depthFormat != Format.Undefined ? 1 : 0);
+            AttachmentDescription[] attachments = new AttachmentDescription[attachmentCount];
+            AttachmentReference[] colorRefs = new AttachmentReference[colorFormats.Length];
+            AttachmentReference depthRef = default;
+
+            for (int i = 0; i < colorFormats.Length; i++)
+            {
+                attachments[i] = new AttachmentDescription
+                {
+                    Format = colorFormats[i],
+                    Samples = sampleCount,
+                    LoadOp = AttachmentLoadOp.Clear,
+                    StoreOp = AttachmentStoreOp.Store,
+                    StencilLoadOp = AttachmentLoadOp.DontCare,
+                    StencilStoreOp = AttachmentStoreOp.DontCare,
+                    InitialLayout = ImageLayout.ColorAttachmentOptimal,
+                    FinalLayout = ImageLayout.ColorAttachmentOptimal,
+                };
+
+                colorRefs[i] = new AttachmentReference
+                {
+                    Attachment = (uint)i,
+                    Layout = ImageLayout.ColorAttachmentOptimal,
+                };
+            }
+
+            if (depthFormat != Format.Undefined)
+            {
+                int depthIdx = colorFormats.Length;
+                attachments[depthIdx] = new AttachmentDescription
+                {
+                    Format = depthFormat,
+                    Samples = sampleCount,
+                    LoadOp = AttachmentLoadOp.Clear,
+                    StoreOp = AttachmentStoreOp.Store,
+                    StencilLoadOp = AttachmentLoadOp.DontCare,
+                    StencilStoreOp = AttachmentStoreOp.DontCare,
+                    InitialLayout = ImageLayout.DepthStencilAttachmentOptimal,
+                    FinalLayout = ImageLayout.DepthStencilAttachmentOptimal,
+                };
+
+                depthRef = new AttachmentReference
+                {
+                    Attachment = (uint)depthIdx,
+                    Layout = ImageLayout.DepthStencilAttachmentOptimal,
+                };
+            }
+
+            fixed (AttachmentDescription* pAttachments = attachments)
+            fixed (AttachmentReference* pColorRefs = colorRefs)
+            {
+                SubpassDescription subpass = new SubpassDescription
+                {
+                    PipelineBindPoint = PipelineBindPoint.Graphics,
+                    ColorAttachmentCount = (uint)colorFormats.Length,
+                    PColorAttachments = colorFormats.Length > 0 ? pColorRefs : null,
+                    PDepthStencilAttachment = depthFormat != Format.Undefined ? &depthRef : null,
+                };
+
+                RenderPassCreateInfo createInfo = new RenderPassCreateInfo
+                {
+                    SType = StructureType.RenderPassCreateInfo,
+                    AttachmentCount = (uint)attachmentCount,
+                    PAttachments = attachmentCount > 0 ? pAttachments : null,
+                    SubpassCount = 1,
+                    PSubpasses = &subpass,
+                };
+
+                RenderPass pass;
+                VkCheck.Ok(_vk.CreateRenderPass(_device.Device, &createInfo, null, &pass), "vkCreateRenderPass");
+                _renderPassCache[key] = pass;
+                return pass;
+            }
+        }
+    }
+
+    internal Framebuffer GetOrCreateFramebuffer(RenderPass renderPass, ImageView[] attachments, uint width, uint height)
+    {
+        string key = string.Join(",", attachments.Select(a => a.Handle.ToString())) + $"|{width}x{height}";
+        lock (_legacyCacheLock)
+        {
+            if (_framebufferCache.TryGetValue(key, out Framebuffer existing))
+            {
+                return existing;
+            }
+
+            fixed (ImageView* pAttachments = attachments)
+            {
+                FramebufferCreateInfo createInfo = new FramebufferCreateInfo
+                {
+                    SType = StructureType.FramebufferCreateInfo,
+                    RenderPass = renderPass,
+                    AttachmentCount = (uint)attachments.Length,
+                    PAttachments = pAttachments,
+                    Width = width,
+                    Height = height,
+                    Layers = 1,
+                };
+
+                Framebuffer fb;
+                VkCheck.Ok(_vk.CreateFramebuffer(_device.Device, &createInfo, null, &fb), "vkCreateFramebuffer");
+                _framebufferCache[key] = fb;
+                return fb;
+            }
+        }
     }
 
     /// <summary>Puts a texture into a layout, from whatever it was in.</summary>

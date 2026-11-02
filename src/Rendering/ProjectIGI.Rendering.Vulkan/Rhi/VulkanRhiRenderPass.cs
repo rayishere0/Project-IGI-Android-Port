@@ -306,7 +306,15 @@ internal sealed unsafe class VulkanRhiRenderPassEncoder : IRhiRenderPassEncoder
     {
         ThrowIfEnded();
 
-        _vk.CmdEndRendering(_command);
+        if (_device.UseDynamicRendering)
+        {
+            _vk.CmdEndRendering(_command);
+        }
+        else
+        {
+            _vk.CmdEndRenderPass(_command);
+        }
+
         _ended = true;
         VulkanRhiTimestamps.End(_vk, _command, _timestamps);
 
