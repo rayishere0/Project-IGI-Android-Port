@@ -1016,31 +1016,38 @@ public class Bridge {
      * @param savedInstanceState
      */
     public void restoreInstanceState(Bundle savedInstanceState) {
-        String lastPluginId = savedInstanceState.getString(BUNDLE_LAST_PLUGIN_ID_KEY);
-        String lastPluginCallMethod = savedInstanceState.getString(BUNDLE_LAST_PLUGIN_CALL_METHOD_NAME_KEY);
-        String lastOptionsJson = savedInstanceState.getString(BUNDLE_PLUGIN_CALL_OPTIONS_SAVED_KEY);
+        if (savedInstanceState == null) {
+            return;
+        }
+        try {
+            String lastPluginId = savedInstanceState.getString(BUNDLE_LAST_PLUGIN_ID_KEY);
+            String lastPluginCallMethod = savedInstanceState.getString(BUNDLE_LAST_PLUGIN_CALL_METHOD_NAME_KEY);
+            String lastOptionsJson = savedInstanceState.getString(BUNDLE_PLUGIN_CALL_OPTIONS_SAVED_KEY);
 
-        if (lastPluginId != null) {
-            // If we have JSON blob saved, create a new plugin call with the original options
-            if (lastOptionsJson != null) {
-                try {
-                    JSObject options = new JSObject(lastOptionsJson);
+            if (lastPluginId != null) {
+                // If we have JSON blob saved, create a new plugin call with the original options
+                if (lastOptionsJson != null) {
+                    try {
+                        JSObject options = new JSObject(lastOptionsJson);
 
-                    pluginCallForLastActivity =
-                        new PluginCall(msgHandler, lastPluginId, PluginCall.CALLBACK_ID_DANGLING, lastPluginCallMethod, options);
-                } catch (JSONException ex) {
-                    Logger.error("Unable to restore plugin call, unable to parse persisted JSON object", ex);
+                        pluginCallForLastActivity =
+                            new PluginCall(msgHandler, lastPluginId, PluginCall.CALLBACK_ID_DANGLING, lastPluginCallMethod, options);
+                    } catch (JSONException ex) {
+                        Logger.error("Unable to restore plugin call, unable to parse persisted JSON object", ex);
+                    }
+                }
+
+                // Let the plugin restore any state it needs
+                Bundle bundleData = savedInstanceState.getBundle(BUNDLE_PLUGIN_CALL_BUNDLE_KEY);
+                PluginHandle lastPlugin = getPlugin(lastPluginId);
+                if (bundleData != null && lastPlugin != null) {
+                    lastPlugin.getInstance().restoreState(bundleData);
+                } else {
+                    Logger.error("Unable to restore last plugin call");
                 }
             }
-
-            // Let the plugin restore any state it needs
-            Bundle bundleData = savedInstanceState.getBundle(BUNDLE_PLUGIN_CALL_BUNDLE_KEY);
-            PluginHandle lastPlugin = getPlugin(lastPluginId);
-            if (bundleData != null && lastPlugin != null) {
-                lastPlugin.getInstance().restoreState(bundleData);
-            } else {
-                Logger.error("Unable to restore last plugin call");
-            }
+        } catch (Throwable t) {
+            Logger.error("Error restoring instance state", t);
         }
     }
 
@@ -1542,7 +1549,9 @@ public class Bridge {
             ConfigXmlParser parser = new ConfigXmlParser();
             parser.parse(activity.getApplicationContext());
             CordovaPreferences preferences = parser.getPreferences();
-            preferences.setPreferencesBundle(activity.getIntent().getExtras());
+            if (activity.getIntent() != null) {
+                preferences.setPreferencesBundle(activity.getIntent().getExtras());
+            }
             List<PluginEntry> pluginEntries = parser.getPluginEntries();
 
             MockCordovaInterfaceImpl cordovaInterface = new MockCordovaInterfaceImpl(activity);

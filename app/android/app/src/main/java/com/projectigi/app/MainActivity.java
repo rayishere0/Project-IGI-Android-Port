@@ -86,25 +86,27 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         }
 
         // Handle offline intent extras/saved state strictly null-safe to prevent crash
+        String fallbackGameDir = getFilesDir().getAbsolutePath();
         if (savedInstanceState != null) {
             try {
-                String safeExtra = savedInstanceState.getString("engine_mode");
+                String safeExtra = savedInstanceState.getString("engine_mode", "normal");
                 if (safeExtra == null) {
                     Log.d(TAG, "engine_mode is null, ignoring.");
                 }
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 Log.w(TAG, "Safe intent extra read bypassed.");
             }
         }
-        
+
         Intent intent = getIntent();
-        if (intent != null && intent.getExtras() != null) {
+        if (intent != null) {
             try {
-                String targetMap = intent.getExtras().getString("map_name");
+                String targetMap = intent.getStringExtra("map_name");
                 if (targetMap == null) {
-                    Log.d(TAG, "map_name intent string is null, using offline fallback.");
+                    targetMap = "default";
+                    Log.d(TAG, "map_name intent string is null, using fallback game directory: " + fallbackGameDir);
                 }
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 Log.w(TAG, "Safe intent extras parsing bypassed.");
             }
         }
