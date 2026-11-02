@@ -87,6 +87,7 @@ dependencies {
     implementation "androidx.appcompat:appcompat:$rootProject.ext.androidxAppCompatVersion"
     implementation "androidx.activity:activity:$rootProject.ext.androidxActivityVersion"
     implementation "androidx.core:core-splashscreen:$rootProject.ext.coreSplashScreenVersion"
+    implementation "androidx.documentfile:documentfile:1.0.1"
 
     // Capacitor Android bridge
     implementation project(':capacitor-android')

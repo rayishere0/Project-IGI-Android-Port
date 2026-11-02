@@ -1,6 +1,8 @@
 package com.projectigi.app;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
@@ -10,6 +12,8 @@ import android.graphics.BlendMode;
 import android.graphics.BlendModeColorFilter;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -22,11 +26,15 @@ import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.documentfile.provider.DocumentFile;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -36,15 +44,19 @@ import java.io.OutputStream;
 
 public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private static final String TAG = "ProjectIGI";
-    private static final String ASSET_VERSION = "v19_clean_assets";
+    private static final String ASSET_VERSION = "v20_decoupled_assets";
+    private static final int REQUEST_SELECT_GAME_FOLDER = 2001;
 
     private SurfaceView surfaceView;
     private FrameLayout rootLayout;
     private FrameLayout splashLayout;
     private TextView statusText;
     private ProgressBar progressBar;
+    private Button selectFolderBtn;
+    private Button playBtn;
 
     private boolean isExtracted = false;
+    private boolean isGameFolderVerified = false;
     private boolean isGameStarted = false;
     private SurfaceHolder pendingHolder = null;
 
@@ -72,17 +84,17 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         rootLayout.addView(surfaceView, new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
-        // Authentic Project I.G.I. Loading Splash
+        // Authentic Project I.G.I. Launcher Splash
         splashLayout = new FrameLayout(this);
         splashLayout.setBackgroundColor(Color.rgb(10, 12, 8)); // #0a0c08
 
-        // 1. Background image (boot-bg.png)
+        // 1. Background image (img.png)
         Bitmap bmp = null;
-        for (String bgPath : new String[]{"public/boot-bg.png", "boot-bg.png", "Assets/boot-bg.png", "public/Assets/boot-bg.png"}) {
+        for (String bgPath : new String[]{"img.png", "public/img.png", "public/boot-bg.png", "boot-bg.png"}) {
             try (InputStream is = getAssets().open(bgPath)) {
                 bmp = BitmapFactory.decodeStream(is);
                 if (bmp != null) {
-                    Log.i(TAG, "Loaded splash background from: " + bgPath);
+                    Log.i(TAG, "Loaded launcher background from: " + bgPath);
                     break;
                 }
             } catch (Exception ignored) {}
@@ -93,18 +105,45 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             bgImage.setScaleType(ImageView.ScaleType.FIT_XY);
             splashLayout.addView(bgImage, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        } else {
-            Log.w(TAG, "Could not load splash background image");
         }
 
-        // Center Bottom Progress & Status Wrap
-        LinearLayout progressWrap = new LinearLayout(this);
-        progressWrap.setOrientation(LinearLayout.VERTICAL);
-        progressWrap.setGravity(Gravity.CENTER_HORIZONTAL);
-        FrameLayout.LayoutParams wrapParams = new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        wrapParams.gravity = Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
-        wrapParams.bottomMargin = (int)(36 * getResources().getDisplayMetrics().density);
+        // Center Tactical Card Container
+        float density = getResources().getDisplayMetrics().density;
+        LinearLayout cardLayout = new LinearLayout(this);
+        cardLayout.setOrientation(LinearLayout.VERTICAL);
+        cardLayout.setGravity(Gravity.CENTER_HORIZONTAL);
+        cardLayout.setPadding((int)(32 * density), (int)(24 * density), (int)(32 * density), (int)(24 * density));
+
+        // Dark tactical translucent background with green border
+        GradientDrawable cardBg = new GradientDrawable();
+        cardBg.setColor(Color.argb(225, 10, 22, 14)); // Translucent dark green
+        cardBg.setStroke((int)(2 * density), Color.rgb(57, 227, 101)); // Phosphor green
+        cardBg.setCornerRadius(10 * density);
+        cardLayout.setBackground(cardBg);
+
+        FrameLayout.LayoutParams cardParams = new FrameLayout.LayoutParams(
+            (int)(540 * density), FrameLayout.LayoutParams.WRAP_CONTENT);
+        cardParams.gravity = Gravity.CENTER;
+
+        // Title
+        TextView titleText = new TextView(this);
+        titleText.setTextColor(Color.rgb(57, 227, 101));
+        titleText.setTextSize(18);
+        titleText.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        titleText.setLetterSpacing(0.12f);
+        titleText.setGravity(Gravity.CENTER);
+        titleText.setText("PROJECT I.G.I.: I'M GOING IN");
+        cardLayout.addView(titleText);
+
+        // Subtitle
+        TextView subtitleText = new TextView(this);
+        subtitleText.setTextColor(Color.rgb(180, 205, 185));
+        subtitleText.setTextSize(11);
+        subtitleText.setTypeface(Typeface.MONOSPACE);
+        subtitleText.setGravity(Gravity.CENTER);
+        subtitleText.setPadding(0, (int)(4 * density), 0, (int)(16 * density));
+        subtitleText.setText("AUTHENTIC GAME FILES REQUIRED");
+        cardLayout.addView(subtitleText);
 
         // Glowing progress bar
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
@@ -114,25 +153,65 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 new BlendModeColorFilter(Color.rgb(57, 227, 101), BlendMode.SRC_IN));
         }
         LinearLayout.LayoutParams pbParams = new LinearLayout.LayoutParams(
-            (int)(360 * getResources().getDisplayMetrics().density),
-            (int)(6 * getResources().getDisplayMetrics().density));
-        pbParams.bottomMargin = (int)(10 * getResources().getDisplayMetrics().density);
-        progressWrap.addView(progressBar, pbParams);
+            LinearLayout.LayoutParams.MATCH_PARENT, (int)(5 * density));
+        pbParams.bottomMargin = (int)(12 * density);
+        cardLayout.addView(progressBar, pbParams);
 
+        // Status Message Text
         statusText = new TextView(this);
-        statusText.setTextColor(Color.rgb(109, 184, 74)); // #6db84a bright IGI green
-        statusText.setTextSize(13);
+        statusText.setTextColor(Color.rgb(109, 184, 74));
+        statusText.setTextSize(12);
         statusText.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        statusText.setLetterSpacing(0.18f);
-        statusText.setText("INITIALIZING PROJECT I.G.I. NATIVE ENGINE...");
-        progressWrap.addView(statusText);
+        statusText.setGravity(Gravity.CENTER);
+        statusText.setPadding(0, 0, 0, (int)(18 * density));
+        statusText.setText("INITIALIZING SYSTEM ASSEMBLIES...");
+        cardLayout.addView(statusText);
 
-        splashLayout.addView(progressWrap, wrapParams);
+        // Buttons Layout Row
+        LinearLayout btnRow = new LinearLayout(this);
+        btnRow.setOrientation(LinearLayout.HORIZONTAL);
+        btnRow.setGravity(Gravity.CENTER);
+
+        // 1. Select Game Folder Button
+        selectFolderBtn = new Button(this);
+        selectFolderBtn.setText("SELECT GAME FOLDER");
+        selectFolderBtn.setTextSize(11);
+        selectFolderBtn.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        selectFolderBtn.setTextColor(Color.WHITE);
+
+        GradientDrawable selectBg = new GradientDrawable();
+        selectBg.setColor(Color.rgb(20, 52, 28));
+        selectBg.setStroke((int)(1.5f * density), Color.rgb(57, 227, 101));
+        selectBg.setCornerRadius(6 * density);
+        selectFolderBtn.setBackground(selectBg);
+
+        LinearLayout.LayoutParams selectLp = new LinearLayout.LayoutParams(
+            (int)(220 * density), (int)(44 * density));
+        selectLp.rightMargin = (int)(12 * density);
+        selectFolderBtn.setOnClickListener(v -> openGameFolderPicker());
+        btnRow.addView(selectFolderBtn, selectLp);
+
+        // 2. Play Button
+        playBtn = new Button(this);
+        playBtn.setText("PLAY");
+        playBtn.setTextSize(13);
+        playBtn.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+
+        LinearLayout.LayoutParams playLp = new LinearLayout.LayoutParams(
+            (int)(160 * density), (int)(44 * density));
+        playBtn.setOnClickListener(v -> onPlayButtonClicked());
+        btnRow.addView(playBtn, playLp);
+
+        cardLayout.addView(btnRow);
+        splashLayout.addView(cardLayout, cardParams);
 
         rootLayout.addView(splashLayout, new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
         setContentView(rootLayout);
+
+        // Disable Play button by default
+        updatePlayButtonState(false);
 
         // Apply immersive mode after view is attached
         applyImmersiveMode();
@@ -141,32 +220,43 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         new Thread(this::prepareAssetsAndStart).start();
     }
 
+    private void updatePlayButtonState(boolean enabled) {
+        isGameFolderVerified = enabled;
+        float density = getResources().getDisplayMetrics().density;
+        runOnUiThread(() -> {
+            playBtn.setEnabled(enabled);
+            GradientDrawable playBg = new GradientDrawable();
+            playBg.setCornerRadius(6 * density);
+
+            if (enabled) {
+                playBg.setColor(Color.rgb(57, 227, 101)); // Phosphor green
+                playBg.setStroke((int)(2 * density), Color.rgb(180, 255, 195));
+                playBtn.setTextColor(Color.BLACK);
+            } else {
+                playBg.setColor(Color.rgb(38, 48, 40)); // Disabled dark grey
+                playBg.setStroke((int)(1 * density), Color.rgb(65, 80, 68));
+                playBtn.setTextColor(Color.rgb(100, 120, 105));
+            }
+            playBtn.setBackground(playBg);
+        });
+    }
+
     private void prepareAssetsAndStart() {
         File filesDir = getFilesDir();
         File marker = new File(filesDir, ".installed_" + ASSET_VERSION);
 
         if (!marker.exists()) {
-            runOnUiThread(() -> statusText.setText("Extracting game assets & engine assemblies..."));
-            Log.i(TAG, "Extracting assets to " + filesDir.getAbsolutePath());
+            runOnUiThread(() -> statusText.setText("Extracting system assemblies..."));
+            Log.i(TAG, "Extracting managed assets to " + filesDir.getAbsolutePath());
 
             try {
-                // Delete any older files/settings
+                // Delete managed assemblies
                 deleteRecursively(new File(filesDir, "managed"));
-                deleteRecursively(new File(filesDir, "Project IGI"));
                 deleteRecursively(new File(filesDir, "Assets"));
-                deleteRecursively(new File(filesDir, ".config"));
-                deleteRecursively(new File(filesDir, ".local"));
-                deleteRecursively(new File(filesDir, "menu_images"));
-                deleteRecursively(new File(filesDir, "loading_images"));
-                deleteRecursively(new File(filesDir, "mission_images"));
 
                 // Extract managed DLLs
                 File managedDir = new File(filesDir, "managed");
                 copyAssetFolder(getAssets(), "managed", managedDir);
-
-                // Extract Project IGI data
-                File dataDir = new File(filesDir, "Project IGI");
-                copyAssetFolder(getAssets(), "public/Project IGI", dataDir);
 
                 // Extract engine Assets (fonts, weather, UI images, materials)
                 File assetsDir = new File(filesDir, "Assets");
@@ -174,37 +264,28 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 File managedAssetsDir = new File(managedDir, "Assets");
                 copyAssetFolder(getAssets(), "public/Assets", managedAssetsDir);
 
-                // Copy authentic ripped loading.png, boot-bg.png, and libopenal.so
-                File[] imgDirs = new File[]{filesDir, dataDir, assetsDir, managedDir, managedAssetsDir};
+                // Copy authentic ripped loading.png, boot-bg.png, img.png and libopenal.so
+                File[] imgDirs = new File[]{filesDir, assetsDir, managedDir, managedAssetsDir};
                 for (File d : imgDirs) {
+                    copySingleAssetSafe("img.png", new File(d, "img.png"));
                     copySingleAssetSafe("public/loading.png", new File(d, "loading.png"));
                     copySingleAssetSafe("public/boot-bg.png", new File(d, "boot-bg.png"));
                     copySingleAssetSafe("managed/libopenal.so", new File(d, "libopenal.so"));
                 }
 
                 marker.createNewFile();
-                Log.i(TAG, "Assets extraction completed successfully.");
+                Log.i(TAG, "Managed assemblies extraction completed.");
             } catch (Exception e) {
-                Log.e(TAG, "Asset extraction error", e);
-                runOnUiThread(() -> statusText.setText("Asset extraction failed: " + e.getMessage()));
+                Log.e(TAG, "Managed extraction error", e);
+                runOnUiThread(() -> statusText.setText("Extraction error: " + e.getMessage()));
                 return;
             }
         } else {
-            // Always keep managed assemblies and Assets up to date on app start
             try {
                 File managedDir = new File(filesDir, "managed");
                 copyAssetFolder(getAssets(), "managed", managedDir);
-
-                File dataDir = new File(filesDir, "Project IGI");
                 File assetsDir = new File(filesDir, "Assets");
                 File managedAssetsDir = new File(managedDir, "Assets");
-
-                File[] imgDirs = new File[]{filesDir, dataDir, assetsDir, managedDir, managedAssetsDir};
-                for (File d : imgDirs) {
-                    copySingleAssetSafe("public/loading.png", new File(d, "loading.png"));
-                    copySingleAssetSafe("public/boot-bg.png", new File(d, "boot-bg.png"));
-                    copySingleAssetSafe("managed/libopenal.so", new File(d, "libopenal.so"));
-                }
 
                 if (!assetsDir.exists()) {
                     copyAssetFolder(getAssets(), "public/Assets", assetsDir);
@@ -213,17 +294,180 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                     copyAssetFolder(getAssets(), "public/Assets", managedAssetsDir);
                 }
             } catch (Exception e) {
-                Log.w(TAG, "Managed/Assets sync error", e);
+                Log.w(TAG, "Managed sync error", e);
             }
         }
 
         isExtracted = true;
+
+        // Check if game folder already exists and is verified
+        boolean hasExistingGame = checkExistingGameFolder();
         runOnUiThread(() -> {
-            statusText.setText("Starting OpenGL renderer...");
-            if (pendingHolder != null && !isGameStarted) {
-                startGameWithHolder(pendingHolder);
+            if (hasExistingGame) {
+                statusText.setText("GAME FILES VERIFIED & READY!");
+                updatePlayButtonState(true);
+            } else {
+                statusText.setText("SELECT GAME FOLDER TO CONTINUE");
+                updatePlayButtonState(false);
             }
         });
+    }
+
+    private boolean checkExistingGameFolder() {
+        File dataDir = new File(getFilesDir(), "Project IGI");
+        if (!dataDir.exists() || !dataDir.isDirectory()) {
+            return false;
+        }
+
+        // Verify presence of signature Project I.G.I. folders/files
+        int matches = 0;
+        String[] signatureItems = new String[]{
+            "common", "missions", "weapons", "menusystem", "sounds", "humanplayer", "config.qvm", "igi.exe"
+        };
+
+        File[] files = dataDir.listFiles();
+        if (files == null) return false;
+
+        for (File f : files) {
+            String name = f.getName().toLowerCase();
+            for (String sig : signatureItems) {
+                if (name.equals(sig)) {
+                    matches++;
+                    break;
+                }
+            }
+        }
+
+        return matches >= 3;
+    }
+
+    private void openGameFolderPicker() {
+        try {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+            startActivityForResult(intent, REQUEST_SELECT_GAME_FOLDER);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to open folder picker", e);
+            Toast.makeText(this, "Failed to open storage folder picker", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_SELECT_GAME_FOLDER && resultCode == RESULT_OK && data != null) {
+            Uri treeUri = data.getData();
+            if (treeUri != null) {
+                try {
+                    getContentResolver().takePersistableUriPermission(
+                        treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                } catch (Exception ignored) {}
+
+                statusText.setText("VERIFYING GAME FOLDER STRUCTURE...");
+                progressBar.setVisibility(View.VISIBLE);
+                new Thread(() -> processAndCopyGameFolder(treeUri)).start();
+            }
+        }
+    }
+
+    private void processAndCopyGameFolder(Uri treeUri) {
+        DocumentFile rootDoc = DocumentFile.fromTreeUri(this, treeUri);
+        if (rootDoc == null || !rootDoc.exists() || !rootDoc.isDirectory()) {
+            runOnUiThread(() -> {
+                statusText.setText("INVALID FOLDER SELECTED");
+                Toast.makeText(this, "Could not access selected folder", Toast.LENGTH_SHORT).show();
+            });
+            return;
+        }
+
+        // 1. Verify Project I.G.I. folder signatures
+        DocumentFile[] children = rootDoc.listFiles();
+        int matches = 0;
+        String[] signatureItems = new String[]{
+            "common", "missions", "weapons", "menusystem", "sounds", "humanplayer", "config.qvm", "igi.exe"
+        };
+
+        for (DocumentFile child : children) {
+            if (child.getName() != null) {
+                String name = child.getName().toLowerCase();
+                for (String sig : signatureItems) {
+                    if (name.equals(sig)) {
+                        matches++;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (matches < 2) {
+            runOnUiThread(() -> {
+                statusText.setText("INVALID GAME FOLDER");
+                Toast.makeText(this, "Missing authentic Project I.G.I. game files in selected folder", Toast.LENGTH_LONG).show();
+            });
+            return;
+        }
+
+        // 2. Copy files from SAF tree to internal getFilesDir()/Project IGI
+        runOnUiThread(() -> statusText.setText("INSTALLING GAME FILES... PLEASE WAIT"));
+
+        File targetDataDir = new File(getFilesDir(), "Project IGI");
+        try {
+            if (!targetDataDir.exists()) {
+                targetDataDir.mkdirs();
+            }
+            copyDocumentTree(rootDoc, targetDataDir);
+
+            Log.i(TAG, "Game files successfully copied and verified.");
+            runOnUiThread(() -> {
+                statusText.setText("GAME FILES VERIFIED & READY!");
+                updatePlayButtonState(true);
+                Toast.makeText(this, "Project I.G.I. game files installed successfully!", Toast.LENGTH_LONG).show();
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to copy game files", e);
+            runOnUiThread(() -> {
+                statusText.setText("COPY ERROR: " + e.getMessage());
+                Toast.makeText(this, "Failed to copy game files: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            });
+        }
+    }
+
+    private void copyDocumentTree(DocumentFile sourceDoc, File targetDir) throws IOException {
+        if (!targetDir.exists()) {
+            targetDir.mkdirs();
+        }
+
+        DocumentFile[] files = sourceDoc.listFiles();
+        for (DocumentFile file : files) {
+            if (file.isDirectory()) {
+                File subDir = new File(targetDir, file.getName());
+                copyDocumentTree(file, subDir);
+            } else if (file.isFile()) {
+                File targetFile = new File(targetDir, file.getName());
+                try (InputStream in = getContentResolver().openInputStream(file.getUri());
+                     OutputStream out = new FileOutputStream(targetFile)) {
+                    if (in != null) {
+                        byte[] buffer = new byte[65536];
+                        int read;
+                        while ((read = in.read(buffer)) != -1) {
+                            out.write(buffer, 0, read);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void onPlayButtonClicked() {
+        if (!isGameFolderVerified) {
+            Toast.makeText(this, "Please select a valid Project I.G.I. game folder first.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        statusText.setText("STARTING OPENGL RENDERER...");
+        if (pendingHolder != null && !isGameStarted) {
+            startGameWithHolder(pendingHolder);
+        }
     }
 
     private void deleteRecursively(File fileOrDir) {
@@ -241,7 +485,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private void copyAssetFolder(AssetManager assetManager, String fromAssetPath, File targetFileOrDir) throws IOException {
         String[] list = assetManager.list(fromAssetPath);
         if (list == null || list.length == 0) {
-            // Leaf file
             if (targetFileOrDir.getParentFile() != null) {
                 targetFileOrDir.getParentFile().mkdirs();
             }
@@ -254,7 +497,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 }
             }
         } else {
-            // Directory
             if (!targetFileOrDir.exists()) {
                 targetFileOrDir.mkdirs();
             }
@@ -322,8 +564,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     public void surfaceCreated(SurfaceHolder holder) {
         Log.i(TAG, "surfaceCreated");
         pendingHolder = holder;
-        if (isExtracted && !isGameStarted) {
-            startGameWithHolder(holder);
+        if (isExtracted && isGameFolderVerified && !isGameStarted) {
+            // Holder is ready
         }
     }
 
@@ -345,6 +587,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        if (!isGameStarted) return false;
         final int actionMasked = event.getActionMasked();
         final int actionIndex = event.getActionIndex();
         int pointerId = event.getPointerId(actionIndex);
@@ -364,6 +607,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (!isGameStarted) return super.onKeyDown(keyCode, event);
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             NativeEngine.nativeOnKey(4, true);
             surfaceView.postDelayed(() -> NativeEngine.nativeOnKey(4, false), 50);
@@ -375,14 +619,19 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (!isGameStarted) return super.onKeyUp(keyCode, event);
         NativeEngine.nativeOnKey(keyCode, false);
         return super.onKeyUp(keyCode, event);
     }
 
     @Override
     public void onBackPressed() {
-        NativeEngine.nativeOnKey(4, true);
-        surfaceView.postDelayed(() -> NativeEngine.nativeOnKey(4, false), 50);
+        if (isGameStarted) {
+            NativeEngine.nativeOnKey(4, true);
+            surfaceView.postDelayed(() -> NativeEngine.nativeOnKey(4, false), 50);
+        } else {
+            super.onBackPressed();
+        }
     }
 
     @Override

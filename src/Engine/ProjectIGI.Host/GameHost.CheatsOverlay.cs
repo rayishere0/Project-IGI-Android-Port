@@ -1,5 +1,6 @@
 using ProjectIGI.Core.Configuration;
 using ProjectIGI.Core.Graphics;
+using ProjectIGI.Frontend.Screens;
 using ProjectIGI.Game.Player;
 using ProjectIGI.Host.Configuration;
 using ProjectIGI.Input;
@@ -16,8 +17,8 @@ public sealed partial class GameHost
 
     private void UpdateCheatsOverlay(FrameLoopState state)
     {
-        // Active whenever on main menu (mission is null and pause menu is not active)
-        bool isMainMenu = _session.Mission == null && !_menuFlow.PauseMenu;
+        // Active strictly on the main menu landing screen
+        bool isMainMenu = _session.Mission == null && !_menuFlow.PauseMenu && state.Shell?.Stack.Top is MainMenuScreen;
         if (!isMainMenu)
         {
             _cheatsModalOpen = false;
@@ -139,7 +140,7 @@ public sealed partial class GameHost
 
     private void DrawCheatsOverlay(FrameLoopState state)
     {
-        bool isMainMenu = _session.Mission == null && !_menuFlow.PauseMenu;
+        bool isMainMenu = _session.Mission == null && !_menuFlow.PauseMenu && state.Shell?.Stack.Top is MainMenuScreen;
         if (!isMainMenu)
         {
             return;
