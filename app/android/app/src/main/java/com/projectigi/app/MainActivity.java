@@ -1,6 +1,9 @@
 package com.projectigi.app;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.ContentValues;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
@@ -16,6 +19,8 @@ import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -36,15 +41,18 @@ import android.widget.Toast;
 
 import androidx.documentfile.provider.DocumentFile;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private static final String TAG = "ProjectIGI";
-    private static final String ASSET_VERSION = "v20_decoupled_assets";
+    private static final String ASSET_VERSION = "v21_logcat_enabled";
     private static final int REQUEST_SELECT_GAME_FOLDER = 2001;
 
     private SurfaceView surfaceView;
@@ -464,10 +472,108 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             return;
         }
 
+        showLogcatPromptAndStartGame();
+    }
+
+    private void showLogcatPromptAndStartGame() {
+        if (isFinishing() || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && isDestroyed())) {
+            launchGameNow();
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert);
+
+        TextView titleView = new TextView(this);
+        titleView.setText("DIAGNOSTIC LOGGING");
+        titleView.setTextColor(Color.rgb(57, 227, 101)); // #39e365
+        titleView.setTextSize(16);
+        titleView.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        titleView.setPadding(40, 30, 40, 10);
+        builder.setCustomTitle(titleView);
+
+        TextView messageView = new TextView(this);
+        messageView.setText("Do you want to record active runtime logs during this session and save 'projectigi_logs.txt' into your Downloads folder for diagnostics?");
+        messageView.setTextColor(Color.rgb(200, 230, 205));
+        messageView.setTextSize(14);
+        messageView.setTypeface(Typeface.MONOSPACE);
+        messageView.setPadding(40, 10, 40, 20);
+        builder.setView(messageView);
+
+        builder.setPositiveButton("YES", (dialog, which) -> {
+            dialog.dismiss();
+            exportLogcatToDownloads();
+            launchGameNow();
+        });
+
+        builder.setNegativeButton("NO", (dialog, which) -> {
+            dialog.dismiss();
+            launchGameNow();
+        });
+
+        AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.rgb(10, 24, 14)));
+        }
+        dialog.show();
+
+        if (dialog.getButton(DialogInterface.BUTTON_POSITIVE) != null) {
+            dialog.getButton(DialogInterface.BUTTON_POSITIVE).setTextColor(Color.rgb(57, 227, 101));
+            dialog.getButton(DialogInterface.BUTTON_POSITIVE).setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        }
+        if (dialog.getButton(DialogInterface.BUTTON_NEGATIVE) != null) {
+            dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setTextColor(Color.rgb(180, 190, 180));
+            dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setTypeface(Typeface.MONOSPACE);
+        }
+    }
+
+    private void launchGameNow() {
         statusText.setText("STARTING OPENGL RENDERER...");
         if (pendingHolder != null && !isGameStarted) {
             startGameWithHolder(pendingHolder);
         }
+    }
+
+    private void exportLogcatToDownloads() {
+        new Thread(() -> {
+            try {
+                // Sleep briefly to capture initial CoreCLR and NativeEngine boot logs
+                Thread.sleep(1500);
+
+                Process process = Runtime.getRuntime().exec("logcat -d -v time");
+                BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                StringBuilder logBuilder = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    logBuilder.append(line).append("\n");
+                }
+
+                File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                if (!downloadsDir.exists()) {
+                    downloadsDir.mkdirs();
+                }
+
+                File logFile = new File(downloadsDir, "projectigi_logs.txt");
+                try (FileOutputStream fos = new FileOutputStream(logFile)) {
+                    fos.write(logBuilder.toString().getBytes(StandardCharsets.UTF_8));
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    try {
+                        ContentValues values = new ContentValues();
+                        values.put(MediaStore.Downloads.DISPLAY_NAME, "projectigi_logs.txt");
+                        values.put(MediaStore.Downloads.MIME_TYPE, "text/plain");
+                        values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+                        getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                    } catch (Throwable ignored) {}
+                }
+
+                Log.i(TAG, "Logcat exported successfully to " + logFile.getAbsolutePath());
+                runOnUiThread(() -> Toast.makeText(this, "Logs saved to Downloads/projectigi_logs.txt", Toast.LENGTH_LONG).show());
+            } catch (Exception e) {
+                Log.e(TAG, "Logcat export error", e);
+                runOnUiThread(() -> Toast.makeText(this, "Failed to export logs: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        }).start();
     }
 
     private void deleteRecursively(File fileOrDir) {
