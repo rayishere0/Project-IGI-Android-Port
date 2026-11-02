@@ -2,6 +2,7 @@
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
 #include <android/log.h>
+#include <EGL/egl.h>
 #include <dlfcn.h>
 #include <dirent.h>
 #include <string>
@@ -250,7 +251,14 @@ JNIEXPORT jboolean JNICALL Java_com_projectigi_app_NativeEngine_nativeStartGame
 
     std::string dataDir = filesDir + "/Project IGI";
 
-    // Force disconnect any EGL binding on the ANativeWindow surface to unlock it completely for C# Vulkan engine
+    // Unbind any EGL surface/context on current thread to ensure zero C++ graphics lock
+    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (display != EGL_NO_DISPLAY) {
+        eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+    }
+    eglReleaseThread();
+
+    // Force disconnect EGL API from ANativeWindow
     LOGI("Executing native_window_api_disconnect(EGL) to ensure window surface is completely unlocked for C# Vulkan engine...");
     int disconnectRes = native_window_api_disconnect(g_native_window, NATIVE_WINDOW_API_EGL);
     LOGI("native_window_api_disconnect returned %d", disconnectRes);

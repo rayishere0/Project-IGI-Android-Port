@@ -118,6 +118,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         rootLayout.setBackgroundColor(Color.BLACK);
 
         surfaceView = new SurfaceView(this);
+        surfaceView.getHolder().setFormat(android.graphics.PixelFormat.RGBA_8888);
         surfaceView.getHolder().addCallback(this);
         surfaceView.setOnTouchListener((v, event) -> onTouchEvent(event));
         rootLayout.addView(surfaceView, new FrameLayout.LayoutParams(
