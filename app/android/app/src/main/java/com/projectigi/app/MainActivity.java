@@ -7,6 +7,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
@@ -52,8 +53,9 @@ import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private static final String TAG = "ProjectIGI";
-    private static final String ASSET_VERSION = "v21_logcat_enabled";
+    private static final String ASSET_VERSION = "v22_perm_on_start";
     private static final int REQUEST_SELECT_GAME_FOLDER = 2001;
+    private static final int REQUEST_STORAGE_PERMISSIONS = 1002;
 
     private SurfaceView surfaceView;
     private FrameLayout rootLayout;
@@ -82,6 +84,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             getWindow().setSustainedPerformanceMode(true);
         }
+
+        // Request storage permissions on app startup
+        requestStoragePermissionsOnStart();
 
         rootLayout = new FrameLayout(this);
         rootLayout.setBackgroundColor(Color.BLACK);
@@ -226,6 +231,18 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
         // Start background asset preparation
         new Thread(this::prepareAssetsAndStart).start();
+    }
+
+    private void requestStoragePermissionsOnStart() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+                || checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{
+                    android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                    android.Manifest.permission.READ_EXTERNAL_STORAGE
+                }, REQUEST_STORAGE_PERMISSIONS);
+            }
+        }
     }
 
     private void updatePlayButtonState(boolean enabled) {
@@ -546,33 +563,56 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                     logBuilder.append(line).append("\n");
                 }
 
-                File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-                if (!downloadsDir.exists()) {
-                    downloadsDir.mkdirs();
-                }
+                String logData = logBuilder.toString();
+                boolean exported = false;
 
-                // Force override existing projectigi_logs.txt if present
-                File logFile = new File(downloadsDir, "projectigi_logs.txt");
-                if (logFile.exists()) {
-                    logFile.delete();
-                }
-
-                try (FileOutputStream fos = new FileOutputStream(logFile, false)) {
-                    fos.write(logBuilder.toString().getBytes(StandardCharsets.UTF_8));
-                }
-
+                // 1. Try MediaStore.Downloads (Android 10+ / API 29+)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     try {
                         ContentValues values = new ContentValues();
-                        values.put(MediaStore.Downloads.DISPLAY_NAME, "projectigi_logs.txt");
-                        values.put(MediaStore.Downloads.MIME_TYPE, "text/plain");
-                        values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
-                        getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
-                    } catch (Throwable ignored) {}
+                        values.put(MediaStore.MediaColumns.DISPLAY_NAME, "projectigi_logs.txt");
+                        values.put(MediaStore.MediaColumns.MIME_TYPE, "text/plain");
+                        values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+
+                        Uri externalUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI;
+                        try {
+                            getContentResolver().delete(externalUri, MediaStore.MediaColumns.DISPLAY_NAME + "=?", new String[]{"projectigi_logs.txt"});
+                        } catch (Exception ignored) {}
+
+                        Uri uri = getContentResolver().insert(externalUri, values);
+                        if (uri != null) {
+                            try (OutputStream os = getContentResolver().openOutputStream(uri)) {
+                                if (os != null) {
+                                    os.write(logData.getBytes(StandardCharsets.UTF_8));
+                                    exported = true;
+                                }
+                            }
+                        }
+                    } catch (Exception e1) {
+                        Log.w(TAG, "MediaStore export failed, trying direct file fallback", e1);
+                    }
                 }
 
-                Log.i(TAG, "Logcat exported successfully to " + logFile.getAbsolutePath());
-                runOnUiThread(() -> Toast.makeText(this, "Logs saved & overridden: Downloads/projectigi_logs.txt", Toast.LENGTH_LONG).show());
+                // 2. Direct File System Fallback (Downloads folder)
+                if (!exported) {
+                    File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                    if (!downloadsDir.exists()) {
+                        downloadsDir.mkdirs();
+                    }
+
+                    File logFile = new File(downloadsDir, "projectigi_logs.txt");
+                    if (logFile.exists()) {
+                        logFile.delete();
+                    }
+
+                    try (FileOutputStream fos = new FileOutputStream(logFile, false)) {
+                        fos.write(logData.getBytes(StandardCharsets.UTF_8));
+                        exported = true;
+                    }
+                }
+
+                Log.i(TAG, "Logcat exported successfully!");
+                runOnUiThread(() -> Toast.makeText(this, "Logs saved to Downloads/projectigi_logs.txt", Toast.LENGTH_LONG).show());
             } catch (Exception e) {
                 Log.e(TAG, "Logcat export error", e);
                 runOnUiThread(() -> Toast.makeText(this, "Failed to export logs: " + e.getMessage(), Toast.LENGTH_SHORT).show());
