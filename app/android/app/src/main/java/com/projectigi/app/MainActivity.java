@@ -87,28 +87,44 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
         // Handle offline intent extras/saved state strictly null-safe to prevent crash
         String fallbackGameDir = getFilesDir().getAbsolutePath();
+        String gameDir = fallbackGameDir;
+        String engineMode = "normal";
+
         if (savedInstanceState != null) {
             try {
-                String safeExtra = savedInstanceState.getString("engine_mode", "normal");
-                if (safeExtra == null) {
-                    Log.d(TAG, "engine_mode is null, ignoring.");
+                String safeExtra = savedInstanceState.getString("engine_mode");
+                if (safeExtra != null) {
+                    engineMode = safeExtra;
                 }
             } catch (Throwable e) {
-                Log.w(TAG, "Safe intent extra read bypassed.");
+                Log.w(TAG, "Safe savedInstanceState extra read bypassed.");
             }
         }
 
         Intent intent = getIntent();
         if (intent != null) {
             try {
-                String targetMap = intent.getStringExtra("map_name");
-                if (targetMap == null) {
-                    targetMap = "default";
-                    Log.d(TAG, "map_name intent string is null, using fallback game directory: " + fallbackGameDir);
+                Bundle extras = intent.getExtras();
+                if (extras != null) {
+                    String targetMap = extras.getString("map_name");
+                    if (targetMap == null) {
+                        targetMap = "default";
+                        Log.d(TAG, "map_name intent string is null, using fallback game directory: " + fallbackGameDir);
+                    }
+                    String customDir = extras.getString("game_dir");
+                    if (customDir != null) {
+                        gameDir = customDir;
+                    }
+                } else {
+                    Log.w(TAG, "Intent bundle is null, explicitly falling back to default string.");
+                    gameDir = "/data/user/0/com.projectigi.app/files";
                 }
             } catch (Throwable e) {
-                Log.w(TAG, "Safe intent extras parsing bypassed.");
+                Log.e(TAG, "Failed to parse intent bundle safely.", e);
+                gameDir = "/data/user/0/com.projectigi.app/files";
             }
+        } else {
+            gameDir = "/data/user/0/com.projectigi.app/files";
         }
 
         // Request storage permissions on app startup
