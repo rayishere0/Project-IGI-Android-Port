@@ -26,7 +26,6 @@ internal sealed unsafe partial class VulkanRhiDevice
     {
         ArgumentNullException.ThrowIfNull(descriptor);
         ThrowIfDisposed();
-        RequireDynamicRendering();
 
         using Utf8String vertexEntry = new(descriptor.Vertex.EntryPoint);
         using Utf8String fragmentEntry = new(descriptor.Fragment?.EntryPoint ?? "main");
@@ -127,6 +126,31 @@ internal sealed unsafe partial class VulkanRhiDevice
         // still wants a count here, and dynamic state is what says the values come later.
         DynamicState* dynamicStates = stackalloc DynamicState[2] { DynamicState.Viewport, DynamicState.Scissor };
 
+        // Which of the two ways this device begins a pass decides how the pipeline is described: stated as
+        // formats (dynamic rendering), or built against a render pass object with those same formats.
+        bool dynamicRendering = _device.Capabilities.DynamicRendering;
+
+        Format depthFormat = descriptor.DepthStencil is { } depthTarget
+            ? VulkanRhiTranslation.TextureFormat(depthTarget.Format)
+            : Format.Undefined;
+
+        Format stencilFormat = descriptor.DepthStencil is { } stencilTarget && stencilTarget.Format.HasStencil()
+            ? VulkanRhiTranslation.TextureFormat(stencilTarget.Format)
+            : Format.Undefined;
+
+        // Compatibility is decided by formats and sample count, so this pass is interchangeable with any
+        // other that attaches the same ones -- which is what lets the pipeline be built before the frame
+        // that will use it knows what it is drawing into.
+        RenderPass pipelineRenderPass = default;
+        if (!dynamicRendering)
+        {
+            pipelineRenderPass = RenderPasses.PipelineCompatible(
+                colourFormats.AsSpan(0, descriptor.ColorTargets.Count),
+                depthFormat,
+                stencilFormat,
+                (uint)Math.Max(1, descriptor.SampleCount));
+        }
+
         fixed (VertexInputAttributeDescription* firstAttribute = attributes)
         fixed (VertexInputBindingDescription* firstBinding = bindings)
         fixed (PipelineColorBlendAttachmentState* firstBlend = blends)
@@ -199,88 +223,49 @@ internal sealed unsafe partial class VulkanRhiDevice
                 PDynamicStates = dynamicStates,
             };
 
-            if (UseDynamicRendering)
+            // What the pass will attach, stated as formats rather than as a render pass object.
+            PipelineRenderingCreateInfo rendering = new()
             {
-                // What the pass will attach, stated as formats rather than as a render pass object.
-                PipelineRenderingCreateInfo rendering = new()
-                {
-                    SType = StructureType.PipelineRenderingCreateInfo,
-                    ColorAttachmentCount = (uint)descriptor.ColorTargets.Count,
-                    PColorAttachmentFormats = descriptor.ColorTargets.Count > 0 ? firstFormat : null,
-                    DepthAttachmentFormat = descriptor.DepthStencil is { } target
-                        ? VulkanRhiTranslation.TextureFormat(target.Format)
-                        : Format.Undefined,
-                    StencilAttachmentFormat = descriptor.DepthStencil is { } stencil && stencil.Format.HasStencil()
-                        ? VulkanRhiTranslation.TextureFormat(stencil.Format)
-                        : Format.Undefined,
-                };
+                SType = StructureType.PipelineRenderingCreateInfo,
+                ColorAttachmentCount = (uint)descriptor.ColorTargets.Count,
+                PColorAttachmentFormats = descriptor.ColorTargets.Count > 0 ? firstFormat : null,
+                DepthAttachmentFormat = depthFormat,
+                StencilAttachmentFormat = stencilFormat,
+            };
 
-                GraphicsPipelineCreateInfo info = new()
-                {
-                    SType = StructureType.GraphicsPipelineCreateInfo,
-                    PNext = &rendering,
-                    StageCount = (uint)stages.Length,
-                    PStages = firstStage,
-                    PVertexInputState = &vertexInput,
-                    PInputAssemblyState = &assembly,
-                    PViewportState = &viewport,
-                    PRasterizationState = &rasterisation,
-                    PMultisampleState = &multisample,
-                    PDepthStencilState = &depth,
-                    PColorBlendState = &blending,
-                    PDynamicState = &dynamic,
-                    Layout = ((VulkanRhiPipelineLayout)descriptor.Layout).Handle,
-                };
-
-                Pipeline pipeline;
-                VkCheck.Ok(
-                    _vk.CreateGraphicsPipelines(_device.Device, _device.PipelineCache, 1, &info, null, &pipeline),
-                    "vkCreateGraphicsPipelines");
-
-                return new VulkanRhiRenderPipeline(_vk, _device.Device, pipeline, descriptor.Layout, descriptor.Label);
-            }
-            else
+            GraphicsPipelineCreateInfo info = new()
             {
-                Format depthFormat = descriptor.DepthStencil is { } target
-                    ? VulkanRhiTranslation.TextureFormat(target.Format)
-                    : Format.Undefined;
+                SType = StructureType.GraphicsPipelineCreateInfo,
 
-                RenderPass renderPass = GetOrCreateRenderPass(colourFormats, depthFormat);
+                // Exactly one of the two descriptions may be present: the formats travel in pNext for
+                // dynamic rendering, or are baked into a render pass object for everything older.
+                PNext = dynamicRendering ? &rendering : null,
+                RenderPass = pipelineRenderPass,
+                Subpass = 0,
+                StageCount = (uint)stages.Length,
+                PStages = firstStage,
+                PVertexInputState = &vertexInput,
+                PInputAssemblyState = &assembly,
+                PViewportState = &viewport,
+                PRasterizationState = &rasterisation,
+                PMultisampleState = &multisample,
+                PDepthStencilState = &depth,
+                PColorBlendState = &blending,
+                PDynamicState = &dynamic,
+                Layout = ((VulkanRhiPipelineLayout)descriptor.Layout).Handle,
+            };
 
-                GraphicsPipelineCreateInfo info = new()
-                {
-                    SType = StructureType.GraphicsPipelineCreateInfo,
-                    PNext = null,
-                    StageCount = (uint)stages.Length,
-                    PStages = firstStage,
-                    PVertexInputState = &vertexInput,
-                    PInputAssemblyState = &assembly,
-                    PViewportState = &viewport,
-                    PRasterizationState = &rasterisation,
-                    PMultisampleState = &multisample,
-                    PDepthStencilState = &depth,
-                    PColorBlendState = &blending,
-                    PDynamicState = &dynamic,
-                    Layout = ((VulkanRhiPipelineLayout)descriptor.Layout).Handle,
-                    RenderPass = renderPass,
-                    Subpass = 0,
-                };
+            Pipeline pipeline;
+            VkCheck.Ok(
+                _vk.CreateGraphicsPipelines(_device.Device, _device.PipelineCache, 1, &info, null, &pipeline),
+                "vkCreateGraphicsPipelines");
 
-                Pipeline pipeline;
-                VkCheck.Ok(
-                    _vk.CreateGraphicsPipelines(_device.Device, _device.PipelineCache, 1, &info, null, &pipeline),
-                    "vkCreateGraphicsPipelines");
-
-                return new VulkanRhiRenderPipeline(_vk, _device.Device, pipeline, descriptor.Layout, descriptor.Label);
-            }
+            return new VulkanRhiRenderPipeline(_vk, _device.Device, pipeline, descriptor.Layout, descriptor.Label);
         }
     }
 
-    /// <summary>Checks for dynamic rendering support or legacy render pass fallback.</summary>
-    internal void RequireDynamicRendering()
-    {
-        // Dynamic rendering check removed; fallback mechanism handles legacy render passes automatically.
-    }
+    /// <summary>Whether this device begins passes from their attachments rather than from a render pass object.</summary>
+    internal bool BeginsPassDynamically => _device.Capabilities.DynamicRendering;
 }
 
 /// <summary>A graphics pipeline.</summary>

@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OpenIGI.Modding.Loader</name>
+    </assembly>
+    <members>
+        <member name="T:OpenIGI.Modding.Loader.ModEnvironment">
+            <summary>What the machine a run starts on has installed, as the mods' manifests ask of it.</summary>
+            <param name="HasTitleData">Gets whether a game, by title id, is installed where this run finds it.</param>
+        </member>
+        <member name="M:OpenIGI.Modding.Loader.ModEnvironment.#ctor(System.Func{System.String,System.Boolean})">
+            <summary>What the machine a run starts on has installed, as the mods' manifests ask of it.</summary>
+            <param name="HasTitleData">Gets whether a game, by title id, is installed where this run finds it.</param>
+        </member>
+        <member name="P:OpenIGI.Modding.Loader.ModEnvironment.HasTitleData">
+            <summary>Gets whether a game, by title id, is installed where this run finds it.</summary>
+        </member>
+        <member name="P:OpenIGI.Modding.Loader.ModEnvironment.Any">
+            <summary>Gets a machine with every game installed, for a run that asks nothing of it.</summary>
+        </member>
+        <member name="T:OpenIGI.Modding.Loader.ModLoader">
+            <summary>Finds the mods a run plays with and loads their code.</summary>
+            <remarks>
+            <para>
+            The mods are the ones a <see cref="T:OpenIGI.Core.Content.ModProfile"/> switches on, in its order, as the launcher writes it; or, with no
+            profile, every subdirectory of a folder holding a <c>mod.json</c>, in the order of the directories' names, so the order is
+            the same on every machine. A mod that names an assembly is loaded into its own <see cref="T:System.Runtime.Loader.AssemblyLoadContext"/>, which
+            takes the port's own assemblies from the game rather than from the mod, so the mod's <see cref="T:OpenIGI.Modding.IOpenIgiMod"/> is the
+            game's; its other dependencies are its own. The mod is the one public class of its assembly that implements
+            <see cref="T:OpenIGI.Modding.IOpenIgiMod"/>, made through its public parameterless constructor.
+            </para>
+            <para>
+            A mod that cannot be read or loaded, was written for another API, reads a game that is not installed, needs a mod that
+            is not played, or conflicts with one played before it is reported and left out; the rest are played with. A run without
+            mods is the game as it ships, which is what the parity tests play.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Modding.Loader.ModLoader.Load(System.String,OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <summary>Loads the mods installed in a directory, on a machine with every game installed.</summary>
+            <param name="directory">The mods' directory; a missing one holds none.</param>
+            <param name="logger">Where what was loaded, and what was not, is reported.</param>
+            <returns>The mods, in the order they apply.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.Loader.ModLoader.Load(System.String,OpenIGI.Modding.Loader.ModEnvironment,OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <summary>Loads the mods installed in a directory.</summary>
+            <param name="directory">The mods' directory; a missing one holds none.</param>
+            <param name="environment">What the machine has installed.</param>
+            <param name="logger">Where what was loaded, and what was not, is reported.</param>
+            <returns>The mods, in the order they apply.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.Loader.ModLoader.Load(OpenIGI.Core.Content.ModProfile,OpenIGI.Modding.Loader.ModEnvironment,OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <summary>Loads the mods a profile switches on, for every game it names.</summary>
+            <param name="profile">The profile, as the launcher wrote it.</param>
+            <param name="environment">What the machine has installed.</param>
+            <param name="logger">Where what was loaded, and what was not, is reported.</param>
+            <returns>Each game's mods by title id, in the order they apply; a mod on two games' lists is loaded once.</returns>
+        </member>
+        <member name="M:OpenIGI.Modding.Loader.ModLoader.LoadOne(System.String,OpenIGI.Core.Content.ModManifest)">
+            <summary>Loads one mod's code, when it has any.</summary>
+            <param name="directory">The mod's directory.</param>
+            <param name="manifest">Its manifest.</param>
+            <returns>The mod.</returns>
+            <exception cref="T:OpenIGI.Core.Content.ModLoadException">Its assembly is missing, names no mod, or its mod cannot be made.</exception>
+        </member>
+        <member name="T:OpenIGI.Modding.Loader.ModLoader.ModLoadContext">
+            <summary>A mod's own assemblies, beside the game's.</summary>
+        </member>
+        <member name="M:OpenIGI.Modding.Loader.ModLoader.ModLoadContext.#ctor(System.String,System.String)">
+            <summary>A mod's own assemblies, beside the game's.</summary>
+        </member>
+    </members>
+</doc>

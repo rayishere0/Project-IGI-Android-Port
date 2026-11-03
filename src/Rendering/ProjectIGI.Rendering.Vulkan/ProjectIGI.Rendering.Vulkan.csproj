@@ -19,7 +19,7 @@
          that wrongly rejects one is a permanent miss that reports nothing. It is therefore pinned by a
          test. That check is implementation detail and stays internal; the test project is the one
          thing allowed to see it. -->
-    <InternalsVisibleTo Include="ProjectIGI.Rendering.Vulkan.Tests" />
+    <InternalsVisibleTo Include="OpenIGI.Rendering.Vulkan.Tests" />
   </ItemGroup>
 
   <ItemGroup>

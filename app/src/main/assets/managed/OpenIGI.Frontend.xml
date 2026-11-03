@@ -1,0 +1,1379 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OpenIGI.Frontend</name>
+    </assembly>
+    <members>
+        <member name="T:OpenIGI.Frontend.IShellHost">
+            <summary>
+            What the shell asks of the application it runs inside: starting a mission, quitting, previewing a
+            mission behind the menu, and persisting settings.
+            </summary>
+            <remarks>
+            The shell is backend-free and holds no window, device or game loop, so everything that needs those
+            goes through this seam, which the desktop composition root implements. It is the same shape as the
+            existing menu host's <c>StartGame</c>/quit hooks, widened for the cinematic shell's needs.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.IShellHost.StartMission(System.Int32,System.Int32)">
+            <summary>Leaves the shell and starts a mission at a difficulty.</summary>
+            <param name="missionId">The mission to start.</param>
+            <param name="difficulty">The difficulty index to start at.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.IShellHost.SetMissionConditions(OpenIGI.Rendering.MissionConditions)">
+            <summary>Sets the conditions the campaign is played under, from this mission onwards.</summary>
+            <param name="conditions">The hour missions open at and the weather they are played in.</param>
+            <remarks>
+            Separate from <see cref="M:OpenIGI.Frontend.IShellHost.StartMission(System.Int32,System.Int32)"/> because the choice outlives the mission it was made
+            beside: it is the campaign's, and the app holds it until the player changes it again. Told as it
+            is chosen rather than on the way into a level so that the mission previewed behind the menu can
+            show the hour the player has just asked for.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.IShellHost.ResumeMission">
+            <summary>Closes the pause menu and lets the mission underneath run on.</summary>
+            <remarks>
+            The pause menu is the shell drawn over a level that is still loaded and simply not being ticked, so
+            resuming is the app dropping the menu — nothing is reloaded and nothing is placed again.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.IShellHost.RestartMission">
+            <summary>Restarts the mission the pause menu is open over, from its beginning.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.IShellHost.AbandonMission">
+            <summary>Abandons the mission the pause menu is open over and returns the shell to the front end.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.IShellHost.Quit">
+            <summary>Closes the game.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.IShellHost.SwitchTitle(System.String)">
+            <summary>Asks the app to run a different game.</summary>
+            <param name="titleId">The title's id, as <c>GameTitle.Id</c> gives it.</param>
+            <returns><see langword="false"/> when nothing will happen — it is already running, or not installed.</returns>
+            <remarks>
+            The shell says which game the player picked and nothing more. Whether it can be run, when the
+            swap actually happens and what has to be torn down first are all the app's, and the swap does not
+            take effect on this call: the app takes it up at a frame boundary, because the shell asking for
+            it is itself being drawn out of the things a switch replaces.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.IShellHost.PreviewMission(System.Nullable{System.Int32})">
+            <summary>Asks the app to show a mission's level behind the menu, or none.</summary>
+            <param name="missionId">The mission to preview, or <see langword="null"/> to show the default showcase.</param>
+            <remarks>
+            The app streams the level on a worker thread and moves the showcase camera to it; the shell only
+            says which mission the player is looking at. Called as the campaign selection changes.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.IShellHost.SaveSettings">
+            <summary>Persists the current settings (the CVar archive), e.g. on leaving the settings screen.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.IShellHost.SaveProfiles">
+            <summary>Persists player profiles and their profile-bound progress immediately.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.IShellHost.CustomizeTouchControls">
+            <summary>Enters the interactive drag-and-drop HUD on-screen controls customizer.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.IShellHost.TouchOpacity">
+            <summary>Gets or sets the on-screen touch controls opacity.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.IShellHost.TouchSensitivity">
+            <summary>Gets or sets the general touch sensitivity multiplier for swipe look and stick movement.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.IShellHost.RenderScaleMode">
+            <summary>Gets or sets the internal graphics rendering scale (0 = Performance 720p, 1 = Balanced 900p, 2 = Native).</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.IShellHost.InputBindingLabel(System.String)">
+            <summary>Names a control for the current title, or returns null when that control belongs to another title.</summary>
+            <param name="action">The stored profile action.</param>
+            <returns>The visible label, or null.</returns>
+        </member>
+        <member name="M:OpenIGI.Frontend.IShellHost.ResetInputBindings(OpenIGI.Game.Config.PlayerProfile)">
+            <summary>Restores the active title's control defaults.</summary>
+            <param name="profile">The profile being edited.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.IShellHost.MissionSaves">
+            <summary>Gets the running mission's own save games, for a title that keeps them, or <see langword="null"/>.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.IShellHost.PlayedMods">
+            <summary>Gets the mods that change play the running title is played with, which a save slot records.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.IShellHost.CaptureThumbnail(System.Int32@,System.Int32@)">
+            <summary>Captures the current frame for a save-slot thumbnail.</summary>
+            <param name="width">Receives the capture width.</param>
+            <param name="height">Receives the capture height.</param>
+            <returns>The captured pixels, or an empty array when no capture is available.</returns>
+        </member>
+        <member name="M:OpenIGI.Frontend.IShellHost.SettingUnavailable(System.String)">
+            <summary>Says why a setting cannot take effect on this machine, or nothing when it can.</summary>
+            <param name="variable">The console variable the setting's row drives.</param>
+            <returns>The reason, for the row's tooltip; empty when the setting works here.</returns>
+            <remarks>
+            For the settings that depend on hardware or an optional download -- NVIDIA's features -- and for the
+            ones another setting takes over, such as the render scale while DLSS chooses the render size. The
+            row stays visible and is greyed out, so the player learns the option exists and what it needs.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.IShellHost.DisplayResolutions">
+            <summary>Lists the resolutions the display the game is on offers, largest first.</summary>
+            <returns>The sizes; empty where the host cannot say, and the settings page then offers only the desktop's.</returns>
+        </member>
+        <member name="T:OpenIGI.Frontend.MissionInfo">
+            <summary>
+            A mission resolved for the shell to show: its id and its display strings, already looked up from the
+            language table so a screen needs no string resolution of its own.
+            </summary>
+            <param name="Id">The mission id, as passed to start it.</param>
+            <param name="Number">The mission's ordinal for display, 1-based.</param>
+            <param name="Name">The resolved display name.</param>
+            <param name="Description">The resolved description or briefing text.</param>
+            <param name="BriefingSprite">The briefing sprite resource name, e.g. <c>mission1.spr</c>.</param>
+            <param name="Campaign">
+            The campaign the mission is one of: <see langword="null"/> for the game's own, which the profile's progress unlocks, or a
+            mod's, whose missions are all open.
+            </param>
+        </member>
+        <member name="M:OpenIGI.Frontend.MissionInfo.#ctor(System.Int32,System.Int32,System.String,System.String,System.String,System.String)">
+            <summary>
+            A mission resolved for the shell to show: its id and its display strings, already looked up from the
+            language table so a screen needs no string resolution of its own.
+            </summary>
+            <param name="Id">The mission id, as passed to start it.</param>
+            <param name="Number">The mission's ordinal for display, 1-based.</param>
+            <param name="Name">The resolved display name.</param>
+            <param name="Description">The resolved description or briefing text.</param>
+            <param name="BriefingSprite">The briefing sprite resource name, e.g. <c>mission1.spr</c>.</param>
+            <param name="Campaign">
+            The campaign the mission is one of: <see langword="null"/> for the game's own, which the profile's progress unlocks, or a
+            mod's, whose missions are all open.
+            </param>
+        </member>
+        <member name="P:OpenIGI.Frontend.MissionInfo.Id">
+            <summary>The mission id, as passed to start it.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.MissionInfo.Number">
+            <summary>The mission's ordinal for display, 1-based.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.MissionInfo.Name">
+            <summary>The resolved display name.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.MissionInfo.Description">
+            <summary>The resolved description or briefing text.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.MissionInfo.BriefingSprite">
+            <summary>The briefing sprite resource name, e.g. <c>mission1.spr</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.MissionInfo.Campaign">
+            <summary>
+            The campaign the mission is one of: <see langword="null"/> for the game's own, which the profile's progress unlocks, or a
+            mod's, whose missions are all open.
+            </summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Saves.SaveSlot">
+            <summary>
+            One save-game slot: which profile saved it, how far it had reached, when, and the screenshot taken
+            at the moment of saving.
+            </summary>
+            <remarks>
+            This is the port's own save-slot record, distinct from the retail profile surface. A retail profile
+            carries only the furthest mission reached; a save slot is a named, timestamped, illustrated point the
+            player can return to, which is what the shell's Profiles/saves screen presents. It never touches the
+            retail <c>config.qvm</c> — slots live in the port's own directory.
+            </remarks>
+            <param name="Slot">The zero-based slot index.</param>
+            <param name="ProfileName">The name of the profile the save belongs to.</param>
+            <param name="MissionId">The mission the save is at.</param>
+            <param name="MissionName">The mission's resolved display name, stored so the list needs no lookup.</param>
+            <param name="SavedAt">When the save was written.</param>
+            <param name="ScreenshotFile">The screenshot file name relative to the saves directory, or null.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Saves.SaveSlot.#ctor(System.Int32,System.String,System.Int32,System.String,System.DateTimeOffset,System.String)">
+            <summary>
+            One save-game slot: which profile saved it, how far it had reached, when, and the screenshot taken
+            at the moment of saving.
+            </summary>
+            <remarks>
+            This is the port's own save-slot record, distinct from the retail profile surface. A retail profile
+            carries only the furthest mission reached; a save slot is a named, timestamped, illustrated point the
+            player can return to, which is what the shell's Profiles/saves screen presents. It never touches the
+            retail <c>config.qvm</c> — slots live in the port's own directory.
+            </remarks>
+            <param name="Slot">The zero-based slot index.</param>
+            <param name="ProfileName">The name of the profile the save belongs to.</param>
+            <param name="MissionId">The mission the save is at.</param>
+            <param name="MissionName">The mission's resolved display name, stored so the list needs no lookup.</param>
+            <param name="SavedAt">When the save was written.</param>
+            <param name="ScreenshotFile">The screenshot file name relative to the saves directory, or null.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlot.Slot">
+            <summary>The zero-based slot index.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlot.ProfileName">
+            <summary>The name of the profile the save belongs to.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlot.MissionId">
+            <summary>The mission the save is at.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlot.MissionName">
+            <summary>The mission's resolved display name, stored so the list needs no lookup.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlot.SavedAt">
+            <summary>When the save was written.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlot.ScreenshotFile">
+            <summary>The screenshot file name relative to the saves directory, or null.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlot.Mods">
+            <summary>Gets the mods that change play the slot was saved with, or <see langword="null"/> for a slot saved before any were recorded.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Saves.SaveSlotStore">
+            <summary>
+            Reads and writes the port's profile-scoped save slots — a small JSON manifest beside a PNG screenshot
+            per slot — in a directory of the port's own, never the game installation.
+            </summary>
+            <remarks>
+            <para>
+            This is a new, self-contained format rather than an extension of the retail config: a JSON array of
+            <see cref="T:OpenIGI.Frontend.Saves.SaveSlot"/> in <c>saves.json</c>, and a profile-qualified <c>slot-N-*.png</c> next to it
+            holding the frame the save was taken on. Keeping it separate means it can grow (more per-slot detail, a thumbnail size
+            change) without any risk to the byte-compatible <c>config.qvm</c> the profile system guards.
+            </para>
+            <para>
+            Load is defensive: a missing or corrupt manifest is an empty slot list, never a throw out of a
+            constructor, so a hand-edited or partially-written file cannot stop the shell opening.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.Saves.SaveSlotStore.#ctor(System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Saves.SaveSlotStore"/> class and loads any manifest.</summary>
+            <param name="directory">The directory slots and screenshots live in; created on first save.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="directory"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlotStore.Slots">
+            <summary>Gets the slots currently known, ordered by slot index.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlotStore.Directory">
+            <summary>Gets the directory slots are stored in.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Saves.SaveSlotStore.Reload">
+            <summary>Re-reads the manifest from disk, replacing the in-memory list.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Saves.SaveSlotStore.Find(System.Int32)">
+            <summary>Finds the first slot by index.</summary>
+            <remarks>Kept for callers that predate profile-scoped slots; new UI code should include the profile.</remarks>
+            <param name="slot">The slot index.</param>
+            <returns>The slot, or <see langword="null"/> when it is empty.</returns>
+        </member>
+        <member name="M:OpenIGI.Frontend.Saves.SaveSlotStore.Find(System.String,System.Int32)">
+            <summary>Finds a slot belonging to a particular profile.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Saves.SaveSlotStore.Save(System.Int32,System.String,System.Int32,System.String,System.DateTimeOffset,System.ReadOnlySpan{OpenIGI.Core.Graphics.Bgra32},System.Int32,System.Int32,System.Collections.Generic.IReadOnlyList{OpenIGI.Core.Content.ModReference})">
+            <summary>Writes a slot, replacing any existing one at the same index, with its screenshot.</summary>
+            <param name="slot">The slot index.</param>
+            <param name="profileName">The profile the save belongs to.</param>
+            <param name="missionId">The mission the save is at.</param>
+            <param name="missionName">The mission's display name.</param>
+            <param name="savedAt">When the save was written.</param>
+            <param name="screenshot">The captured frame, or empty to save without one.</param>
+            <param name="width">The screenshot width in pixels.</param>
+            <param name="height">The screenshot height in pixels.</param>
+            <param name="mods">The mods that change play the save was made with; none by default.</param>
+            <returns>The written slot.</returns>
+            <exception cref="T:System.ArgumentException">The screenshot is non-empty but shorter than <paramref name="width"/>×<paramref name="height"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.Frontend.Saves.SaveSlotStore.Delete(System.Int32)">
+            <summary>Deletes a slot and its screenshot.</summary>
+            <param name="slot">The slot index.</param>
+            <returns><see langword="true"/> when a slot was removed.</returns>
+        </member>
+        <member name="M:OpenIGI.Frontend.Saves.SaveSlotStore.Delete(System.String,System.Int32)">
+            <summary>Deletes a specific profile's slot and screenshot.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Saves.SaveSlotStore.DeleteByProfile(System.String)">
+            <summary>Deletes every slot belonging to a player profile, including their screenshots.</summary>
+            <param name="profileName">The profile name to remove saves for.</param>
+            <returns>The number of removed slots.</returns>
+        </member>
+        <member name="M:OpenIGI.Frontend.Saves.SaveSlotStore.ScreenshotPath(OpenIGI.Frontend.Saves.SaveSlot)">
+            <summary>Gets the absolute path of a slot's screenshot, or null when it has none.</summary>
+            <param name="slot">The slot.</param>
+            <returns>The screenshot path, or <see langword="null"/>.</returns>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlotStore.SaveSlotJsonContext.ModReference">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlotStore.SaveSlotJsonContext.SaveSlot">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlotStore.SaveSlotJsonContext.SaveSlotArray">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlotStore.SaveSlotJsonContext.IReadOnlyListModReference">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlotStore.SaveSlotJsonContext.DateTimeOffset">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlotStore.SaveSlotJsonContext.Int32">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlotStore.SaveSlotJsonContext.String">
+            <summary>
+            Defines the source generated JSON serialization contract metadata for a given type.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlotStore.SaveSlotJsonContext.Default">
+            <summary>
+            The default <see cref="T:System.Text.Json.Serialization.JsonSerializerContext"/> associated with a default <see cref="T:System.Text.Json.JsonSerializerOptions"/> instance.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Saves.SaveSlotStore.SaveSlotJsonContext.GeneratedSerializerOptions">
+            <summary>
+            The source-generated options associated with this context.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Saves.SaveSlotStore.SaveSlotJsonContext.#ctor">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Saves.SaveSlotStore.SaveSlotJsonContext.#ctor(System.Text.Json.JsonSerializerOptions)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Saves.SaveSlotStore.SaveSlotJsonContext.GetTypeInfo(System.Type)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.CampaignScreen">
+            <summary>
+            Authentic Project I.G.I. 1 "Select Mission" screen:
+            Direct replica of the classic mission selection dialog featuring mission thumbnail frame,
+            objective text box, scrollable mission list with solid green active selection, and OK/Cancel actions.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.CampaignScreen.#ctor(OpenIGI.Frontend.ShellContext)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Screens.CampaignScreen"/> class.</summary>
+            <param name="context">The shared shell context.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.CampaignScreen.HasChrome">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.CampaignScreen.Tab">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.CampaignScreen.BackdropBlur">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.CampaignScreen.BuildContent(OpenIGI.UI.Layout.LayoutContext)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.CampaignScreen.HandleInput(OpenIGI.UI.Focus.UiNavigation,OpenIGI.Input.InputState)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.TacticalWireframeBox">
+            <summary>
+            Tactical wireframe viewfinder frame for mission visual preview with authentic screenshot display.
+            </summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.CheatsScreen">
+            <summary>
+            Authentic Project I.G.I. 1 "Cheats" screen:
+            Replaces the legacy profile menu, providing instant toggles for:
+            1. Unlimited Ammo
+            2. No Damage (Invulnerability)
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.CheatsScreen.#ctor(OpenIGI.Frontend.ShellContext)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Screens.CheatsScreen"/> class.</summary>
+            <param name="context">The shared shell context.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.CheatsScreen.HasChrome">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.CheatsScreen.Tab">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.CheatsScreen.BackdropBlur">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.CheatsScreen.BuildContent(OpenIGI.UI.Layout.LayoutContext)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.CheatsScreen.HandleInput(OpenIGI.UI.Focus.UiNavigation,OpenIGI.Input.InputState)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.ControlsSettingsTab">
+            <summary>
+            The settings page's Controls category: the mouse, then every key binding of the active profile, which
+            it rebinds in place and persists as retail input symbols.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ControlsSettingsTab.Build(OpenIGI.Frontend.ShellContext,OpenIGI.UI.Widgets.UiTheme,System.Action@)">
+            <summary>Builds the category's groups.</summary>
+            <param name="context">The shared shell context.</param>
+            <param name="theme">The theme.</param>
+            <param name="resetBindings">What puts the bindings back to their defaults, for R; null without an active profile.</param>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.CvarGroupBuilder">
+            <summary>
+            The categories made straight from variables — Audio, and the variables of Gameplay — grouped by the word
+            after their prefix, so <c>g_ragdoll_force</c> and <c>g_ragdoll_gravity</c> share a Ragdoll panel.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.CvarGroupBuilder.CvarGroups(OpenIGI.Frontend.Screens.SettingsRowBuilder,OpenIGI.UI.Widgets.UiTheme,System.Collections.Generic.IReadOnlyList{System.String},System.String)">
+            <summary>The variables a list of names binds to, grouped by the word after their prefix.</summary>
+            <param name="rowBuilder">What the rows are built with.</param>
+            <param name="theme">The theme.</param>
+            <param name="names">The variable names, in the order the rows are wanted.</param>
+            <param name="fallback">The group a variable goes in when no other shares its word.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.CvarGroupBuilder.CvarRows(OpenIGI.Frontend.Screens.SettingsRowBuilder,OpenIGI.UI.Widgets.UiTheme,System.Collections.Generic.IReadOnlyList{System.String})">
+            <summary>A row per variable that can be bound, captioned from its name and explained by its own help.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.CvarGroupBuilder.NamesWithPrefix(OpenIGI.Core.Configuration.CVarRegistry,System.String)">
+            <summary>The names of every visible variable that starts with a prefix, in registration order.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.CvarGroupBuilder.GameplayNames(OpenIGI.Core.Configuration.CVarRegistry)">
+            <summary>The names of every visible gameplay (<c>g_</c>) and interface (<c>ui_</c>) variable.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.CvarGroupBuilder.GroupWord(System.String)">
+            <summary>The word that groups a variable: <c>g_ragdoll_force</c> groups under <c>ragdoll</c>.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.DisplaySettingsTab">
+            <summary>The settings page's Display category: its rows, in <see cref="P:OpenIGI.Frontend.Settings.GraphicsMenu.DisplaySettings"/>'s order.</summary>
+            <remarks>
+            Two of them are lists this page builds, because their variables' types do not spell the choices out:
+            the resolutions the display offers, and the frame-rate caps.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.DisplaySettingsTab.Build(OpenIGI.Frontend.Screens.SettingsRowBuilder,OpenIGI.UI.Widgets.UiTheme)">
+            <summary>Builds the category's rows.</summary>
+            <param name="rowBuilder">What the rows are built with; its lookup goes through the draft.</param>
+            <param name="theme">The theme.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.DisplaySettingsTab.ChoiceRow(OpenIGI.Frontend.Screens.SettingsRowBuilder,OpenIGI.UI.Widgets.UiTheme,OpenIGI.Frontend.Settings.GraphicsSetting,System.Collections.Generic.IReadOnlyList{System.ValueTuple{System.String,System.String}})">
+            <summary>A row choosing among a list of a variable's values, and the variable; nulls where it is not registered.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.DisplaySettingsTab.ResolutionChoices(OpenIGI.Frontend.ShellContext)">
+            <summary>The desktop's own resolution, then every one the display offers, largest first.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.DisplaySettingsTab.FrameRateCapChoices">
+            <summary>No cap, then the caps <see cref="P:OpenIGI.Frontend.Settings.GraphicsMenu.FrameRateCaps"/> offers.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.ExtrasScreen">
+            <summary>
+            The extras section: the credits, and the developer-facing toggles — the benchmark overlay and the
+            reminders for photo mode and the console.
+            </summary>
+            <remarks>
+            The benchmark toggle binds the existing <c>r_perflog</c> CVar, which already measures and reports the
+            per-pass GPU timings, so "benchmark reporting per-pass timings" is the switch for a facility the
+            renderer provides. Photo mode and the developer console are reached with the keys the game already
+            binds; the screen points to them rather than duplicating them.
+            <para>
+            The player cheats sit behind two switches, so they are never one click away: "Developer mode" shows
+            the section, "Enable cheats" shows the controls and puts them in force. None of them is saved.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ExtrasScreen.#ctor(OpenIGI.Frontend.ShellContext)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Screens.ExtrasScreen"/> class.</summary>
+            <param name="context">The shared shell context.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ExtrasScreen.Tab">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ExtrasScreen.BuildContent(OpenIGI.UI.Layout.LayoutContext)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ExtrasScreen.Group(OpenIGI.UI.Widgets.UiTheme,System.String)">
+            <summary>A group of the page: a glass panel holding a heading and its rows.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ExtrasScreen.Row(OpenIGI.UI.UiElement)">
+            <summary>A settings row widened into the panel's padding, so its hover wash reaches the panel's edge as the design's does.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ExtrasScreen.OnEnter">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ExtrasScreen.OnExit">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.GameplaySettingsTab">
+            <summary>The settings page's Gameplay category, with the interface and effect options that are not quality levels.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.GameplaySettingsTab.Build(OpenIGI.Frontend.Screens.SettingsRowBuilder,OpenIGI.UI.Widgets.UiTheme)">
+            <summary>Builds the category's groups.</summary>
+            <param name="rowBuilder">What the rows are built with.</param>
+            <param name="theme">The theme.</param>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.GraphicsSettingsTab">
+            <summary>The settings page's Graphics category: the preset first, then a group per subject.</summary>
+            <remarks>
+            A row's tooltip still names the variables it drives, because that is the handle somebody needs to go
+            further with it from the console, and the console is the only advanced interface there is.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.GraphicsSettingsTab.Build(OpenIGI.Frontend.Screens.SettingsRowBuilder,OpenIGI.UI.Widgets.UiTheme,OpenIGI.Frontend.Settings.SettingsDraft)">
+            <summary>Builds the category's groups.</summary>
+            <param name="rowBuilder">What the rows are built with; its lookup goes through the draft.</param>
+            <param name="theme">The theme.</param>
+            <param name="draft">The draft the preset row stages whole presets in.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.GraphicsSettingsTab.BuildPresetControl(OpenIGI.Frontend.Screens.SettingsRowBuilder,OpenIGI.UI.Widgets.UiTheme,OpenIGI.Frontend.Settings.SettingsDraft)">
+            <summary>The preset row: stages a whole preset in the draft, and reads which one the draft amounts to.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.IgiLogo">
+            <summary>
+            Authentic Project I.G.I. 1 title logo: "PROJECT I.G.I. V1.0".
+            Uses the original 3D embossed logo sprite from the game assets if available, or renders crisp authentic vector text.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.IgiLogo.#ctor(OpenIGI.UI.Widgets.UiTheme)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Screens.IgiLogo"/> class.</summary>
+            <param name="theme">The UI theme.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.IgiLogo.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.IgiLogo.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.IgiBorderedBox">
+            <summary>
+            A panel with an authentic Project I.G.I. green border and semi-transparent dark background.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.IgiBorderedBox.BorderColor">
+            <summary>Gets or sets the border line color.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.IgiBorderedBox.BackgroundColor">
+            <summary>Gets or sets the background fill color.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.IgiBorderedBox.StrokeWidth">
+            <summary>Gets or sets the border stroke width.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.IgiBorderedBox.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.IgiTacticalFrame">
+            <summary>
+            Authentic Project I.G.I. 1 wireframe tactical container box with a green border and header band.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.IgiTacticalFrame.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Screens.IgiTacticalFrame"/> class.</summary>
+            <param name="theme">The UI theme.</param>
+            <param name="title">Header title.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.IgiTacticalFrame.Title">
+            <summary>Gets or sets the frame title.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.IgiTacticalFrame.HeaderHeight">
+            <summary>Gets or sets the header bar height in design units.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.IgiTacticalFrame.BorderColor">
+            <summary>Gets or sets the border line color.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.IgiTacticalFrame.BackgroundColor">
+            <summary>Gets or sets the background fill color.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.IgiTacticalFrame.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.IgiTacticalFrame.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.IgiMenuButton">
+            <summary>
+            Authentic Project I.G.I. 1 menu button: glowing green text that highlights bright white-green on hover/focus.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.IgiMenuButton.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Screens.IgiMenuButton"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <param name="text">The button text.</param>
+        </member>
+        <member name="E:OpenIGI.Frontend.Screens.IgiMenuButton.Activated">
+            <summary>Occurs when the button is pressed or clicked.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.IgiMenuButton.Text">
+            <summary>Gets or sets the button text.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.IgiMenuButton.TextSize">
+            <summary>Gets or sets text size in design units.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.IgiMenuButton.NormalColor">
+            <summary>Gets or sets text color when normal.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.IgiMenuButton.HoverColor">
+            <summary>Gets or sets text color when hovered or focused.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.IgiMenuButton.PointerBounds">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.IgiMenuButton.Activate">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.IgiMenuButton.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.IgiMenuButton.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.IgiMissionRow">
+            <summary>
+            A single row in the authentic Project I.G.I. 1 mission selector list.
+            When selected, draws a solid bright phosphor green rectangle with dark text, matching the original game.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.IgiMissionRow.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Screens.IgiMissionRow"/> class.</summary>
+            <param name="theme">The UI theme.</param>
+            <param name="title">Mission title.</param>
+        </member>
+        <member name="E:OpenIGI.Frontend.Screens.IgiMissionRow.Activated">
+            <summary>Occurs when this mission row is clicked or tapped.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.IgiMissionRow.Title">
+            <summary>Gets the mission title.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.IgiMissionRow.IsSelected">
+            <summary>Gets or sets whether this row is the currently selected mission.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.IgiMissionRow.PointerBounds">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.IgiMissionRow.Activate">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.IgiMissionRow.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.IgiMissionRow.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.MainMenuScreen">
+            <summary>
+            Authentic Project I.G.I. 1 Main Menu:
+            Displays the classic Project I.G.I. logo, dark tactical background, and a green wireframe panel
+            with "Play Project IGI", "Configuration", and "Quit" options.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.MainMenuScreen.#ctor(OpenIGI.Frontend.ShellContext)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Screens.MainMenuScreen"/> class.</summary>
+            <param name="context">The shared shell context.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.MainMenuScreen.HasChrome">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.MainMenuScreen.Tab">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.MainMenuScreen.BackdropBlur">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.MainMenuScreen.BuildContent(OpenIGI.UI.Layout.LayoutContext)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.MainMenuScreen.OnEnter">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.MissionFailedScreen">
+            <summary>
+            Authentic Project I.G.I. 1 "Mission Failed" screen:
+            Tactical debriefing dialog presented upon player death or objective failure.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.MissionFailedScreen.#ctor(OpenIGI.Frontend.ShellContext)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Screens.MissionFailedScreen"/> class.</summary>
+            <param name="context">The shared shell context.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.MissionFailedScreen.HasChrome">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.MissionFailedScreen.Tab">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.MissionFailedScreen.BackdropBlur">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.MissionFailedScreen.BuildContent(OpenIGI.UI.Layout.LayoutContext)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.MissionFailedScreen.HandleInput(OpenIGI.UI.Focus.UiNavigation,OpenIGI.Input.InputState)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.MissionSavesScreen">
+            <summary>
+            The running mission's own save games, opened from the pause menu for a title that keeps them: its slots as tiles, what each holds,
+            and how many saves the mission still allows. Saving writes the slot and stays; loading puts the mission back and resumes it.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.MissionSavesScreen.#ctor(OpenIGI.Frontend.ShellContext,OpenIGI.Game.Player.ITitleSaveGames,System.Boolean)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Screens.MissionSavesScreen"/> class.</summary>
+            <param name="context">The shared shell context.</param>
+            <param name="saves">The title's save games.</param>
+            <param name="isSaving">Whether a slot is saved to, rather than loaded from.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.MissionSavesScreen.Tab">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.MissionSavesScreen.Hints">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.MissionSavesScreen.BuildContent(OpenIGI.UI.Layout.LayoutContext)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.MissionSavesScreen.HandleInput(OpenIGI.UI.Focus.UiNavigation,OpenIGI.Input.InputState)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.PanelFluent">
+            <summary>Small fluent helper for one-line child wiring.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.PauseScreen">
+            <summary>
+            Authentic Project I.G.I. 1 "Paused" menu:
+            Centered green wireframe tactical dialog over the suspended mission, offering:
+            Resume, Restart Mission, Customize Controls, Configuration, and Abort Mission.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.PauseScreen.#ctor(OpenIGI.Frontend.ShellContext)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Screens.PauseScreen"/> class.</summary>
+            <param name="context">The shared shell context.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.PauseScreen.HasChrome">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.PauseScreen.Tab">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.PauseScreen.BackdropBlur">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.PauseScreen.BuildContent(OpenIGI.UI.Layout.LayoutContext)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.PauseScreen.HandleInput(OpenIGI.UI.Focus.UiNavigation,OpenIGI.Input.InputState)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.ProfileCard">
+            <summary>
+            A selectable summary card for one player profile: the initial in a square, the name over its difficulty
+            and current mission, and — on the right — ACTIVE for the one in use and a segment per mission unlocked.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ProfileCard.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Screens.ProfileCard"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <param name="name">The profile's name.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ProfileCard.Name">
+            <summary>Gets or sets the profile's name.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ProfileCard.Difficulty">
+            <summary>Gets or sets the profile's difficulty, as a phrase such as "Hard difficulty".</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ProfileCard.Mission">
+            <summary>Gets or sets the profile's current mission.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ProfileCard.Progress">
+            <summary>Gets or sets the profile's campaign progress as a phrase.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ProfileCard.Unlocked">
+            <summary>Gets or sets how many missions the profile has unlocked.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ProfileCard.Total">
+            <summary>Gets or sets how many missions the campaign has.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ProfileCard.Active">
+            <summary>Gets or sets a value indicating whether this is the profile in use.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ProfileCard.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ProfileCard.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.ProfilesScreen">
+            <summary>
+            The player-profile workspace: a campaign-aware profile rail, a selected-profile dossier, and profile-scoped saves.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ProfilesScreen.#ctor(OpenIGI.Frontend.ShellContext)">
+            <summary>Initializes the screen.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ProfilesScreen.Tab">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ProfilesScreen.Hints">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ProfilesScreen.BuildContent(OpenIGI.UI.Layout.LayoutContext)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ProfilesScreen.HandleInput(OpenIGI.UI.Focus.UiNavigation,OpenIGI.Input.InputState)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ProfilesScreen.OnUpdate(System.Single)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.SettingsApplyFlow">
+            <summary>
+            How the settings page's staged categories reach the game: the draft their rows write to, the Apply bar
+            that appears with a change, and the questions over the page -- keep a display mode just applied, or what
+            to do with changes on the way out.
+            </summary>
+            <remarks>
+            Made with the page and kept across its rebuilds -- a resize, a resolution just applied -- so a half-made
+            choice, and a question on screen, survive them. Dropped on leaving.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Frontend.Screens.SettingsApplyFlow.KeepSeconds">
+            <summary>How long a newly applied display mode waits to be kept before it is put back.</summary>
+        </member>
+        <member name="F:OpenIGI.Frontend.Screens.SettingsApplyFlow.DisplayModeVariables">
+            <summary>The variables a change of which can leave the player with no picture they can use, and so has to be kept.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsApplyFlow.#ctor(OpenIGI.Frontend.ShellContext,System.Func{OpenIGI.UI.Focus.FocusManager},System.Action,System.Func{System.Boolean})">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Screens.SettingsApplyFlow"/> class.</summary>
+            <param name="context">The shared shell context.</param>
+            <param name="focus">The page's focus manager, which changes with every build of it.</param>
+            <param name="refreshHints">Puts the page's key hints back in the footer.</param>
+            <param name="isStagedTab">Whether the category on screen holds its changes until Apply.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsApplyFlow.Prompt">
+            <summary>Gets the question on screen, if any.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsApplyFlow.HasChanges">
+            <summary>Gets a value indicating whether the draft holds anything to apply.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsApplyFlow.EnsureDraft">
+            <summary>The draft the staged categories write to, made the first time it is wanted.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsApplyFlow.Discard">
+            <summary>Drops whatever the draft holds.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsApplyFlow.Attach(OpenIGI.UI.UiElement,OpenIGI.UI.Layout.Panel)">
+            <summary>Takes in a new build of the page, and puts the Apply bar and any question back on it.</summary>
+            <param name="page">The page behind a question, which stops taking clicks while one is asked.</param>
+            <param name="promptLayer">The layer over the page that a question goes in.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsApplyFlow.FocusPrompt">
+            <summary>Gives focus back to a question still on screen after a rebuild made a new focus manager.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsApplyFlow.TryMoveFocus(OpenIGI.UI.Focus.NavDirection)">
+            <summary>Holds focus among a question's answers, which sit in a row.</summary>
+            <returns>Whether a question took the move.</returns>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsApplyFlow.HoldDeparture(System.Action)">
+            <summary>Decides whether leaving the page has to wait for an answer first.</summary>
+            <param name="leave">What leaves the page, once it may.</param>
+            <returns>Whether leaving is held.</returns>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsApplyFlow.Update(System.Single)">
+            <summary>Counts a question's time on screen, and answers it the cautious way once that runs out.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsApplyFlow.Exit">
+            <summary>Drops the draft, and whatever was not applied with it, as the page is left.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsApplyFlow.BuildApplyBar(OpenIGI.UI.Widgets.UiTheme)">
+            <summary>The note and the two buttons beside the help line on a staged category.</summary>
+            <remarks>
+            Sized as the category tabs are, not as the page's call-to-action buttons: it is a quiet status that
+            appears with a change and goes with it, rather than two greyed boxes standing by on every page.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsApplyFlow.UpdateApplyBar">
+            <summary>Shows the Apply bar while a staged category has something to apply, and its keys in the footer.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsApplyFlow.Apply(System.Action)">
+            <summary>Writes the draft to the game, then asks for a new display mode to be kept.</summary>
+            <param name="then">What to do once it is applied -- leave the page -- unless a display mode now has to be kept.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsApplyFlow.CreateDraft">
+            <summary>The draft the staged categories write to, which keeps the Apply bar's state.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsApplyFlow.AskToKeep(System.Collections.Generic.List{System.ValueTuple{OpenIGI.Core.Configuration.ICVar,System.String}})">
+            <summary>Asks for a display mode just applied to be kept, and puts it back if it is not.</summary>
+            <param name="previous">Each display variable written, with what it held before.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsApplyFlow.ShowPrompt(OpenIGI.Frontend.Screens.SettingsPrompt)">
+            <summary>Puts a question on screen over the page, or takes it away with <see langword="null"/>.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.SettingsGroup">
+            <summary>A titled run of rows: one glass panel's worth, or the start of one that continues.</summary>
+            <param name="Title">The heading the panel shows.</param>
+            <param name="Rows">The rows under it, in reading order.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsGroup.#ctor(System.String,System.Collections.Generic.List{OpenIGI.UI.Widgets.Control})">
+            <summary>A titled run of rows: one glass panel's worth, or the start of one that continues.</summary>
+            <param name="Title">The heading the panel shows.</param>
+            <param name="Rows">The rows under it, in reading order.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsGroup.Title">
+            <summary>The heading the panel shows.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsGroup.Rows">
+            <summary>The rows under it, in reading order.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsGroup.Of(System.String,System.Collections.Generic.IEnumerable{OpenIGI.UI.Widgets.Control})">
+            <summary>A group of these rows under this title.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.SettingsPromptKind">
+            <summary>What a question on the settings page is about.</summary>
+        </member>
+        <member name="F:OpenIGI.Frontend.Screens.SettingsPromptKind.Leave">
+            <summary>Leaving with changes not applied.</summary>
+        </member>
+        <member name="F:OpenIGI.Frontend.Screens.SettingsPromptKind.Keep">
+            <summary>Keeping a display mode just applied.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.SettingsPromptChoice">
+            <summary>One answer to a question: its button, and what choosing it does.</summary>
+            <param name="Caption">The button's caption.</param>
+            <param name="Accent">How the button is drawn: solid for the answer wanted, ghost for the rest.</param>
+            <param name="Chosen">What choosing it does.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsPromptChoice.#ctor(System.String,OpenIGI.UI.Widgets.ButtonAccent,System.Action)">
+            <summary>One answer to a question: its button, and what choosing it does.</summary>
+            <param name="Caption">The button's caption.</param>
+            <param name="Accent">How the button is drawn: solid for the answer wanted, ghost for the rest.</param>
+            <param name="Chosen">What choosing it does.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsPromptChoice.Caption">
+            <summary>The button's caption.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsPromptChoice.Accent">
+            <summary>How the button is drawn: solid for the answer wanted, ghost for the rest.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsPromptChoice.Chosen">
+            <summary>What choosing it does.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.SettingsPrompt">
+            <summary>A question over the page, and how long it has been asked.</summary>
+            <param name="Kind">What it is about.</param>
+            <param name="Eyebrow">The line above its title.</param>
+            <param name="Title">The question.</param>
+            <param name="Message">What it says under the title, given the seconds it has been on screen.</param>
+            <param name="BackCaption">What back does, for the footer: the last answer, the cautious one.</param>
+            <param name="Choices">The answers, the one wanted first.</param>
+            <param name="Expires">After how many seconds back answers it on the player's behalf, or never.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsPrompt.#ctor(OpenIGI.Frontend.Screens.SettingsPromptKind,System.String,System.String,System.Func{System.Single,System.String},System.String,System.Collections.Generic.IReadOnlyList{OpenIGI.Frontend.Screens.SettingsPromptChoice},System.Nullable{System.Single})">
+            <summary>A question over the page, and how long it has been asked.</summary>
+            <param name="Kind">What it is about.</param>
+            <param name="Eyebrow">The line above its title.</param>
+            <param name="Title">The question.</param>
+            <param name="Message">What it says under the title, given the seconds it has been on screen.</param>
+            <param name="BackCaption">What back does, for the footer: the last answer, the cautious one.</param>
+            <param name="Choices">The answers, the one wanted first.</param>
+            <param name="Expires">After how many seconds back answers it on the player's behalf, or never.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsPrompt.Kind">
+            <summary>What it is about.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsPrompt.Eyebrow">
+            <summary>The line above its title.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsPrompt.Title">
+            <summary>The question.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsPrompt.Message">
+            <summary>What it says under the title, given the seconds it has been on screen.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsPrompt.BackCaption">
+            <summary>What back does, for the footer: the last answer, the cautious one.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsPrompt.Choices">
+            <summary>The answers, the one wanted first.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsPrompt.Expires">
+            <summary>After how many seconds back answers it on the player's behalf, or never.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsPrompt.Elapsed">
+            <summary>Gets or sets how many seconds the question has been on screen.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsPrompt.Back">
+            <summary>Answers the question the cautious way: its last answer.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.SettingsRowBuilder">
+            <summary>
+            What every settings category builds its rows with: how a row finds its variable, where the variables a
+            category binds are kept for R to reset, and what ties the rows to the variables they show.
+            </summary>
+            <remarks>
+            One per build of the settings page. The page points <see cref="P:OpenIGI.Frontend.Screens.SettingsRowBuilder.Find"/> and <see cref="P:OpenIGI.Frontend.Screens.SettingsRowBuilder.TabCvars"/> at the
+            category it is about to build, so a staged category's rows bind through the draft and a live one's
+            straight to its variables.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsRowBuilder.#ctor(OpenIGI.Frontend.ShellContext,System.Collections.Generic.List{System.IDisposable},System.Collections.Generic.Dictionary{OpenIGI.UI.Widgets.Control,OpenIGI.Core.Configuration.ICVar})">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Screens.SettingsRowBuilder"/> class.</summary>
+            <param name="context">The shared shell context.</param>
+            <param name="bindings">What ties the page's rows to the variables they show; disposed on every rebuild.</param>
+            <param name="boundCvars">The variable each one-variable row shows, which the help line reads.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsRowBuilder.Context">
+            <summary>Gets the shared shell context.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsRowBuilder.Bindings">
+            <summary>Gets what ties the page's rows to the variables they show.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsRowBuilder.BoundCvars">
+            <summary>Gets the variable each one-variable row shows.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsRowBuilder.Find">
+            <summary>Gets or sets how the rows being built find their variables: through the draft on a staged category.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsRowBuilder.TabCvars">
+            <summary>Gets or sets the variables the category being built binds, which R puts back to their defaults.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsRowBuilder.Unavailable(System.Collections.Generic.IReadOnlyList{System.String})">
+            <summary>Why the first of these variables that cannot take effect here cannot, as a tooltip lead.</summary>
+            <param name="names">The variables a row drives.</param>
+            <returns>"Unavailable: reason." and a blank line, or empty when every one of them works here.</returns>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsRowBuilder.NamesRequiringRestart(System.Collections.Generic.IReadOnlyList{System.String})">
+            <summary>Whether any of these variables only takes effect on the next level load.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsRowBuilder.SettingRows(OpenIGI.UI.Widgets.UiTheme,System.Collections.Generic.IReadOnlyList{OpenIGI.Frontend.Settings.GraphicsSetting})">
+            <summary>A row per setting, captioned and explained in the page's own words.</summary>
+            <remarks>
+            Deliberately not <see cref="M:OpenIGI.Frontend.Screens.CvarGroupBuilder.CvarRows(OpenIGI.Frontend.Screens.SettingsRowBuilder,OpenIGI.UI.Widgets.UiTheme,System.Collections.Generic.IReadOnlyList{System.String})"/>, which captions from the variable name and explains from the
+            variable's own help — text written for the console. The variable name still ends the tooltip, as the
+            handle for going further from the console.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsRowBuilder.DescribeRow(OpenIGI.UI.Widgets.Control,OpenIGI.Core.Configuration.ICVar,OpenIGI.Frontend.Settings.GraphicsSetting)">
+            <summary>Greys a row out where its setting cannot take effect, and gives it its help.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsRowBuilder.WhileShown(System.String,System.Action)">
+            <summary>Runs an action whenever a variable changes, for as long as this build of the page is shown.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsRowBuilder.TrackForReset(System.Collections.Generic.IReadOnlyList{System.String})">
+            <summary>Counts these variables among the category's, for R to put back.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.SettingsScreen">
+            <summary>
+            Authentic Project I.G.I. 1 "Configuration" screen:
+            Stripped of all unnecessary modifications, providing ONLY the requested options:
+            1. Touch controls customization (drag-and-drop position, pinch-and-zoom resize, size +/-)
+            2. Controls alpha slider
+            3. Max frame rate (FPS cap: 30, 60, 90, 120, Uncapped)
+            4. Invert mouse/look pitch toggle
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsScreen.#ctor(OpenIGI.Frontend.ShellContext)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Screens.SettingsScreen"/> class.</summary>
+            <param name="context">The shared shell context.</param>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsScreen.HasChrome">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsScreen.Tab">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.SettingsScreen.BackdropBlur">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsScreen.BuildContent(OpenIGI.UI.Layout.LayoutContext)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.SettingsScreen.HandleInput(OpenIGI.UI.Focus.UiNavigation,OpenIGI.Input.InputState)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.ShellTab">
+            <summary>Which top-level section of the shell a screen is.</summary>
+        </member>
+        <member name="F:OpenIGI.Frontend.Screens.ShellTab.Home">
+            <summary>The landing page — the bar over the showcase, nothing selected.</summary>
+        </member>
+        <member name="F:OpenIGI.Frontend.Screens.ShellTab.Campaign">
+            <summary>The campaign / mission select.</summary>
+        </member>
+        <member name="F:OpenIGI.Frontend.Screens.ShellTab.Settings">
+            <summary>The settings.</summary>
+        </member>
+        <member name="F:OpenIGI.Frontend.Screens.ShellTab.Profile">
+            <summary>Profiles and saves.</summary>
+        </member>
+        <member name="F:OpenIGI.Frontend.Screens.ShellTab.Extras">
+            <summary>The extras.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.ShellScreen">
+            <summary>
+            The common frame every shell page shares: a header across the top — the game switcher, the section tabs
+            between their Q and E keys, the operative and Quit — a footer of key hints across the bottom, and the
+            page's own content between them.
+            </summary>
+            <remarks>
+            <para>
+            Navigation is by <em>replacement</em>, not a stack: selecting a tab resets the shell to that section,
+            so there is only ever one page on screen. The header and footer are the page's chrome: drawn outside the
+            page's fade, so they hold still while one page gives way to the next. Back returns to the home page.
+            </para>
+            <para>
+            The title doubles as the game selector, opening a list of the titles the shell knows about: the name at
+            the top left <em>is</em> the statement of which game is running.
+            </para>
+            <para>
+            Behind it all is the level, blurred (<see cref="P:OpenIGI.Frontend.Screens.ShellScreen.BackdropBlur"/>) and vignetted by
+            <see cref="M:OpenIGI.Frontend.Shell.DrawBackdrop(OpenIGI.UI.UiPainter)"/>; the home page leaves it sharp, because there the level is the point.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Frontend.Screens.ShellScreen.HeaderHeight">
+            <summary>The header's height, in design units.</summary>
+        </member>
+        <member name="F:OpenIGI.Frontend.Screens.ShellScreen.FooterHeight">
+            <summary>The footer's height, in design units.</summary>
+        </member>
+        <member name="F:OpenIGI.Frontend.Screens.ShellScreen.SideMargin">
+            <summary>The margin either side of the header, footer and pages, in design units.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ShellScreen.#ctor(OpenIGI.Frontend.ShellContext)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Screens.ShellScreen"/> class.</summary>
+            <param name="context">The shared shell context.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ShellScreen.BackdropBlur">
+            <summary>Gets how blurred the level behind the page is, in design units; zero leaves it sharp.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ShellScreen.BackdropScale">
+            <summary>Gets the scale the level behind the page is drawn at, for a page that animates it.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ShellScreen.Context">
+            <summary>Gets the shared shell context.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ShellScreen.Tab">
+            <summary>Gets which section this page is, for the selected tab.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ShellScreen.Hints">
+            <summary>Gets the key hints the footer shows on this page.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ShellScreen.Chrome">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ShellScreen.BuildContent(OpenIGI.UI.Layout.LayoutContext)">
+            <summary>Builds the page's content, laid out between the header and the footer, or <see langword="null"/> for none.</summary>
+            <param name="context">The layout context.</param>
+            <returns>The content element, or <see langword="null"/>.</returns>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ShellScreen.RefreshHints">
+            <summary>Replaces the footer's hints, for a page whose keys change as it is used.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.Screens.ShellScreen.HasChrome">
+            <summary>Gets a value indicating whether this screen includes the top header and footer chrome.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ShellScreen.BuildRoot(OpenIGI.UI.Layout.LayoutContext)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ShellScreen.HandleInput(OpenIGI.UI.Focus.UiNavigation,OpenIGI.Input.InputState)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ShellScreen.GoTo(OpenIGI.Frontend.Screens.ShellTab)">
+            <summary>Switches to another section.</summary>
+            <param name="tab">The section.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ShellScreen.HoldDeparture(System.Action)">
+            <summary>Lets the page hold the player on it before they leave for another section.</summary>
+            <param name="leave">Leaves, as asked; the page calls it later if it holds the player now.</param>
+            <returns>
+            <see langword="true"/> when the page has taken the departure over -- to ask about changes it has not
+            applied -- and <paramref name="leave"/> has not run; <see langword="false"/> to leave straight away.
+            </returns>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ShellScreen.ShortName(System.String)">
+            <summary>A game's name without its subtitle: <c>I.G.I. 2: Covert Strike</c> is <c>I.G.I. 2</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ShellScreen.Tagline(System.String,System.String)">
+            <summary>A game's tagline, set under its name in the switcher.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.ShellScreen.EdgePanel">
+            <summary>A transparent bar with a hairline along one edge: the header's bottom, the footer's top.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.ShellScreen.EdgePanel.#ctor(System.Boolean)">
+            <summary>A transparent bar with a hairline along one edge: the header's bottom, the footer's top.</summary>
+        </member>
+        <member name="T:OpenIGI.Frontend.Screens.Unsubscribe">
+            <summary>Runs its action once, on the first dispose.</summary>
+            <param name="action">What unhooks the subscription it stands for.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.Unsubscribe.#ctor(System.Action)">
+            <summary>Runs its action once, on the first dispose.</summary>
+            <param name="action">What unhooks the subscription it stands for.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Screens.Unsubscribe.Dispose">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Frontend.Shell">
+            <summary>
+            The cinematic shell: the screen stack rooted at the main menu, driven each frame by the application.
+            </summary>
+            <remarks>
+            The composition root builds one <see cref="T:OpenIGI.Frontend.Shell"/> with a theme, the application seam
+            (<see cref="T:OpenIGI.Frontend.IShellHost"/>) and the game data, then calls <see cref="M:OpenIGI.Frontend.Shell.Update(OpenIGI.UI.Layout.LayoutContext,OpenIGI.Input.InputState,System.Single)"/> and <see cref="M:OpenIGI.Frontend.Shell.Draw(OpenIGI.UI.UiPainter)"/>
+            while the shell is on screen. The shell owns nothing of the window or device; it draws through a
+            <see cref="T:OpenIGI.UI.UiPainter"/> the app hands it and asks the host for everything it cannot do itself.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Frontend.Shell.Context">
+            <summary>Gets the context the screens share.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Shell.#ctor(OpenIGI.Frontend.ShellContext)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.Shell"/> class rooted at the main menu.</summary>
+            <param name="context">The shared context: theme, host and game data.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.Frontend.Shell.Stack">
+            <summary>Gets the screen stack the shell drives.</summary>
+        </member>
+        <member name="M:OpenIGI.Frontend.Shell.OpenOn(System.String)">
+            <summary>Opens the shell on a named section instead of the landing page.</summary>
+            <param name="tab">The section name — <c>campaign</c>, <c>settings</c>, <c>profile</c> or <c>extras</c>.</param>
+            <returns><see langword="true"/> when the name matched a section.</returns>
+            <remarks>
+            For the composition root's <c>-shelltab</c> development shortcut, which is the cinematic shell's
+            counterpart to <c>-screen</c>: a capture of the campaign or the settings should not need someone to
+            click their way there first. An unknown name leaves the shell on the landing page.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.Shell.OpenPauseMenu">
+            <summary>Opens the shell over a live mission, as the pause menu.</summary>
+            <remarks>
+            The whole stack is replaced rather than pushed onto, because the pause menu is a front end in its
+            own right — the player left the shell when the mission started, and whatever page they were on then
+            is not somewhere Back should walk them to now. It carries the same top bar as every other page, so
+            the settings and the profile are reachable from inside a mission without a second set of screens.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.Shell.OpenMissionFailed">
+            <summary>Opens the shell over a mission the player did not survive, as the failure page.</summary>
+            <remarks>
+            The same door as <see cref="M:OpenIGI.Frontend.Shell.OpenPauseMenu"/>, and for the same reason: the page is a front end in
+            its own right, drawn over the level the body is lying in. It is a page rather than a drawn card so
+            that its choices can be clicked and navigated like every other page, and so the shell's own cursor
+            is the one on screen.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.Shell.ClosePauseMenu">
+            <summary>Tells the shell it is no longer over a live mission.</summary>
+            <remarks>
+            Called when the pause menu is left by any door — resuming, restarting, abandoning, or starting
+            another mission — so the next page the shell builds previews levels again instead of leaving the
+            backdrop alone.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.Shell.Update(OpenIGI.UI.Layout.LayoutContext,OpenIGI.Input.InputState,System.Single)">
+            <summary>Advances the shell for a frame.</summary>
+            <param name="context">The layout context for this frame.</param>
+            <param name="input">The frame's input.</param>
+            <param name="elapsedSeconds">The real seconds since the last update.</param>
+        </member>
+        <member name="M:OpenIGI.Frontend.Shell.DrawBackdrop(OpenIGI.UI.UiPainter)">
+            <summary>Draws what goes behind every page: the level, blurred and pushed in as the page asks, under the design's vignette.</summary>
+            <param name="painter">The painter, whose renderer samples the blurred frame for the level.</param>
+            <remarks>
+            The host calls this after the 3D scene and before <see cref="M:OpenIGI.Frontend.Shell.Draw(OpenIGI.UI.UiPainter)"/>. It is drawn here rather than
+            by a page so it does not fade with a page's transition: switching tabs swaps the page over a backdrop
+            that holds still.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.Shell.Draw(OpenIGI.UI.UiPainter)">
+            <summary>Draws the shell.</summary>
+            <param name="painter">The painter to draw into.</param>
+        </member>
+        <member name="T:OpenIGI.Frontend.ShellContext">
+            <summary>
+            The data and services every shell screen shares: the theme, the host, the game and mission lists, the
+            CVar and preset registries, the profiles and the save slots — plus the stack, so a screen can push
+            the next one.
+            </summary>
+            <remarks>
+            Bundling these into one context passed to every screen keeps each screen's constructor small and
+            means the composition root wires the shell up in exactly one place. Nothing here is a backend type;
+            it is all game data and abstractions, which is what lets the whole shell be built and much of it
+            tested without a device.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Frontend.ShellContext.#ctor(OpenIGI.UI.Widgets.UiTheme,OpenIGI.Frontend.IShellHost,OpenIGI.UI.Screens.ScreenStack,System.Collections.Generic.IReadOnlyList{OpenIGI.Core.Titles.GameProfile},System.String,System.Collections.Generic.IReadOnlyList{OpenIGI.Frontend.MissionInfo},OpenIGI.Core.Configuration.CVarRegistry,OpenIGI.Core.Configuration.Presets.GraphicsPresetRegistry,OpenIGI.Game.Config.GameConfig,OpenIGI.Frontend.Saves.SaveSlotStore)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Frontend.ShellContext"/> class.</summary>
+            <param name="theme">The theme screens draw from.</param>
+            <param name="host">The application seam for actions the shell cannot perform itself.</param>
+            <param name="stack">The screen stack, for pushing further screens.</param>
+            <param name="games">The game titles for the selector.</param>
+            <param name="activeTitleId">The id of the title running now, which is the current entry.</param>
+            <param name="missions">The campaign's missions, resolved for display.</param>
+            <param name="cvars">The CVar registry the settings screen binds to.</param>
+            <param name="presets">The graphics-preset registry.</param>
+            <param name="config">The player-profile configuration.</param>
+            <param name="saves">The save-slot store.</param>
+            <exception cref="T:System.ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.Frontend.ShellContext.InGame">
+            <summary>Gets or sets a value indicating whether the shell is open over a live mission.</summary>
+            <remarks>
+            Set while the shell is being used as the pause menu, and the one thing that tells the screens the
+            backdrop behind them is already the right picture: the level the player is standing in. They ask
+            for no preview while it is set — <see cref="M:OpenIGI.Frontend.IShellHost.PreviewMission(System.Nullable{System.Int32})"/> would stream a second
+            level over the one being played — and Back leads to the pause menu rather than to the landing page.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Frontend.ShellContext.Conditions">
+            <summary>Gets or sets the conditions the campaign is being played under.</summary>
+            <remarks>
+            The shell's own copy of what it last told <see cref="M:OpenIGI.Frontend.IShellHost.SetMissionConditions(OpenIGI.Rendering.MissionConditions)"/>, kept here
+            rather than on the campaign screen because the screen is rebuilt every time the section is opened
+            and would otherwise offer "default" back to a player who is three missions into a night run.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Frontend.ShellContext.Theme">
+            <summary>Gets the theme screens draw from.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.ShellContext.Host">
+            <summary>Gets the application seam for actions the shell cannot perform itself.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.ShellContext.Stack">
+            <summary>Gets the screen stack, for pushing further screens.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.ShellContext.Games">
+            <summary>Gets the game titles for the selector.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.ShellContext.ActiveTitleId">
+            <summary>Gets the id of the title running now.</summary>
+            <remarks>
+            Which entry of <see cref="P:OpenIGI.Frontend.ShellContext.Games"/> is current, given rather than assumed to be the first: the
+            list is in a fixed order and the running title can be any of them. By id rather than by index,
+            because an index is only meaningful against a list this type does not own.
+            <para>
+            The app rebuilds this whole context when the game changes, so it is fixed for a context's life.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Frontend.ShellContext.Missions">
+            <summary>Gets or sets the campaign's missions, resolved for display.</summary>
+            <remarks>Replaced when the language changes; a screen reads it as it is built.</remarks>
+        </member>
+        <member name="P:OpenIGI.Frontend.ShellContext.Cvars">
+            <summary>Gets the CVar registry the settings screen binds to.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.ShellContext.Presets">
+            <summary>Gets the graphics-preset registry.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.ShellContext.Config">
+            <summary>Gets the player-profile configuration.</summary>
+        </member>
+        <member name="P:OpenIGI.Frontend.ShellContext.Saves">
+            <summary>Gets the save-slot store.</summary>
+        </member>
+    </members>
+</doc>

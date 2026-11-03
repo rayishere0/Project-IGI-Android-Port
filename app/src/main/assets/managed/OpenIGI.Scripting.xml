@@ -1,0 +1,2401 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OpenIGI.Scripting</name>
+    </assembly>
+    <members>
+        <member name="T:OpenIGI.Scripting.Expressions.ILevelTaskTable">
+            <summary>The level's tasks by script id, as a level expression's compile looks them up.</summary>
+            <remarks>
+            Project I.G.I.'s compile (<c>0x4F1400</c>) reads a word's trailing id out of the task table (<c>sub_4F1030</c>, over
+            <c>dword_A71890</c>), keeps a reference to each task it finds, and writes <c>0</c> for a word whose task is not there.
+            Before each run it checks those references (<c>sub_4F1740</c>) and compiles again once any of them has died.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ILevelTaskTable.FindTask(System.Int32)">
+            <summary>Finds the task bound to a script id.</summary>
+            <param name="id">The id, which may lie outside the table.</param>
+            <returns>The task, or <see langword="null"/> when none is bound to it.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ILevelTaskTable.IsLive(System.Object)">
+            <summary>Gets whether a task the table gave out is still alive.</summary>
+            <param name="task">A task <see cref="M:OpenIGI.Scripting.Expressions.ILevelTaskTable.FindTask(System.Int32)"/> returned.</param>
+            <returns>Whether it has not been deleted since.</returns>
+        </member>
+        <member name="T:OpenIGI.Scripting.Expressions.IScriptExpressionContext">
+            <summary>
+            What an expression can reach: the names it may read, call and assign to.
+            </summary>
+            <remarks>
+            <para>
+            The original resolves a name through the global script namespace and caches the resolved symbol on
+            the node, so a name is looked up once per compiled expression and every later evaluation reuses it.
+            The caching is an implementation detail; what a host must supply is this.
+            </para>
+            <para>
+            A name may be a native function, a registered constant, or a member path — <c>this.nUserData</c>,
+            <c>MenuScreen_905.nActiveID</c> — naming a property of the owning task or of an exported instance.
+            The context decides which; the evaluator only distinguishes "called" from "read".
+            </para>
+            <para>
+            Values are typed, because the language is: a symbol carries a type tag of 1, 2 or 3 — integer,
+            <c>double</c> or string — and an assignment picks its evaluator from the <em>target's</em> tag.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.IScriptExpressionContext.TryGetValue(System.String,OpenIGI.Scripting.Runtime.QvmValue@)">
+            <summary>Reads a name's value, in whatever type its storage declares.</summary>
+            <param name="name">The name, possibly a dotted member path.</param>
+            <param name="value">Receives the value.</param>
+            <returns><see langword="false"/> when the name is unknown, which the evaluator reports as <c>"Unknown identifier"</c>.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.IScriptExpressionContext.GetValueKind(System.String)">
+            <summary>Gets the type a name's storage declares.</summary>
+            <param name="name">The name, possibly a dotted member path.</param>
+            <returns>
+            The tag, or <see cref="F:OpenIGI.Scripting.Runtime.QvmValueKind.None"/> when the name is unknown. An assignment runs the
+            evaluator this names, so an unknown target falls back to the integer path.
+            </returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.IScriptExpressionContext.TrySetValue(System.String,OpenIGI.Scripting.Runtime.QvmValue)">
+            <summary>Assigns to a name.</summary>
+            <param name="name">The name, possibly a dotted member path.</param>
+            <param name="value">The value to store, already evaluated in the target's type.</param>
+            <returns><see langword="false"/> when the name is unknown or not assignable.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.IScriptExpressionContext.TryInvoke(System.String,OpenIGI.Scripting.Expressions.ScriptArguments,OpenIGI.Scripting.Runtime.QvmValue@)">
+            <summary>Calls a native function.</summary>
+            <param name="name">The function name.</param>
+            <param name="arguments">The <em>unevaluated</em> arguments.</param>
+            <param name="result">Receives the return value.</param>
+            <returns><see langword="false"/> when no such function exists.</returns>
+            <remarks>
+            Arguments arrive unevaluated because that is how the original works: a native is registered with
+            an arity and no parameter types, and its body pulls each argument through <c>Arg_GetInt</c>,
+            <c>Arg_GetFloat</c> or <c>Arg_GetString</c> as it wants it. An argument a native never reads is
+            never evaluated, and the order of two arguments' side effects is the callee's to choose.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Scripting.Expressions.LevelExpressionDialect">
+            <summary>Whose compile a level expression goes through: the retail engine's, a word at a time, before the parse.</summary>
+            <remarks>
+            Both engines drop whitespace between words, give <c>this.</c> the owner's name and make any word holding
+            <c>.isExists</c> a <c>1</c>. They part on three things, listed on each value.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.LevelExpressionDialect.Igi1">
+            <summary>
+            Project I.G.I.'s compile (<c>0x4F1400</c>). A word whose trailing id names no task in the
+            <see cref="T:OpenIGI.Scripting.Expressions.ILevelTaskTable"/> becomes <c>0</c> (so <c>.isExists</c> asks a real question); a quoted string loses
+            its quotes and has its escapes read (<c>sub_517260</c>); <c>//</c> means nothing.
+            </summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.LevelExpressionDialect.Igi2">
+            <summary>
+            I.G.I. 2's <c>Level_CompileLevelExpression</c> (<c>igi2 0x545440</c>). A word naming a missing task is kept as
+            written; a quoted string keeps its quotes and escapes (<c>String_GetWordEx</c> with its quote flag clear); <c>//</c>
+            between words cuts the line.
+            </summary>
+        </member>
+        <member name="T:OpenIGI.Scripting.Expressions.LevelExpression">
+            <summary>Script text a level task carries in one of its slots, compiled once and evaluated as often as the task asks.</summary>
+            <remarks>
+            <para>
+            Both games evaluate a slot in the float walk (Project I.G.I.'s <c>sub_4F16E0</c> into <c>Expr_EvalFloat</c>; I.G.I. 2's
+            <c>Level_RunLevelExpression</c>, <c>0x545790</c>, into <c>Expression_EvalFloat</c>), and callers truncate the result where
+            they want a flag. What differs between them is the compile, which is the <see cref="T:OpenIGI.Scripting.Expressions.LevelExpressionDialect"/>.
+            </para>
+            <para>
+            Given a task table, the compile keeps a reference to each task its words name (up to 16, the slots the retail structure
+            holds), and before each evaluation checks them: once any has died the text is compiled again (<c>sub_4F16E0</c> and
+            <c>sub_4F1740</c>; I.G.I. 2's <c>Level_RunLevelExpression</c> and <c>Level_ValidateLevelExpression</c>). In Project
+            I.G.I. that turns the dead task's words into <c>0</c>.
+            </para>
+            <para>
+            An expression that is empty, or that does not parse, is never run (<see cref="P:OpenIGI.Scripting.Expressions.LevelExpression.IsEmpty"/>).
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.LevelExpression.#ctor(System.String,System.String,System.Func{System.String,System.Nullable{System.Int32}},OpenIGI.Scripting.Expressions.LevelExpressionDialect,OpenIGI.Scripting.Expressions.ILevelTaskTable)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Scripting.Expressions.LevelExpression"/> class.</summary>
+            <param name="source">The slot's text, or <see langword="null"/> for none.</param>
+            <param name="owner">The owning task's unique name, which <c>this.</c> stands for; <see langword="null"/> for none.</param>
+            <param name="constants">The integer constants the parse folds.</param>
+            <param name="dialect">Whose compile the text goes through.</param>
+            <param name="tasks">The level's tasks; <see langword="null"/> takes every task a word names as present.</param>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.LevelExpression.Source">
+            <summary>Gets the slot's text.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.LevelExpression.Owner">
+            <summary>Gets the owning task's name, which <c>this.</c> stands for.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.LevelExpression.Dialect">
+            <summary>Gets whose compile the text went through.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.LevelExpression.Compiled">
+            <summary>Gets the text that was parsed, as of the last compile.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.LevelExpression.IsEmpty">
+            <summary>Gets a value indicating whether there is nothing to run: no text, nothing left of it, or no expression parsed.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.LevelExpression.Evaluate(OpenIGI.Scripting.Expressions.IScriptExpressionContext)">
+            <summary>Evaluates the expression in the float walk.</summary>
+            <param name="context">What its names resolve to.</param>
+            <returns>Its value, or nought when it is empty.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.LevelExpression.EvaluateInt32(OpenIGI.Scripting.Expressions.IScriptExpressionContext)">
+            <summary>Evaluates the expression in the integer walk.</summary>
+            <param name="context">What its names resolve to.</param>
+            <returns>Its value, or nought when it is empty.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.LevelExpression.Compile(System.String,System.String)">
+            <summary>Rewrites script text as I.G.I. 2's <c>Level_CompileLevelExpression</c> does.</summary>
+            <param name="source">The text.</param>
+            <param name="owner">The owning task's unique name; <see langword="null"/> leaves <c>this.</c> as written.</param>
+            <returns>The rewritten text.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.LevelExpression.Compile(System.String,System.String,OpenIGI.Scripting.Expressions.LevelExpressionDialect,OpenIGI.Scripting.Expressions.ILevelTaskTable)">
+            <summary>Rewrites script text as the dialect's engine does.</summary>
+            <param name="source">The text.</param>
+            <param name="owner">The owning task's unique name; <see langword="null"/> leaves <c>this.</c> as written.</param>
+            <param name="dialect">Whose compile.</param>
+            <param name="tasks">The level's tasks; <see langword="null"/> takes every task a word names as present.</param>
+            <returns>The rewritten text.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.LevelExpression.Flag(System.Double)">
+            <summary>The value as a byte flag, the way its callers store it: chopped to a 64-bit integer (<c>fistp qword</c>), its low eight bits.</summary>
+            <param name="value">The value.</param>
+            <returns>Whether the low byte of its truncation is set.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.LevelExpression.Truncate(System.Double)">
+            <summary>The value chopped to a 64-bit integer, as <c>(__int64)</c> under the game's chopping control word.</summary>
+            <param name="value">The value.</param>
+            <returns>Its truncation.</returns>
+        </member>
+        <member name="T:OpenIGI.Scripting.Expressions.LevelExpressionNames">
+            <summary>The two name rules every level expression follows, in both games: <c>this.</c> and <c>.isExists</c>.</summary>
+            <remarks>
+            A task's expressions name its own variables as <c>this.field</c>, which reads as the task's name in its place; and any
+            name holding <c>.isExists</c> reads as true, since the task it asks about was loaded with the level.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.LevelExpressionNames.ThisPrefix">
+            <summary>The prefix that names the expression's own task.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.LevelExpressionNames.ExistsField">
+            <summary>The field that asks whether a task exists, which always reads as true.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.LevelExpressionNames.ResolveThis(System.String,System.String)">
+            <summary>Puts a task's name in place of a leading <c>this</c>.</summary>
+            <param name="name">The name as written.</param>
+            <param name="owner">The expression's own task's name.</param>
+            <returns><c>owner.field</c> for <c>this.field</c>; the name as written otherwise.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.LevelExpressionNames.IsExistsProbe(System.String)">
+            <summary>Gets whether a name asks whether a task exists.</summary>
+            <param name="name">The name.</param>
+            <returns>Whether it holds <c>.isExists</c>.</returns>
+        </member>
+        <member name="T:OpenIGI.Scripting.Expressions.ScriptArguments">
+            <summary>
+            A native's argument list, evaluated on demand in the type the native asks for.
+            </summary>
+            <remarks>
+            <para>
+            This is the original's argument-access family — <c>Arg_GetInt</c> (<c>0x4B8A20</c>),
+            <c>Arg_GetFloat</c> (<c>0x4B8A50</c>) and <c>Arg_GetString</c> (<c>0x4B8A80</c>) — each of which
+            runs the matching evaluator over the argument's node at the moment the native asks.
+            </para>
+            <para>
+            Nothing is evaluated up front, which is not an optimisation: a native is registered with an arity
+            and no parameter types, so there is no type to evaluate an argument *as* until the callee names
+            one, and a native that reads its arguments out of order runs their side effects out of order.
+            Reading the same argument twice evaluates it twice, exactly as the original does.
+            </para>
+            <para>
+            An index outside the list is not an error: the original indexes its node array unguarded, so this
+            yields the type's zero rather than throwing, and the arity check at parse time is what is supposed
+            to have prevented it.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptArguments.#ctor(OpenIGI.Scripting.Expressions.ScriptExpressionEvaluator,System.Collections.Generic.IReadOnlyList{OpenIGI.Scripting.Expressions.ScriptExpression})">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Scripting.Expressions.ScriptArguments"/> class.</summary>
+            <param name="evaluator">The evaluator to run an argument through.</param>
+            <param name="nodes">The unevaluated argument nodes, in source order.</param>
+            <exception cref="T:System.ArgumentNullException">An argument is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptArguments.Empty(OpenIGI.Scripting.Expressions.ScriptExpressionEvaluator)">
+            <summary>Gets an empty argument list, for a name used without a call.</summary>
+            <param name="evaluator">The evaluator the list would run against.</param>
+            <returns>An empty list.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="evaluator"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptArguments.Count">
+            <summary>Gets the number of arguments the call site supplied.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptArguments.GetInt32(System.Int32)">
+            <summary>Evaluates an argument as an integer.</summary>
+            <param name="index">The zero-based argument index.</param>
+            <returns>The value, or zero when there is no such argument.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptArguments.GetBoolean(System.Int32)">
+            <summary>Evaluates an argument as a <see cref="T:System.Boolean"/>, which the original stores as one byte.</summary>
+            <param name="index">The zero-based argument index.</param>
+            <returns><see langword="true"/> when the integer value is non-zero.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptArguments.GetReal(System.Int32)">
+            <summary>Evaluates an argument as a <see cref="T:System.Double"/>.</summary>
+            <param name="index">The zero-based argument index.</param>
+            <returns>The value, or zero when there is no such argument.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptArguments.GetText(System.Int32)">
+            <summary>Evaluates an argument as text.</summary>
+            <param name="index">The zero-based argument index.</param>
+            <returns>The value, or an empty string when there is no such argument.</returns>
+        </member>
+        <member name="T:OpenIGI.Scripting.Expressions.ScriptExpression">
+            <summary>
+            A node of a parsed expression tree.
+            </summary>
+            <remarks>
+            <para>
+            Mirrors the 40-byte node the original allocates in <c>Expr_NewNode</c> (<c>0x4BA880</c>): a kind, an
+            operator, a precedence, two children and a parent. The parent link is what its in-place
+            precedence-climbing parser walks; here the tree is built by recursion instead, which produces the
+            same shape without the pointer surgery — see <see cref="T:OpenIGI.Scripting.Expressions.ScriptExpressionParser"/>.
+            </para>
+            <para>
+            A node is immutable once built, so a compiled expression can be cached on a task parameter and
+            evaluated repeatedly, which is what the menu system does with its action strings.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptExpression.Kind">
+            <summary>Gets the node kind.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptExpression.Operator">
+            <summary>Gets the operator, for an <see cref="F:OpenIGI.Scripting.Expressions.ScriptExpressionKind.Operator"/> node.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptExpression.Text">
+            <summary>Gets the identifier name or string-literal contents.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptExpression.Number">
+            <summary>Gets the value of a numeric literal.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptExpression.Constant">
+            <summary>Gets the value of a constant.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptExpression.Line">
+            <summary>Gets the one-based source line this node was parsed from.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptExpression.Left">
+            <summary>Gets the left operand, the ternary's condition, or the group's contents.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptExpression.Right">
+            <summary>Gets the right operand, a unary operator's operand, or the ternary's "then" branch.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptExpression.Extra">
+            <summary>Gets the ternary's "else" branch.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptExpression.Arguments">
+            <summary>Gets the call arguments, when this identifier is called.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptExpression.IsCall">
+            <summary>Gets a value indicating whether this identifier is a call rather than a bare name.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptExpression.IsAssignable">
+            <summary>Gets a value indicating whether this node can appear on the left of an assignment.</summary>
+            <remarks>
+            Only a bare name can. The original rejects anything else with
+            <c>"Expression: Cannot assign to constant"</c>.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpression.FromConstant(System.Int32,System.String,System.Int32)">
+            <summary>Creates a constant node.</summary>
+            <param name="value">The constant's value.</param>
+            <param name="name">The name it was written as.</param>
+            <param name="line">The source line.</param>
+            <returns>The node.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpression.FromString(System.String,System.Int32)">
+            <summary>Creates a string-literal node.</summary>
+            <param name="text">The literal's contents.</param>
+            <param name="line">The source line.</param>
+            <returns>The node.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpression.FromNumber(System.Double,System.Int32)">
+            <summary>Creates a numeric-literal node.</summary>
+            <param name="value">The literal's value.</param>
+            <param name="line">The source line.</param>
+            <returns>The node.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpression.FromIdentifier(System.String,System.Int32)">
+            <summary>Creates a name node.</summary>
+            <param name="name">The name, which may be a dotted member path.</param>
+            <param name="line">The source line.</param>
+            <returns>The node.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpression.FromCall(System.String,OpenIGI.Scripting.Expressions.ScriptExpression[],System.Int32)">
+            <summary>Creates a call node.</summary>
+            <param name="name">The function name.</param>
+            <param name="arguments">The argument expressions.</param>
+            <param name="line">The source line.</param>
+            <returns>The node.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpression.FromGroup(OpenIGI.Scripting.Expressions.ScriptExpression,System.Int32)">
+            <summary>Creates a parenthesised-group node.</summary>
+            <param name="inner">The contents.</param>
+            <param name="line">The source line.</param>
+            <returns>The node.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpression.FromUnary(OpenIGI.Scripting.Expressions.ScriptOperator,OpenIGI.Scripting.Expressions.ScriptExpression,System.Int32)">
+            <summary>Creates a unary-operator node.</summary>
+            <param name="op">The operator.</param>
+            <param name="operand">The operand.</param>
+            <param name="line">The source line.</param>
+            <returns>The node.</returns>
+            <remarks>A unary operand hangs off the <em>right</em> child, as it does in the original.</remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpression.FromBinary(OpenIGI.Scripting.Expressions.ScriptOperator,OpenIGI.Scripting.Expressions.ScriptExpression,OpenIGI.Scripting.Expressions.ScriptExpression,System.Int32)">
+            <summary>Creates a binary-operator node.</summary>
+            <param name="op">The operator.</param>
+            <param name="left">The left operand.</param>
+            <param name="right">The right operand.</param>
+            <param name="line">The source line.</param>
+            <returns>The node.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpression.FromConditional(OpenIGI.Scripting.Expressions.ScriptExpression,OpenIGI.Scripting.Expressions.ScriptExpression,OpenIGI.Scripting.Expressions.ScriptExpression,System.Int32)">
+            <summary>Creates a ternary node.</summary>
+            <param name="condition">The condition.</param>
+            <param name="whenTrue">The value when the condition holds.</param>
+            <param name="whenFalse">The value otherwise.</param>
+            <param name="line">The source line.</param>
+            <returns>The node.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpression.ToString">
+            <summary>Renders the tree back to source, for diagnostics and round-trip tests.</summary>
+            <returns>A parenthesised rendering that makes the tree's shape explicit.</returns>
+        </member>
+        <member name="T:OpenIGI.Scripting.Expressions.ScriptExpressionEvaluator">
+            <summary>
+            Evaluates a parsed expression, in whichever of the language's three types the caller asks for.
+            </summary>
+            <remarks>
+            <para>
+            Transcribed from the original's three walks over the same tree — <c>Expr_EvalInt</c>
+            (<c>0x4B9120</c>), <c>Expr_EvalFloat</c> (<c>0x4B9660</c>) and <c>Expr_EvalString</c>
+            (<c>0x4B8CE0</c>). Which one runs is decided by the consumer, never by the expression: an
+            assignment picks by its target's declared type, and a native picks per argument. The same source
+            therefore has three different values depending on who asks, and <c>this.vValue</c> reading
+            <c>0.75</c> as a float and <c>0</c> as an integer is correct behaviour rather than a rounding bug.
+            </para>
+            <para>
+            Behaviours that are observable and are reproduced deliberately rather than tidied:
+            </para>
+            <list type="number">
+            <item><description>
+            <b>Binary operands evaluate right-to-left</b> in the integer walk, for every arithmetic, bitwise
+            and comparison operator. With a call on each side — which retail menu scripts do have — the calls
+            happen in that order, so this is not free to "correct". The float walk keeps that order except for
+            <c>-</c>, which it alone evaluates left-first.
+            </description></item>
+            <item><description>
+            <b>Division tests the divisor first and gives up before evaluating the numerator</b>, in both
+            numeric walks. <c>f() / 0</c> never calls <c>f</c>.
+            </description></item>
+            <item><description>
+            <b>An assignment evaluates its right-hand side twice.</b> <c>Expr_Assign</c> evaluates it to store
+            it, and then the caller evaluates the same node again to produce the assignment's own value —
+            which is how the walks get a result in <em>their</em> type from a store made in the target's. So
+            <c>this.nUserData = Config_GetFlags()</c> calls the native twice, and that is not a transcription
+            slip.
+            </description></item>
+            <item><description>
+            <b>The comma evaluates left first</b>, then right, and yields the right. In the float walk it runs
+            the <em>integer</em> evaluator on both sides.
+            </description></item>
+            <item><description>
+            <b>Division by zero yields zero</b> and raises the script error flag rather than faulting.
+            </description></item>
+            <item><description>
+            <b>The float walk has no bitwise or shift operators at all</b> — no case in the switch — so each
+            one falls through to zero there.
+            </description></item>
+            </list>
+            <para>
+            Shifts take only the low byte of their right operand and <c>&gt;&gt;</c> is arithmetic, both
+            straight from the original's use of a <c>char</c> shift count on a signed operand.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionEvaluator.#ctor(OpenIGI.Scripting.Expressions.IScriptExpressionContext)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Scripting.Expressions.ScriptExpressionEvaluator"/> class.</summary>
+            <param name="context">The names the expression may reach.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptExpressionEvaluator.HasError">
+            <summary>Gets a value indicating whether an error was raised during the last evaluation.</summary>
+            <remarks>
+            The original sets a global flag for a division by zero and reports unknown identifiers to its
+            console, then carries on with a zero result rather than aborting the frame.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptExpressionEvaluator.ErrorMessage">
+            <summary>Gets the message describing the last error, or an empty string.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionEvaluator.Evaluate(OpenIGI.Scripting.Expressions.ScriptExpression)">
+            <summary>Evaluates an expression as an integer, clearing the error state first.</summary>
+            <param name="expression">The expression to evaluate.</param>
+            <returns>The result.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="expression"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionEvaluator.EvaluateReal(OpenIGI.Scripting.Expressions.ScriptExpression)">
+            <summary>Evaluates an expression as a <see cref="T:System.Double"/>, clearing the error state first.</summary>
+            <param name="expression">The expression to evaluate.</param>
+            <returns>The result.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="expression"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionEvaluator.EvaluateText(OpenIGI.Scripting.Expressions.ScriptExpression)">
+            <summary>Evaluates an expression as text, clearing the error state first.</summary>
+            <param name="expression">The expression to evaluate.</param>
+            <returns>The result, or an empty string.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="expression"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionEvaluator.EvaluateCondition(OpenIGI.Scripting.Expressions.ScriptExpression)">
+            <summary>Evaluates an expression as a condition.</summary>
+            <param name="expression">The expression to evaluate.</param>
+            <returns><see langword="true"/> when the result is non-zero.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionEvaluator.EvaluateInt32(OpenIGI.Scripting.Expressions.ScriptExpression)">
+            <summary>Evaluates a sub-expression as an integer without disturbing the error state.</summary>
+            <param name="expression">The expression to evaluate.</param>
+            <returns>The result.</returns>
+            <remarks>This is what a native's <c>Arg_GetInt</c> reaches, mid-evaluation.</remarks>
+            <exception cref="T:System.ArgumentNullException"><paramref name="expression"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionEvaluator.Assign(OpenIGI.Scripting.Expressions.ScriptExpression)">
+            <summary>Assigns, running the evaluator the <em>target's</em> declared type names.</summary>
+            <remarks>This is <c>Expr_Assign</c> (<c>0x4B9040</c>), reached identically from all three walks.</remarks>
+        </member>
+        <member name="T:OpenIGI.Scripting.Expressions.ScriptExpressionException">
+            <summary>
+            Thrown when an expression cannot be tokenized, parsed or evaluated.
+            </summary>
+            <remarks>
+            The original reports these to its script console and aborts the script
+            (<c>"Script error: Aborting."</c>) rather than the process; carrying the line number here keeps the
+            diagnostic as useful as the original's, which always prints it.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionException.#ctor">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Scripting.Expressions.ScriptExpressionException"/> class.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionException.#ctor(System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Scripting.Expressions.ScriptExpressionException"/> class with a message.</summary>
+            <param name="message">The message that describes the failure.</param>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionException.#ctor(System.String,System.Exception)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Scripting.Expressions.ScriptExpressionException"/> class with a message and an inner exception.</summary>
+            <param name="message">The message that describes the failure.</param>
+            <param name="innerException">The exception that caused this one.</param>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionException.#ctor(System.String,System.Int32,System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Scripting.Expressions.ScriptExpressionException"/> class for a source line.</summary>
+            <param name="message">The message that describes the failure.</param>
+            <param name="line">The one-based source line.</param>
+            <param name="near">The token text the failure occurred at.</param>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptExpressionException.Line">
+            <summary>Gets the one-based source line, or zero when unknown.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptExpressionException.Near">
+            <summary>Gets the token text the failure occurred at.</summary>
+        </member>
+        <member name="T:OpenIGI.Scripting.Expressions.ScriptExpressionKind">
+            <summary>
+            The kind of an expression tree node, numbered as the original's node constructor numbers it.
+            </summary>
+            <remarks>
+            Values come from <c>Expr_NewNode</c> (<c>0x4BA880</c>). Kind 4 is accepted by that constructor but
+            never produced by the parser, so it has no name here.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptExpressionKind.Constant">
+            <summary>A registered constant's value.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptExpressionKind.String">
+            <summary>A string literal.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptExpressionKind.Number">
+            <summary>A numeric literal.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptExpressionKind.Identifier">
+            <summary>A name: a variable, a member path, or a function when it carries arguments.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptExpressionKind.Group">
+            <summary>A parenthesised sub-expression.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptExpressionKind.Conditional">
+            <summary>A ternary conditional.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptExpressionKind.Operator">
+            <summary>A unary or binary operator.</summary>
+        </member>
+        <member name="T:OpenIGI.Scripting.Expressions.ScriptExpressionParser">
+            <summary>
+            Parses the runtime expression language the original compiles menu actions and conditions from.
+            </summary>
+            <remarks>
+            <para>
+            Behaviourally equivalent to <c>Expr_Parse</c> (<c>0x4B9CD0</c>) and its argument-list helper
+            <c>Expr_ParseArguments</c> (<c>0x4BA4C0</c>). The original climbs precedence by re-parenting nodes
+            through a parent chain as it goes; this parses by recursion instead. That is a deliberate
+            divergence in <em>method</em>, not in result: with the same precedence and associativity rules —
+            <see cref="T:OpenIGI.Scripting.Expressions.ScriptOperatorInfo"/>, transcribed verbatim — both produce the same tree, and the round
+            trip is asserted in the tests.
+            </para>
+            <para>
+            What is <em>not</em> a divergence, and what the transcription had to get right:
+            </para>
+            <list type="bullet">
+            <item><description>
+            A <c>+</c> or <c>-</c> in prefix position is rewritten to <see cref="F:OpenIGI.Scripting.Expressions.ScriptOperator.UnaryPlus"/> or
+            <see cref="F:OpenIGI.Scripting.Expressions.ScriptOperator.UnaryMinus"/>, which bind far tighter than their binary forms.
+            </description></item>
+            <item><description>
+            Adjacent string literals concatenate, as they do in C. The original does it in the node
+            constructor by replacing the previous node in the tree.
+            </description></item>
+            <item><description>
+            Inside an argument list, <c>,</c> stops the expression instead of acting as the sequencing
+            operator it is everywhere else. The original passes a flag that reclassifies the token.
+            </description></item>
+            <item><description>
+            <c>)</c>, <c>;</c>, <c>{</c> and <c>}</c> end an expression rather than being consumed by it.
+            </description></item>
+            </list>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptExpressionParser.LoosestPrecedence">
+            <summary>The precedence rank of the loosest-binding operator, used as the starting limit.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionParser.#ctor(OpenIGI.Scripting.Expressions.ScriptLexer)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Scripting.Expressions.ScriptExpressionParser"/> class.</summary>
+            <param name="lexer">The token source.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="lexer"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionParser.IsBlank(System.String)">
+            <summary>Whether a source holds nothing the original's lexer can read: blank, or only characters it stops at.</summary>
+            <param name="source">The expression source.</param>
+            <returns><see langword="true"/> when there is no expression to parse.</returns>
+            <remarks>
+            The original's parser (0x4B9CD0) given no token returns no expression and no error, so a string of
+            nothing but such characters -- the retail main menu carries one action that is a lone backtick -- is an
+            empty string as far as it is concerned, and is skipped the way an empty one is.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionParser.Parse(System.String,System.Func{System.String,System.Nullable{System.Int32}})">
+            <summary>Parses a complete expression from source.</summary>
+            <param name="source">The expression source.</param>
+            <param name="resolveConstant">Resolves an identifier to a registered constant, or <see langword="null"/> when it is not one.</param>
+            <returns>The parsed tree.</returns>
+            <exception cref="T:OpenIGI.Scripting.Expressions.ScriptExpressionException">The source is not a well-formed expression.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionParser.ParseExpression(System.Int32,System.Boolean)">
+            <summary>Parses one expression, binding operators no looser than <paramref name="limit"/>.</summary>
+            <param name="limit">The loosest precedence rank this call may absorb.</param>
+            <param name="stopAtComma">Whether a comma ends the expression instead of sequencing it.</param>
+            <returns>The parsed tree.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionParser.ParseStringRun(OpenIGI.Scripting.Expressions.ScriptToken)">
+            <summary>Consumes a run of adjacent string literals, which concatenate.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptExpressionParser.ParseArguments">
+            <summary>Parses a call's argument list, the opening parenthesis already consumed.</summary>
+            <remarks>
+            Mirrors <c>Expr_ParseArguments</c> (<c>0x4BA4C0</c>): each argument is a full expression parsed
+            with the comma suppressed, arguments are separated by commas, and the list ends at <c>)</c>.
+            The original also checks the count against the callee's declared arity and reports "Too few" or
+            "Too many"; that check needs the native's descriptor and so belongs to binding, not parsing.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Scripting.Expressions.ScriptLexer">
+            <summary>
+            The expression tokenizer, with the one-token pushback the parser relies on.
+            </summary>
+            <remarks>
+            <para>
+            Transcribed from <c>Expr_NextToken</c> (<c>0x4BFC70</c>).
+            </para>
+            <para>
+            Two behaviours are worth naming because they are easy to get wrong:
+            </para>
+            <list type="bullet">
+            <item><description>
+            The two-character operators are matched by peeking exactly one character ahead, and only for the
+            pairs the original checks. <c>&amp;</c> looks for <c>&amp;&amp;</c>, <c>|</c> for <c>||</c>,
+            <c>!</c> for <c>!=</c>, <c>&lt;</c> for <c>&lt;&lt;</c> and <c>&lt;=</c>, <c>&gt;</c> for
+            <c>&gt;&gt;</c> and <c>&gt;=</c>, <c>=</c> for <c>==</c>. There is no <c>+=</c> family.
+            </description></item>
+            <item><description>
+            An identifier is reclassified from <see cref="F:OpenIGI.Scripting.Expressions.ScriptTokenKind.Identifier"/> to
+            <see cref="F:OpenIGI.Scripting.Expressions.ScriptTokenKind.Constant"/> the moment it resolves against the constant table, so the
+            parser never sees a constant as a name.
+            </description></item>
+            </list>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptLexer.#ctor(System.String,System.Func{System.String,System.Nullable{System.Int32}})">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Scripting.Expressions.ScriptLexer"/> class.</summary>
+            <param name="source">The expression source.</param>
+            <param name="resolveConstant">
+            Resolves an identifier to a registered constant, or returns <see langword="null"/> when it is
+            not one. Pass <see langword="null"/> to treat every identifier as a name.
+            </param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="source"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptLexer.Line">
+            <summary>Gets the one-based line the cursor is on.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptLexer.Next">
+            <summary>Reads the next token.</summary>
+            <returns>The token, or <see cref="P:OpenIGI.Scripting.Expressions.ScriptToken.End"/> at end of input.</returns>
+            <exception cref="T:OpenIGI.Scripting.Expressions.ScriptExpressionException">A string literal is unterminated.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptLexer.PushBack(OpenIGI.Scripting.Expressions.ScriptToken@)">
+            <summary>Pushes a token back so the next <see cref="M:OpenIGI.Scripting.Expressions.ScriptLexer.Next"/> returns it again.</summary>
+            <param name="token">The token to push back.</param>
+            <exception cref="T:System.InvalidOperationException">A token is already pushed back.</exception>
+            <remarks>The original keeps exactly one slot for this, and so does the parser; a second push is a bug, not a deeper buffer.</remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptLexer.ReadAll">
+            <summary>Reads every remaining token, for tests and tooling.</summary>
+            <returns>The tokens, without the terminating end token.</returns>
+        </member>
+        <member name="T:OpenIGI.Scripting.Expressions.ScriptOperator">
+            <summary>
+            An operator in the runtime expression language, numbered exactly as the original's tokenizer
+            numbers it.
+            </summary>
+            <remarks>
+            <para>
+            The values are not arbitrary: <c>Expr_Precedence</c> (<c>0x4BA3D0</c>) switches on them directly and
+            fatals on anything it does not know, so the numbering is part of the contract between the tokenizer
+            and the parser.
+            </para>
+            <para>
+            Ids 7 and 26 are never produced by the tokenizer. 26 has a precedence entry and 7 does not, so 26
+            is a real operator the retail scripts simply never use; both are kept out of this enum rather than
+            guessed at.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.None">
+            <summary>No operator.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.Add">
+            <summary>Binary addition, <c>+</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.Subtract">
+            <summary>Binary subtraction, <c>-</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.UnaryPlus">
+            <summary>Unary plus. The parser rewrites <see cref="F:OpenIGI.Scripting.Expressions.ScriptOperator.Add"/> to this in prefix position.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.UnaryMinus">
+            <summary>Unary minus. The parser rewrites <see cref="F:OpenIGI.Scripting.Expressions.ScriptOperator.Subtract"/> to this in prefix position.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.Multiply">
+            <summary>Multiplication, <c>*</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.Divide">
+            <summary>Division, <c>/</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.BitwiseOr">
+            <summary>Bitwise or, <c>|</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.BitwiseXor">
+            <summary>Bitwise exclusive or, <c>^</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.BitwiseAnd">
+            <summary>Bitwise and, <c>&amp;</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.ShiftLeft">
+            <summary>Left shift, <c>&lt;&lt;</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.ShiftRight">
+            <summary>Right shift, <c>&gt;&gt;</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.BitwiseNot">
+            <summary>Bitwise complement, <c>~</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.Equal">
+            <summary>Equality, <c>==</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.NotEqual">
+            <summary>Inequality, <c>!=</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.Less">
+            <summary>Less than, <c>&lt;</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.Greater">
+            <summary>Greater than, <c>&gt;</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.LessOrEqual">
+            <summary>Less than or equal, <c>&lt;=</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.GreaterOrEqual">
+            <summary>Greater than or equal, <c>&gt;=</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.Not">
+            <summary>Logical not, <c>!</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.OpenParen">
+            <summary>Opening parenthesis, <c>(</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.CloseParen">
+            <summary>Closing parenthesis, <c>)</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.Semicolon">
+            <summary>Statement terminator, <c>;</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.Comma">
+            <summary>Argument and sequence separator, <c>,</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.Assign">
+            <summary>Assignment, <c>=</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.LogicalOr">
+            <summary>Logical or, <c>||</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.LogicalAnd">
+            <summary>Logical and, <c>&amp;&amp;</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.Question">
+            <summary>Ternary condition, <c>?</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.Colon">
+            <summary>Ternary separator, <c>:</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.OpenBrace">
+            <summary>Block open, <c>{</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptOperator.CloseBrace">
+            <summary>Block close, <c>}</c>.</summary>
+        </member>
+        <member name="T:OpenIGI.Scripting.Expressions.ScriptOperatorInfo">
+            <summary>
+            The precedence and associativity table the expression parser binds by.
+            </summary>
+            <remarks>
+            <para>
+            Transcribed from <c>Expr_Precedence</c> (<c>0x4BA3D0</c>), <c>Expr_IsUnary</c> (<c>0x4BA340</c>) and
+            <c>Expr_IsLeftAssociative</c> (<c>0x4BA380</c>). <b>Lower binds tighter</b> — the original's numbers
+            are ranks, not binding powers, and the parser's comparison is
+            <c>leftAssoc + precedence(incoming) &lt;= precedence(top)</c>.
+            </para>
+            <para>
+            The ordering is exactly C's, which is worth stating because it means an expression from a retail
+            script means what a C programmer would expect it to mean.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptOperatorInfo.GetPrecedence(OpenIGI.Scripting.Expressions.ScriptOperator)">
+            <summary>Gets the precedence rank of an operator. Lower binds tighter.</summary>
+            <param name="op">The operator.</param>
+            <returns>The rank, 1 through 15.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException">The operator has no precedence — it is punctuation, not an operator.</exception>
+            <remarks>The original fatals here with <c>"Script: Internal Error: Unknown opcode: %02X."</c>.</remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptOperatorInfo.IsUnary(OpenIGI.Scripting.Expressions.ScriptOperator)">
+            <summary>Determines whether an operator takes a single operand.</summary>
+            <param name="op">The operator.</param>
+            <returns><see langword="true"/> for <c>+x</c>, <c>-x</c>, <c>~x</c> and <c>!x</c>.</returns>
+            <remarks>A unary operator's operand hangs off its <em>right</em> child; a binary one's first operand hangs off its left.</remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptOperatorInfo.IsLeftAssociative(OpenIGI.Scripting.Expressions.ScriptOperator)">
+            <summary>Determines whether an operator groups left to right.</summary>
+            <param name="op">The operator.</param>
+            <returns><see langword="false"/> for the unary operators, assignment and the ternary; <see langword="true"/> otherwise.</returns>
+            <remarks>
+            The original spells this as a 0/1 added to the incoming operator's precedence before comparing,
+            which turns the comparison into a strict one for right-associative operators. The set is exactly
+            C's: unary, <c>=</c> and <c>?:</c> associate right.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Scripting.Expressions.ScriptToken">
+            <summary>
+            One token from the expression tokenizer.
+            </summary>
+            <param name="Kind">What class of token this is.</param>
+            <param name="Operator">The operator, when <see cref="P:OpenIGI.Scripting.Expressions.ScriptToken.Kind"/> is an operator, ternary or terminator class.</param>
+            <param name="Text">The identifier name or string-literal contents.</param>
+            <param name="Number">The value of a numeric literal.</param>
+            <param name="Constant">The value of an identifier that resolved to a registered constant.</param>
+            <param name="Line">The one-based source line the token started on.</param>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptToken.#ctor(OpenIGI.Scripting.Expressions.ScriptTokenKind,OpenIGI.Scripting.Expressions.ScriptOperator,System.String,System.Double,System.Int32,System.Int32)">
+            <summary>
+            One token from the expression tokenizer.
+            </summary>
+            <param name="Kind">What class of token this is.</param>
+            <param name="Operator">The operator, when <see cref="P:OpenIGI.Scripting.Expressions.ScriptToken.Kind"/> is an operator, ternary or terminator class.</param>
+            <param name="Text">The identifier name or string-literal contents.</param>
+            <param name="Number">The value of a numeric literal.</param>
+            <param name="Constant">The value of an identifier that resolved to a registered constant.</param>
+            <param name="Line">The one-based source line the token started on.</param>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptToken.Kind">
+            <summary>What class of token this is.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptToken.Operator">
+            <summary>The operator, when <see cref="P:OpenIGI.Scripting.Expressions.ScriptToken.Kind"/> is an operator, ternary or terminator class.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptToken.Text">
+            <summary>The identifier name or string-literal contents.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptToken.Number">
+            <summary>The value of a numeric literal.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptToken.Constant">
+            <summary>The value of an identifier that resolved to a registered constant.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptToken.Line">
+            <summary>The one-based source line the token started on.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptToken.End">
+            <summary>Gets the end-of-input token.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Expressions.ScriptToken.IsOperand">
+            <summary>Gets a value indicating whether this token can begin an operand.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Expressions.ScriptToken.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Scripting.Expressions.ScriptTokenKind">
+            <summary>
+            The class the tokenizer assigns to a token, numbered as the original numbers it.
+            </summary>
+            <remarks>
+            The parser switches on this before it looks at the operator, so the class decides whether a token
+            is an operand, an operator, or something that ends the expression. Values come from
+            <c>Expr_NextToken</c> (<c>0x4BFC70</c>).
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptTokenKind.Terminator">
+            <summary>Punctuation that terminates an operand: <c>)</c>, <c>;</c>, <c>{</c>, <c>}</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptTokenKind.BinaryOperator">
+            <summary>A binary operator, or a <c>+</c>/<c>-</c> that may still turn out to be unary.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptTokenKind.UnaryOperator">
+            <summary>A strictly unary operator: <c>!</c> or <c>~</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptTokenKind.Ternary">
+            <summary>A ternary token: <c>?</c> or <c>:</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptTokenKind.String">
+            <summary>A quoted string literal.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptTokenKind.Identifier">
+            <summary>An identifier that did not resolve to a registered constant.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptTokenKind.Number">
+            <summary>A numeric literal, parsed as a <see cref="T:System.Double"/>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptTokenKind.Constant">
+            <summary>An identifier that resolved to a registered constant; its value is carried on the token.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Expressions.ScriptTokenKind.End">
+            <summary>End of input.</summary>
+        </member>
+        <member name="T:OpenIGI.Scripting.Qvm.QvmCodeWriter">
+            <summary>
+            Assembles a QVM code section, resolving branch displacements and call argument offsets.
+            </summary>
+            <remarks>
+            Enough of an assembler to write readable tests: emit instructions, place labels, and let the
+            writer work out the encodings the interpreter and disassembler have to agree on.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmCodeWriter.Position">
+            <summary>Gets the current code offset, which is where the next instruction will start.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.CreateLabel">
+            <summary>Creates an unplaced label.</summary>
+            <returns>The label.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.MarkLabel(OpenIGI.Scripting.Qvm.QvmLabel)">
+            <summary>Places a label at the current offset.</summary>
+            <param name="label">The label to place.</param>
+            <returns>This writer.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.Emit(OpenIGI.Scripting.Qvm.QvmOpcode)">
+            <summary>Emits an opcode that takes no operand.</summary>
+            <param name="opcode">The opcode.</param>
+            <returns>This writer.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.Push(System.Int32)">
+            <summary>Emits <c>PUSH</c> with a 32-bit immediate.</summary>
+            <param name="value">The immediate.</param>
+            <returns>This writer.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.PushB(System.SByte)">
+            <summary>Emits <c>PUSHB</c> with a signed byte immediate.</summary>
+            <param name="value">The immediate.</param>
+            <returns>This writer.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.PushW(System.Int16)">
+            <summary>Emits <c>PUSHW</c> with a signed 16-bit immediate.</summary>
+            <param name="value">The immediate.</param>
+            <returns>This writer.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.PushF(System.Single)">
+            <summary>Emits <c>PUSHF</c> with a 32-bit floating-point immediate.</summary>
+            <param name="value">The immediate.</param>
+            <returns>This writer.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.PushA(System.Int32)">
+            <summary>Emits <c>PUSHA</c> with a 32-bit address immediate.</summary>
+            <param name="value">The immediate.</param>
+            <returns>This writer.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.PushS(System.String)">
+            <summary>Emits <c>PUSHS</c> with an inline string.</summary>
+            <param name="value">The string.</param>
+            <returns>This writer.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.PushI(System.String)">
+            <summary>Emits <c>PUSHI</c> with an inline identifier.</summary>
+            <param name="name">The identifier.</param>
+            <returns>This writer.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.PushStringIndex(System.Int32)">
+            <summary>Emits the narrowest <c>PUSHSI</c> form that fits a string-table index.</summary>
+            <param name="index">The string-table index.</param>
+            <returns>This writer.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.PushSymbolIndex(System.Int32)">
+            <summary>Emits the narrowest <c>PUSHII</c> form that fits a symbol-table index.</summary>
+            <param name="index">The symbol-name-table index.</param>
+            <returns>This writer.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.Branch(OpenIGI.Scripting.Qvm.QvmOpcode,OpenIGI.Scripting.Qvm.QvmLabel)">
+            <summary>Emits a branch to a label.</summary>
+            <param name="opcode">One of <c>BRA</c>, <c>BF</c> or <c>BT</c>.</param>
+            <param name="target">The label to branch to.</param>
+            <returns>This writer.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="opcode"/> is not a branch.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.Call(OpenIGI.Scripting.Qvm.QvmLabel[])">
+            <summary>Emits a <c>CALL</c> whose arguments are the blocks starting at the given labels.</summary>
+            <param name="arguments">One label per argument, in argument order.</param>
+            <returns>This writer.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.Blk(System.Int32)">
+            <summary>Emits <c>BLK</c> skipping a run of bytes.</summary>
+            <param name="size">The number of bytes to skip.</param>
+            <returns>This writer.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.Raw(System.Byte[])">
+            <summary>Emits raw bytes, for tests that need an encoding no emitter produces.</summary>
+            <param name="bytes">The bytes to append.</param>
+            <returns>This writer.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmCodeWriter.ToArray">
+            <summary>Resolves every fixup and returns the finished code section.</summary>
+            <returns>The code bytes.</returns>
+            <exception cref="T:System.InvalidOperationException">A referenced label was never placed.</exception>
+        </member>
+        <member name="T:OpenIGI.Scripting.Qvm.QvmDisassembler">
+            <summary>
+            Decodes a QVM code section into instructions and renders them as a listing.
+            </summary>
+            <remarks>
+            <para>
+            Decoding is a linear sweep. That works because the compiler never interleaves data with code: an
+            argument block is ordinary code that the emitter jumps over with a <see cref="F:OpenIGI.Scripting.Qvm.QvmOpcode.Bra"/>,
+            so every byte of the section belongs to some instruction.
+            </para>
+            <para>
+            An unknown opcode byte decodes to a one-byte instruction that renders as <c>ILLEGAL</c>, the same
+            answer the original's mnemonic lookup gives. Executing one faults; disassembling one does not.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmDisassembler.IllegalMnemonic">
+            <summary>The mnemonic the original reports for an opcode outside the table.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmDisassembler.Decode(OpenIGI.Scripting.Qvm.QvmProgram)">
+            <summary>Decodes every instruction of a program's code section, in address order.</summary>
+            <param name="program">The program to decode.</param>
+            <returns>The instructions, from offset zero to the end of the section.</returns>
+            <exception cref="T:OpenIGI.Scripting.Qvm.QvmFormatException">An instruction runs past the end of the code section.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmDisassembler.Decode(System.ReadOnlyMemory{System.Byte})">
+            <summary>Decodes every instruction of a code section, in address order.</summary>
+            <param name="code">The code section.</param>
+            <returns>The instructions, from offset zero to the end of the section.</returns>
+            <exception cref="T:OpenIGI.Scripting.Qvm.QvmFormatException">An instruction runs past the end of the code section.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmDisassembler.Decode(System.ReadOnlyMemory{System.Byte},OpenIGI.Scripting.Qvm.QvmOpcodeEncoding)">
+            <summary>Decodes every instruction of a code section written in a given encoding.</summary>
+            <param name="code">The code section.</param>
+            <param name="encoding">How this bytecode version numbers the opcodes.</param>
+            <returns>The instructions, from offset zero to the end of the section.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="encoding"/> is <see langword="null"/>.</exception>
+            <exception cref="T:OpenIGI.Scripting.Qvm.QvmFormatException">An instruction runs past the end of the code section.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmDisassembler.DecodeAt(System.ReadOnlySpan{System.Byte},System.Int32)">
+            <summary>Decodes the single instruction at an offset.</summary>
+            <param name="code">The code section.</param>
+            <param name="offset">The byte offset of the instruction within <paramref name="code"/>.</param>
+            <returns>The decoded instruction.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="offset"/> is outside <paramref name="code"/>.</exception>
+            <exception cref="T:OpenIGI.Scripting.Qvm.QvmFormatException">The instruction runs past the end of the code section.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmDisassembler.DecodeAt(System.ReadOnlySpan{System.Byte},System.Int32,OpenIGI.Scripting.Qvm.QvmOpcodeEncoding)">
+            <summary>Decodes the single instruction at an offset, in a given encoding.</summary>
+            <param name="code">The code section.</param>
+            <param name="offset">The byte offset of the instruction within <paramref name="code"/>.</param>
+            <param name="encoding">How this bytecode version numbers the opcodes.</param>
+            <returns>The decoded instruction.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="encoding"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="offset"/> is outside <paramref name="code"/>.</exception>
+            <exception cref="T:OpenIGI.Scripting.Qvm.QvmFormatException">The instruction runs past the end of the code section.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmDisassembler.Disassemble(OpenIGI.Scripting.Qvm.QvmProgram)">
+            <summary>Renders a program as a listing, one line per instruction.</summary>
+            <param name="program">The program to disassemble.</param>
+            <returns>The listing lines, in address order.</returns>
+            <exception cref="T:OpenIGI.Scripting.Qvm.QvmFormatException">An instruction runs past the end of the code section.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmDisassembler.Format(OpenIGI.Scripting.Qvm.QvmInstruction)">
+            <summary>Renders one instruction without resolving its table indices.</summary>
+            <param name="instruction">The instruction to render.</param>
+            <returns>The listing line.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmDisassembler.Format(OpenIGI.Scripting.Qvm.QvmInstruction,OpenIGI.Scripting.Qvm.QvmProgram)">
+            <summary>Renders one instruction, resolving table indices against a program.</summary>
+            <param name="instruction">The instruction to render.</param>
+            <param name="program">The program the instruction came from, or <see langword="null"/> to leave indices unresolved.</param>
+            <returns>The listing line.</returns>
+        </member>
+        <member name="T:OpenIGI.Scripting.Qvm.QvmExpression">
+            <summary>
+            An expression in a script written in code: a literal, a symbol, or a call whose arguments are themselves expressions.
+            </summary>
+            <remarks>
+            Level data is one deeply nested tree of <c>Task_New</c> calls, and the QVM encodes each argument as
+            a separate code block the callee jumps into on demand. Writing that by hand per test is unreadable,
+            so this builds the encoding from an expression tree instead.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmExpression.Int(System.Int32)">
+            <summary>Creates an integer literal.</summary>
+            <param name="value">The value.</param>
+            <returns>The expression.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmExpression.Real(System.Single)">
+            <summary>Creates a floating-point literal.</summary>
+            <param name="value">The value.</param>
+            <returns>The expression.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmExpression.Text(System.String)">
+            <summary>Creates a string literal.</summary>
+            <param name="value">The value.</param>
+            <returns>The expression.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmExpression.Symbol(System.String)">
+            <summary>Creates a symbol's value: a constant or a variable the script's namespace resolves by name.</summary>
+            <param name="name">The symbol's script name.</param>
+            <returns>The expression.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmExpression.Call(System.String,OpenIGI.Scripting.Qvm.QvmExpression[])">
+            <summary>Creates a call.</summary>
+            <param name="name">The native's script name.</param>
+            <param name="arguments">The arguments, in order.</param>
+            <returns>The expression.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmExpression.Call(System.String,System.Collections.Generic.IEnumerable{OpenIGI.Scripting.Qvm.QvmExpression})">
+            <summary>Creates a call whose arguments come from a sequence.</summary>
+            <param name="name">The native's script name.</param>
+            <param name="arguments">The arguments, in order.</param>
+            <returns>The expression.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmExpression.BuildProgram(OpenIGI.Scripting.Qvm.QvmExpression[])">
+            <summary>Assembles a program that evaluates the given expressions in order and halts.</summary>
+            <param name="statements">The top-level expressions.</param>
+            <returns>The complete QVM image.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmExpression.BuildProgram(System.Collections.Generic.IEnumerable{OpenIGI.Scripting.Qvm.QvmExpression})">
+            <summary>Assembles a program from a sequence of statements.</summary>
+            <param name="statements">The top-level expressions.</param>
+            <returns>The complete QVM image.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmExpression.EmitTo(OpenIGI.Scripting.Qvm.QvmWriter)">
+            <summary>Emits the expression's code into a writer, leaving its value on the stack.</summary>
+            <param name="writer">The writer.</param>
+        </member>
+        <member name="T:OpenIGI.Scripting.Qvm.QvmFormatException">
+            <summary>
+            Thrown when a byte sequence is not a well-formed QVM program.
+            </summary>
+            <remarks>
+            Signals a malformed <em>file</em>. Faults raised while a well-formed program runs are reported as
+            <see cref="T:OpenIGI.Scripting.Runtime.QvmError"/> values instead, matching the original VM, which never throws.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmFormatException.#ctor">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Scripting.Qvm.QvmFormatException"/> class.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmFormatException.#ctor(System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Scripting.Qvm.QvmFormatException"/> class.</summary>
+            <param name="message">A description of what is wrong with the data.</param>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmFormatException.#ctor(System.String,System.Exception)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Scripting.Qvm.QvmFormatException"/> class.</summary>
+            <param name="message">A description of what is wrong with the data.</param>
+            <param name="innerException">The underlying failure.</param>
+        </member>
+        <member name="T:OpenIGI.Scripting.Qvm.QvmInstruction">
+            <summary>
+            One decoded QVM instruction: its position, its opcode and whichever operand form it carries.
+            </summary>
+            <remarks>
+            Only the operand member that matches <see cref="P:OpenIGI.Scripting.Qvm.QvmOpcodeInfo.OperandKind"/> is meaningful; the
+            others hold their default. The decoder never guesses, so an instruction whose operand is a table
+            index leaves <see cref="P:OpenIGI.Scripting.Qvm.QvmInstruction.Text"/> unresolved — the disassembler resolves it against a program.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmInstruction.Offset">
+            <summary>Gets the byte offset of the instruction within the code section.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmInstruction.Opcode">
+            <summary>Gets the opcode.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmInstruction.Length">
+            <summary>Gets the encoded length of the instruction in bytes.</summary>
+            <remarks>
+            This is the encoding length, not the distance the program counter moves: <see cref="F:OpenIGI.Scripting.Qvm.QvmOpcode.Brk"/>
+            halts without advancing, branches jump, and <see cref="F:OpenIGI.Scripting.Qvm.QvmOpcode.Blk"/> additionally skips
+            <see cref="P:OpenIGI.Scripting.Qvm.QvmInstruction.Integer"/> bytes of block content.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmInstruction.Integer">
+            <summary>Gets the integer operand: an immediate, a table index, a branch displacement, an argument count or a block size.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmInstruction.Single">
+            <summary>Gets the floating-point immediate of <see cref="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushF"/>.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmInstruction.Text">
+            <summary>Gets the inline string of <see cref="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushS"/> and <see cref="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushI"/>, or <see langword="null"/>.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmInstruction.ArgumentOffsets">
+            <summary>Gets the code offsets of a <see cref="F:OpenIGI.Scripting.Qvm.QvmOpcode.Call"/>'s argument blocks, in argument order.</summary>
+            <remarks>Empty for every other opcode. Each offset addresses a block terminated by <see cref="F:OpenIGI.Scripting.Qvm.QvmOpcode.Brk"/>.</remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmInstruction.NextOffset">
+            <summary>Gets the offset the instruction's operand describes, for the opcodes that name one.</summary>
+            <remarks>
+            For a branch this is the target — the displacement applied to the end of the instruction. For
+            <see cref="F:OpenIGI.Scripting.Qvm.QvmOpcode.Blk"/> it is the first byte after the skipped block. Otherwise it is the
+            next instruction.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmInstruction.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Scripting.Qvm.QvmLabel">
+            <summary>
+            A forward reference in a <see cref="T:OpenIGI.Scripting.Qvm.QvmCodeWriter"/>, resolved when the code is finished.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmLabel.Id">
+            <summary>Gets the label's ordinal within the writer that created it, used in diagnostics.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmLabel.IsMarked">
+            <summary>Gets a value indicating whether the label has been placed.</summary>
+        </member>
+        <member name="T:OpenIGI.Scripting.Qvm.QvmOpcode">
+            <summary>
+            The 49 opcodes of the QVM instruction set, in their numeric order.
+            </summary>
+            <remarks>
+            The values are the byte encodings. They come from the mnemonic table the retail executable ships
+            for its own disassembler; the semantics come from the handler table its VM registers at start-up.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Brk">
+            <summary>Ends the running block: the interpreter stops and leaves the program counter in place.</summary>
+            <remarks>Terminates both the top-level program and each lazily evaluated argument block.</remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Nop">
+            <summary>Does nothing.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Push">
+            <summary>Pushes a 32-bit integer immediate.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushB">
+            <summary>Pushes a sign-extended 8-bit integer immediate.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushW">
+            <summary>Pushes a sign-extended 16-bit integer immediate.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushF">
+            <summary>Pushes a 32-bit floating-point immediate.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushA">
+            <summary>Pushes a 32-bit immediate as an address.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushS">
+            <summary>Pushes an inline NUL-terminated string constant.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushSI">
+            <summary>Pushes a string constant by 32-bit string-table index.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushSIB">
+            <summary>Pushes a string constant by 8-bit string-table index.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushSIW">
+            <summary>Pushes a string constant by 16-bit string-table index.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushI">
+            <summary>Pushes an inline NUL-terminated identifier, to be resolved when it is consumed.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushII">
+            <summary>Pushes a symbol by 32-bit symbol-name-table index.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushIIB">
+            <summary>Pushes a symbol by 8-bit symbol-name-table index.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushIIW">
+            <summary>Pushes a symbol by 16-bit symbol-name-table index.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Push0">
+            <summary>Pushes the integer zero.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Push1">
+            <summary>Pushes the integer one.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushM">
+            <summary>Pushes the integer minus one.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Pop">
+            <summary>Discards the top of the stack; the statement terminator.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Ret">
+            <summary>Return. Never registered with a handler: executing it raises <see cref="F:OpenIGI.Scripting.Runtime.QvmError.IllegalInstruction"/>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Bra">
+            <summary>Branches unconditionally by a signed 32-bit displacement from the end of the instruction.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Bf">
+            <summary>Pops a number and branches when it is zero.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Bt">
+            <summary>Pops a number and branches when it is non-zero.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Jsr">
+            <summary>Jump to subroutine. Never registered with a handler: executing it raises <see cref="F:OpenIGI.Scripting.Runtime.QvmError.IllegalInstruction"/>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Call">
+            <summary>Calls the function symbol on the stack, passing argument blocks that the callee evaluates on demand.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Add">
+            <summary>Adds the two values on the stack; concatenates them when both are strings.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Sub">
+            <summary>Subtracts the top of the stack from the value below it.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Mul">
+            <summary>Multiplies the two values on the stack.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Div">
+            <summary>Divides the value below the top of the stack by the top.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Shl">
+            <summary>Shifts left. Integers only.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Shr">
+            <summary>Shifts right, arithmetically. Integers only.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.And">
+            <summary>Bitwise AND. Integers only.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Or">
+            <summary>Bitwise OR. Integers only.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Xor">
+            <summary>Bitwise exclusive OR. Integers only.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.LAnd">
+            <summary>Logical AND, yielding an integer 0 or 1.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.LOr">
+            <summary>Logical OR, yielding an integer 0 or 1.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Eq">
+            <summary>Equality comparison, yielding an integer 0 or 1.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Ne">
+            <summary>Inequality comparison, yielding an integer 0 or 1.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Lt">
+            <summary>Less-than comparison, yielding an integer 0 or 1.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Le">
+            <summary>Less-than-or-equal comparison, yielding an integer 0 or 1.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Gt">
+            <summary>Greater-than comparison, yielding an integer 0 or 1.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Ge">
+            <summary>Greater-than-or-equal comparison, yielding an integer 0 or 1.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Assign">
+            <summary>Stores the top of the stack into the variable symbol below it and pushes the stored value back.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Plus">
+            <summary>Unary plus.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Minus">
+            <summary>Unary negation.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Inv">
+            <summary>Bitwise complement. Integers only.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Not">
+            <summary>Logical negation, yielding an integer 0 or 1. Integers only.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcode.Blk">
+            <summary>Skips a block: the 32-bit operand is the number of bytes to jump over.</summary>
+        </member>
+        <member name="T:OpenIGI.Scripting.Qvm.QvmOpcodeEncoding">
+            <summary>
+            How a bytecode version numbers the opcodes.
+            </summary>
+            <remarks>
+            <para>
+            <see cref="T:OpenIGI.Scripting.Qvm.QvmOpcode"/> is the <em>meaning</em> of an instruction and is numbered the way version 5
+            encodes it, because that is the version this port was written against. Version 7 gives the same
+            instructions different numbers, so it needs a translation rather than a second opcode set: the
+            language, the operand shapes and the interpreter are unchanged, and only the byte in the file moves.
+            </para>
+            <para>
+            Version 7 moves the control-flow group — <c>RET</c> through <c>CALL</c>, which version 5 puts at
+            <c>0x13</c>–<c>0x18</c> — down to <c>0x02</c>–<c>0x07</c>, and shifts everything from <c>PUSH</c> to
+            <c>POP</c> up by six to fill the gap. <c>BRK</c> and <c>NOP</c> keep <c>0x00</c> and <c>0x01</c>, and
+            <b>the whole arithmetic block from <c>ADD</c> at <c>0x19</c> to <c>BLK</c> at <c>0x2F</c> is
+            untouched</b>, which is why a version 5 reader gets some way through a version 7 file before it
+            desynchronises.
+            </para>
+            <para>
+            Read out of I.G.I. 2's own <c>QVM_Open</c>, which fills the 49-slot handler table one index at a
+            time, and checked against every script in a retail installation: with this map a linear sweep lands
+            exactly on the code-section boundary in all 1,784, which is what proves the operand widths.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmOpcodeEncoding.Version">
+            <summary>Gets the bytecode version this encoding belongs to.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmOpcodeEncoding.Version5">
+            <summary>Gets the version 5 encoding, in which the byte and the opcode are the same number.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmOpcodeEncoding.Version7">
+            <summary>Gets the version 7 encoding — I.G.I. 2's.</summary>
+            <remarks>
+            <c>0x02</c> and <c>0x06</c> are deliberately absent. They are where version 7 puts <c>RET</c> and
+            <c>JSR</c>, and its own handler table points both at the illegal-instruction handler, so a file
+            carrying one is malformed rather than using a feature this port has not implemented.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmOpcodeEncoding.ForVersion(System.Int32)">
+            <summary>Gets the encoding a bytecode version uses.</summary>
+            <param name="version">The version word from the program header.</param>
+            <returns>The encoding.</returns>
+            <exception cref="T:OpenIGI.Scripting.Qvm.QvmFormatException">No encoding is known for that version.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmOpcodeEncoding.TryDecode(System.Byte,OpenIGI.Scripting.Qvm.QvmOpcode@)">
+            <summary>Translates an encoded byte into the opcode it means.</summary>
+            <param name="value">The byte from the code stream.</param>
+            <param name="opcode">Receives the opcode when the byte encodes one.</param>
+            <returns><see langword="false"/> when this version does not define that byte.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmOpcodeEncoding.TryEncode(OpenIGI.Scripting.Qvm.QvmOpcode,System.Byte@)">
+            <summary>Translates an opcode into the byte this version encodes it as.</summary>
+            <param name="opcode">The opcode to encode.</param>
+            <param name="value">Receives the byte when this version encodes the opcode.</param>
+            <returns><see langword="false"/> when this version has no encoding for that opcode.</returns>
+        </member>
+        <member name="T:OpenIGI.Scripting.Qvm.QvmOpcodeInfo">
+            <summary>
+            The static description of one opcode: its mnemonic and how it encodes its operand.
+            </summary>
+            <param name="Opcode">The opcode this entry describes.</param>
+            <param name="Mnemonic">The mnemonic the original assembler and disassembler use.</param>
+            <param name="OperandKind">How the operand that follows the opcode byte is encoded.</param>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmOpcodeInfo.#ctor(OpenIGI.Scripting.Qvm.QvmOpcode,System.String,OpenIGI.Scripting.Qvm.QvmOperandKind)">
+            <summary>
+            The static description of one opcode: its mnemonic and how it encodes its operand.
+            </summary>
+            <param name="Opcode">The opcode this entry describes.</param>
+            <param name="Mnemonic">The mnemonic the original assembler and disassembler use.</param>
+            <param name="OperandKind">How the operand that follows the opcode byte is encoded.</param>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmOpcodeInfo.Opcode">
+            <summary>The opcode this entry describes.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmOpcodeInfo.Mnemonic">
+            <summary>The mnemonic the original assembler and disassembler use.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmOpcodeInfo.OperandKind">
+            <summary>How the operand that follows the opcode byte is encoded.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcodeInfo.MinimumOpcode">
+            <summary>The lowest defined opcode value.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcodeInfo.MaximumOpcode">
+            <summary>The highest defined opcode value.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOpcodeInfo.Count">
+            <summary>The number of defined opcodes.</summary>
+            <remarks>
+            The original registers 49 handler slots but only names 48 of them: its mnemonic table maps
+            0x00–0x2F and answers <c>ILLEGAL</c> for everything above, so 0x30 is a reserved slot rather
+            than an instruction.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmOpcodeInfo.FixedLength">
+            <summary>
+            Gets the instruction length in bytes for operands whose size does not depend on their content.
+            </summary>
+            <remarks>
+            <see cref="F:OpenIGI.Scripting.Qvm.QvmOperandKind.InlineString"/> and <see cref="F:OpenIGI.Scripting.Qvm.QvmOperandKind.CallArguments"/> are
+            variable length, so their entries report the length of the fixed part only. The decoder
+            measures those instructions from the code stream.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmOpcodeInfo.Get(OpenIGI.Scripting.Qvm.QvmOpcode)">
+            <summary>Gets the description of an opcode.</summary>
+            <param name="opcode">The opcode to describe.</param>
+            <returns>The table entry for <paramref name="opcode"/>.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="opcode"/> is not one of the 49 defined opcodes.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmOpcodeInfo.TryGet(OpenIGI.Scripting.Qvm.QvmOpcode,OpenIGI.Scripting.Qvm.QvmOpcodeInfo@)">
+            <summary>Looks up the description of an opcode.</summary>
+            <param name="opcode">The opcode to describe.</param>
+            <param name="info">Receives the table entry when the opcode is defined.</param>
+            <returns><see langword="true"/> when <paramref name="opcode"/> is one of the 49 defined opcodes.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmOpcodeInfo.TryParseMnemonic(System.String,OpenIGI.Scripting.Qvm.QvmOpcode@)">
+            <summary>Looks up an opcode by its mnemonic, ignoring case.</summary>
+            <param name="mnemonic">The mnemonic, for example <c>PUSHIIB</c>.</param>
+            <param name="opcode">Receives the opcode when the mnemonic is known.</param>
+            <returns><see langword="true"/> when the mnemonic names an opcode.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmOpcodeInfo.All">
+            <summary>Gets every opcode description, ordered by opcode value.</summary>
+            <returns>The 49 table entries.</returns>
+        </member>
+        <member name="T:OpenIGI.Scripting.Qvm.QvmOperandKind">
+            <summary>
+            How an opcode encodes its operand, and therefore how long the instruction is.
+            </summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOperandKind.None">
+            <summary>No operand: the instruction is one byte.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOperandKind.SByte">
+            <summary>A signed 8-bit immediate.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOperandKind.Int16">
+            <summary>A signed 16-bit immediate.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOperandKind.Int32">
+            <summary>A signed 32-bit immediate.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOperandKind.Single">
+            <summary>A 32-bit IEEE-754 immediate.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOperandKind.Index8">
+            <summary>An unsigned 8-bit table index.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOperandKind.Index16">
+            <summary>An unsigned 16-bit table index.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOperandKind.Index32">
+            <summary>An unsigned 32-bit table index.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOperandKind.InlineString">
+            <summary>A NUL-terminated string stored inline in the code stream.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOperandKind.BranchOffset">
+            <summary>A signed 32-bit displacement measured from the end of the instruction.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOperandKind.CallArguments">
+            <summary>An argument count followed by that many 32-bit code offsets.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmOperandKind.BlockSize">
+            <summary>An unsigned 32-bit byte count that the instruction skips over.</summary>
+        </member>
+        <member name="T:OpenIGI.Scripting.Qvm.QvmProgram">
+            <summary>
+            A loaded QVM bytecode program: the compiled form of a <c>.qsc</c> script.
+            </summary>
+            <remarks>
+            <para>
+            Loading mirrors the original loader at <c>0x4BD220</c>: the magic must be <c>LOOP</c>, the
+            instruction-set id must be 8, and the version must be at least 5 (retail I.G.I. emits 5; I.G.I. 2
+            emits 7, which uses the same language but an incompatible binary). On top of that we validate the
+            header's self-consistency, which the original trusts blindly. See <c>docs/formats/qvm.md</c>.
+            </para>
+            <para>
+            Parsing is zero-copy for the code section; the symbol and string tables are decoded up front
+            because every consumer needs them by index.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmProgram.HeaderSize">
+            <summary>The size in bytes of a version 5 QVM header — retail Project I.G.I.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmProgram.Version5HeaderSize">
+            <summary>The size in bytes of a version 5 QVM header.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmProgram.Version7HeaderSize">
+            <summary>The size in bytes of a version 7 QVM header — I.G.I. 2.</summary>
+            <remarks>
+            Version 5's fields in the same order, plus a trailing file-info offset at <c>0x3C</c>. Nothing
+            before that moved, which is why one reader serves both.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmProgram.FirstVersionWithFileInfo">
+            <summary>The lowest version whose header carries a file-info offset.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmProgram.RequiredInstructionSetId">
+            <summary>The instruction-set identifier the VM accepts; any other value is rejected.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmProgram.MinimumVersion">
+            <summary>The lowest bytecode version the VM accepts.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmProgram.IgiVersion">
+            <summary>The bytecode version retail Project I.G.I. ships.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmProgram.Igi2Version">
+            <summary>The bytecode version I.G.I. 2 ships.</summary>
+            <remarks>
+            Checked across every script in a retail 1.1 installation: 1,784 files, all version 7 and all on
+            the same instruction set as I.G.I. 1.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmProgram.DefaultStackSizeBytes">
+            <summary>The evaluation stack size in bytes used when the header requests none.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Qvm.QvmProgram.DefaultMaxLocals">
+            <summary>The number of local/temporary slots used when the header requests none.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmProgram.HeaderSizeFor(System.Int32)">
+            <summary>Gets the header size a bytecode version uses.</summary>
+            <param name="version">The version word from the header.</param>
+            <returns>The header size in bytes.</returns>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmProgram.InstructionSetId">
+            <summary>Gets the instruction-set identifier from the header. Always <see cref="F:OpenIGI.Scripting.Qvm.QvmProgram.RequiredInstructionSetId"/>.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmProgram.Version">
+            <summary>Gets the bytecode version from the header.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmProgram.FileInfoOffset">
+            <summary>Gets the offset of the trailing file-info block, or zero when the version has none.</summary>
+            <remarks>
+            Version 7 only. What the block holds is unread -- the interpreter does not need it -- but its
+            offset is where the code section ends, so the loader has to know about it either way.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmProgram.Code">
+            <summary>Gets the code section: the bytes the interpreter executes, offset zero being the entry point.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmProgram.StackSizeBytes">
+            <summary>Gets the evaluation stack size in bytes, with the header's zero already replaced by <see cref="F:OpenIGI.Scripting.Qvm.QvmProgram.DefaultStackSizeBytes"/>.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmProgram.MaxLocals">
+            <summary>Gets the number of local/temporary slots, with the header's zero already replaced by <see cref="F:OpenIGI.Scripting.Qvm.QvmProgram.DefaultMaxLocals"/>.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmProgram.SymbolNames">
+            <summary>Gets the symbol names, indexed the way <see cref="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushII"/> and its narrow forms index them.</summary>
+            <remarks>
+            An entry is <see langword="null"/> when its table slot points outside the name pool. Retail
+            files have no such entry; a program that indexes one faults with
+            <see cref="F:OpenIGI.Scripting.Runtime.QvmError.IndexOutOfRange"/>.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmProgram.Strings">
+            <summary>Gets the string constants, indexed the way <see cref="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushSI"/> and its narrow forms index them.</summary>
+            <remarks>An entry is <see langword="null"/> when its table slot points outside the string pool.</remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmProgram.IsQvm(System.ReadOnlySpan{System.Byte})">
+            <summary>Determines whether <paramref name="data"/> starts with a QVM header.</summary>
+            <param name="data">The bytes to test.</param>
+            <returns><see langword="true"/> when the bytes begin with the <c>LOOP</c> magic and the expected instruction-set id.</returns>
+            <remarks>
+            <c>.spr</c> sprites share the <c>LOOP</c> magic, so the instruction-set word is part of the
+            probe rather than the magic alone.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmProgram.Read(System.ReadOnlyMemory{System.Byte})">
+            <summary>Loads a QVM program.</summary>
+            <param name="data">The whole file. Its length must match the header exactly.</param>
+            <returns>The loaded program.</returns>
+            <exception cref="T:OpenIGI.Scripting.Qvm.QvmFormatException">The bytes are not a valid QVM program.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmProgram.TryGetSymbolName(System.Int32,System.String@)">
+            <summary>Looks up a symbol name by table index.</summary>
+            <param name="index">The index encoded in a <see cref="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushII"/> instruction.</param>
+            <param name="name">Receives the name when the index addresses one.</param>
+            <returns><see langword="false"/> when the index is out of range or its slot points outside the pool.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmProgram.TryGetString(System.Int32,System.String@)">
+            <summary>Looks up a string constant by table index.</summary>
+            <param name="index">The index encoded in a <see cref="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushSI"/> instruction.</param>
+            <param name="value">Receives the string when the index addresses one.</param>
+            <returns><see langword="false"/> when the index is out of range or its slot points outside the pool.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmProgram.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Scripting.Qvm.QvmWriter">
+            <summary>
+            Builds a complete QVM file: header, symbol name table and pool, string table and pool, and code.
+            </summary>
+            <remarks>
+            The section layout matches what the original compiler emits, so files built here satisfy the
+            self-consistency identities the loader checks.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmWriter.Code">
+            <summary>Gets the code section being assembled.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmWriter.Version">
+            <summary>Gets or sets the bytecode version written into the header.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmWriter.InstructionSetId">
+            <summary>Gets or sets the instruction-set identifier written into the header.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmWriter.StackSizeBytes">
+            <summary>Gets or sets the requested stack size in bytes; zero asks for the VM default.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Qvm.QvmWriter.MaxLocals">
+            <summary>Gets or sets the requested local-slot count; zero asks for the VM default.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmWriter.AddSymbol(System.String)">
+            <summary>Interns a symbol name and returns its table index.</summary>
+            <param name="name">The symbol name.</param>
+            <returns>The index a <c>PUSHII</c> should use.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmWriter.AddString(System.String)">
+            <summary>Interns a string constant and returns its table index.</summary>
+            <param name="value">The string.</param>
+            <returns>The index a <c>PUSHSI</c> should use.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmWriter.PushSymbol(System.String)">
+            <summary>Emits a <c>PUSHII</c> for a symbol, interning the name.</summary>
+            <param name="name">The symbol name.</param>
+            <returns>The code writer, for chaining.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmWriter.PushString(System.String)">
+            <summary>Emits a <c>PUSHSI</c> for a string constant, interning the value.</summary>
+            <param name="value">The string.</param>
+            <returns>The code writer, for chaining.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Qvm.QvmWriter.Build">
+            <summary>Assembles the file.</summary>
+            <returns>The complete QVM image.</returns>
+        </member>
+        <member name="T:OpenIGI.Scripting.Runtime.IQvmVariable">
+            <summary>
+            Engine state a script can read and assign to by name.
+            </summary>
+            <remarks>
+            The original binds a variable symbol to a raw pointer plus a width, and its assignment handler
+            converts and truncates according to both. Each implementation here owns the rules for one storage
+            type so the interpreter stays free of them.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.IQvmVariable.ValueType">
+            <summary>Gets the type the variable stores. An assignment of any other type fails.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.IQvmVariable.Read">
+            <summary>Reads the current value.</summary>
+            <returns>The value, tagged with <see cref="P:OpenIGI.Scripting.Runtime.IQvmVariable.ValueType"/>.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.IQvmVariable.TryWrite(OpenIGI.Scripting.Runtime.QvmValue,OpenIGI.Scripting.Runtime.QvmValue@)">
+            <summary>Stores a value, converting it the way the original's assignment handler does.</summary>
+            <param name="value">The value to store.</param>
+            <param name="stored">Receives what was actually stored, which an assignment pushes back onto the stack.</param>
+            <returns><see langword="false"/> when <paramref name="value"/> has a type this variable cannot hold.</returns>
+        </member>
+        <member name="T:OpenIGI.Scripting.Runtime.NativeRegistry">
+            <summary>
+            The global script namespace: every native function, constant and variable a program can name.
+            </summary>
+            <remarks>
+            <para>
+            The original keeps one process-wide hash table that subsystems fill during start-up — around 160
+            native registrations plus the input, language and difficulty constant blocks. A registry instance
+            plays that role here, so tests and tools can build a namespace containing exactly what they want.
+            </para>
+            <para>
+            Names are case-sensitive, matching the original's lookup. Registering a name that is already present
+            rebinds it, which is how a level reload re-points the define natives and constants at fresh instances.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.NativeRegistry.Count">
+            <summary>Gets the number of registered symbols.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.NativeRegistry.Names">
+            <summary>Gets the registered names.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.NativeRegistry.RegisterFunction(System.String,OpenIGI.Scripting.Runtime.QvmNativeFunction,System.Int32,OpenIGI.Scripting.Runtime.QvmValueKind,System.Object)">
+            <summary>Registers a native function.</summary>
+            <param name="name">The script-visible name.</param>
+            <param name="function">The implementation.</param>
+            <param name="argumentCount">The declared argument count.</param>
+            <param name="returnType">Which representation of the result a call pushes. Defaults to an integer, as the original's registration does.</param>
+            <param name="context">The object the native receives on every call.</param>
+            <returns>The registered symbol.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.NativeRegistry.RegisterConstant(System.String,System.Int32)">
+            <summary>Registers an integer constant.</summary>
+            <param name="name">The script-visible name.</param>
+            <param name="value">The value.</param>
+            <returns>The registered symbol.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.NativeRegistry.RegisterRealConstant(System.String,System.Double)">
+            <summary>Registers a real-valued constant — the engine's <c>sub_4B8870</c> registrar.</summary>
+            <param name="name">The script-visible name.</param>
+            <param name="value">The constant value.</param>
+            <returns>The symbol.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.NativeRegistry.RegisterVariable(System.String,OpenIGI.Scripting.Runtime.IQvmVariable)">
+            <summary>Registers a variable.</summary>
+            <param name="name">The script-visible name.</param>
+            <param name="variable">The storage binding.</param>
+            <returns>The registered symbol.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.NativeRegistry.Unregister(System.String)">
+            <summary>Removes a symbol.</summary>
+            <param name="name">The symbol to remove.</param>
+            <returns><see langword="true"/> when the name was registered.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
+            <remarks>
+            Models <c>Script_UnbindVariable</c> (<c>0x4B80A0</c>). Tasks bind named variables when they are
+            exported and drop them again on unexport, so the namespace has to shrink as well as grow.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.NativeRegistry.SetSymbolContext(System.String,System.Object)">
+            <summary>Rebinds the object a symbol's native receives.</summary>
+            <param name="name">The symbol to rebind.</param>
+            <param name="context">The object to bind.</param>
+            <exception cref="T:OpenIGI.Core.Diagnostics.EngineFatalException">No such symbol is registered.</exception>
+            <remarks>
+            Fatal on a missing name because the original's <c>Script_SetSymbolContext</c> is: it reports
+            "Symbol not found" and never returns. Level loading depends on this having taken effect.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.NativeRegistry.TryResolve(System.String,OpenIGI.Scripting.Runtime.QvmSymbol@)">
+            <summary>Looks up a symbol by name.</summary>
+            <param name="name">The name a script used.</param>
+            <param name="symbol">Receives the symbol when one is registered.</param>
+            <returns><see langword="true"/> when the name resolves.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.NativeRegistry.Contains(System.String)">
+            <summary>Determines whether a name is registered.</summary>
+            <param name="name">The name to test.</param>
+            <returns><see langword="true"/> when the name resolves.</returns>
+        </member>
+        <member name="T:OpenIGI.Scripting.Runtime.QvmCallContext">
+            <summary>
+            One call in progress: what a native function reads its arguments through.
+            </summary>
+            <remarks>
+            <para>
+            A QVM call passes code offsets, not values. Each <c>Get</c> here runs the argument's expression
+            block on the interpreter that issued the call, then restores the stack — the original's deferred
+            argument evaluation, which is why a native may skip an argument or evaluate it repeatedly.
+            </para>
+            <para>
+            An argument that fails to evaluate — because its expression left nothing on the stack, or left
+            something of the wrong type — reads as the default value, which is what the original's argument
+            helpers return in that case. Use the <c>TryGet</c> overloads to tell that apart from a real zero.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmCallContext.Symbol">
+            <summary>Gets the symbol being called.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmCallContext.Context">
+            <summary>Gets the object bound to the symbol through <see cref="P:OpenIGI.Scripting.Runtime.QvmSymbol.Context"/>.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmCallContext.ArgumentCount">
+            <summary>Gets the number of arguments the call site passes.</summary>
+            <remarks>This is the count encoded at the call site, which need not match <see cref="P:OpenIGI.Scripting.Runtime.QvmSymbol.ArgumentCount"/>.</remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmCallContext.Interpreter">
+            <summary>Gets the interpreter running the call, for natives that need to inspect its state.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmCallContext.GetInt32(System.Int32)">
+            <summary>Evaluates an argument as an integer.</summary>
+            <param name="index">The zero-based argument position.</param>
+            <returns>The integer, or zero when the argument does not evaluate to a number.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="index"/> is not a passed argument.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmCallContext.GetSingle(System.Int32)">
+            <summary>Evaluates an argument as a floating-point number.</summary>
+            <param name="index">The zero-based argument position.</param>
+            <returns>The number, or zero when the argument does not evaluate to a number.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="index"/> is not a passed argument.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmCallContext.GetString(System.Int32)">
+            <summary>Evaluates an argument as a string.</summary>
+            <param name="index">The zero-based argument position.</param>
+            <returns>The text, or the empty string when the argument does not evaluate to one.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="index"/> is not a passed argument.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmCallContext.GetValue(System.Int32)">
+            <summary>Evaluates an argument and retains the value's original VM representation.</summary>
+            <remarks>
+            This is intended for data-definition natives that need to preserve an indexed tail whose
+            meaning is owned by a native parser.  Unlike <see cref="M:OpenIGI.Scripting.Runtime.QvmCallContext.GetInt32(System.Int32)"/>,
+            <see cref="M:OpenIGI.Scripting.Runtime.QvmCallContext.GetSingle(System.Int32)"/>, and <see cref="M:OpenIGI.Scripting.Runtime.QvmCallContext.GetString(System.Int32)"/>, it does not coerce the value.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmCallContext.TryGetValue(System.Int32,OpenIGI.Scripting.Runtime.QvmValue@)">
+            <summary>Evaluates an argument and reports whether it produced a value.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmCallContext.TryGetInt32(System.Int32,System.Int32@)">
+            <summary>Evaluates an argument as an integer, reporting whether it produced one.</summary>
+            <param name="index">The zero-based argument position.</param>
+            <param name="value">Receives the integer.</param>
+            <returns><see langword="false"/> when the argument's expression yields no number.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="index"/> is not a passed argument.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmCallContext.TryGetSingle(System.Int32,System.Single@)">
+            <summary>Evaluates an argument as a floating-point number, reporting whether it produced one.</summary>
+            <param name="index">The zero-based argument position.</param>
+            <param name="value">Receives the number.</param>
+            <returns><see langword="false"/> when the argument's expression yields no number.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="index"/> is not a passed argument.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmCallContext.TryGetString(System.Int32,System.String@)">
+            <summary>Evaluates an argument as a string, reporting whether it produced one.</summary>
+            <param name="index">The zero-based argument position.</param>
+            <param name="value">Receives the text.</param>
+            <returns><see langword="false"/> when the argument's expression yields no string.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="index"/> is not a passed argument.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmCallContext.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Scripting.Runtime.QvmError">
+            <summary>
+            The fault codes the VM reports. A running program never throws; it stops and leaves one of these.
+            </summary>
+            <remarks>
+            The values are the original's, taken from its error decoder at <c>0x4BD080</c>. Codes 4 and 12 are
+            absent from that decoder — it prints "Undefined error" for them — but the branch handler does
+            raise 12, so it is named here.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmError.None">
+            <summary>The program ran to completion.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmError.StackUnderflow">
+            <summary>A value was popped from an empty stack.</summary>
+            <remarks>
+            The original never raises this at run time: its pop reads whatever the stack memory holds.
+            OpenIGI refuses instead, which only differs where the original would read stale memory.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmError.StackOverflow">
+            <summary>More values were pushed than the program's stack can hold.</summary>
+            <remarks>
+            As with <see cref="F:OpenIGI.Scripting.Runtime.QvmError.StackUnderflow"/>, the original's push is unchecked and would overrun its
+            stack allocation.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmError.InternalError">
+            <summary>An internal inconsistency: the original's "Internal error (read: BUG!!!)".</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmError.IllegalInstruction">
+            <summary>The opcode byte has no handler. <c>RET</c> and <c>JSR</c> always land here.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmError.IllegalOperand">
+            <summary>The operands have types the instruction cannot combine, such as a bitwise operator on floats.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmError.UnknownIdentifier">
+            <summary>An identifier did not resolve to a registered symbol.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmError.IdentifierNotVariable">
+            <summary>The target of an assignment resolved to a symbol that is not a variable.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmError.IdentifierNotFunction">
+            <summary>The callee of a call resolved to a symbol that is not a function.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmError.NoFunctionOnStack">
+            <summary>A call executed with no callee symbol on the stack.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmError.SyntaxError">
+            <summary>An assignment's value has a type the target variable cannot store.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmError.BranchOperandNotNumeric">
+            <summary>A conditional branch popped something that is not a number.</summary>
+            <remarks>The original's error decoder has no entry for this code and reports "Undefined error".</remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmError.ArgumentOverflow">
+            <summary>A call passed more arguments than the VM can hold.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmError.DatablockNotPresent">
+            <summary>A referenced datablock is not loaded.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmError.IndexOutOfRange">
+            <summary>A symbol-name or string-table index addresses no entry.</summary>
+        </member>
+        <member name="T:OpenIGI.Scripting.Runtime.QvmFloatVariable">
+            <summary>
+            A floating-point variable, bound to a getter and a setter.
+            </summary>
+            <remarks>
+            Storage is 64-bit because the original's assignment handler writes a <c>double</c> through the
+            variable pointer, while everything it pushes back onto the stack is narrowed to 32 bits first.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmFloatVariable.#ctor(System.Func{System.Double},System.Action{System.Double})">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Scripting.Runtime.QvmFloatVariable"/> class.</summary>
+            <param name="get">Reads the current value.</param>
+            <param name="set">Stores a new value.</param>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmFloatVariable.ValueType">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmFloatVariable.Read">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmFloatVariable.TryWrite(OpenIGI.Scripting.Runtime.QvmValue,OpenIGI.Scripting.Runtime.QvmValue@)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Scripting.Runtime.QvmIntegerVariable">
+            <summary>
+            An integer variable of a given storage width, bound to a getter and a setter.
+            </summary>
+            <remarks>
+            The width reproduces the original's three cases — one byte, two bytes, four bytes — including the
+            quirk that only an <em>integer</em> assignment narrows to it. Assigning a float writes a full
+            32-bit word whatever the declared width says, because that path in the original skips the width
+            switch entirely.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmIntegerVariable.#ctor(System.Func{System.Int32},System.Action{System.Int32},System.Int32)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Scripting.Runtime.QvmIntegerVariable"/> class.</summary>
+            <param name="get">Reads the current value.</param>
+            <param name="set">Stores a new value.</param>
+            <param name="size">The storage width in bytes: 1, 2 or 4.</param>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="size"/> is not 1, 2 or 4.</exception>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmIntegerVariable.ValueType">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmIntegerVariable.Size">
+            <summary>Gets the storage width in bytes.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmIntegerVariable.Read">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmIntegerVariable.TryWrite(OpenIGI.Scripting.Runtime.QvmValue,OpenIGI.Scripting.Runtime.QvmValue@)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Scripting.Runtime.QvmInterpreter">
+            <summary>
+            Executes a <see cref="T:OpenIGI.Scripting.Qvm.QvmProgram"/>.
+            </summary>
+            <remarks>
+            <para>
+            A stack machine with a twist: a call passes <em>code offsets</em> rather than values, and the
+            native decides which of them to evaluate and how often. See
+            <see cref="T:OpenIGI.Scripting.Runtime.QvmCallContext"/>.
+            </para>
+            <para>
+            Faults never throw. Execution stops and leaves a code in <see cref="P:OpenIGI.Scripting.Runtime.QvmInterpreter.Error"/>, exactly as the
+            original does — a script error takes the engine to its message handler, not down.
+            </para>
+            <para>
+            One interpreter runs one program and may be re-run; it is not thread-safe, and neither was the
+            single-threaded engine it models.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmInterpreter.#ctor(OpenIGI.Scripting.Qvm.QvmProgram,OpenIGI.Scripting.Runtime.NativeRegistry)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Scripting.Runtime.QvmInterpreter"/> class.</summary>
+            <param name="program">The program to execute.</param>
+            <param name="natives">The namespace its identifiers resolve against.</param>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmInterpreter.Program">
+            <summary>Gets the program being executed.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmInterpreter.Natives">
+            <summary>Gets the namespace identifiers resolve against.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmInterpreter.Error">
+            <summary>Gets the fault that stopped execution, or <see cref="F:OpenIGI.Scripting.Runtime.QvmError.None"/>.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmInterpreter.ErrorOffset">
+            <summary>Gets the code offset of the instruction that faulted.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmInterpreter.ErrorIdentifier">
+            <summary>Gets the identifier that failed to resolve, for <see cref="F:OpenIGI.Scripting.Runtime.QvmError.UnknownIdentifier"/>.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmInterpreter.ProgramCounter">
+            <summary>Gets the current program counter: a byte offset into the code section.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmInterpreter.StackDepth">
+            <summary>Gets the number of values on the stack.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmInterpreter.ErrorMessage">
+            <summary>Gets the fault message, worded as the original's error decoder words it.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmInterpreter.Run">
+            <summary>Runs the program from its entry point to its terminating <see cref="F:OpenIGI.Scripting.Qvm.QvmOpcode.Brk"/>.</summary>
+            <returns>The fault that stopped it, or <see cref="F:OpenIGI.Scripting.Runtime.QvmError.None"/> when it ran to completion.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmInterpreter.Peek(System.Int32)">
+            <summary>Reads a value from the stack without removing it, for tests and diagnostics.</summary>
+            <param name="depthFromTop">Zero for the top of the stack.</param>
+            <returns>The value at that depth.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException">There is no value at that depth.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmInterpreter.ReadArgumentOffset(System.Int32,System.Int32)">
+            <summary>Reads one entry of a call site's argument-offset table.</summary>
+            <param name="tableOffset">The code offset of the table, which is the call's offset plus five.</param>
+            <param name="index">The argument position, already bounds-checked by the caller.</param>
+            <returns>The code offset of that argument's expression block.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmInterpreter.TryEvaluateArgument(System.Int32,OpenIGI.Scripting.Runtime.QvmValueKind,OpenIGI.Scripting.Runtime.QvmValue@)">
+            <summary>Evaluates one argument block of a call in progress.</summary>
+            <param name="offset">The code offset of the block.</param>
+            <param name="want">The representation the caller needs.</param>
+            <param name="value">Receives the evaluated value.</param>
+            <returns><see langword="false"/> when the block produced nothing, or nothing of that type.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmInterpreter.Break">
+            <summary>
+            Stops the program once the native that asks returns, as <c>Script__Break</c> does with break enabled
+            (<c>QVM_Execute</c> checks <c>Script_isBreak</c> between instructions).
+            </summary>
+        </member>
+        <member name="T:OpenIGI.Scripting.Runtime.QvmNativeFunction">
+            <summary>
+            The engine side of a script call.
+            </summary>
+            <param name="call">The call in progress: the bound context and the unevaluated arguments.</param>
+            <returns>
+            The result. The caller reads whichever representation the symbol's declared return type names, so
+            returning <see cref="P:OpenIGI.Scripting.Runtime.QvmValue.Zero"/> is the way to return nothing.
+            </returns>
+            <remarks>
+            Arguments arrive unevaluated. A native may read an argument any number of times — including none —
+            and each read runs its expression again, which is what makes script-side conditionals and
+            side-effecting arguments behave the way the original's do.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Scripting.Runtime.QvmStringVariable">
+            <summary>
+            A fixed-capacity string variable, bound to a getter and a setter.
+            </summary>
+            <remarks>
+            The capacity is the size of the original's character buffer including its terminator, so an
+            assignment keeps at most <c>capacity - 1</c> characters. Longer text is truncated, never rejected.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmStringVariable.#ctor(System.Func{System.String},System.Action{System.String},System.Int32)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Scripting.Runtime.QvmStringVariable"/> class.</summary>
+            <param name="get">Reads the current value.</param>
+            <param name="set">Stores a new value, already truncated to fit.</param>
+            <param name="capacity">The buffer size in bytes, terminator included.</param>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="capacity"/> is less than one.</exception>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmStringVariable.ValueType">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmStringVariable.Capacity">
+            <summary>Gets the buffer size in bytes, terminator included.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmStringVariable.Read">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmStringVariable.TryWrite(OpenIGI.Scripting.Runtime.QvmValue,OpenIGI.Scripting.Runtime.QvmValue@)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Scripting.Runtime.QvmSymbol">
+            <summary>
+            A named entry in the global script namespace: a native function, a constant or a variable.
+            </summary>
+            <remarks>
+            Mirrors the original's 28-byte symbol descriptor. The two fields that matter most are the kind,
+            which decides whether a call or an assignment may target the symbol, and — for a function — the
+            declared <see cref="P:OpenIGI.Scripting.Runtime.QvmSymbol.ValueType"/>, which selects <em>which</em> slot of the native's result the
+            caller pushes. A native registered without a type returns an integer, whatever it computed.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmSymbol.Name">
+            <summary>Gets the name scripts refer to the symbol by.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmSymbol.Kind">
+            <summary>Gets what the symbol is.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmSymbol.ValueType">
+            <summary>Gets the declared type: what a variable stores, or which result slot a call reads.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmSymbol.ArgumentCount">
+            <summary>Gets the declared argument count of a function; zero for anything else.</summary>
+            <remarks>
+            Declarative only. The original passes the call site's own count to the native and lets it
+            decide what to evaluate, so a mismatch is not an error.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmSymbol.Context">
+            <summary>Gets or sets the object bound to this symbol, which its native receives on every call.</summary>
+            <remarks>
+            This is what <c>Script_SetSymbolContext</c> rebinds: level loading points <c>Task_New</c> at
+            the level's own object factory before running its scripts.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmSymbol.Variable">
+            <summary>Gets the variable this symbol binds, or <see langword="null"/> when it is not a variable.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmSymbol.IsReadable">
+            <summary>Gets a value indicating whether the symbol yields a value when a script reads it.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmSymbol.CreateFunction(System.String,OpenIGI.Scripting.Runtime.QvmNativeFunction,System.Int32,OpenIGI.Scripting.Runtime.QvmValueKind,System.Object)">
+            <summary>Creates a native function symbol.</summary>
+            <param name="name">The script-visible name.</param>
+            <param name="function">The implementation.</param>
+            <param name="argumentCount">The declared argument count.</param>
+            <param name="returnType">Which slot of the result a call pushes. <see cref="F:OpenIGI.Scripting.Runtime.QvmValueKind.None"/> behaves as <see cref="F:OpenIGI.Scripting.Runtime.QvmValueKind.Integer"/>.</param>
+            <param name="context">The object the native receives, later rebindable through <see cref="P:OpenIGI.Scripting.Runtime.QvmSymbol.Context"/>.</param>
+            <returns>The symbol.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmSymbol.CreateConstant(System.String,System.Int32)">
+            <summary>Creates an integer constant symbol.</summary>
+            <param name="name">The script-visible name.</param>
+            <param name="value">The constant value.</param>
+            <returns>The symbol.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmSymbol.CreateRealConstant(System.String,System.Double)">
+            <summary>Creates a real-valued constant symbol — the form <c>sub_4B8870</c> registers.</summary>
+            <param name="name">The script-visible name.</param>
+            <param name="value">The constant value.</param>
+            <returns>The symbol.</returns>
+            <remarks>
+            The engine keeps two constant registrars: <c>sub_4B8810</c> for integers and <c>sub_4B8870</c>
+            for doubles. <c>WORLD_METER</c> (4096.0) and <c>MATH_PI</c> are reals; a script multiplying by
+            them must see a float, not a truncated integer.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmSymbol.CreateVariable(System.String,OpenIGI.Scripting.Runtime.IQvmVariable)">
+            <summary>Creates a variable symbol.</summary>
+            <param name="name">The script-visible name.</param>
+            <param name="variable">The storage binding.</param>
+            <returns>The symbol.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmSymbol.Read">
+            <summary>Reads the symbol's value.</summary>
+            <returns>The constant, or the variable's current value.</returns>
+            <exception cref="T:System.InvalidOperationException">The symbol is a function, which has no readable value.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmSymbol.Invoke(OpenIGI.Scripting.Runtime.QvmCallContext)">
+            <summary>Invokes the symbol's native function.</summary>
+            <param name="call">The call in progress, from which the native pulls its arguments.</param>
+            <returns>Whatever the native produced; the caller narrows it to <see cref="P:OpenIGI.Scripting.Runtime.QvmSymbol.ValueType"/>.</returns>
+            <exception cref="T:System.InvalidOperationException">The symbol is not a function.</exception>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmSymbol.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Scripting.Runtime.QvmSymbolKind">
+            <summary>
+            What a registered symbol is, and therefore how the VM may use it.
+            </summary>
+            <remarks>The numeric values are the original's, stored in the first word of its symbol descriptor.</remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmSymbolKind.Variable">
+            <summary>A variable: readable, and the only thing an assignment may target.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmSymbolKind.Function">
+            <summary>A native function: the only thing a call may target.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmSymbolKind.Constant">
+            <summary>A named integer constant: readable, never assignable.</summary>
+        </member>
+        <member name="T:OpenIGI.Scripting.Runtime.QvmValue">
+            <summary>
+            One value on the VM stack, or one value handed to and from a native function.
+            </summary>
+            <remarks>
+            <para>
+            The original stores a value's bytes on a word stack and its tag on a parallel type stack. This
+            struct carries both together. Only the member matching <see cref="P:OpenIGI.Scripting.Runtime.QvmValue.Kind"/> is meaningful.
+            </para>
+            <para>
+            Floating-point values keep a <see cref="T:System.Double"/> because a script variable is stored as one,
+            while everything the VM pushes has already been narrowed to 32 bits — the same asymmetry the
+            original has between its variable storage and its stack.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmValue.Zero">
+            <summary>Gets the integer zero: what a native returns when it produces no value.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmValue.Kind">
+            <summary>Gets the type tag.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmValue.Integer">
+            <summary>Gets the integer, for <see cref="F:OpenIGI.Scripting.Runtime.QvmValueKind.Integer"/> and <see cref="F:OpenIGI.Scripting.Runtime.QvmValueKind.Address"/>.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmValue.Number">
+            <summary>Gets the number, for <see cref="F:OpenIGI.Scripting.Runtime.QvmValueKind.Float"/>.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmValue.Text">
+            <summary>Gets the text, for <see cref="F:OpenIGI.Scripting.Runtime.QvmValueKind.String"/>, <see cref="F:OpenIGI.Scripting.Runtime.QvmValueKind.Identifier"/> and <see cref="F:OpenIGI.Scripting.Runtime.QvmValueKind.Buffer"/>.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmValue.Symbol">
+            <summary>Gets the symbol, for <see cref="F:OpenIGI.Scripting.Runtime.QvmValueKind.Symbol"/>.</summary>
+        </member>
+        <member name="P:OpenIGI.Scripting.Runtime.QvmValue.IsNumber">
+            <summary>Gets a value indicating whether this is a number the arithmetic instructions accept.</summary>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.FromInt32(System.Int32)">
+            <summary>Creates an integer value.</summary>
+            <param name="value">The integer.</param>
+            <returns>The value.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.FromSingle(System.Single)">
+            <summary>Creates a floating-point value as the VM pushes one, narrowed to 32 bits.</summary>
+            <param name="value">The number.</param>
+            <returns>The value.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.FromDouble(System.Double)">
+            <summary>Creates a floating-point value at full width, as a variable read produces one.</summary>
+            <param name="value">The number.</param>
+            <returns>The value.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.FromString(System.String)">
+            <summary>Creates a string value.</summary>
+            <param name="value">The text.</param>
+            <returns>The value.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.FromIdentifier(System.String)">
+            <summary>Creates an unresolved identifier value.</summary>
+            <param name="name">The identifier.</param>
+            <returns>The value.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.FromAddress(System.Int32)">
+            <summary>Creates an address value.</summary>
+            <param name="value">The address immediate.</param>
+            <returns>The value.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.FromSymbol(OpenIGI.Scripting.Runtime.QvmSymbol)">
+            <summary>Creates a symbol value.</summary>
+            <param name="symbol">The resolved symbol.</param>
+            <returns>The value.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.op_Equality(OpenIGI.Scripting.Runtime.QvmValue,OpenIGI.Scripting.Runtime.QvmValue)">
+            <summary>Compares two values for equality.</summary>
+            <param name="left">The first value.</param>
+            <param name="right">The second value.</param>
+            <returns><see langword="true"/> when both have the same tag and payload.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.op_Inequality(OpenIGI.Scripting.Runtime.QvmValue,OpenIGI.Scripting.Runtime.QvmValue)">
+            <summary>Compares two values for inequality.</summary>
+            <param name="left">The first value.</param>
+            <param name="right">The second value.</param>
+            <returns><see langword="true"/> when the values differ.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.ToInt32">
+            <summary>Converts the value to the integer slot of the original's return union.</summary>
+            <returns>The integer form: floats truncate toward zero, anything else yields zero.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.ToSingle">
+            <summary>Converts the value to the floating-point slot of the original's return union.</summary>
+            <returns>The 32-bit float form, or zero for values that are not numbers.</returns>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.ToDouble">
+            <summary>Converts the value to the full-width floating-point slot of the return union.</summary>
+            <returns>The 64-bit form, or zero for values that are not numbers.</returns>
+            <remarks>
+            The union's floating-point slot is eight bytes wide and <c>Expr_EvalFloat</c> reads all eight of
+            them, so a float-typed variable round-trips at <c>double</c> precision. <see cref="M:OpenIGI.Scripting.Runtime.QvmValue.ToSingle"/>
+            is the narrower read the QVM stack does.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.ToText">
+            <summary>Converts the value to the string slot of the original's return union.</summary>
+            <returns>The text, or the empty string for values that are not text.</returns>
+            <remarks>
+            The original fills that slot with a pointer to its shared empty string whenever a native has
+            no string to return, so the empty string is the faithful answer rather than a placeholder.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.Equals(OpenIGI.Scripting.Runtime.QvmValue)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.Equals(System.Object)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.GetHashCode">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Scripting.Runtime.QvmValue.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Scripting.Runtime.QvmValueKind">
+            <summary>
+            The type tag a value carries on the VM stack.
+            </summary>
+            <remarks>
+            The numeric values are the original's tags. It keeps a parallel type stack beside the value stack
+            and switches on these; the same tags declare what a symbol holds and what a native call returns.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmValueKind.None">
+            <summary>No declared type. A native registered without one returns its integer slot.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmValueKind.Integer">
+            <summary>A 32-bit integer.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmValueKind.Float">
+            <summary>A floating-point number: 32-bit on the stack, 64-bit in a variable.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmValueKind.String">
+            <summary>A string constant, stored inline on the stack.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmValueKind.Identifier">
+            <summary>An identifier that has not been resolved to a symbol yet, stored inline on the stack.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmValueKind.Address">
+            <summary>An address immediate, pushed only by <see cref="F:OpenIGI.Scripting.Qvm.QvmOpcode.PushA"/>.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmValueKind.Symbol">
+            <summary>A resolved symbol.</summary>
+        </member>
+        <member name="F:OpenIGI.Scripting.Runtime.QvmValueKind.Buffer">
+            <summary>
+            A second inline-string tag the original pops like <see cref="F:OpenIGI.Scripting.Runtime.QvmValueKind.String"/>. Its VM never pushes
+            one; it belongs to the compiler front end the retail executable also ships.
+            </summary>
+        </member>
+    </members>
+</doc>

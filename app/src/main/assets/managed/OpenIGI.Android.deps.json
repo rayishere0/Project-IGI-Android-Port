@@ -1,0 +1,972 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0/android-arm64",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {},
+    ".NETCoreApp,Version=v10.0/android-arm64": {
+      "ProjectIGI.Android/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Audio": "0.0.0-dev",
+          "ProjectIGI.Audio.OpenAL": "0.0.0-dev",
+          "ProjectIGI.Composition": "0.0.0-dev",
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Engine": "0.0.0-dev",
+          "ProjectIGI.Formats": "0.0.0-dev",
+          "ProjectIGI.Frontend": "0.0.0-dev",
+          "ProjectIGI.Game": "0.0.0-dev",
+          "ProjectIGI.Game.Igi1": "0.0.0-dev",
+          "ProjectIGI.Game.Igi2": "0.0.0-dev",
+          "ProjectIGI.Host": "0.0.0-dev",
+          "ProjectIGI.Input": "0.0.0-dev",
+          "ProjectIGI.Modding": "0.0.0-dev",
+          "ProjectIGI.Modding.Loader": "0.0.0-dev",
+          "ProjectIGI.Modding.Presentation": "0.0.0-dev",
+          "ProjectIGI.Platform": "0.0.0-dev",
+          "ProjectIGI.Platform.Desktop": "0.0.0-dev",
+          "ProjectIGI.Presentation": "0.0.0-dev",
+          "ProjectIGI.Rendering": "0.0.0-dev",
+          "ProjectIGI.Rendering.Pipeline": "0.0.0-dev",
+          "ProjectIGI.Rendering.Vulkan": "0.0.0-dev",
+          "ProjectIGI.Scripting": "0.0.0-dev",
+          "ProjectIGI.UI": "0.0.0-dev",
+          "Silk.NET.Vulkan": "2.22.0",
+          "Silk.NET.Vulkan.Extensions.KHR": "2.22.0"
+        },
+        "runtime": {
+          "ProjectIGI.Android.dll": {}
+        }
+      },
+      "BCnEncoder.Net/2.3.0": {
+        "dependencies": {
+          "CommunityToolkit.HighPerformance": "8.4.0"
+        },
+        "runtime": {
+          "lib/netstandard2.1/BCnEncoder.dll": {
+            "assemblyVersion": "2.3.0.0",
+            "fileVersion": "2.3.0.0"
+          }
+        }
+      },
+      "CommunityToolkit.HighPerformance/8.4.0": {
+        "runtime": {
+          "lib/net8.0/CommunityToolkit.HighPerformance.dll": {
+            "assemblyVersion": "8.4.0.0",
+            "fileVersion": "8.4.0.1"
+          }
+        }
+      },
+      "Microsoft.DotNet.PlatformAbstractions/3.1.6": {
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.DotNet.PlatformAbstractions.dll": {
+            "assemblyVersion": "3.1.6.0",
+            "fileVersion": "3.100.620.31604"
+          }
+        }
+      },
+      "Microsoft.Extensions.DependencyModel/8.0.0": {
+        "runtime": {
+          "lib/net8.0/Microsoft.Extensions.DependencyModel.dll": {
+            "assemblyVersion": "8.0.0.0",
+            "fileVersion": "8.0.23.53103"
+          }
+        }
+      },
+      "NLayer/3.0.0": {
+        "runtime": {
+          "lib/net8.0/NLayer.dll": {
+            "assemblyVersion": "3.0.0.0",
+            "fileVersion": "3.0.0.0"
+          }
+        }
+      },
+      "Silk.NET.Core/2.22.0": {
+        "dependencies": {
+          "Microsoft.DotNet.PlatformAbstractions": "3.1.6",
+          "Microsoft.Extensions.DependencyModel": "8.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/Silk.NET.Core.dll": {
+            "assemblyVersion": "2.22.0.0",
+            "fileVersion": "2.22.0.0"
+          }
+        }
+      },
+      "Silk.NET.GLFW/2.22.0": {
+        "dependencies": {
+          "Silk.NET.Core": "2.22.0",
+          "Ultz.Native.GLFW": "3.4.0"
+        },
+        "runtime": {
+          "lib/net5.0/Silk.NET.GLFW.dll": {
+            "assemblyVersion": "2.22.0.0",
+            "fileVersion": "2.22.0.0"
+          }
+        }
+      },
+      "Silk.NET.Input/2.22.0": {
+        "dependencies": {
+          "Silk.NET.Input.Common": "2.22.0",
+          "Silk.NET.Input.Glfw": "2.22.0"
+        }
+      },
+      "Silk.NET.Input.Common/2.22.0": {
+        "dependencies": {
+          "Silk.NET.Windowing.Common": "2.22.0"
+        },
+        "runtime": {
+          "lib/net5.0/Silk.NET.Input.Common.dll": {
+            "assemblyVersion": "2.22.0.0",
+            "fileVersion": "2.22.0.0"
+          }
+        }
+      },
+      "Silk.NET.Input.Glfw/2.22.0": {
+        "dependencies": {
+          "Silk.NET.Input.Common": "2.22.0",
+          "Silk.NET.Windowing.Glfw": "2.22.0"
+        },
+        "runtime": {
+          "lib/net5.0/Silk.NET.Input.Glfw.dll": {
+            "assemblyVersion": "2.22.0.0",
+            "fileVersion": "2.22.0.0"
+          }
+        }
+      },
+      "Silk.NET.Maths/2.22.0": {
+        "runtime": {
+          "lib/net5.0/Silk.NET.Maths.dll": {
+            "assemblyVersion": "2.22.0.0",
+            "fileVersion": "2.22.0.0"
+          }
+        }
+      },
+      "Silk.NET.OpenAL/2.22.0": {
+        "dependencies": {
+          "Silk.NET.Core": "2.22.0"
+        },
+        "runtime": {
+          "lib/net5.0/Silk.NET.OpenAL.dll": {
+            "assemblyVersion": "2.22.0.0",
+            "fileVersion": "2.22.0.0"
+          }
+        }
+      },
+      "Silk.NET.OpenAL.Soft.Native/1.23.1": {
+        "native": {
+          "runtimes/linux-arm64/native/libopenal.so": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Silk.NET.Vulkan/2.22.0": {
+        "dependencies": {
+          "Silk.NET.Core": "2.22.0"
+        },
+        "runtime": {
+          "lib/net5.0/Silk.NET.Vulkan.dll": {
+            "assemblyVersion": "2.22.0.0",
+            "fileVersion": "2.22.0.0"
+          }
+        }
+      },
+      "Silk.NET.Vulkan.Extensions.EXT/2.22.0": {
+        "dependencies": {
+          "Silk.NET.Core": "2.22.0",
+          "Silk.NET.Vulkan": "2.22.0"
+        },
+        "runtime": {
+          "lib/net5.0/Silk.NET.Vulkan.Extensions.EXT.dll": {
+            "assemblyVersion": "2.22.0.0",
+            "fileVersion": "2.22.0.0"
+          }
+        }
+      },
+      "Silk.NET.Vulkan.Extensions.KHR/2.22.0": {
+        "dependencies": {
+          "Silk.NET.Core": "2.22.0",
+          "Silk.NET.Vulkan": "2.22.0"
+        },
+        "runtime": {
+          "lib/net5.0/Silk.NET.Vulkan.Extensions.KHR.dll": {
+            "assemblyVersion": "2.22.0.0",
+            "fileVersion": "2.22.0.0"
+          }
+        }
+      },
+      "Silk.NET.Windowing.Common/2.22.0": {
+        "dependencies": {
+          "Silk.NET.Core": "2.22.0",
+          "Silk.NET.Maths": "2.22.0"
+        },
+        "runtime": {
+          "lib/netstandard2.1/Silk.NET.Windowing.Common.dll": {
+            "assemblyVersion": "2.22.0.0",
+            "fileVersion": "2.22.0.0"
+          }
+        }
+      },
+      "Silk.NET.Windowing.Glfw/2.22.0": {
+        "dependencies": {
+          "Silk.NET.GLFW": "2.22.0",
+          "Silk.NET.Windowing.Common": "2.22.0"
+        },
+        "runtime": {
+          "lib/net5.0/Silk.NET.Windowing.Glfw.dll": {
+            "assemblyVersion": "2.22.0.0",
+            "fileVersion": "2.22.0.0"
+          }
+        }
+      },
+      "StbTrueTypeSharp/1.26.12": {
+        "runtime": {
+          "lib/netstandard2.0/StbTrueTypeSharp.dll": {
+            "assemblyVersion": "1.26.12.0",
+            "fileVersion": "1.26.12.0"
+          }
+        }
+      },
+      "Ultz.Native.GLFW/3.4.0": {
+        "native": {
+          "runtimes/linux-arm64/native/libglfw.so.3": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Audio/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Audio.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Audio.OpenAL/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Audio": "0.0.0-dev",
+          "ProjectIGI.Core": "0.0.0-dev",
+          "Silk.NET.OpenAL": "2.22.0",
+          "Silk.NET.OpenAL.Soft.Native": "1.23.1"
+        },
+        "runtime": {
+          "ProjectIGI.Audio.OpenAL.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Composition/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Engine": "0.0.0-dev",
+          "ProjectIGI.Game": "0.0.0-dev",
+          "ProjectIGI.Game.Igi1": "0.0.0-dev",
+          "ProjectIGI.Game.Igi2": "0.0.0-dev",
+          "ProjectIGI.Host": "0.0.0-dev",
+          "ProjectIGI.Presentation": "0.0.0-dev",
+          "ProjectIGI.Presentation.Igi1": "0.0.0-dev",
+          "ProjectIGI.Presentation.Igi2": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Composition.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Core/0.0.0-dev": {
+        "runtime": {
+          "ProjectIGI.Core.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Engine/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Audio": "0.0.0-dev",
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Formats": "0.0.0-dev",
+          "ProjectIGI.Input": "0.0.0-dev",
+          "ProjectIGI.Scripting": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Engine.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Formats/0.0.0-dev": {
+        "dependencies": {
+          "BCnEncoder.Net": "2.3.0",
+          "NLayer": "3.0.0",
+          "ProjectIGI.Core": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Formats.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Frontend/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Frontend.Settings": "0.0.0-dev",
+          "ProjectIGI.Game": "0.0.0-dev",
+          "ProjectIGI.Input": "0.0.0-dev",
+          "ProjectIGI.Rendering": "0.0.0-dev",
+          "ProjectIGI.UI": "0.0.0-dev",
+          "ProjectIGI.UI.Kit": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Frontend.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Frontend.Settings/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.UI": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Frontend.Settings.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Game/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Engine": "0.0.0-dev",
+          "ProjectIGI.Formats": "0.0.0-dev",
+          "ProjectIGI.Input": "0.0.0-dev",
+          "ProjectIGI.Scripting": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Game.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Game.Igi1/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Engine": "0.0.0-dev",
+          "ProjectIGI.Formats": "0.0.0-dev",
+          "ProjectIGI.Game": "0.0.0-dev",
+          "ProjectIGI.Scripting": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Game.Igi1.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Game.Igi2/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Engine": "0.0.0-dev",
+          "ProjectIGI.Formats": "0.0.0-dev",
+          "ProjectIGI.Game": "0.0.0-dev",
+          "ProjectIGI.Scripting": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Game.Igi2.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Host/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Audio": "0.0.0-dev",
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Engine": "0.0.0-dev",
+          "ProjectIGI.Formats": "0.0.0-dev",
+          "ProjectIGI.Frontend": "0.0.0-dev",
+          "ProjectIGI.Game": "0.0.0-dev",
+          "ProjectIGI.Input": "0.0.0-dev",
+          "ProjectIGI.Modding": "0.0.0-dev",
+          "ProjectIGI.Platform": "0.0.0-dev",
+          "ProjectIGI.Presentation": "0.0.0-dev",
+          "ProjectIGI.Rendering": "0.0.0-dev",
+          "ProjectIGI.Scripting": "0.0.0-dev",
+          "ProjectIGI.UI": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Host.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Input/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Input.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Modding/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Engine": "0.0.0-dev",
+          "ProjectIGI.Game": "0.0.0-dev",
+          "ProjectIGI.Scripting": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Modding.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Modding.Loader/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Modding": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Modding.Loader.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Modding.Presentation/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Modding": "0.0.0-dev",
+          "ProjectIGI.Presentation": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Modding.Presentation.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Platform/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Input": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Platform.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Platform.Desktop/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Input": "0.0.0-dev",
+          "ProjectIGI.Platform": "0.0.0-dev",
+          "Silk.NET.Input": "2.22.0"
+        },
+        "runtime": {
+          "ProjectIGI.Platform.Desktop.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Presentation/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Engine": "0.0.0-dev",
+          "ProjectIGI.Formats": "0.0.0-dev",
+          "ProjectIGI.Game": "0.0.0-dev",
+          "ProjectIGI.Input": "0.0.0-dev",
+          "ProjectIGI.Rendering": "0.0.0-dev",
+          "ProjectIGI.UI": "0.0.0-dev",
+          "ProjectIGI.UI.Kit": "0.0.0-dev",
+          "ProjectIGI.UI.Rhi": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Presentation.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Presentation.Igi1/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Engine": "0.0.0-dev",
+          "ProjectIGI.Formats": "0.0.0-dev",
+          "ProjectIGI.Game": "0.0.0-dev",
+          "ProjectIGI.Game.Igi1": "0.0.0-dev",
+          "ProjectIGI.Presentation": "0.0.0-dev",
+          "ProjectIGI.Rendering": "0.0.0-dev",
+          "ProjectIGI.Scripting": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Presentation.Igi1.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Presentation.Igi2/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Engine": "0.0.0-dev",
+          "ProjectIGI.Formats": "0.0.0-dev",
+          "ProjectIGI.Game": "0.0.0-dev",
+          "ProjectIGI.Game.Igi2": "0.0.0-dev",
+          "ProjectIGI.Presentation": "0.0.0-dev",
+          "ProjectIGI.Rendering": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Presentation.Igi2.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Rendering/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Shaders": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Rendering.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Rendering.Pipeline/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Rendering": "0.0.0-dev",
+          "ProjectIGI.Rendering.Rhi": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Rendering.Pipeline.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Rendering.Rhi/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Shaders": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Rendering.Rhi.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Rendering.Streamline/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Rendering.Rhi": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Rendering.Streamline.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Rendering.Vulkan/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Rendering": "0.0.0-dev",
+          "ProjectIGI.Rendering.Rhi": "0.0.0-dev",
+          "ProjectIGI.Rendering.Streamline": "0.0.0-dev",
+          "ProjectIGI.Shaders": "0.0.0-dev",
+          "Silk.NET.Vulkan": "2.22.0",
+          "Silk.NET.Vulkan.Extensions.EXT": "2.22.0",
+          "Silk.NET.Vulkan.Extensions.KHR": "2.22.0"
+        },
+        "runtime": {
+          "ProjectIGI.Rendering.Vulkan.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Scripting/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.Scripting.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.Shaders/0.0.0-dev": {
+        "runtime": {
+          "ProjectIGI.Shaders.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.UI/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Input": "0.0.0-dev",
+          "StbTrueTypeSharp": "1.26.12"
+        },
+        "runtime": {
+          "ProjectIGI.UI.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.UI.Kit/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Input": "0.0.0-dev",
+          "ProjectIGI.UI": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.UI.Kit.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ProjectIGI.UI.Rhi/0.0.0-dev": {
+        "dependencies": {
+          "ProjectIGI.Core": "0.0.0-dev",
+          "ProjectIGI.Rendering": "0.0.0-dev",
+          "ProjectIGI.UI": "0.0.0-dev"
+        },
+        "runtime": {
+          "ProjectIGI.UI.Rhi.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "ProjectIGI.Android/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "BCnEncoder.Net/2.3.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-DJhHJiBJKXUXxlkkrv74ckzJb3wYxqIAZHjXD9G76kpsD0YyJOmqtNufHWEuJe0eH0tB1tCZn80/3JV2UVP7yQ==",
+      "path": "bcnencoder.net/2.3.0",
+      "hashPath": "bcnencoder.net.2.3.0.nupkg.sha512"
+    },
+    "CommunityToolkit.HighPerformance/8.4.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-flxspiBs0G/0GMp7IK2J2ijV9bTG6hEwFc/z6ekHqB6nwRJ4Ry2yLdx+TkbCUYFCl4XhABkAwomeKbT6zM2Zlg==",
+      "path": "communitytoolkit.highperformance/8.4.0",
+      "hashPath": "communitytoolkit.highperformance.8.4.0.nupkg.sha512"
+    },
+    "Microsoft.DotNet.PlatformAbstractions/3.1.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-jek4XYaQ/PGUwDKKhwR8K47Uh1189PFzMeLqO83mXrXQVIpARZCcfuDedH50YDTepBkfijCZN5U/vZi++erxtg==",
+      "path": "microsoft.dotnet.platformabstractions/3.1.6",
+      "hashPath": "microsoft.dotnet.platformabstractions.3.1.6.nupkg.sha512"
+    },
+    "Microsoft.Extensions.DependencyModel/8.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-NSmDw3K0ozNDgShSIpsZcbFIzBX4w28nDag+TfaQujkXGazBm+lid5onlWoCBy4VsLxqnnKjEBbGSJVWJMf43g==",
+      "path": "microsoft.extensions.dependencymodel/8.0.0",
+      "hashPath": "microsoft.extensions.dependencymodel.8.0.0.nupkg.sha512"
+    },
+    "NLayer/3.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-aQrCT93NjIrJNXA7wiTSHMp9OUhGNb8YTJAwnsx2FtaNdAe74vwfguFExf6QFNU72XhNPb/bLAcdMbxvaNZgWg==",
+      "path": "nlayer/3.0.0",
+      "hashPath": "nlayer.3.0.0.nupkg.sha512"
+    },
+    "Silk.NET.Core/2.22.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-XbDilPmvsQIrvxZkeVCNNX3LyRtA3hN6UykAiyZjlu/JkYh68U3WQummpP+j7jsxlX8s/pOrrU3vbN8LnMl0VA==",
+      "path": "silk.net.core/2.22.0",
+      "hashPath": "silk.net.core.2.22.0.nupkg.sha512"
+    },
+    "Silk.NET.GLFW/2.22.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-I1u6CmwwtD+5OIHditbMBVHRQUHZWhfW3Z38mvydxwkZpAvjs5BCxyen6ecOVpbYD6I0EOjZ42M3IsaZbwiYUg==",
+      "path": "silk.net.glfw/2.22.0",
+      "hashPath": "silk.net.glfw.2.22.0.nupkg.sha512"
+    },
+    "Silk.NET.Input/2.22.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-1gqbKHrKpBv2Vk983kVpMqXL4Uj36NaUIQ2YbQosFVa3pXJE8UMGiWqKtaeoMqnzItusZ1WYgDHKge37EvNm/w==",
+      "path": "silk.net.input/2.22.0",
+      "hashPath": "silk.net.input.2.22.0.nupkg.sha512"
+    },
+    "Silk.NET.Input.Common/2.22.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-DZy30akJABBmTnn8OICik0TFEuXrkd7YCQvoq+oh50eJzXt8JgEYYa+sJYBib/Phs5WULZg/QR7fM8Gi1G3tXg==",
+      "path": "silk.net.input.common/2.22.0",
+      "hashPath": "silk.net.input.common.2.22.0.nupkg.sha512"
+    },
+    "Silk.NET.Input.Glfw/2.22.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-LZPZT1e/RxnjKfkqlp2Wp8KJFP1Av/ErTCZ00EzZpFR1lhUSBgSmgJwXg6XlWoEJHyeJcsXV688zjoEe6YW0BA==",
+      "path": "silk.net.input.glfw/2.22.0",
+      "hashPath": "silk.net.input.glfw.2.22.0.nupkg.sha512"
+    },
+    "Silk.NET.Maths/2.22.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-W9b5UlUGCu5Ywb5f8ZyIWJ475ucY+mT/nEiSTo3JH098VxHaZS/02bYr9f29VWBaJhh3DwMkfxQvgTyXzTrHyw==",
+      "path": "silk.net.maths/2.22.0",
+      "hashPath": "silk.net.maths.2.22.0.nupkg.sha512"
+    },
+    "Silk.NET.OpenAL/2.22.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-YpzIhYRcUZ8dHML8+DUHqEgu0exmZhouWYHGR4AXPtD63YbFuuO4aFqulWkCpIaOvjCdsIWtNKElLJreLxXvFw==",
+      "path": "silk.net.openal/2.22.0",
+      "hashPath": "silk.net.openal.2.22.0.nupkg.sha512"
+    },
+    "Silk.NET.OpenAL.Soft.Native/1.23.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-gZIbksInoiXbJZmepYnTs5O6Edg5O5k86c1+Uus0zSaVnQx5WRbInGz2VTlvudbs0qAqXs/asL1YvJzco/nfAQ==",
+      "path": "silk.net.openal.soft.native/1.23.1",
+      "hashPath": "silk.net.openal.soft.native.1.23.1.nupkg.sha512"
+    },
+    "Silk.NET.Vulkan/2.22.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-VBX7A5oosMQL9W/9dDzX+Dn4fr/ZaCwKv7X+nnJQhNbUAZ0tly6As/wA29oA7fM6N5PxROWKwnezttSZW8dGgQ==",
+      "path": "silk.net.vulkan/2.22.0",
+      "hashPath": "silk.net.vulkan.2.22.0.nupkg.sha512"
+    },
+    "Silk.NET.Vulkan.Extensions.EXT/2.22.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-uZL3gSsevejcu2uUCIERy2LFaN8TjF6u2JPNcVGGHfV+ia22j6XdXt78VlLri/bgLnMPfm7m+xEk/whoJwurmg==",
+      "path": "silk.net.vulkan.extensions.ext/2.22.0",
+      "hashPath": "silk.net.vulkan.extensions.ext.2.22.0.nupkg.sha512"
+    },
+    "Silk.NET.Vulkan.Extensions.KHR/2.22.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-tyJCjj4ojQmwacvIjkpMMc85zKGy+9htJQqom6QNG1Zg8ljTuqoMomoUlPtP9IJyRS3moSwy3KpdGrbHxrNeLA==",
+      "path": "silk.net.vulkan.extensions.khr/2.22.0",
+      "hashPath": "silk.net.vulkan.extensions.khr.2.22.0.nupkg.sha512"
+    },
+    "Silk.NET.Windowing.Common/2.22.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ynasHSQ4jGrmpn/07UagE3qVNRLzWvg+fbM8uHI0d5LF95y++Kuno42QLkP/UEruC1YovI+NRhMfGJy0gDQaZg==",
+      "path": "silk.net.windowing.common/2.22.0",
+      "hashPath": "silk.net.windowing.common.2.22.0.nupkg.sha512"
+    },
+    "Silk.NET.Windowing.Glfw/2.22.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-hBNxNSLvx/jdfvbU6oCsXcgLfqf9hMlEc6Mq/rllJ0eUTLloacuOZHTM8V702QGf7hOR+Mo4bTFqTqBnC0CM7g==",
+      "path": "silk.net.windowing.glfw/2.22.0",
+      "hashPath": "silk.net.windowing.glfw.2.22.0.nupkg.sha512"
+    },
+    "StbTrueTypeSharp/1.26.12": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-hCc6/OsfcPa5VsLECcEU2m78WOshBrKwK42nAodSm9Z5wH68f7n66SoiRLCdGCkDaqbWz2TlX4zYHIjogj1HJA==",
+      "path": "stbtruetypesharp/1.26.12",
+      "hashPath": "stbtruetypesharp.1.26.12.nupkg.sha512"
+    },
+    "Ultz.Native.GLFW/3.4.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Iy22JopynbOJ32vA0lBhFEzGi65GQJBuJHYBYRBpydrDpNoTiHnjIXfA65Gu+8qsOr/ZEoIF8r9aHCgAXuO6DA==",
+      "path": "ultz.native.glfw/3.4.0",
+      "hashPath": "ultz.native.glfw.3.4.0.nupkg.sha512"
+    },
+    "ProjectIGI.Audio/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Audio.OpenAL/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Composition/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Core/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Engine/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Formats/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Frontend/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Frontend.Settings/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Game/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Game.Igi1/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Game.Igi2/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Host/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Input/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Modding/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Modding.Loader/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Modding.Presentation/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Platform/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Platform.Desktop/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Presentation/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Presentation.Igi1/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Presentation.Igi2/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Rendering/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Rendering.Pipeline/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Rendering.Rhi/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Rendering.Streamline/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Rendering.Vulkan/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Scripting/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.Shaders/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.UI/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.UI.Kit/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectIGI.UI.Rhi/0.0.0-dev": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

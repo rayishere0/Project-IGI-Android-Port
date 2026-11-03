@@ -1,0 +1,1162 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OpenIGI.UI.Kit</name>
+    </assembly>
+    <members>
+        <member name="T:OpenIGI.UI.Kit.IgiFontRequest">
+            <summary>One face the design asks for: which file, at what atlas size, rasterised how.</summary>
+            <param name="FileName">The TrueType file, as shipped in <c>Assets/fonts</c>.</param>
+            <param name="PixelHeight">The pixel height the atlas is rasterised at.</param>
+            <param name="Kind">Coverage for faces drawn near their atlas size, a distance field for faces drawn large and small.</param>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.IgiFontRequest.#ctor(System.String,System.Single,OpenIGI.UI.Text.FontAtlasKind)">
+            <summary>One face the design asks for: which file, at what atlas size, rasterised how.</summary>
+            <param name="FileName">The TrueType file, as shipped in <c>Assets/fonts</c>.</param>
+            <param name="PixelHeight">The pixel height the atlas is rasterised at.</param>
+            <param name="Kind">Coverage for faces drawn near their atlas size, a distance field for faces drawn large and small.</param>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.IgiFontRequest.FileName">
+            <summary>The TrueType file, as shipped in <c>Assets/fonts</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.IgiFontRequest.PixelHeight">
+            <summary>The pixel height the atlas is rasterised at.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.IgiFontRequest.Kind">
+            <summary>Coverage for faces drawn near their atlas size, a distance field for faces drawn large and small.</summary>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.IgiTypography">
+            <summary>
+            The design's four faces, loaded once and shared by every surface that sets text: the menus, the HUD,
+            the tactical computer, the loading card, the developer console and the launcher.
+            </summary>
+            <remarks>
+            <para>
+            <b>Barlow</b> for prose and captions; <b>Barlow Condensed SemiBold</b> for the uppercase tracked labels
+            on every tab, button and value; <b>Barlow Condensed Bold</b> for titles, from a 26-unit logo up to a
+            168-unit mission name; <b>JetBrains Mono</b> for eyebrows, key caps and numbers. All four are under
+            the SIL Open Font License and ship in <c>Assets/fonts</c>.
+            </para>
+            <para>
+            The condensed faces are distance fields because they are drawn across the widest range of sizes — a
+            coverage atlas minified from 64 to 14 pixels shimmers — while body and mono text stay coverage atlases
+            drawn close to the size they were rasterised at, which is what keeps small text crisp.
+            </para>
+            <para>
+            How a request becomes a <see cref="T:OpenIGI.UI.Text.UiFont"/> is the caller's: the game uploads an atlas to its device,
+            the launcher keeps the TrueType bytes for its vector renderer. Either way the metrics come from the
+            same atlas build, so a line breaks in the same place in both.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.IgiTypography.BodyFile">
+            <summary>The body face.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.IgiTypography.HeadingFile">
+            <summary>The label face: tabs, buttons, values.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.IgiTypography.DisplayFile">
+            <summary>The title face.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.IgiTypography.MonoFile">
+            <summary>The monospaced face: eyebrows, key caps, numbers.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.IgiTypography.BodyRequest">
+            <summary>Gets the request for the body face.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.IgiTypography.HeadingRequest">
+            <summary>Gets the request for the label face.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.IgiTypography.DisplayRequest">
+            <summary>Gets the request for the title face.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.IgiTypography.MonoRequest">
+            <summary>Gets the request for the monospaced face.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.IgiTypography.Requests">
+            <summary>Gets every face the design asks for.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.IgiTypography.Body">
+            <summary>Gets the body face.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.IgiTypography.Heading">
+            <summary>Gets the condensed label face.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.IgiTypography.Display">
+            <summary>Gets the condensed title face.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.IgiTypography.Mono">
+            <summary>Gets the monospaced face.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.IgiTypography.Load(System.Func{OpenIGI.UI.Kit.IgiFontRequest,OpenIGI.UI.Text.UiFont})">
+            <summary>Loads the four faces through a caller's loader.</summary>
+            <param name="load">Turns a request into a font; called once per face.</param>
+            <returns>The typography, owning the fonts it loaded.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="load"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.IgiTypography.From(OpenIGI.UI.Text.UiFont,OpenIGI.UI.Text.UiFont,OpenIGI.UI.Text.UiFont,OpenIGI.UI.Text.UiFont)">
+            <summary>Wraps faces loaded elsewhere, which the typography does not dispose.</summary>
+            <param name="body">The body face.</param>
+            <param name="heading">The label face, or <see langword="null"/> for the body face.</param>
+            <param name="display">The title face, or <see langword="null"/> for the label face.</param>
+            <param name="mono">The monospaced face, or <see langword="null"/> for the body face.</param>
+            <returns>The typography.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="body"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.IgiTypography.CreateTheme">
+            <summary>Builds a theme over these faces with the design's palette and metrics.</summary>
+            <returns>The theme.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.IgiTypography.Dispose">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.KeyCapStyle">
+            <summary>Where a key cap sits: in a header bar (quieter) or a footer hint (brighter).</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.KeyCapStyle.Header">
+            <summary>A header's Q / E: muted text, a fainter border.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.KeyCapStyle.Footer">
+            <summary>A footer hint: primary text, a slightly stronger border.</summary>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.KitDraw">
+            <summary>
+            The design's small recurring marks, drawn directly rather than as widgets: eyebrows, key caps, progress
+            segments, pills, glass, the backdrop vignette and blurred display text.
+            </summary>
+            <remarks>
+            Sizes are in design units and go through the painter's layout context, so a mark drawn here scales
+            with the screen exactly as the widgets around it do.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.KitDraw.Eyebrow(OpenIGI.UI.UiPainter,OpenIGI.UI.Widgets.UiTheme,System.String,OpenIGI.UI.Layout.UiVec2,System.Single,System.Nullable{OpenIGI.Core.Graphics.Bgra32},System.Single)">
+            <summary>Draws an eyebrow: a small monospaced, widely tracked caption, accent by default.</summary>
+            <param name="painter">The painter.</param>
+            <param name="theme">The theme.</param>
+            <param name="text">The text, already in capitals.</param>
+            <param name="topLeft">The top-left, in pixels.</param>
+            <param name="size">The size, in design units.</param>
+            <param name="color">The colour, or <see langword="null"/> for the accent.</param>
+            <param name="tracking">The letterspacing, in ems.</param>
+            <returns>The pen after the last glyph.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.KitDraw.MeasureKeyCap(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Widgets.UiTheme,System.String,System.Single)">
+            <summary>Measures a key cap's box.</summary>
+            <param name="context">The layout context.</param>
+            <param name="theme">The theme.</param>
+            <param name="key">The key's name.</param>
+            <param name="size">The text size, in design units.</param>
+            <returns>The cap's size, in pixels.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.KitDraw.KeyCap(OpenIGI.UI.UiPainter,OpenIGI.UI.Widgets.UiTheme,System.String,OpenIGI.UI.Layout.UiVec2,OpenIGI.UI.Kit.KeyCapStyle,System.Single)">
+            <summary>Draws a key cap: a key's name in a hairline box.</summary>
+            <param name="painter">The painter.</param>
+            <param name="theme">The theme.</param>
+            <param name="key">The key's name.</param>
+            <param name="topLeft">The cap's top-left, in pixels.</param>
+            <param name="style">Header or footer styling.</param>
+            <param name="size">The text size, in design units.</param>
+            <returns>The cap's box.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.KitDraw.Segments(OpenIGI.UI.UiPainter,OpenIGI.UI.Layout.UiVec2,System.Int32,System.Int32,System.Single,System.Single,System.Single,OpenIGI.Core.Graphics.Bgra32)">
+            <summary>Draws a row of progress segments: so many of a total filled in the accent.</summary>
+            <param name="painter">The painter.</param>
+            <param name="topLeft">The first segment's top-left, in pixels.</param>
+            <param name="filled">How many are filled.</param>
+            <param name="total">How many there are.</param>
+            <param name="width">Each segment's width, in design units.</param>
+            <param name="height">Each segment's height, in design units.</param>
+            <param name="gap">The gap between segments, in design units.</param>
+            <param name="accent">The filled colour.</param>
+            <returns>The row's total width, in pixels.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.KitDraw.SegmentsWidth(OpenIGI.UI.Layout.LayoutContext,System.Int32,System.Single,System.Single)">
+            <summary>Measures the width of a row of progress segments.</summary>
+            <param name="context">The layout context.</param>
+            <param name="total">How many there are.</param>
+            <param name="width">Each segment's width, in design units.</param>
+            <param name="gap">The gap between segments, in design units.</param>
+            <returns>The width in pixels.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.KitDraw.Pill(OpenIGI.UI.UiPainter,OpenIGI.UI.Widgets.UiTheme,System.String,OpenIGI.UI.Layout.UiVec2,System.Nullable{OpenIGI.Core.Graphics.Bgra32},OpenIGI.Core.Graphics.Bgra32,System.Single)">
+            <summary>Draws a pill: a monospaced word on a filled or outlined chip, such as ACTIVE.</summary>
+            <param name="painter">The painter.</param>
+            <param name="theme">The theme.</param>
+            <param name="text">The text, in capitals.</param>
+            <param name="topRight">The pill's top-right, in pixels: pills sit against a right edge.</param>
+            <param name="fill">The fill, or <see langword="null"/> for an outline in <paramref name="ink"/>.</param>
+            <param name="ink">The text colour.</param>
+            <param name="size">The text size, in design units.</param>
+            <returns>The pill's box.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.KitDraw.Glass(OpenIGI.UI.UiPainter,OpenIGI.UI.Widgets.UiTheme,OpenIGI.UI.Layout.UiRect,System.Nullable{OpenIGI.Core.Graphics.Bgra32},System.Nullable{System.Single},System.Nullable{OpenIGI.Core.Graphics.Bgra32})">
+            <summary>Draws a glass panel: the blurred scene behind it, a dark tint and a hairline.</summary>
+            <param name="painter">The painter.</param>
+            <param name="theme">The theme.</param>
+            <param name="rect">The panel, in pixels.</param>
+            <param name="tint">The tint, or <see langword="null"/> for the theme's panel colour.</param>
+            <param name="blur">The blur in design units, or <see langword="null"/> for the theme's.</param>
+            <param name="border">The hairline, or <see langword="null"/> for the theme's border.</param>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.KitDraw.Vignette(OpenIGI.UI.UiPainter,OpenIGI.UI.Layout.UiRect,OpenIGI.UI.Kit.VignetteStyle,System.Boolean)">
+            <summary>
+            Draws the design's backdrop vignette over a scene: darkest on the left where the content sits,
+            darker at the top under the header and at the bottom over the footer.
+            </summary>
+            <param name="painter">The painter.</param>
+            <param name="rect">The area covered, in pixels.</param>
+            <param name="style">The menu's vignette or the launcher's, which is a little heavier.</param>
+            <param name="glow">Whether to add the faint accent glow the menu has in its centre-right.</param>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.KitDraw.BlurredText(OpenIGI.UI.UiPainter,OpenIGI.UI.Text.UiFont,System.String,OpenIGI.UI.Layout.UiVec2,System.Single,OpenIGI.Core.Graphics.Bgra32,System.Single,System.Single)">
+            <summary>Draws display text softened by a blur, for a title resolving into focus.</summary>
+            <param name="painter">The painter.</param>
+            <param name="font">The font.</param>
+            <param name="text">The text.</param>
+            <param name="topLeft">The top-left, in pixels.</param>
+            <param name="sizePx">The size, in pixels.</param>
+            <param name="color">The colour.</param>
+            <param name="trackingEm">The letterspacing, in ems.</param>
+            <param name="blurPx">The blur radius, in pixels; under half a pixel draws the text sharp.</param>
+            <remarks>
+            A ring of faint copies around the true position: the cheapest blur that works identically on
+            every renderer, and at the sizes it is used for — a title's first few hundred milliseconds — it reads
+            as a lens pulling focus.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.KitDraw.Sweep(OpenIGI.UI.UiPainter,OpenIGI.UI.Layout.UiRect,System.Single,System.Single)">
+            <summary>Draws the accent light sweep that crosses the screen when a mission changes.</summary>
+            <param name="painter">The painter.</param>
+            <param name="screen">The screen, in pixels.</param>
+            <param name="progress">How far the sweep has travelled, 0 off the left edge to 1 off the right.</param>
+            <param name="opacity">The sweep's opacity.</param>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.VignetteStyle">
+            <summary>Which of the design's two backdrop vignettes to draw.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.VignetteStyle.Menu">
+            <summary>The in-game menu's, with a faint accent glow.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.VignetteStyle.Launcher">
+            <summary>The launcher's, a little heavier and without the glow.</summary>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.KitIcon">
+            <summary>The small line icons the design uses, drawn as strokes so they are crisp at any size on any renderer.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.KitIcon.None">
+            <summary>No icon.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.KitIcon.Check">
+            <summary>A tick: verify, done.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.KitIcon.Folder">
+            <summary>A folder: open the install.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.KitIcon.Gear">
+            <summary>A cog: options.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.KitIcon.Close">
+            <summary>A cross: close, cancel.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.KitIcon.Minimize">
+            <summary>A bar: minimise.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.KitIcon.Maximize">
+            <summary>A square: maximise.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.KitIcon.Search">
+            <summary>A magnifier: search.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.KitIcon.Plus">
+            <summary>A plus: add, new.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.KitIcon.ArrowUp">
+            <summary>An arrow up: update, load earlier.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.KitIcon.ArrowDown">
+            <summary>An arrow down: download, load later.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.KitIcon.ArrowRight">
+            <summary>An arrow right: go.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.KitIcon.ChevronRight">
+            <summary>A chevron right: more.</summary>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.KitIcons">
+            <summary>Draws <see cref="T:OpenIGI.UI.Kit.KitIcon"/>s.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.KitIcons.Draw(OpenIGI.UI.UiPainter,OpenIGI.UI.Kit.KitIcon,OpenIGI.UI.Layout.UiVec2,System.Single,OpenIGI.Core.Graphics.Bgra32)">
+            <summary>Draws an icon centred in a box.</summary>
+            <param name="painter">The painter.</param>
+            <param name="icon">The icon.</param>
+            <param name="center">The centre, in pixels.</param>
+            <param name="size">The icon's size, in pixels.</param>
+            <param name="color">The stroke colour.</param>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.TitleReveal">
+            <summary>
+            The design's title change: the old title wipes out upwards, the new one wipes in from below, resolving
+            out of a blur while its letterspacing tightens, with the caption and description following it in and a
+            light sweep crossing the screen.
+            </summary>
+            <remarks>
+            <para>
+            Three phases, exactly as the mock-up times them. <b>Out</b> (230 ms): the title fades, rises 40 units,
+            blurs and is wiped away from the left; the caption and description slide 16 units left and fade; the
+            background scales up to 108%. <b>Pre</b> (one frame): the new title is put in place below, wiped shut
+            from the right, tracked out to 0.12 em. <b>In</b> (900 ms): every property eases home on
+            <see cref="F:OpenIGI.UI.Animation.Ease.Emphasized"/> with its own duration, the caption 120 ms behind the title and the
+            description 260 ms; the background settles from 110% over 1.2 s; the sweep crosses in 800 ms.
+            </para>
+            <para>
+            It holds values, not drawing: a campaign page, a loading card or the launcher's hero reads
+            <see cref="P:OpenIGI.UI.Kit.TitleReveal.TitleOpacity"/>, <see cref="P:OpenIGI.UI.Kit.TitleReveal.TitleOffset"/> and the rest and draws with them, so one timing
+            serves all three.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.TitleReveal.IsRunning">
+            <summary>Gets a value indicating whether a change is under way.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.TitleReveal.TitleOpacity">
+            <summary>Gets the title's opacity.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.TitleReveal.TitleOffset">
+            <summary>Gets the title's vertical offset, in design units.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.TitleReveal.TitleBlur">
+            <summary>Gets the title's blur, in design units.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.TitleReveal.ClipLeft">
+            <summary>Gets how much of the title is wiped away from the left, 0 to 1.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.TitleReveal.ClipRight">
+            <summary>Gets how much of the title is wiped away from the right, 0 to 1.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.TitleReveal.LetterSpacing">
+            <summary>Gets the title's letterspacing, in ems.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.TitleReveal.MetaOpacity">
+            <summary>Gets the caption line's opacity.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.TitleReveal.MetaOffset">
+            <summary>Gets the caption line's horizontal offset, in design units.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.TitleReveal.DescriptionOpacity">
+            <summary>Gets the description's opacity.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.TitleReveal.DescriptionOffset">
+            <summary>Gets the description's horizontal offset, in design units.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.TitleReveal.BackgroundScale">
+            <summary>Gets the background's scale about its centre.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.TitleReveal.SweepProgress">
+            <summary>Gets how far the light sweep has crossed, 0 to 1.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.TitleReveal.SweepOpacity">
+            <summary>Gets the light sweep's opacity.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.TitleReveal.Start(System.Int32,System.Action)">
+            <summary>Starts a change: the current title leaves, <paramref name="swap"/> runs, and the new one arrives.</summary>
+            <param name="direction">+1 when moving down a list (the title leaves upwards), -1 when moving up.</param>
+            <param name="swap">What to do between the two titles — usually, change which one is shown.</param>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.TitleReveal.Enter">
+            <summary>Plays the arrival alone, with nothing leaving — the first title a page shows.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.TitleReveal.Snap">
+            <summary>Jumps to rest, with the current title fully shown.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.TitleReveal.Update(System.Single)">
+            <summary>Advances the change.</summary>
+            <param name="elapsedSeconds">The real time since the last update.</param>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.ActionRow">
+            <summary>
+            A settings row whose control is an action: a caption on the left and, on the right, an optional value
+            in a monospaced field — a folder, a launch argument — beside a ghost button that acts on it.
+            </summary>
+            <remarks>
+            The launcher's Library folder / CHANGE and Repair installation / VERIFY NOW rows. The whole row is one
+            focusable control and activating it anywhere presses the button, so a pad needs no second stop.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ActionRow.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String,System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.ActionRow"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <param name="caption">The row's caption.</param>
+            <param name="action">The button's caption, shown in capitals.</param>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.ActionRow.Caption">
+            <summary>Gets or sets the row's caption.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.ActionRow.Action">
+            <summary>Gets or sets the button's caption.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.ActionRow.Value">
+            <summary>Gets or sets the value shown in the field, or an empty string for a row that is only a button.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.ActionRow.FieldWidth">
+            <summary>Gets or sets the field's width, in design units.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ActionRow.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ActionRow.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.Chip">
+            <summary>A fact on glass: a monospaced key over a condensed value — VERSION 1.4.2, ON DISK 1.3 GB.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.Chip.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String,System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.Chip"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <param name="key">The key, shown in capitals.</param>
+            <param name="value">The value.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="theme"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.Chip.Theme">
+            <summary>Gets the theme.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.Chip.Key">
+            <summary>Gets or sets the key.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.Chip.Value">
+            <summary>Gets or sets the value.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.Chip.ValueColor">
+            <summary>Gets or sets the value's colour, or <see langword="null"/> for the theme's text colour.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.Chip.KeySize">
+            <summary>Gets or sets the key's size in design units.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.Chip.ValueSize">
+            <summary>Gets or sets the value's size in design units.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.Chip.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.Chip.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.Eyebrow">
+            <summary>A small monospaced, widely tracked caption over a block: ACTIVE PROFILE, PROFILE SAVES.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.Eyebrow.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.Eyebrow"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <param name="text">The caption, shown in capitals.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="theme"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.Eyebrow.Theme">
+            <summary>Gets the theme.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.Eyebrow.Text">
+            <summary>Gets or sets the caption.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.Eyebrow.TextSize">
+            <summary>Gets or sets the caption's size, in design units.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.Eyebrow.Color">
+            <summary>Gets or sets the caption's colour, or <see langword="null"/> for the accent.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.Eyebrow.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.Eyebrow.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.Stat">
+            <summary>One fact in a row of them: a monospaced caption over a condensed value — DIFFICULTY / HARD.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.Stat.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.Stat"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <param name="caption">The caption, shown in capitals.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="theme"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.Stat.Theme">
+            <summary>Gets the theme.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.Stat.Value">
+            <summary>Gets or sets the value, shown in capitals.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.Stat.ValueColor">
+            <summary>Gets or sets the value's colour, or <see langword="null"/> for the theme's text colour.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.Stat.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.Stat.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.GameSwitcher">
+            <summary>
+            The header's title, which is also the game switcher: an amber diamond, the game's name over its
+            tagline, and a caret that turns over when the list of games drops open.
+            </summary>
+            <remarks>
+            The name at the top left of the screen is the statement of which game is running, so that is where the
+            choice of game lives — in the menu and in the launcher alike. The list is the
+            <see cref="T:OpenIGI.UI.Widgets.DropdownButton"/>'s, each entry a name over its tagline with the running one marked ACTIVE.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.GameSwitcher.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String,System.Collections.Generic.IEnumerable{System.String})">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.GameSwitcher"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <param name="title">The running game's name.</param>
+            <param name="items">Every game's name, in the order they are listed.</param>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.GameSwitcher.Subtitle">
+            <summary>Gets or sets the running game's tagline, shown in monospace under its name.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.GameSwitcher.TitleSize">
+            <summary>Gets or sets the name's size, in design units.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.GameSwitcher.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.GameSwitcher.OnUpdate(System.Single)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.GameSwitcher.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.GlassPanel">
+            <summary>
+            A panel of frosted glass: the scene behind it blurred, a dark translucent tint over that, and a
+            hairline round the edge. The surface every grouped block in the design sits on.
+            </summary>
+            <remarks>
+            The blur is whatever the renderer can do — the game samples a blurred copy of its live 3D frame, the
+            launcher blurs its hero image — and with nothing to blur the panel is just its tint, which is what it
+            would look like over a flat backdrop anyway.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.GlassPanel.#ctor(OpenIGI.UI.Widgets.UiTheme)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.GlassPanel"/> class.</summary>
+            <param name="theme">The theme the default tint, blur and hairline come from.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="theme"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.GlassPanel.Theme">
+            <summary>Gets the theme.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.GlassPanel.Tint">
+            <summary>Gets or sets the tint, or <see langword="null"/> for the theme's panel colour.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.GlassPanel.TintBottom">
+            <summary>Gets or sets a second tint the panel fades to from top to bottom, or <see langword="null"/> for a flat tint.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.GlassPanel.Blur">
+            <summary>Gets or sets the blur in design units, or <see langword="null"/> for the theme's.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.GlassPanel.Border">
+            <summary>Gets or sets the hairline, or <see langword="null"/> for the theme's border; transparent for none.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.GlassPanel.BorderEdges">
+            <summary>Gets or sets which edges carry the hairline.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.GlassPanel.Opacity">
+            <summary>Gets or sets the opacity the panel is drawn at, for one that fades in on its own.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.GlassPanel.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.GlassPanel.DrawEdges(OpenIGI.UI.UiPainter,OpenIGI.UI.Layout.UiRect,OpenIGI.Core.Graphics.Bgra32,OpenIGI.UI.Kit.Widgets.UiEdges)">
+            <summary>Draws a one-unit hairline along some of a rectangle's edges.</summary>
+            <param name="painter">The painter.</param>
+            <param name="rect">The rectangle.</param>
+            <param name="color">The hairline colour.</param>
+            <param name="edges">Which edges.</param>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.UiEdges">
+            <summary>Which edges of a rectangle something is drawn along.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.Widgets.UiEdges.None">
+            <summary>No edge.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.Widgets.UiEdges.Top">
+            <summary>The top edge.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.Widgets.UiEdges.Right">
+            <summary>The right edge.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.Widgets.UiEdges.Bottom">
+            <summary>The bottom edge.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.Widgets.UiEdges.Left">
+            <summary>The left edge.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.Widgets.UiEdges.All">
+            <summary>Every edge.</summary>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.GroupHeader">
+            <summary>A group's heading inside a settings panel: an accent caption in monospace, then a hairline to the edge.</summary>
+            <remarks>Not focusable, so up and down step straight over it from the last row of one group to the first of the next.</remarks>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.GroupHeader.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.GroupHeader"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <param name="title">The group's name, shown in capitals.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="theme"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.GroupHeader.Theme">
+            <summary>Gets the theme.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.GroupHeader.Title">
+            <summary>Gets or sets the group's name.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.GroupHeader.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.GroupHeader.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.HeaderTab">
+            <summary>
+            A tab in a header bar: a muted uppercase caption that lights white, with an amber underline on the
+            bar's bottom edge when it is the current section, and an optional count badge beside it.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.HeaderTab.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.HeaderTab"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <param name="text">The caption.</param>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.HeaderTab.Badge">
+            <summary>Gets or sets the count shown in a badge beside the caption; zero for none.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.HeaderTab.BadgeColor">
+            <summary>Gets or sets the badge's colour, or <see langword="null"/> for the accent.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.HeaderTab.ShowsUnderline">
+            <summary>Gets or sets a value indicating whether the tab draws its own underline when it is the current section.</summary>
+            <remarks>Turned off by a bar that draws a single underline gliding from tab to tab.</remarks>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.HeaderTab.DrawsSelectedUnderline">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.HeaderTab.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.HeaderTab.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.IconButtonStyle">
+            <summary>How an <see cref="T:OpenIGI.UI.Kit.Widgets.IconButton"/> is drawn.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.Widgets.IconButtonStyle.Chrome">
+            <summary>A window-chrome button: no frame, a faint wash under the pointer.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.Widgets.IconButtonStyle.ChromeClose">
+            <summary>A window-chrome close button: turns red under the pointer.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.Widgets.IconButtonStyle.Tile">
+            <summary>A square glass tile with the icon over a caption: the launcher's VERIFY / FOLDER / OPTIONS.</summary>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.IconButton">
+            <summary>A button that is an icon, with an optional caption under it.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.IconButton.#ctor(OpenIGI.UI.Widgets.UiTheme,OpenIGI.UI.Kit.KitIcon,System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.IconButton"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <param name="icon">The icon.</param>
+            <param name="caption">The caption under the icon, shown in capitals; empty for none.</param>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.IconButton.Icon">
+            <summary>Gets or sets the icon.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.IconButton.Caption">
+            <summary>Gets or sets the caption.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.IconButton.Style">
+            <summary>Gets or sets the style.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.IconButton.Size">
+            <summary>Gets or sets the size of the button in design units, used when the layout does not stretch it.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.IconButton.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.IconButton.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.KeyCapLabel">
+            <summary>A key cap standing on its own, such as the Q and E either side of the header's tabs.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.KeyCapLabel.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String,OpenIGI.UI.Kit.KeyCapStyle)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.KeyCapLabel"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <param name="key">The key's name.</param>
+            <param name="style">Header or footer styling.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="theme"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.KeyCapLabel.Theme">
+            <summary>Gets the theme.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.KeyCapLabel.Key">
+            <summary>Gets or sets the key's name.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.KeyCapLabel.Style">
+            <summary>Gets or sets the styling.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.KeyCapLabel.TextSize">
+            <summary>Gets or sets the key name's size, in design units.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.KeyCapLabel.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.KeyCapLabel.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.KeyHint">
+            <summary>One footer hint: a key and what it does.</summary>
+            <param name="Key">The key's name, as shown on its cap.</param>
+            <param name="Label">What the key does.</param>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.KeyHint.#ctor(System.String,System.String)">
+            <summary>One footer hint: a key and what it does.</summary>
+            <param name="Key">The key's name, as shown on its cap.</param>
+            <param name="Label">What the key does.</param>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.KeyHint.Key">
+            <summary>The key's name, as shown on its cap.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.KeyHint.Label">
+            <summary>What the key does.</summary>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.KeyHintBar">
+            <summary>The footer's row of key hints, right-aligned: a key cap, then what it does, 32 units apart.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.KeyHintBar.#ctor(OpenIGI.UI.Widgets.UiTheme)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.KeyHintBar"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="theme"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.KeyHintBar.Theme">
+            <summary>Gets the theme.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.KeyHintBar.Hints">
+            <summary>Gets the hints shown.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.KeyHintBar.SetHints(System.Collections.Generic.IEnumerable{OpenIGI.UI.Kit.Widgets.KeyHint})">
+            <summary>Replaces the hints shown.</summary>
+            <param name="hints">The hints, left to right.</param>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.KeyHintBar.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.KeyHintBar.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.OperativeBadge">
+            <summary>
+            The header's profile button: OPERATIVE over the active profile's name, right-aligned, beside a square
+            holding its initial.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.OperativeBadge.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.OperativeBadge"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <param name="name">The active profile's name.</param>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.OperativeBadge.Name">
+            <summary>Gets or sets the active profile's name.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.OperativeBadge.Caption">
+            <summary>Gets or sets the caption over the name.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.OperativeBadge.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.OperativeBadge.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.OptionCycler">
+            <summary>
+            One cell of an option strip: a monospaced caption, the value large in the condensed face, a row of
+            pips marking where the value sits in the list, and an up / down pair to step through it.
+            </summary>
+            <remarks>
+            <para>
+            The campaign's Difficulty, Time and Weather. A cell is a whole choice at a glance — the pips say how many
+            options there are and which one this is, so a player never has to cycle through to find out.
+            </para>
+            <para>
+            Up and down step the value while the cell holds focus (they are the arrows drawn on it); left and right
+            are left to move between cells, so a pad walks the strip the way it reads.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.OptionCycler.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String,System.Collections.Generic.IEnumerable{System.String},System.Int32)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.OptionCycler"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <param name="label">The caption, shown in capitals.</param>
+            <param name="options">The values, in order.</param>
+            <param name="selected">The initial value's index.</param>
+        </member>
+        <member name="E:OpenIGI.UI.Kit.Widgets.OptionCycler.SelectionChanged">
+            <summary>Raised when the value changes, with its new index.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.OptionCycler.Label">
+            <summary>Gets the caption.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.OptionCycler.Options">
+            <summary>Gets the values.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.OptionCycler.ContentWidth">
+            <summary>Gets or sets the cell's content width, in design units, not counting its padding and arrows.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.OptionCycler.SelectedIndex">
+            <summary>Gets or sets the selected value's index.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.OptionCycler.Step(System.Int32)">
+            <summary>Steps the value, wrapping at either end.</summary>
+            <param name="delta">+1 for the next value, -1 for the previous.</param>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.OptionCycler.HandleNavigate(OpenIGI.UI.Focus.NavDirection)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.OptionCycler.ActivateAt(OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.OptionCycler.PointerMoved(OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.OptionCycler.OnActivate">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.OptionCycler.OnUpdate(System.Single)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.OptionCycler.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.OptionCycler.ArrangeContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiRect)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.OptionCycler.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.PrimaryAction">
+            <summary>
+            The screen's one primary action — PLAY, RESUME, UPDATE: a big amber block with a corner cut off, the
+            verb large over a small monospaced line, and an arrow in a box at the far end.
+            </summary>
+            <remarks>
+            <para>
+            While <see cref="P:OpenIGI.UI.Kit.Widgets.PrimaryAction.Progress"/> is set the block becomes a progress bar: the amber drops to a translucent
+            wash, a solid fill grows across it, and the verb is replaced by the percentage — the launcher's
+            downloading state, and any long action the game wants to show in place.
+            </para>
+            <para>
+            Focus and hover lighten the amber, which is the design's only hover state for it; a disabled action
+            greys out entirely, because a dimmed amber still reads as pressable.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.PrimaryAction.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.PrimaryAction"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <param name="title">The verb, shown in capitals.</param>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.PrimaryAction.Title">
+            <summary>Gets or sets the verb.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.PrimaryAction.Subtitle">
+            <summary>Gets or sets the small line under the verb.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.PrimaryAction.SubtitleSize">
+            <summary>Gets or sets the size of the line under the verb, in design units.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.PrimaryAction.TitleSize">
+            <summary>Gets or sets the verb's size, in design units.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.PrimaryAction.CutCorner">
+            <summary>Gets or sets the length cut from the bottom-right corner, in design units.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.PrimaryAction.Progress">
+            <summary>Gets or sets the progress shown in place of the verb, 0 to 1, or <see langword="null"/> when idle.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.PrimaryAction.Icon">
+            <summary>Gets or sets the glyph in the box at the end: an arrow when idle.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.PrimaryAction.OnUpdate(System.Single)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.PrimaryAction.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.PrimaryAction.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.PrimaryActionIcon">
+            <summary>The glyph in a <see cref="T:OpenIGI.UI.Kit.Widgets.PrimaryAction"/>'s box.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.Widgets.PrimaryActionIcon.Arrow">
+            <summary>An arrow pointing right: go.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.Widgets.PrimaryActionIcon.Play">
+            <summary>A play triangle: launch.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.Widgets.PrimaryActionIcon.Download">
+            <summary>A downward arrow: download or update.</summary>
+        </member>
+        <member name="F:OpenIGI.UI.Kit.Widgets.PrimaryActionIcon.Pause">
+            <summary>Two bars: pause, shown automatically while busy.</summary>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.ProgressBar">
+            <summary>A thin progress bar: an amber fill over a faint track, easing to each new value.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ProgressBar.#ctor(OpenIGI.UI.Widgets.UiTheme)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.ProgressBar"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="theme"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.ProgressBar.Theme">
+            <summary>Gets the theme.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.ProgressBar.Value">
+            <summary>Gets or sets the progress, 0 to 1.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.ProgressBar.Thickness">
+            <summary>Gets or sets the bar's thickness, in design units.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.ProgressBar.Fill">
+            <summary>Gets or sets the fill's colour, or <see langword="null"/> for the accent.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ProgressBar.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ProgressBar.OnUpdate(System.Single)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ProgressBar.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.IReorderItem">
+            <summary>An item of a <see cref="T:OpenIGI.UI.Kit.Widgets.ReorderList"/> that draws itself picked up.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.IReorderItem.SetLift(System.Single)">
+            <summary>Sets how far the item is lifted out of the list, eased: 0 resting, 1 carried.</summary>
+            <param name="amount">The lift, from 0 to 1.</param>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.ReorderList">
+            <summary>
+            A vertical list the player puts in order by dragging, or with the keyboard and pad through a
+            <see cref="T:OpenIGI.UI.Kit.Widgets.ReorderHandle"/>.
+            </summary>
+            <remarks>
+            <para>
+            The carried item follows the pointer and the others slide aside to show where it will land, eased over
+            <see cref="P:OpenIGI.UI.Kit.Widgets.ReorderList.SettleSeconds"/> rather than jumping, so the eye can follow which row went where. The order
+            changes live as the item crosses its neighbours' middles; <see cref="E:OpenIGI.UI.Kit.Widgets.ReorderList.Moved"/> is raised once, when it is
+            dropped somewhere other than where it started. Abandoning the drag (Back) puts it back.
+            </para>
+            <para>
+            The list owns the order it shows from the moment of the drop: the owner hears <see cref="E:OpenIGI.UI.Kit.Widgets.ReorderList.Moved"/>,
+            records the new order, and finds this list already showing it, so nothing has to be rebuilt.
+            </para>
+            </remarks>
+        </member>
+        <member name="E:OpenIGI.UI.Kit.Widgets.ReorderList.Moved">
+            <summary>Raised when an item is dropped at a new position: its old index, then its new one.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.ReorderList.Spacing">
+            <summary>Gets or sets the gap between items, in design units.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.ReorderList.SettleSeconds">
+            <summary>Gets or sets how long the other items take to slide into their new places.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.ReorderList.Items">
+            <summary>Gets the items in the order shown.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.ReorderList.Carried">
+            <summary>Gets the item being carried, or <see langword="null"/>.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.ReorderList.IsCarriedByKeys">
+            <summary>Gets a value indicating whether an item is picked up with the keyboard or pad.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderList.Add(OpenIGI.UI.UiElement)">
+            <summary>Adds an item at the end.</summary>
+            <param name="item">The item.</param>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderList.Clear">
+            <summary>Removes every item, dropping anything being carried where it is.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderList.SlotFor(System.Single,System.Collections.Generic.IReadOnlyList{System.Single},System.Single)">
+            <summary>Works out which slot a carried item belongs in.</summary>
+            <param name="centre">The carried item's centre, measured from the top of the list.</param>
+            <param name="heights">The other items' heights, in order.</param>
+            <param name="spacing">The gap between items.</param>
+            <returns>The index the item would take among them.</returns>
+            <remarks>An item passes a neighbour once its centre crosses that neighbour's middle.</remarks>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderList.BeginDrag(OpenIGI.UI.UiElement,OpenIGI.UI.Layout.UiVec2)">
+            <summary>Picks an item up under the pointer.</summary>
+            <param name="item">The item, or any element inside it.</param>
+            <param name="point">The pointer, in pixels.</param>
+            <returns><see langword="true"/> when it was picked up.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderList.DragTo(OpenIGI.UI.Layout.UiVec2)">
+            <summary>Moves the carried item with the pointer.</summary>
+            <param name="point">The pointer, in pixels.</param>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderList.Drop(System.Boolean)">
+            <summary>Puts the carried item down.</summary>
+            <param name="cancel">Whether to put it back where it was picked up from instead.</param>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderList.BeginKeyboardMove(OpenIGI.UI.UiElement)">
+            <summary>Picks an item up to move it with the keyboard or pad.</summary>
+            <param name="item">The item, or any element inside it.</param>
+            <returns><see langword="true"/> when it was picked up.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderList.Step(System.Int32)">
+            <summary>Moves the item picked up with the keyboard one place.</summary>
+            <param name="step">-1 for up, +1 for down.</param>
+            <returns><see langword="true"/> when it moved; false at either end.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderList.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderList.ArrangeContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiRect)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderList.OnUpdate(System.Single)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.ReorderHandle">
+            <summary>
+            The grip a <see cref="T:OpenIGI.UI.Kit.Widgets.ReorderList"/> item is moved by: six dots over the item's position, which the
+            pointer drags and accept picks up for the arrows to move.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderHandle.#ctor(OpenIGI.UI.Widgets.UiTheme)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.ReorderHandle"/> class.</summary>
+            <param name="theme">The theme.</param>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.ReorderHandle.Label">
+            <summary>Gets or sets the label under the grip: the item's position, as the player counts.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.ReorderHandle.IsCarriedByKeys">
+            <summary>Gets a value indicating whether this handle's item is picked up with the keyboard or pad.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderHandle.CapturesPointer(OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderHandle.PointerDragged(OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderHandle.PointerReleased(OpenIGI.UI.Layout.UiVec2,System.Boolean)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderHandle.CancelKeyboardMove">
+            <summary>Puts down an item picked up with the keyboard back where it came from.</summary>
+            <returns><see langword="true"/> when one was being carried.</returns>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderHandle.HandleNavigate(OpenIGI.UI.Focus.NavDirection)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderHandle.OnActivate">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderHandle.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderHandle.OnUpdate(System.Single)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.ReorderHandle.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.Rule">
+            <summary>A one-unit hairline, vertical or horizontal — the divider between the header's profile and Quit.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.Rule.Orientation">
+            <summary>Gets or sets which way the line runs.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.Rule.Length">
+            <summary>Gets or sets the line's length, in design units; zero to fill the space offered.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.Rule.Color">
+            <summary>Gets or sets the line's colour.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.Rule.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.Rule.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.SectionTitle">
+            <summary>A page's heading: an accent eyebrow in monospace over a large condensed title.</summary>
+            <remarks>
+            <c>OPERATIONS</c> over <c>CAMPAIGN</c>, <c>CONFIGURATION</c> over <c>SETTINGS</c>: every page in the
+            design opens with one, so where a player is reads the same everywhere.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.SectionTitle.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String,System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.SectionTitle"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <param name="eyebrow">The small caption above, shown in capitals.</param>
+            <param name="title">The title, shown in capitals.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="theme"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.SectionTitle.Theme">
+            <summary>Gets the theme.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.SectionTitle.Eyebrow">
+            <summary>Gets or sets the small caption above the title.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.SectionTitle.Title">
+            <summary>Gets or sets the title.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.SectionTitle.TitleSize">
+            <summary>Gets or sets the title's size, in design units.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.SectionTitle.EyebrowColor">
+            <summary>Gets or sets the eyebrow's colour, or <see langword="null"/> for the accent.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.SectionTitle.TitleColor">
+            <summary>Gets or sets the title's colour, or <see langword="null"/> for the theme's text colour.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.SectionTitle.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.SectionTitle.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.UI.Kit.Widgets.SlotTile">
+            <summary>
+            One save slot in a grid: its number at the top, what it holds — or EMPTY — at the bottom, outlined in
+            amber when it is the one selected.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.SlotTile.#ctor(OpenIGI.UI.Widgets.UiTheme,System.String)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.UI.Kit.Widgets.SlotTile"/> class.</summary>
+            <param name="theme">The theme.</param>
+            <param name="caption">The slot's caption, such as SLOT 01.</param>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.SlotTile.Caption">
+            <summary>Gets the slot's caption.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.SlotTile.Content">
+            <summary>Gets or sets what the slot holds, or <see langword="null"/> for an empty slot.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.SlotTile.Detail">
+            <summary>Gets or sets a second line under the content, such as when it was saved.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.SlotTile.IsEmpty">
+            <summary>Gets a value indicating whether the slot holds nothing.</summary>
+        </member>
+        <member name="P:OpenIGI.UI.Kit.Widgets.SlotTile.Selected">
+            <summary>Gets or sets a value indicating whether this is the selected slot.</summary>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.SlotTile.MeasureContent(OpenIGI.UI.Layout.LayoutContext,OpenIGI.UI.Layout.UiVec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.UI.Kit.Widgets.SlotTile.OnDraw(OpenIGI.UI.UiPainter)">
+            <inheritdoc/>
+        </member>
+    </members>
+</doc>

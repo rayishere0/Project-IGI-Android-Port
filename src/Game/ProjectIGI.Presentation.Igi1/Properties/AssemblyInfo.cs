@@ -5,9 +5,9 @@ using System.Runtime.CompilerServices;
 // types -- and keeping them internal is what stops a 6,000-line renderer becoming public API with a
 // documentation comment on every member. The tests are the one exception, because a test that drives a
 // renderer directly is worth more than one that drives it through a seam.
-[assembly: InternalsVisibleTo("ProjectIGI.Game.Igi1.Tests")]
+[assembly: InternalsVisibleTo("OpenIGI.Game.Igi1.Tests")]
 
 // The player's rig and the soldiers' renderer, which the host still builds and drives itself.
-[assembly: InternalsVisibleTo("ProjectIGI.Desktop.Tests")]
-[assembly: InternalsVisibleTo("ProjectIGI.Presentation.Tests")]
-[assembly: InternalsVisibleTo("ProjectIGI.Game.Tests")]
+[assembly: InternalsVisibleTo("OpenIGI.Desktop.Tests")]
+[assembly: InternalsVisibleTo("OpenIGI.Presentation.Tests")]
+[assembly: InternalsVisibleTo("OpenIGI.Game.Tests")]

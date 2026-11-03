@@ -1,0 +1,1250 @@
+From 02ba16d69db566dd36301f2d03d50b73d3d65cd8 Mon Sep 17 00:00:00 2001
+From: dev <dev@local>
+Date: Mon, 2 Nov 2026 19:40:47 +0500
+Subject: [PATCH] Render on devices without dynamic rendering, and fix the
+ assembly identity
+
+The port refused to start on any adapter without VK_KHR_dynamic_rendering --
+which is every Adreno 6xx and much of Mali -- because the RHI builds its whole
+render path on vkCmdBeginRendering and throws on the first pipeline otherwise.
+
+Three separate faults, each of which alone was enough to stop the game:
+
+1. Assembly identity did not match what the native bridge asks for.
+   jni_bridge.cpp resolves CoreCLR delegates against the assembly "OpenIGI.Android"
+   and the type "OpenIGI.Android.AndroidHost", but the C# declares
+   namespace ProjectIGI.Android, so every build produced assemblies the bridge
+   could not find. The shipped APK only ran because assets/managed still held an
+   older OpenIGI.* assembly set, so the ProjectIGI.* set was never loaded at all.
+   Directory.Build.props now derives AssemblyName as OpenIGI.*, AndroidHost keeps
+   the OpenIGI.Android namespace the ABI requires, and the CVar generator takes
+   its namespace from RootNamespace rather than the assembly name so the
+   generated registrations stay where their callers look for them.
+
+2. No render pass path existed. VulkanRenderPassCache builds and caches
+   VkRenderPass objects keyed by everything baked into one (formats, sample
+   count, load/store ops, depth layout), plus framebuffers keyed by the views
+   attached. The encoder branches at the single begin/end seam, and pipelines are
+   built against a format-compatible pass when dynamic rendering is unavailable.
+   This is sound because Vulkan render pass compatibility is decided by formats
+   and sample counts alone (spec 8.2), not by load/store ops -- so a pipeline
+   built against one pass is valid inside another with the same formats.
+
+3. Framebuffers outlived the views they named. The engine wraps a swapchain image
+   in a fresh texture every frame and disposes the previous one, so the driver
+   hands the same image view handle straight back out. A framebuffer cache keyed
+   by handle therefore hit on entries built from destroyed views, drawing into an
+   image nobody presents -- visible as flicker and overlapping frames. Framebuffer
+   reuse is now within a frame only, and each slot's framebuffers are destroyed
+   once its fence has signalled, mirroring how frame textures are already retired.
+
+The dynamic rendering path is untouched and still taken on every adapter that
+supports it; this only adds the path the rest of the world needs.
+---
+ Directory.Build.props                         |   8 +
+ apps/ProjectIGI.Android/AndroidHost.cs        |  12 +-
+ .../CVarContainerGenerator.cs                 |  38 +-
+ .../Properties/AssemblyInfo.cs                |   6 +-
+ .../Properties/AssemblyInfo.cs                |   8 +-
+ .../ProjectIGI.Game.Igi2.csproj               |   2 +-
+ .../Properties/AssemblyInfo.cs                |   4 +-
+ .../Properties/AssemblyInfo.cs                |   8 +-
+ .../ProjectIGI.Presentation.Igi2.csproj       |   2 +-
+ .../Properties/AssemblyInfo.cs                |   8 +-
+ .../ProjectIGI.Rendering.Pipeline.csproj      |   2 +-
+ .../ProjectIGI.Rendering.Streamline.csproj    |   6 +-
+ .../ProjectIGI.Rendering.Vulkan.csproj        |   2 +-
+ .../Rhi/VulkanRenderPassCache.cs              | 513 ++++++++++++++++++
+ .../Rhi/VulkanRhiDevice.Frame.cs              |  11 +
+ .../Rhi/VulkanRhiDevice.Raster.cs             |  55 +-
+ .../Rhi/VulkanRhiDevice.cs                    |  16 +
+ .../Rhi/VulkanRhiEncoder.cs                   | 122 ++++-
+ .../Rhi/VulkanRhiRenderPass.cs                |  24 +-
+ 19 files changed, 780 insertions(+), 67 deletions(-)
+
+diff --git a/Directory.Build.props b/Directory.Build.props
+index ca65ba0..288abe7 100644
+--- a/Directory.Build.props
++++ b/Directory.Build.props
+@@ -15,6 +15,14 @@
+ 
+     <Version Condition="'$(Version)' == ''">0.0.0-dev</Version>
+ 
++    <!--
++      Assembly identity is part of the Android ABI: libprojectigi.so resolves CoreCLR delegates against
++      the assembly named "OpenIGI.Android" and the type "OpenIGI.Android.AndroidHost". The projects are
++      named ProjectIGI.*, so without this every build produces assemblies the native bridge cannot find
++      and the app silently keeps running whatever stale OpenIGI.* DLLs are lying in assets/managed.
++    -->
++    <AssemblyName>$([System.String]::Copy('$(MSBuildProjectName)').Replace('ProjectIGI','OpenIGI'))</AssemblyName>
++
+     <Product>ProjectIGI</Product>
+     <Authors>ProjectIGI Contributors</Authors>
+     <Copyright>Copyright (c) ProjectIGI Contributors</Copyright>
+diff --git a/apps/ProjectIGI.Android/AndroidHost.cs b/apps/ProjectIGI.Android/AndroidHost.cs
+index 5be4b40..de85540 100644
+--- a/apps/ProjectIGI.Android/AndroidHost.cs
++++ b/apps/ProjectIGI.Android/AndroidHost.cs
+@@ -1,4 +1,5 @@
+ using System.Runtime.InteropServices;
++using ProjectIGI.Android;
+ using ProjectIGI.Audio.OpenAL;
+ using ProjectIGI.Composition;
+ using ProjectIGI.Core.Configuration;
+@@ -18,7 +19,10 @@ using ProjectIGI.Rendering.Pipeline;
+ using ProjectIGI.Rendering.Vulkan;
+ using ProjectIGI.Rendering.Vulkan.Rhi;
+ 
+-namespace ProjectIGI.Android;
++// The native bridge (app/android/app/src/main/cpp/jni/jni_bridge.cpp) resolves this type by the
++// literal string "OpenIGI.Android.AndroidHost", so the namespace is part of the ABI, not a naming
++// preference. It stays OpenIGI.* even though the projects are named ProjectIGI.*.
++namespace OpenIGI.Android;
+ 
+ public static class AndroidHost
+ {
+@@ -139,8 +143,10 @@ public static class AndroidHost
+             _logger.Information("AndroidHost", $"Vulkan initialized on adapter: {_vulkan.Device.AdapterName}");
+ 
+             // Ensure all CVars from all assemblies are registered into the catalog before applying preset:
+-            Rendering.Generated.CVarRegistrations.RegisterAll();
+-            Game.Generated.CVarRegistrations.RegisterAll();
++            // Fully qualified: this file sits in the OpenIGI.Android namespace, so a relative
++            // "Rendering.Generated" would look under OpenIGI and find nothing.
++            ProjectIGI.Rendering.Generated.CVarRegistrations.RegisterAll();
++            ProjectIGI.Game.Generated.CVarRegistrations.RegisterAll();
+ 
+             string settingsPath = Path.Combine(dataDir, SettingsPaths.SettingsFileName);
+             bool settingsExist = File.Exists(settingsPath);
+diff --git a/src/Core/ProjectIGI.Generators/CVarContainerGenerator.cs b/src/Core/ProjectIGI.Generators/CVarContainerGenerator.cs
+index bf38a68..21b0613 100644
+--- a/src/Core/ProjectIGI.Generators/CVarContainerGenerator.cs
++++ b/src/Core/ProjectIGI.Generators/CVarContainerGenerator.cs
+@@ -49,10 +49,26 @@ public sealed class CVarContainerGenerator : IIncrementalGenerator
+                 static (ctx, _) => Describe(ctx))
+             .Where(static container => container is not null);
+ 
+-        IncrementalValueProvider<(ImmutableArray<Container?> Containers, string AssemblyName)> combined =
+-            containers.Collect().Combine(context.CompilationProvider.Select(static (c, _) => c.AssemblyName ?? "ProjectIGI"));
+-
+-        context.RegisterSourceOutput(combined, static (ctx, input) => Emit(ctx, input.Containers, input.AssemblyName));
++        // The project's root namespace travels separately from the assembly name on purpose: the assembly
++        // name is part of the Android ABI and is rewritten for the port, while the namespaces the engine
++        // compiles against stay ProjectIGI.*.
++        IncrementalValueProvider<string?> rootNamespace = context.AnalyzerConfigOptionsProvider.Select(
++            static (options, _) => options.GlobalOptions.TryGetValue("build_property.RootNamespace", out string? root)
++                ? root
++                : null);
++
++        IncrementalValueProvider<(ImmutableArray<Container?> Containers, string AssemblyName, string? RootNamespace)> combined =
++            containers.Collect()
++                .Combine(context.CompilationProvider.Select(static (c, _) => c.AssemblyName ?? "ProjectIGI"))
++                .Combine(rootNamespace)
++                .Select(static (pair, _) => (
++                    Containers: pair.Left.Left,
++                    AssemblyName: pair.Left.Right,
++                    RootNamespace: pair.Right));
++
++        context.RegisterSourceOutput(
++            combined,
++            static (ctx, input) => Emit(ctx, input.Containers, input.AssemblyName, input.RootNamespace));
+     }
+ 
+     private static Container? Describe(GeneratorAttributeSyntaxContext context)
+@@ -69,7 +85,11 @@ public sealed class CVarContainerGenerator : IIncrementalGenerator
+         return new Container(display, type.ToDisplayString(), isStatic, location);
+     }
+ 
+-    private static void Emit(SourceProductionContext context, ImmutableArray<Container?> containers, string assemblyName)
++    private static void Emit(
++        SourceProductionContext context,
++        ImmutableArray<Container?> containers,
++        string assemblyName,
++        string? rootNamespace)
+     {
+         List<Container> valid = new();
+ 
+@@ -97,7 +117,13 @@ public sealed class CVarContainerGenerator : IIncrementalGenerator
+         // Sorted so the emitted file is byte-identical between builds, which keeps the build deterministic.
+         valid.Sort(static (a, b) => string.CompareOrdinal(a.QualifiedName, b.QualifiedName));
+ 
+-        string ns = Sanitize(assemblyName);
++        // The namespace these registrations land in follows the project's root namespace, not the assembly
++        // name. Assembly identity is part of the Android ABI and is renamed for the port (see
++        // Directory.Build.props), while every namespace the engine compiles against stays ProjectIGI.*;
++        // deriving this from the assembly name would move the generated class out from under its callers.
++        string ns = !string.IsNullOrWhiteSpace(rootNamespace)
++            ? Sanitize(rootNamespace)
++            : Sanitize(assemblyName);
+         StringBuilder source = new();
+ 
+         source.AppendLine("// <auto-generated/>");
+diff --git a/src/Engine/ProjectIGI.Host/Properties/AssemblyInfo.cs b/src/Engine/ProjectIGI.Host/Properties/AssemblyInfo.cs
+index 29d1d0c..2d0af6e 100644
+--- a/src/Engine/ProjectIGI.Host/Properties/AssemblyInfo.cs
++++ b/src/Engine/ProjectIGI.Host/Properties/AssemblyInfo.cs
+@@ -5,6 +5,6 @@ using System.Runtime.CompilerServices;
+ // The host's types were the desktop executable's internals and stay internal: they were never public
+ // API, and making them public would demand an XML doc on every member (CS1591 is an error here) for no
+ // gain. Only GameHost and HostOptions — the seam an app composition root uses — are public.
+-[assembly: InternalsVisibleTo("ProjectIGI.Host.Tests")]
+-[assembly: InternalsVisibleTo("ProjectIGI.Desktop.Tests")]
+-[assembly: InternalsVisibleTo("ProjectIGI.Parity.Tests")]
++[assembly: InternalsVisibleTo("OpenIGI.Host.Tests")]
++[assembly: InternalsVisibleTo("OpenIGI.Desktop.Tests")]
++[assembly: InternalsVisibleTo("OpenIGI.Parity.Tests")]
+diff --git a/src/Game/ProjectIGI.Game.Igi1/Properties/AssemblyInfo.cs b/src/Game/ProjectIGI.Game.Igi1/Properties/AssemblyInfo.cs
+index 0107369..8357ccc 100644
+--- a/src/Game/ProjectIGI.Game.Igi1/Properties/AssemblyInfo.cs
++++ b/src/Game/ProjectIGI.Game.Igi1/Properties/AssemblyInfo.cs
+@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
+ // Project I.G.I.'s gameplay, reached by the host it is still driven by and by the suites that test it.
+ // The title's own presentation reads its simulation's state as it draws it: a title's two halves may know each other,
+ // as the layering rules let them reference each other. Nothing outside the title is granted this.
+-[assembly: InternalsVisibleTo("ProjectIGI.Presentation.Igi1")]
+-[assembly: InternalsVisibleTo("ProjectIGI.Game.Tests")]
+-[assembly: InternalsVisibleTo("ProjectIGI.Game.Igi1.Tests")]
+-[assembly: InternalsVisibleTo("ProjectIGI.Desktop.Tests")]
++[assembly: InternalsVisibleTo("OpenIGI.Presentation.Igi1")]
++[assembly: InternalsVisibleTo("OpenIGI.Game.Tests")]
++[assembly: InternalsVisibleTo("OpenIGI.Game.Igi1.Tests")]
++[assembly: InternalsVisibleTo("OpenIGI.Desktop.Tests")]
+diff --git a/src/Game/ProjectIGI.Game.Igi2/ProjectIGI.Game.Igi2.csproj b/src/Game/ProjectIGI.Game.Igi2/ProjectIGI.Game.Igi2.csproj
+index 7a3f0bf..7ff4c24 100644
+--- a/src/Game/ProjectIGI.Game.Igi2/ProjectIGI.Game.Igi2.csproj
++++ b/src/Game/ProjectIGI.Game.Igi2/ProjectIGI.Game.Igi2.csproj
+@@ -1,7 +1,7 @@
+ <Project Sdk="Microsoft.NET.Sdk">
+ 
+   <ItemGroup>
+-    <InternalsVisibleTo Include="ProjectIGI.Game.Igi2.Tests" />
++    <InternalsVisibleTo Include="OpenIGI.Game.Igi2.Tests" />
+   </ItemGroup>
+ 
+   <ItemGroup>
+diff --git a/src/Game/ProjectIGI.Game/Properties/AssemblyInfo.cs b/src/Game/ProjectIGI.Game/Properties/AssemblyInfo.cs
+index 010a3d4..f4e0738 100644
+--- a/src/Game/ProjectIGI.Game/Properties/AssemblyInfo.cs
++++ b/src/Game/ProjectIGI.Game/Properties/AssemblyInfo.cs
+@@ -1,6 +1,6 @@
+ using System.Runtime.CompilerServices;
+ 
+-[assembly: InternalsVisibleTo("ProjectIGI.Game.Tests")]
++[assembly: InternalsVisibleTo("OpenIGI.Game.Tests")]
+ 
+ // The scenario harness reads a mission's cutscene state through the runtime's own testing accessors.
+-[assembly: InternalsVisibleTo("ProjectIGI.Desktop.Tests")]
++[assembly: InternalsVisibleTo("OpenIGI.Desktop.Tests")]
+diff --git a/src/Game/ProjectIGI.Presentation.Igi1/Properties/AssemblyInfo.cs b/src/Game/ProjectIGI.Presentation.Igi1/Properties/AssemblyInfo.cs
+index 86aa577..ebf0779 100644
+--- a/src/Game/ProjectIGI.Presentation.Igi1/Properties/AssemblyInfo.cs
++++ b/src/Game/ProjectIGI.Presentation.Igi1/Properties/AssemblyInfo.cs
+@@ -5,9 +5,9 @@ using System.Runtime.CompilerServices;
+ // types -- and keeping them internal is what stops a 6,000-line renderer becoming public API with a
+ // documentation comment on every member. The tests are the one exception, because a test that drives a
+ // renderer directly is worth more than one that drives it through a seam.
+-[assembly: InternalsVisibleTo("ProjectIGI.Game.Igi1.Tests")]
++[assembly: InternalsVisibleTo("OpenIGI.Game.Igi1.Tests")]
+ 
+ // The player's rig and the soldiers' renderer, which the host still builds and drives itself.
+-[assembly: InternalsVisibleTo("ProjectIGI.Desktop.Tests")]
+-[assembly: InternalsVisibleTo("ProjectIGI.Presentation.Tests")]
+-[assembly: InternalsVisibleTo("ProjectIGI.Game.Tests")]
++[assembly: InternalsVisibleTo("OpenIGI.Desktop.Tests")]
++[assembly: InternalsVisibleTo("OpenIGI.Presentation.Tests")]
++[assembly: InternalsVisibleTo("OpenIGI.Game.Tests")]
+diff --git a/src/Game/ProjectIGI.Presentation.Igi2/ProjectIGI.Presentation.Igi2.csproj b/src/Game/ProjectIGI.Presentation.Igi2/ProjectIGI.Presentation.Igi2.csproj
+index c260c00..fdc2f02 100644
+--- a/src/Game/ProjectIGI.Presentation.Igi2/ProjectIGI.Presentation.Igi2.csproj
++++ b/src/Game/ProjectIGI.Presentation.Igi2/ProjectIGI.Presentation.Igi2.csproj
+@@ -1,7 +1,7 @@
+ <Project Sdk="Microsoft.NET.Sdk">
+ 
+   <ItemGroup>
+-    <InternalsVisibleTo Include="ProjectIGI.Game.Igi2.Tests" />
++    <InternalsVisibleTo Include="OpenIGI.Game.Igi2.Tests" />
+   </ItemGroup>
+ 
+   <ItemGroup>
+diff --git a/src/Game/ProjectIGI.Presentation/Properties/AssemblyInfo.cs b/src/Game/ProjectIGI.Presentation/Properties/AssemblyInfo.cs
+index 9ba64f8..e6f77d6 100644
+--- a/src/Game/ProjectIGI.Presentation/Properties/AssemblyInfo.cs
++++ b/src/Game/ProjectIGI.Presentation/Properties/AssemblyInfo.cs
+@@ -4,13 +4,13 @@ using System.Runtime.CompilerServices;
+ // 26,000 lines public would demand an XML doc on every member of it (CS1591 is an error here) for no
+ // gain. Only the seam types this project introduces are public. The hosts and title projects that
+ // consume the renderers are named here instead.
+-[assembly: InternalsVisibleTo("ProjectIGI.Presentation.Tests")]
++[assembly: InternalsVisibleTo("OpenIGI.Presentation.Tests")]
+ 
+ // The world renderer's draw order is a title-visible behaviour -- the render group has to be its outer
+ // key -- and the suite that proves it needs an I.G.I. 2 level to be observable at all.
+-[assembly: InternalsVisibleTo("ProjectIGI.Game.Igi2.Tests")]
+-[assembly: InternalsVisibleTo("ProjectIGI.Game.Igi1.Tests")]
+-[assembly: InternalsVisibleTo("ProjectIGI.Desktop.Tests")]
++[assembly: InternalsVisibleTo("OpenIGI.Game.Igi2.Tests")]
++[assembly: InternalsVisibleTo("OpenIGI.Game.Igi1.Tests")]
++[assembly: InternalsVisibleTo("OpenIGI.Desktop.Tests")]
+ 
+ // A title's own renderers live in its presentation project and draw with the shared presentation helpers -- the
+ // canvas, the badge sprite, the vector primitives. Promoting each one to public API as it is needed
+diff --git a/src/Rendering/ProjectIGI.Rendering.Pipeline/ProjectIGI.Rendering.Pipeline.csproj b/src/Rendering/ProjectIGI.Rendering.Pipeline/ProjectIGI.Rendering.Pipeline.csproj
+index e53dc57..99c4252 100644
+--- a/src/Rendering/ProjectIGI.Rendering.Pipeline/ProjectIGI.Rendering.Pipeline.csproj
++++ b/src/Rendering/ProjectIGI.Rendering.Pipeline/ProjectIGI.Rendering.Pipeline.csproj
+@@ -20,7 +20,7 @@
+     <!-- Which textures are in-place histories is decided from a module's reflection alone, and a wrong
+          answer binds a stand-in where the game bound a real texture, silently, on every backend. That
+          rule is implementation detail and stays internal; the test project is allowed to see it. -->
+-    <InternalsVisibleTo Include="ProjectIGI.Rendering.Pipeline.Tests" />
++    <InternalsVisibleTo Include="OpenIGI.Rendering.Pipeline.Tests" />
+   </ItemGroup>
+ 
+ </Project>
+diff --git a/src/Rendering/ProjectIGI.Rendering.Streamline/ProjectIGI.Rendering.Streamline.csproj b/src/Rendering/ProjectIGI.Rendering.Streamline/ProjectIGI.Rendering.Streamline.csproj
+index a26fcf4..7702ac8 100644
+--- a/src/Rendering/ProjectIGI.Rendering.Streamline/ProjectIGI.Rendering.Streamline.csproj
++++ b/src/Rendering/ProjectIGI.Rendering.Streamline/ProjectIGI.Rendering.Streamline.csproj
+@@ -20,9 +20,9 @@
+   </ItemGroup>
+ 
+   <ItemGroup>
+-    <InternalsVisibleTo Include="ProjectIGI.Rendering.Vulkan" />
+-    <InternalsVisibleTo Include="ProjectIGI.Rendering.D3D12" />
+-    <InternalsVisibleTo Include="ProjectIGI.Rendering.Streamline.Tests" />
++    <InternalsVisibleTo Include="OpenIGI.Rendering.Vulkan" />
++    <InternalsVisibleTo Include="OpenIGI.Rendering.D3D12" />
++    <InternalsVisibleTo Include="OpenIGI.Rendering.Streamline.Tests" />
+   </ItemGroup>
+ 
+ </Project>
+diff --git a/src/Rendering/ProjectIGI.Rendering.Vulkan/ProjectIGI.Rendering.Vulkan.csproj b/src/Rendering/ProjectIGI.Rendering.Vulkan/ProjectIGI.Rendering.Vulkan.csproj
+index 6766ca7..238ea36 100644
+--- a/src/Rendering/ProjectIGI.Rendering.Vulkan/ProjectIGI.Rendering.Vulkan.csproj
++++ b/src/Rendering/ProjectIGI.Rendering.Vulkan/ProjectIGI.Rendering.Vulkan.csproj
+@@ -19,7 +19,7 @@
+          that wrongly rejects one is a permanent miss that reports nothing. It is therefore pinned by a
+          test. That check is implementation detail and stays internal; the test project is the one
+          thing allowed to see it. -->
+-    <InternalsVisibleTo Include="ProjectIGI.Rendering.Vulkan.Tests" />
++    <InternalsVisibleTo Include="OpenIGI.Rendering.Vulkan.Tests" />
+   </ItemGroup>
+ 
+   <ItemGroup>
+diff --git a/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRenderPassCache.cs b/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRenderPassCache.cs
+new file mode 100644
+index 0000000..04b0a2b
+--- /dev/null
++++ b/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRenderPassCache.cs
+@@ -0,0 +1,513 @@
++using ProjectIGI.Core.Graphics;
++using ProjectIGI.Rendering.Vulkan.Interop;
++using Silk.NET.Vulkan;
++
++// Silk.NET spells the Vulkan attachment op enums with an "Attachment" prefix to keep them clear of the
++// VkAttachmentDescription fields that carry them. Aliased here so the code below reads as the spec does,
++// without the aliases leaking into the property names.
++using LoadOp = Silk.NET.Vulkan.AttachmentLoadOp;
++using StoreOp = Silk.NET.Vulkan.AttachmentStoreOp;
++
++namespace ProjectIGI.Rendering.Vulkan.Rhi;
++
++/// <summary>
++/// Render pass objects and framebuffers, for the devices that cannot begin a pass from its attachments.
++/// </summary>
++/// <remarks>
++/// <para>
++/// The RHI describes a pass the way WebGPU does: the attachments are stated when the pass begins. Vulkan
++/// 1.3 turns that into <c>vkCmdBeginRendering</c> and there is nothing to keep in step. Before 1.3 -- which
++/// is every Adreno 6xx, and a good deal of Mali -- the same description has to be turned into a
++/// <c>VkRenderPass</c> plus a <c>VkFramebuffer</c>, and those are objects that must match what is attached.
++/// </para>
++/// <para>
++/// Both are cached here rather than rebuilt per frame, because the formats the engine actually uses are a
++/// handful and do not change until the swapchain does. Render passes are keyed by everything baked into
++/// them (formats, sample count, load and store ops, depth layout); framebuffers additionally by the exact
++/// image views attached, since a framebuffer names its views.
++/// </para>
++/// <para>
++/// Framebuffers are the ones that go stale: a resize destroys the views they name. They are dropped whole
++/// on <see cref="InvalidateFramebuffers"/>, which the swapchain-recreation path calls. Render passes survive
++/// that, because they name formats and not images.
++/// </para>
++/// </remarks>
++internal sealed unsafe class VulkanRenderPassCache : IDisposable
++{
++    private readonly Vk _vk;
++    private readonly Device _device;
++    private readonly Dictionary<RenderPassKey, RenderPass> _passes = [];
++
++    // Framebuffers are not cached across frames. The engine wraps a swapchain image in a fresh texture
++    // every frame and disposes the previous one, so the view a framebuffer names is destroyed one frame
++    // later -- and the driver hands the same handle value back out for the replacement. Keyed by handle
++    // and kept, that turns into a hit on a framebuffer built from a destroyed view, which draws into an
++    // image nobody is presenting. Reuse is therefore within a frame only.
++    private readonly Dictionary<FramebufferKey, Framebuffer> _frame = [];
++    private readonly Dictionary<int, List<Framebuffer>> _bySlot = [];
++    private int _slot = -1;
++    private bool _disposed;
++
++    /// <summary>Initialises a new instance of the <see cref="VulkanRenderPassCache"/> class.</summary>
++    /// <param name="vk">The core Vulkan API.</param>
++    /// <param name="device">The device the objects belong to.</param>
++    public VulkanRenderPassCache(Vk vk, Device device)
++    {
++        _vk = vk;
++        _device = device;
++    }
++
++    /// <summary>Gets how many render passes have been built, for diagnostics.</summary>
++    public int PassCount => _passes.Count;
++
++    /// <summary>Gets how many framebuffers the current frame is holding, for diagnostics.</summary>
++    public int FramebufferCount => _frame.Count;
++
++    /// <summary>
++    /// Starts a frame on a slot, destroying the framebuffers the previous frame on that slot built.
++    /// </summary>
++    /// <remarks>
++    /// Called once the slot's fence has signalled, which is the only moment at which the command buffers
++    /// that referenced those framebuffers are known to have finished with them.
++    /// </remarks>
++    /// <param name="slot">The frame slot about to be recorded.</param>
++    public void BeginFrame(int slot)
++    {
++        if (_bySlot.Remove(slot, out List<Framebuffer>? retired))
++        {
++            foreach (Framebuffer framebuffer in retired)
++            {
++                _vk.DestroyFramebuffer(_device, framebuffer, null);
++            }
++        }
++
++        _slot = slot;
++        _frame.Clear();
++    }
++
++    /// <summary>
++    /// The render pass a pipeline is built against: formats and sample count, with the ops a pipeline does
++    /// not care about.
++    /// </summary>
++    /// <remarks>
++    /// Vulkan decides render pass compatibility from attachment formats and sample counts alone -- load and
++    /// store ops are not part of it (spec 8.2). So a pipeline built against this pass is valid inside any
++    /// pass with the same formats, whatever that pass clears or keeps. That is what lets the pipeline be
++    /// created once, before anyone knows which attachments a frame will use.
++    /// </remarks>
++    /// <param name="colourFormats">The colour formats, in attachment order.</param>
++    /// <param name="depthFormat">The depth format, or <see cref="Format.Undefined"/> for none.</param>
++    /// <param name="stencilFormat">The stencil format, or <see cref="Format.Undefined"/> for none.</param>
++    /// <param name="samples">The sample count.</param>
++    /// <returns>The render pass.</returns>
++    public RenderPass PipelineCompatible(
++        ReadOnlySpan<Format> colourFormats,
++        Format depthFormat,
++        Format stencilFormat,
++        uint samples)
++    {
++        int count = colourFormats.Length;
++        LoadOp[] loads = new LoadOp[count];
++        StoreOp[] stores = new StoreOp[count];
++
++        // A pipeline does not read these, and compatibility does not compare them; Clear/Store is the pair
++        // that is valid for every attachment, so it is the one baked into the pipeline-facing pass.
++        loads.AsSpan().Fill(LoadOp.Clear);
++        stores.AsSpan().Fill(StoreOp.Store);
++
++        RenderPassKey key = new(
++            colourFormats.ToArray(),
++            depthFormat,
++            stencilFormat,
++            samples,
++            loads,
++            stores,
++            depthFormat != Format.Undefined ? LoadOp.Clear : LoadOp.DontCare,
++            depthFormat != Format.Undefined ? StoreOp.Store : StoreOp.DontCare,
++            depthFormat != Format.Undefined ? ImageLayout.DepthStencilAttachmentOptimal : ImageLayout.Undefined);
++
++        return GetOrCreatePass(key);
++    }
++
++    /// <summary>The render pass and framebuffer for one pass, built from the attachments it names.</summary>
++    /// <param name="colourFormats">The colour formats, in attachment order.</param>
++    /// <param name="colourLoads">What each colour attachment does at the start of the pass.</param>
++    /// <param name="colourStores">What each colour attachment does at the end of the pass.</param>
++    /// <param name="colourViews">The colour image views, in attachment order.</param>
++    /// <param name="depthFormat">The depth format, or <see cref="Format.Undefined"/> for none.</param>
++    /// <param name="stencilFormat">The stencil format, or <see cref="Format.Undefined"/> for none.</param>
++    /// <param name="depthLoad">What the depth attachment does at the start of the pass.</param>
++    /// <param name="depthStore">What the depth attachment does at the end of the pass.</param>
++    /// <param name="depthLayout">The layout the depth attachment is in for the pass.</param>
++    /// <param name="depthView">The depth image view, or a default handle for none.</param>
++    /// <param name="samples">The sample count.</param>
++    /// <param name="width">The framebuffer width.</param>
++    /// <param name="height">The framebuffer height.</param>
++    /// <param name="label">The pass name, for the failure message a mixed resolve set produces.</param>
++    /// <returns>The pass and the framebuffer built for these views.</returns>
++    public (RenderPass Pass, Framebuffer Framebuffer) Begin(
++        ReadOnlySpan<Format> colourFormats,
++        ReadOnlySpan<LoadOp> colourLoads,
++        ReadOnlySpan<StoreOp> colourStores,
++        ReadOnlySpan<ImageView> colourViews,
++        Format depthFormat,
++        Format stencilFormat,
++        LoadOp depthLoad,
++        StoreOp depthStore,
++        ImageLayout depthLayout,
++        ImageView depthView,
++        uint samples,
++        uint width,
++        uint height,
++        string label)
++    {
++        bool hasDepth = depthFormat != Format.Undefined;
++
++        RenderPassKey passKey = new(
++            colourFormats.ToArray(),
++            depthFormat,
++            stencilFormat,
++            samples,
++            colourLoads.ToArray(),
++            colourStores.ToArray(),
++            hasDepth ? depthLoad : LoadOp.DontCare,
++            hasDepth ? depthStore : StoreOp.DontCare,
++            hasDepth ? depthLayout : ImageLayout.Undefined);
++
++        RenderPass pass = GetOrCreatePass(passKey);
++
++        ImageView[] views = new ImageView[colourViews.Length + (hasDepth ? 1 : 0)];
++        colourViews.CopyTo(views);
++        if (hasDepth)
++        {
++            views[^1] = depthView;
++        }
++
++        FramebufferKey framebufferKey = new(pass, views);
++        if (!_frame.TryGetValue(framebufferKey, out Framebuffer framebuffer))
++        {
++            fixed (ImageView* firstView = views)
++            {
++                FramebufferCreateInfo info = new()
++                {
++                    SType = StructureType.FramebufferCreateInfo,
++                    RenderPass = pass,
++                    AttachmentCount = (uint)views.Length,
++                    PAttachments = firstView,
++                    Width = width,
++                    Height = height,
++                    Layers = 1,
++                };
++
++                VkCheck.Ok(
++                    _vk.CreateFramebuffer(_device, &info, null, &framebuffer),
++                    $"vkCreateFramebuffer for the pass '{label}'");
++            }
++
++            _frame[framebufferKey] = framebuffer;
++
++            if (!_bySlot.TryGetValue(_slot, out List<Framebuffer>? built))
++            {
++                built = [];
++                _bySlot[_slot] = built;
++            }
++
++            built.Add(framebuffer);
++        }
++
++        return (pass, framebuffer);
++    }
++
++    /// <summary>Drops every framebuffer, because the views they name are about to stop existing.</summary>
++    /// <remarks>
++    /// Only safe with the device idle: the callers that need it are the ones rebuilding the swapchain, and
++    /// they wait first.
++    /// </remarks>
++    public void InvalidateFramebuffers()
++    {
++        foreach (List<Framebuffer> framebuffers in _bySlot.Values)
++        {
++            foreach (Framebuffer framebuffer in framebuffers)
++            {
++                _vk.DestroyFramebuffer(_device, framebuffer, null);
++            }
++        }
++
++        _bySlot.Clear();
++        _frame.Clear();
++    }
++
++    /// <inheritdoc/>
++    public void Dispose()
++    {
++        if (_disposed)
++        {
++            return;
++        }
++
++        _disposed = true;
++        InvalidateFramebuffers();
++
++        foreach (RenderPass pass in _passes.Values)
++        {
++            _vk.DestroyRenderPass(_device, pass, null);
++        }
++
++        _passes.Clear();
++    }
++
++    private RenderPass GetOrCreatePass(in RenderPassKey key)
++    {
++        if (_passes.TryGetValue(key, out RenderPass existing))
++        {
++            return existing;
++        }
++
++        int colourCount = key.Colours.Length;
++        bool hasDepth = key.Depth != Format.Undefined;
++
++        // The attachments in the order the pass names them: colours first, then depth. Resolve attachments
++        // are not built here -- the engine creates every pipeline at SampleCount 1 and nothing sets a
++        // resolve target, so a resolving pass would be a change of behaviour worth noticing rather than a
++        // silently half-built framebuffer.
++        AttachmentDescription[] attachments = new AttachmentDescription[colourCount + (hasDepth ? 1 : 0)];
++
++        for (int i = 0; i < colourCount; i++)
++        {
++            attachments[i] = new AttachmentDescription
++            {
++                Format = key.Colours[i],
++                Samples = (SampleCountFlags)key.Samples,
++                LoadOp = key.Loads[i],
++                StoreOp = key.Stores[i],
++                StencilLoadOp = LoadOp.DontCare,
++                StencilStoreOp = StoreOp.DontCare,
++
++                // The encoder has already moved the image into this layout before the pass begins, and moves
++                // it back out afterwards, so the pass itself is not asked to transition anything.
++                InitialLayout = ImageLayout.ColorAttachmentOptimal,
++                FinalLayout = ImageLayout.ColorAttachmentOptimal,
++            };
++        }
++
++        if (hasDepth)
++        {
++            attachments[^1] = new AttachmentDescription
++            {
++                Format = key.Depth,
++                Samples = (SampleCountFlags)key.Samples,
++                LoadOp = key.DepthLoad,
++                StoreOp = key.DepthStore,
++                StencilLoadOp = key.DepthLoad,
++                StencilStoreOp = key.DepthStore,
++                InitialLayout = key.DepthLayout,
++                FinalLayout = key.DepthLayout,
++            };
++        }
++
++        AttachmentReference[] colourReferences = new AttachmentReference[colourCount];
++        for (int i = 0; i < colourCount; i++)
++        {
++            colourReferences[i] = new AttachmentReference
++            {
++                Attachment = (uint)i,
++                Layout = ImageLayout.ColorAttachmentOptimal,
++            };
++        }
++
++        AttachmentReference depthReference = new()
++        {
++            Attachment = hasDepth ? (uint)colourCount : uint.MaxValue,
++            Layout = key.DepthLayout,
++        };
++
++        // Conservative on purpose: every stage that could have written before this pass is made to finish,
++        // and every stage that could read after it is made to wait. The encoder already records explicit
++        // barriers around the pass, so this is belt and braces rather than the only ordering.
++        SubpassDependency[] dependencies =
++        [
++            new()
++            {
++                SrcSubpass = uint.MaxValue,
++                DstSubpass = 0,
++                SrcStageMask = PipelineStageFlags.ColorAttachmentOutputBit
++                    | PipelineStageFlags.EarlyFragmentTestsBit
++                    | PipelineStageFlags.LateFragmentTestsBit,
++                DstStageMask = PipelineStageFlags.ColorAttachmentOutputBit
++                    | PipelineStageFlags.EarlyFragmentTestsBit
++                    | PipelineStageFlags.LateFragmentTestsBit,
++                SrcAccessMask = 0,
++                DstAccessMask = AccessFlags.ColorAttachmentWriteBit | AccessFlags.DepthStencilAttachmentWriteBit,
++                DependencyFlags = 0,
++            },
++            new()
++            {
++                SrcSubpass = 0,
++                DstSubpass = uint.MaxValue,
++                SrcStageMask = PipelineStageFlags.ColorAttachmentOutputBit
++                    | PipelineStageFlags.EarlyFragmentTestsBit
++                    | PipelineStageFlags.LateFragmentTestsBit,
++                DstStageMask = PipelineStageFlags.ColorAttachmentOutputBit
++                    | PipelineStageFlags.EarlyFragmentTestsBit
++                    | PipelineStageFlags.LateFragmentTestsBit,
++                SrcAccessMask = AccessFlags.ColorAttachmentWriteBit | AccessFlags.DepthStencilAttachmentWriteBit,
++                DstAccessMask = AccessFlags.ColorAttachmentReadBit
++                    | AccessFlags.ColorAttachmentWriteBit
++                    | AccessFlags.DepthStencilAttachmentReadBit
++                    | AccessFlags.DepthStencilAttachmentWriteBit
++                    | AccessFlags.ShaderReadBit,
++                DependencyFlags = 0,
++            },
++        ];
++
++        RenderPass created;
++        fixed (AttachmentDescription* firstAttachment = attachments)
++        fixed (AttachmentReference* firstColour = colourReferences)
++        fixed (SubpassDependency* firstDependency = dependencies)
++        {
++            SubpassDescription subpass = new()
++            {
++                PipelineBindPoint = PipelineBindPoint.Graphics,
++                ColorAttachmentCount = (uint)colourCount,
++                PColorAttachments = colourCount > 0 ? firstColour : null,
++                PDepthStencilAttachment = hasDepth ? &depthReference : null,
++            };
++
++            RenderPassCreateInfo info = new()
++            {
++                SType = StructureType.RenderPassCreateInfo,
++                AttachmentCount = (uint)attachments.Length,
++                PAttachments = firstAttachment,
++                SubpassCount = 1,
++                PSubpasses = &subpass,
++                DependencyCount = (uint)dependencies.Length,
++                PDependencies = firstDependency,
++            };
++
++            VkCheck.Ok(_vk.CreateRenderPass(_device, &info, null, &created), "vkCreateRenderPass");
++        }
++
++        _passes[key] = created;
++        return created;
++    }
++
++    /// <summary>Everything baked into a render pass object, and nothing that is not.</summary>
++    private readonly struct RenderPassKey : IEquatable<RenderPassKey>
++    {
++        private readonly int _hash;
++
++        public RenderPassKey(
++            Format[] colours,
++            Format depth,
++            Format stencil,
++            uint samples,
++            LoadOp[] loads,
++            StoreOp[] stores,
++            LoadOp depthLoad,
++            StoreOp depthStore,
++            ImageLayout depthLayout)
++        {
++            Colours = colours;
++            Depth = depth;
++            Stencil = stencil;
++            Samples = samples;
++            Loads = loads;
++            Stores = stores;
++            DepthLoad = depthLoad;
++            DepthStore = depthStore;
++            DepthLayout = depthLayout;
++
++            HashCode hash = default;
++            foreach (Format colour in colours)
++            {
++                hash.Add(colour);
++            }
++
++            foreach (LoadOp load in loads)
++            {
++                hash.Add(load);
++            }
++
++            foreach (StoreOp store in stores)
++            {
++                hash.Add(store);
++            }
++
++            hash.Add(depth);
++            hash.Add(stencil);
++            hash.Add(samples);
++            hash.Add(depthLoad);
++            hash.Add(depthStore);
++            hash.Add(depthLayout);
++            _hash = hash.ToHashCode();
++        }
++
++        public Format[] Colours { get; }
++
++        public Format Depth { get; }
++
++        public Format Stencil { get; }
++
++        public uint Samples { get; }
++
++        public LoadOp[] Loads { get; }
++
++        public StoreOp[] Stores { get; }
++
++        public LoadOp DepthLoad { get; }
++
++        public StoreOp DepthStore { get; }
++
++        public ImageLayout DepthLayout { get; }
++
++        public bool Equals(RenderPassKey other) =>
++            _hash == other._hash
++            && Samples == other.Samples
++            && Depth == other.Depth
++            && Stencil == other.Stencil
++            && DepthLoad == other.DepthLoad
++            && DepthStore == other.DepthStore
++            && DepthLayout == other.DepthLayout
++            && Colours.AsSpan().SequenceEqual(other.Colours)
++            && Loads.AsSpan().SequenceEqual(other.Loads)
++            && Stores.AsSpan().SequenceEqual(other.Stores);
++
++        public override bool Equals(object? obj) => obj is RenderPassKey other && Equals(other);
++
++        public override int GetHashCode() => _hash;
++    }
++
++    /// <summary>A framebuffer is a render pass plus the exact views attached to it.</summary>
++    private readonly struct FramebufferKey : IEquatable<FramebufferKey>
++    {
++        private readonly int _hash;
++
++        public FramebufferKey(RenderPass pass, ImageView[] views)
++        {
++            Pass = pass;
++            Views = views;
++
++            HashCode hash = default;
++            hash.Add(pass.Handle);
++            foreach (ImageView view in views)
++            {
++                hash.Add(view.Handle);
++            }
++
++            _hash = hash.ToHashCode();
++        }
++
++        public RenderPass Pass { get; }
++
++        public ImageView[] Views { get; }
++
++        public bool Equals(FramebufferKey other) =>
++            _hash == other._hash
++            && Pass.Handle == other.Pass.Handle
++            && Views.AsSpan().SequenceEqual(other.Views);
++
++        public override bool Equals(object? obj) => obj is FramebufferKey other && Equals(other);
++
++        public override int GetHashCode() => _hash;
++    }
++}
+diff --git a/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiDevice.Frame.cs b/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiDevice.Frame.cs
+index 6cbf02d..e6b79bf 100644
+--- a/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiDevice.Frame.cs
++++ b/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiDevice.Frame.cs
+@@ -135,6 +135,10 @@ internal sealed unsafe partial class VulkanRhiDevice
+         RetireFrameTexture(_frameSlot);
+         ReleaseSlot(_frameSlot);
+ 
++        // Same reasoning for the framebuffers that frame built: the views they named have just been
++        // disposed, and the driver is free to hand those handle values straight back out.
++        RenderPasses.BeginFrame(_frameSlot);
++
+         Result acquired = swapchain.AcquireNextImage(_acquired[_frameSlot], out _imageIndex);
+         if (acquired is Result.ErrorOutOfDateKhr)
+         {
+@@ -398,6 +402,9 @@ internal sealed unsafe partial class VulkanRhiDevice
+             RhiTextureFormat format = _offscreen[0].Format;
+ 
+             _vk.DeviceWaitIdle(_device.Device);
++
++            // The offscreen targets are about to be replaced, and framebuffers name their views.
++            _renderPasses?.InvalidateFramebuffers();
+             AttachOffscreen(width, height, format);
+             return;
+         }
+@@ -407,6 +414,10 @@ internal sealed unsafe partial class VulkanRhiDevice
+ 
+         _vk.DeviceWaitIdle(_device.Device);
+ 
++        // Before anything they name is replaced: a framebuffer holds the exact image views attached when it
++        // was built, so every one of them is stale the moment the swapchain is rebuilt.
++        _renderPasses?.InvalidateFramebuffers();
++
+         for (int i = 0; i < _frameTextures.Length; i++)
+         {
+             RetireFrameTexture(i);
+diff --git a/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiDevice.Raster.cs b/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiDevice.Raster.cs
+index fe7e976..a5e4cc4 100644
+--- a/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiDevice.Raster.cs
++++ b/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiDevice.Raster.cs
+@@ -26,7 +26,6 @@ internal sealed unsafe partial class VulkanRhiDevice
+     {
+         ArgumentNullException.ThrowIfNull(descriptor);
+         ThrowIfDisposed();
+-        RequireDynamicRendering();
+ 
+         using Utf8String vertexEntry = new(descriptor.Vertex.EntryPoint);
+         using Utf8String fragmentEntry = new(descriptor.Fragment?.EntryPoint ?? "main");
+@@ -127,6 +126,31 @@ internal sealed unsafe partial class VulkanRhiDevice
+         // still wants a count here, and dynamic state is what says the values come later.
+         DynamicState* dynamicStates = stackalloc DynamicState[2] { DynamicState.Viewport, DynamicState.Scissor };
+ 
++        // Which of the two ways this device begins a pass decides how the pipeline is described: stated as
++        // formats (dynamic rendering), or built against a render pass object with those same formats.
++        bool dynamicRendering = _device.Capabilities.DynamicRendering;
++
++        Format depthFormat = descriptor.DepthStencil is { } depthTarget
++            ? VulkanRhiTranslation.TextureFormat(depthTarget.Format)
++            : Format.Undefined;
++
++        Format stencilFormat = descriptor.DepthStencil is { } stencilTarget && stencilTarget.Format.HasStencil()
++            ? VulkanRhiTranslation.TextureFormat(stencilTarget.Format)
++            : Format.Undefined;
++
++        // Compatibility is decided by formats and sample count, so this pass is interchangeable with any
++        // other that attaches the same ones -- which is what lets the pipeline be built before the frame
++        // that will use it knows what it is drawing into.
++        RenderPass pipelineRenderPass = default;
++        if (!dynamicRendering)
++        {
++            pipelineRenderPass = RenderPasses.PipelineCompatible(
++                colourFormats.AsSpan(0, descriptor.ColorTargets.Count),
++                depthFormat,
++                stencilFormat,
++                (uint)Math.Max(1, descriptor.SampleCount));
++        }
++
+         fixed (VertexInputAttributeDescription* firstAttribute = attributes)
+         fixed (VertexInputBindingDescription* firstBinding = bindings)
+         fixed (PipelineColorBlendAttachmentState* firstBlend = blends)
+@@ -205,18 +229,19 @@ internal sealed unsafe partial class VulkanRhiDevice
+                 SType = StructureType.PipelineRenderingCreateInfo,
+                 ColorAttachmentCount = (uint)descriptor.ColorTargets.Count,
+                 PColorAttachmentFormats = descriptor.ColorTargets.Count > 0 ? firstFormat : null,
+-                DepthAttachmentFormat = descriptor.DepthStencil is { } target
+-                    ? VulkanRhiTranslation.TextureFormat(target.Format)
+-                    : Format.Undefined,
+-                StencilAttachmentFormat = descriptor.DepthStencil is { } stencil && stencil.Format.HasStencil()
+-                    ? VulkanRhiTranslation.TextureFormat(stencil.Format)
+-                    : Format.Undefined,
++                DepthAttachmentFormat = depthFormat,
++                StencilAttachmentFormat = stencilFormat,
+             };
+ 
+             GraphicsPipelineCreateInfo info = new()
+             {
+                 SType = StructureType.GraphicsPipelineCreateInfo,
+-                PNext = &rendering,
++
++                // Exactly one of the two descriptions may be present: the formats travel in pNext for
++                // dynamic rendering, or are baked into a render pass object for everything older.
++                PNext = dynamicRendering ? &rendering : null,
++                RenderPass = pipelineRenderPass,
++                Subpass = 0,
+                 StageCount = (uint)stages.Length,
+                 PStages = firstStage,
+                 PVertexInputState = &vertexInput,
+@@ -239,18 +264,8 @@ internal sealed unsafe partial class VulkanRhiDevice
+         }
+     }
+ 
+-    /// <summary>Refuses a device that cannot begin a pass the way the interface describes one.</summary>
+-    /// <exception cref="GraphicsDeviceException">The device has no dynamic rendering.</exception>
+-    internal void RequireDynamicRendering()
+-    {
+-        if (!_device.Capabilities.DynamicRendering)
+-        {
+-            throw new GraphicsDeviceException(
+-                "This device has no dynamic rendering, which the shared render path is built on. It needs "
+-                + "Vulkan 1.3 or the extension; a second path through render pass objects would be a "
+-                + "second way for the picture to differ.");
+-        }
+-    }
++    /// <summary>Whether this device begins passes from their attachments rather than from a render pass object.</summary>
++    internal bool BeginsPassDynamically => _device.Capabilities.DynamicRendering;
+ }
+ 
+ /// <summary>A graphics pipeline.</summary>
+diff --git a/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiDevice.cs b/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiDevice.cs
+index 26df1c4..69ad0fc 100644
+--- a/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiDevice.cs
++++ b/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiDevice.cs
+@@ -32,6 +32,13 @@ internal sealed unsafe partial class VulkanRhiDevice : IRhiDevice
+     private DescriptorPoolState? _pool;
+     private bool _disposed;
+ 
++    // Built on first use rather than in the constructor: a device that can begin a pass from its
++    // attachments never needs a render pass object, and this is the path almost every desktop takes.
++    private VulkanRenderPassCache? _renderPasses;
++
++    /// <summary>Gets the render pass and framebuffer cache, for the devices that need one.</summary>
++    internal VulkanRenderPassCache RenderPasses => _renderPasses ??= new VulkanRenderPassCache(_vk, _device.Device);
++
+     /// <summary>Initialises a new instance of the <see cref="VulkanRhiDevice"/> class.</summary>
+     /// <param name="vk">The core Vulkan API.</param>
+     /// <param name="device">The device everything lives on.</param>
+@@ -70,6 +77,14 @@ internal sealed unsafe partial class VulkanRhiDevice : IRhiDevice
+         Limits = ReadLimits(device);
+         AdapterName = device.Selection.Name;
+ 
++        // Which of the two ways this device begins a pass, said once at startup rather than inferred from a
++        // black screen: a device without dynamic rendering draws through render pass objects instead.
++        _logger.Information(
++            "Vulkan",
++            device.Capabilities.DynamicRendering
++                ? "Pass begin path: dynamic rendering (Vulkan 1.3)."
++                : "Pass begin path: render pass objects (no dynamic rendering on this adapter).");
++
+         CreateTimeline();
+ 
+         // Acceleration structures, where the adapter traces. The timeline is asked for as well: the traced
+@@ -534,6 +549,7 @@ internal sealed unsafe partial class VulkanRhiDevice : IRhiDevice
+         _disposed = true;
+         _vk.DeviceWaitIdle(_device.Device);
+ 
++        _renderPasses?.Dispose();
+         _accelerationStructures?.Dispose();
+         DestroySubmissionState();
+         DestroyFrameSync();
+diff --git a/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiEncoder.cs b/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiEncoder.cs
+index 5440b39..e61b8b4 100644
+--- a/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiEncoder.cs
++++ b/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiEncoder.cs
+@@ -47,7 +47,6 @@ internal sealed unsafe class VulkanRhiCommandEncoder : IRhiCommandEncoder
+     {
+         ArgumentNullException.ThrowIfNull(descriptor);
+         ThrowIfFinished();
+-        _device.RequireDynamicRendering();
+ 
+         Barrier();
+ 
+@@ -55,6 +54,9 @@ internal sealed unsafe class VulkanRhiCommandEncoder : IRhiCommandEncoder
+         RenderingAttachmentInfo[] colours =
+             new RenderingAttachmentInfo[Math.Max(descriptor.ColorAttachments.Count, 1)];
+ 
++        // Only read on the render pass path, where the pass has to name the format of every attachment.
++        Format[] colourFormats = new Format[Math.Max(descriptor.ColorAttachments.Count, 1)];
++
+         int width = int.MaxValue;
+         int height = int.MaxValue;
+ 
+@@ -67,6 +69,7 @@ internal sealed unsafe class VulkanRhiCommandEncoder : IRhiCommandEncoder
+             // and General is not a layout a colour attachment may be written in.
+             _device.Transition(_command, view.Owner, ImageLayout.ColorAttachmentOptimal);
+             attached.Add(view.Owner);
++            colourFormats[i] = VulkanRhiTranslation.TextureFormat(view.Format);
+ 
+             width = Math.Min(width, view.Owner.Width);
+             height = Math.Min(height, view.Owner.Height);
+@@ -153,19 +156,112 @@ internal sealed unsafe class VulkanRhiCommandEncoder : IRhiCommandEncoder
+             occlusion.NeedsReset = false;
+         }
+ 
+-        fixed (RenderingAttachmentInfo* firstColour = colours)
++        RenderPass pass = default;
++        Framebuffer framebuffer = default;
++
++        if (_device.BeginsPassDynamically)
+         {
+-            RenderingInfo info = new()
++            fixed (RenderingAttachmentInfo* firstColour = colours)
+             {
+-                SType = StructureType.RenderingInfo,
+-                RenderArea = new Rect2D(new Offset2D(0, 0), new Extent2D((uint)width, (uint)height)),
+-                LayerCount = 1,
+-                ColorAttachmentCount = (uint)descriptor.ColorAttachments.Count,
+-                PColorAttachments = descriptor.ColorAttachments.Count > 0 ? firstColour : null,
+-                PDepthAttachment = hasDepth ? &depth : null,
+-            };
++                RenderingInfo info = new()
++                {
++                    SType = StructureType.RenderingInfo,
++                    RenderArea = new Rect2D(new Offset2D(0, 0), new Extent2D((uint)width, (uint)height)),
++                    LayerCount = 1,
++                    ColorAttachmentCount = (uint)descriptor.ColorAttachments.Count,
++                    PColorAttachments = descriptor.ColorAttachments.Count > 0 ? firstColour : null,
++                    PDepthAttachment = hasDepth ? &depth : null,
++                };
++
++                _vk.CmdBeginRendering(_command, &info);
++            }
++        }
++        else
++        {
++            // The same description, turned into the two objects older Vulkan wants: a render pass naming
++            // what is attached, and a framebuffer naming the images. Both are cached by the device, so a
++            // frame that draws into the same targets as the last one pays a lookup and nothing else.
++            int colourCount = descriptor.ColorAttachments.Count;
++
++            ImageView[] views = new ImageView[Math.Max(colourCount, 1)];
++            AttachmentLoadOp[] loads = new AttachmentLoadOp[Math.Max(colourCount, 1)];
++            AttachmentStoreOp[] stores = new AttachmentStoreOp[Math.Max(colourCount, 1)];
++            Format[] formats = new Format[Math.Max(colourCount, 1)];
++
++            uint samples = 1;
++
++            for (int i = 0; i < colourCount; i++)
++            {
++                views[i] = colours[i].ImageView;
++                loads[i] = colours[i].LoadOp;
++                stores[i] = colours[i].StoreOp;
++                formats[i] = colourFormats[i];
++
++                samples = Math.Max(
++                    samples,
++                    (uint)((VulkanRhiTextureView)descriptor.ColorAttachments[i].View).Owner.SampleCount);
++            }
++
++            Format depthFormat = Format.Undefined;
++            Format stencilFormat = Format.Undefined;
++            ImageView depthView = default;
++            AttachmentLoadOp depthLoad = AttachmentLoadOp.DontCare;
++            AttachmentStoreOp depthStore = AttachmentStoreOp.DontCare;
++            ImageLayout depthLayout = ImageLayout.Undefined;
+ 
+-            _vk.CmdBeginRendering(_command, &info);
++            if (descriptor.DepthAttachment is { } depthSource)
++            {
++                VulkanRhiTextureView depthImageView = (VulkanRhiTextureView)depthSource.View;
++                depthFormat = VulkanRhiTranslation.TextureFormat(depthImageView.Format);
++                stencilFormat = depthImageView.Format.HasStencil() ? depthFormat : Format.Undefined;
++                depthView = depthImageView.Handle;
++                depthLoad = depth.LoadOp;
++                depthStore = depth.StoreOp;
++                depthLayout = depth.ImageLayout;
++                samples = Math.Max(samples, (uint)depthImageView.Owner.SampleCount);
++            }
++
++            (pass, framebuffer) = _device.RenderPasses.Begin(
++                formats.AsSpan(0, colourCount),
++                loads.AsSpan(0, colourCount),
++                stores.AsSpan(0, colourCount),
++                views.AsSpan(0, colourCount),
++                depthFormat,
++                stencilFormat,
++                depthLoad,
++                depthStore,
++                depthLayout,
++                depthView,
++                samples,
++                (uint)width,
++                (uint)height,
++                descriptor.Label);
++
++            ClearValue[] clearValues = new ClearValue[colourCount + (hasDepth ? 1 : 0)];
++            for (int i = 0; i < colourCount; i++)
++            {
++                clearValues[i] = colours[i].ClearValue;
++            }
++
++            if (hasDepth)
++            {
++                clearValues[colourCount] = depth.ClearValue;
++            }
++
++            fixed (ClearValue* firstClear = clearValues)
++            {
++                RenderPassBeginInfo begin = new()
++                {
++                    SType = StructureType.RenderPassBeginInfo,
++                    RenderPass = pass,
++                    Framebuffer = framebuffer,
++                    RenderArea = new Rect2D(new Offset2D(0, 0), new Extent2D((uint)width, (uint)height)),
++                    ClearValueCount = (uint)clearValues.Length,
++                    PClearValues = clearValues.Length > 0 ? firstClear : null,
++                };
++
++                _vk.CmdBeginRenderPass(_command, &begin, SubpassContents.Inline);
++            }
+         }
+ 
+         return new VulkanRhiRenderPassEncoder(
+@@ -174,7 +270,9 @@ internal sealed unsafe class VulkanRhiCommandEncoder : IRhiCommandEncoder
+             _command,
+             attached,
+             descriptor.OcclusionQuerySet as VulkanRhiQuerySet,
+-            descriptor.Timestamps);
++            descriptor.Timestamps,
++            pass,
++            framebuffer);
+     }
+ 
+     /// <inheritdoc/>
+diff --git a/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiRenderPass.cs b/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiRenderPass.cs
+index 0055e23..a8fb19d 100644
+--- a/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiRenderPass.cs
++++ b/src/Rendering/ProjectIGI.Rendering.Vulkan/Rhi/VulkanRhiRenderPass.cs
+@@ -30,6 +30,12 @@ internal sealed unsafe class VulkanRhiRenderPassEncoder : IRhiRenderPassEncoder
+     private readonly (Silk.NET.Vulkan.Buffer Buffer, ulong Offset)[] _boundVertices = new (Silk.NET.Vulkan.Buffer, ulong)[8];
+     private (Silk.NET.Vulkan.Buffer Buffer, ulong Offset, IndexType Type) _boundIndices;
+     private VulkanRhiPipelineLayout? _layout;
++
++    // Set only on the render pass path: a device that cannot begin a pass from its attachments begins one
++    // from these instead. Both are owned by the device's cache, not by the pass, so they are never destroyed
++    // here -- only used.
++    private readonly RenderPass _renderPass;
++    private readonly Framebuffer _framebuffer;
+     private bool _ended;
+     private bool _disposed;
+ 
+@@ -40,13 +46,17 @@ internal sealed unsafe class VulkanRhiRenderPassEncoder : IRhiRenderPassEncoder
+     /// <param name="attachments">The textures attached, to put back when the pass ends.</param>
+     /// <param name="occlusion">The set an occlusion query writes into.</param>
+     /// <param name="timestamps">The timestamps the pass writes; the end one is written as it ends.</param>
++    /// <param name="renderPass">The render pass object, or a default handle when the device begins passes dynamically.</param>
++    /// <param name="framebuffer">The framebuffer attached, or a default handle on the dynamic path.</param>
+     public VulkanRhiRenderPassEncoder(
+         VulkanRhiDevice device,
+         Vk vk,
+         CommandBuffer command,
+         List<VulkanRhiTexture> attachments,
+         VulkanRhiQuerySet? occlusion,
+-        RhiTimestampWrites? timestamps = null)
++        RhiTimestampWrites? timestamps = null,
++        RenderPass renderPass = default,
++        Framebuffer framebuffer = default)
+     {
+         _timestamps = timestamps;
+         _device = device;
+@@ -54,6 +64,8 @@ internal sealed unsafe class VulkanRhiRenderPassEncoder : IRhiRenderPassEncoder
+         _command = command;
+         _attachments = attachments;
+         _occlusion = occlusion;
++        _renderPass = renderPass;
++        _framebuffer = framebuffer;
+     }
+ 
+     /// <inheritdoc/>
+@@ -306,7 +318,15 @@ internal sealed unsafe class VulkanRhiRenderPassEncoder : IRhiRenderPassEncoder
+     {
+         ThrowIfEnded();
+ 
+-        _vk.CmdEndRendering(_command);
++        if (_renderPass.Handle != 0)
++        {
++            _vk.CmdEndRenderPass(_command);
++        }
++        else
++        {
++            _vk.CmdEndRendering(_command);
++        }
++
+         _ended = true;
+         VulkanRhiTimestamps.End(_vk, _command, _timestamps);
+ 
+-- 
+2.55.0.windows.3
+

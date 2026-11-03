@@ -15,6 +15,14 @@
 
     <Version Condition="'$(Version)' == ''">0.0.0-dev</Version>
 
+    <!--
+      Assembly identity is part of the Android ABI: libprojectigi.so resolves CoreCLR delegates against
+      the assembly named "OpenIGI.Android" and the type "OpenIGI.Android.AndroidHost". The projects are
+      named ProjectIGI.*, so without this every build produces assemblies the native bridge cannot find
+      and the app silently keeps running whatever stale OpenIGI.* DLLs are lying in assets/managed.
+    -->
+    <AssemblyName>$([System.String]::Copy('$(MSBuildProjectName)').Replace('ProjectIGI','OpenIGI'))</AssemblyName>
+
     <Product>ProjectIGI</Product>
     <Authors>ProjectIGI Contributors</Authors>
     <Copyright>Copyright (c) ProjectIGI Contributors</Copyright>

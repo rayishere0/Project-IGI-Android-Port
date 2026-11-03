@@ -1,0 +1,2448 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OpenIGI.Rendering.Streamline</name>
+    </assembly>
+    <members>
+        <member name="T:OpenIGI.Rendering.Streamline.IStreamlineGraphicsAdapter">
+            <summary>What Streamline needs of a backend that the RHI does not say: the native side of a session.</summary>
+            <remarks>
+            <para>
+            Small on purpose. Everything a session decides -- which features run, what options and constants are
+            sent, which frame a call belongs to, how failures are reported -- is <see cref="T:OpenIGI.Rendering.Streamline.StreamlineSession"/>'s,
+            once, for every API. A backend answers only the questions whose answers are native handles or native
+            synchronisation, so a second API is a second adapter and nothing more.
+            </para>
+            <para>
+            Evaluation happens between passes, never inside one: the RHI's encoders open each pass as an object of
+            their own and bind everything that pass uses when it opens, so no pipeline or descriptor state survives
+            across Streamline's work for it to disturb. That is what lets a session run with Streamline's own state
+            tracking switched off on either API.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.IStreamlineGraphicsAdapter.Adapter">
+            <summary>Gets the adapter as Streamline identifies it: a <c>VkPhysicalDevice</c>, or a LUID.</summary>
+            <remarks>Any pointer it carries stays valid for the adapter's lifetime.</remarks>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.IStreamlineGraphicsAdapter.CommandList(OpenIGI.Rendering.Rhi.IRhiCommandEncoder)">
+            <summary>Gets the native command list an encoder records into.</summary>
+            <param name="encoder">The encoder, outside any pass.</param>
+            <returns>The <c>VkCommandBuffer</c> or <c>ID3D12GraphicsCommandList</c>.</returns>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.IStreamlineGraphicsAdapter.PrepareTag(OpenIGI.Rendering.Rhi.IRhiTexture,OpenIGI.Rendering.Rhi.IRhiCommandEncoder)">
+            <summary>Puts a texture into the state its tag will name, and describes it in that state.</summary>
+            <param name="texture">The texture being tagged.</param>
+            <param name="encoder">The encoder the transition, if one is needed, is recorded into.</param>
+            <returns>The description Streamline reads the texture through.</returns>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.IStreamlineGraphicsAdapter.ExternalBarrier(OpenIGI.Rendering.Rhi.IRhiCommandEncoder,System.String)">
+            <summary>Records a barrier making everything written so far visible to Streamline, or what it wrote to what follows.</summary>
+            <param name="encoder">The encoder, outside any pass.</param>
+            <param name="label">What follows the barrier, for a backend that marks where a lost device was.</param>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.IStreamlineGraphicsAdapter.RebuildSwapchain(System.Action)">
+            <summary>Rebuilds the swapchain at its current size, running something while none exists.</summary>
+            <param name="between">What to run between releasing the old swapchain and creating the new one.</param>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.IStreamlineGraphicsAdapter.AddFrameWait(System.IntPtr,System.UInt64)">
+            <summary>Makes the next frame's submission wait for a native fence to reach a value.</summary>
+            <param name="fence">A timeline <c>VkSemaphore</c> or an <c>ID3D12Fence</c>.</param>
+            <param name="value">The value to wait for.</param>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.IStreamlineGraphicsAdapter.WaitIdle">
+            <summary>Waits until the device has finished everything submitted.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SignedModule">
+            <summary>Checks that a native module carries a valid Authenticode signature.</summary>
+            <remarks>
+            <para>
+            Streamline loads its plugins by name from a directory, which is a path this game does not own:
+            the DLLs are fetched rather than built, and they sit beside the executable where anything can
+            replace them. NVIDIA's own guidance is blunt about the consequence — a substituted plugin runs
+            inside the process with the process's privileges — and the SDK ships
+            <c>sl::security::verifyEmbeddedSignature</c> for exactly this. That helper is C++, so the same
+            check is made here through the API it wraps.
+            </para>
+            <para>
+            This verifies the signature cryptographically and walks the certificate chain, then requires the
+            signer to be NVIDIA — a merely valid signature would let anything with a code-signing certificate
+            through, which is most of the threat. Revocation is checked only against what the machine has
+            already cached, because a player launching a game offline should not be stalled on a network
+            timeout to load an upscaler.
+            </para>
+            <para>
+            The SDK's own helper goes further: it applies a strong-signature crypto policy and additionally
+            requires a second, NVIDIA-specific signature alongside the first. That is not reproduced here.
+            The launcher's hash-checked install (or the fetch script, on a development checkout) is the trusted
+            path onto disk, and this exists to catch a file that was replaced afterwards.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SignedModule.IsTrusted(System.String,System.Int32@)">
+            <summary>Determines whether a file is signed by a trusted publisher.</summary>
+            <param name="path">The absolute path to check.</param>
+            <param name="status">
+            The trust provider's verdict, which is what makes a refusal diagnosable: it separates "not
+            signed" from "signed by someone not trusted here" from "the certificate has expired".
+            </param>
+            <returns>
+            <see langword="true"/> when the signature is present and valid. Always
+            <see langword="false"/> off Windows, where Authenticode does not exist and Streamline is not
+            available either.
+            </returns>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SignedModule.NvidiaPublisher">
+            <summary>The organisation every Streamline module must be signed by.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SignedModule.MicrosoftPublisher">
+            <summary>The organisation the C++ runtime the modules link against is signed by.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SignedModule.MicrosoftRuntime">
+            <summary>
+            The Microsoft libraries the pack may carry beside NVIDIA's: the Visual C++ runtime every Streamline
+            module imports, carried app-locally so a machine without the redistributable still loads them, and
+            the PIX event runtime the development plugins load. Each must be Microsoft's; nothing else may be.
+            </summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SignedModule.ExpectedPublisher(System.String)">
+            <summary>Names who must have signed a file the folder holds.</summary>
+            <param name="fileName">The file name, without a folder.</param>
+            <returns>The organisation clause of the signer's subject.</returns>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SignedModule.IsFolderTrusted(System.String,System.String@)">
+            <summary>Checks every native module Streamline could load from a folder.</summary>
+            <param name="directory">The absolute path of the folder.</param>
+            <param name="refused">The first file that failed, with the reason, when one did.</param>
+            <returns><see langword="true"/> when every module in the folder is NVIDIA-signed.</returns>
+            <remarks>
+            The interposer alone is not enough. It loads its plugins by name from its own folder, and the
+            plugins load the NGX models the same way, so one replaced <c>sl.dlss.dll</c> beside a genuine
+            interposer runs in the game's process exactly as a replaced interposer would. Nor is it enough to
+            check only the files with Streamline's names: loading the interposer by path puts its folder on
+            the search path for everything it imports, so any library sitting there can be pulled in. Every
+            DLL in the folder must therefore be NVIDIA's — or, for the C++ runtime NVIDIA's modules link
+            against, Microsoft's — and the pack carries nothing else. All or nothing:
+            a folder with one bad file is refused whole, because there is no way to load the rest without
+            also offering that one.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SignedModule.IsStreamlineModule(System.String)">
+            <summary>Determines whether a file name is one Streamline or its plugins would load.</summary>
+            <param name="fileName">The file name, without a folder.</param>
+            <returns><see langword="true"/> for the interposer, a plugin, an NGX model or the low-latency layer.</returns>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SignedModule.SignerIsNotNvidia">
+            <summary>The verdict used when the file is validly signed, but not by NVIDIA.</summary>
+            <remarks>
+            Not a real trust-provider status. The provider has no way to express "signed by the wrong
+            person", because from its point of view nothing is wrong.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SignedModule.SignerIsNotMicrosoft">
+            <summary>The verdict used when a runtime library is validly signed, but not by Microsoft.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SignedModule.Describe(System.Int32)">
+            <summary>Turns a trust provider verdict into something worth reading in a log.</summary>
+            <param name="status">The value reported by <see cref="M:OpenIGI.Rendering.Streamline.SignedModule.IsTrusted(System.String,System.Int32@)"/>.</param>
+            <returns>The description.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlApi">
+            <summary>The flat C entry points <c>sl.interposer.dll</c> exports, bound by address.</summary>
+            <remarks>
+            <para>
+            Bound with <see cref="M:System.Runtime.InteropServices.NativeLibrary.GetExport(System.IntPtr,System.String)"/> from a handle loaded by absolute path rather than
+            declared with <c>DllImport</c>: the interposer lives in a folder the launcher chose, never beside the
+            executable, and an import resolver can be registered only once per assembly — a second Vulkan device
+            after an F10 switch would have had nowhere to put its own.
+            </para>
+            <para>
+            Every parameter is a raw pointer. Streamline's signatures take C++ references, which are pointers,
+            and being explicit about that removes any question of what the marshaller decided to do — these calls
+            sit on the render thread and the structures they point at have to stay put for the duration.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlApi.Init">
+            <summary>Gets <c>slInit</c>: starts Streamline. Must precede the Vulkan instance.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlApi.Shutdown">
+            <summary>Gets <c>slShutdown</c>: stops Streamline. Must precede <c>vkDestroyDevice</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlApi.IsFeatureSupported">
+            <summary>Gets <c>slIsFeatureSupported</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlApi.IsFeatureLoaded">
+            <summary>Gets <c>slIsFeatureLoaded</c>. Its out-parameter is a C++ <c>bool</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlApi.SetFeatureLoaded">
+            <summary>Gets <c>slSetFeatureLoaded</c>. Its parameter is a C++ <c>bool</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlApi.GetFeatureRequirements">
+            <summary>Gets <c>slGetFeatureRequirements</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlApi.GetFeatureVersion">
+            <summary>Gets <c>slGetFeatureVersion</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlApi.GetFeatureFunction">
+            <summary>Gets <c>slGetFeatureFunction</c>. Valid only once the device exists.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlApi.GetNewFrameToken">
+            <summary>Gets <c>slGetNewFrameToken</c>. The token it returns is owned by Streamline.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlApi.SetConstants">
+            <summary>Gets <c>slSetConstants</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlApi.SetTagForFrame">
+            <summary>Gets <c>slSetTagForFrame</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlApi.EvaluateFeature">
+            <summary>Gets <c>slEvaluateFeature</c>. The host restores command-buffer state afterwards.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlApi.AllocateResources">
+            <summary>Gets <c>slAllocateResources</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlApi.FreeResources">
+            <summary>Gets <c>slFreeResources</c>. Any pending evaluation must have been submitted first.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlApi.SetD3DDevice">
+            <summary>Gets <c>slSetD3DDevice</c>: hands a Direct3D device to a session started with manual hooking.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlApi.UpgradeInterface">
+            <summary>Gets <c>slUpgradeInterface</c>: swaps a DXGI or Direct3D interface for Streamline's proxy of it.</summary>
+            <remarks>Takes the interface by address and writes the proxy over it, releasing nothing.</remarks>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlApi.TryBind(System.IntPtr,OpenIGI.Rendering.Streamline.SlApi@,System.String@)">
+            <summary>Binds every entry point, or reports which one the library lacks.</summary>
+            <param name="library">The interposer's handle.</param>
+            <param name="api">The bound table.</param>
+            <param name="missing">The first entry point not found, when binding failed.</param>
+            <returns><see langword="true"/> when every entry point was found.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlFeatureApi">
+            <summary>The feature-specific entry points, fetched by name once the device exists.</summary>
+            <remarks>
+            Streamline does not export these: <c>slDLSSSetOptions</c> and friends are resolved through
+            <c>slGetFeatureFunction</c>, which only answers once the device the plugins attach to has been
+            created. A feature that did not load leaves its entries zero, and every caller checks before calling.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlFeatureApi.DlssGetOptimalSettings">
+            <summary>Gets <c>slDLSSGetOptimalSettings</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlFeatureApi.DlssSetOptions">
+            <summary>Gets <c>slDLSSSetOptions</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlFeatureApi.DlssGetState">
+            <summary>Gets <c>slDLSSGetState</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlFeatureApi.DlssdGetOptimalSettings">
+            <summary>Gets <c>slDLSSDGetOptimalSettings</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlFeatureApi.DlssdSetOptions">
+            <summary>Gets <c>slDLSSDSetOptions</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlFeatureApi.DlssdGetState">
+            <summary>Gets <c>slDLSSDGetState</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlFeatureApi.DlssgSetOptions">
+            <summary>Gets <c>slDLSSGSetOptions</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlFeatureApi.DlssgGetState">
+            <summary>Gets <c>slDLSSGGetState</c>. Its options pointer may be null.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlFeatureApi.ReflexSetOptions">
+            <summary>Gets <c>slReflexSetOptions</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlFeatureApi.ReflexGetState">
+            <summary>Gets <c>slReflexGetState</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlFeatureApi.ReflexSleep">
+            <summary>Gets <c>slReflexSleep</c>. Its parameter is the frame token.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlFeatureApi.PclSetMarker">
+            <summary>Gets <c>slPCLSetMarker</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlFeatureApi.PclSetOptions">
+            <summary>Gets <c>slPCLSetOptions</c>.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlFeatureApi.PclGetState">
+            <summary>Gets <c>slPCLGetState</c>.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlDlssMode">
+            <summary>Which DLSS mode to run, from cheapest to sharpest.</summary>
+            <remarks>
+            <see cref="F:OpenIGI.Rendering.Streamline.SlDlssMode.Dlaa"/> is the reason this integration exists at native resolution: it is the same
+            reconstruction as super resolution, run without the upscale, so it replaces the anti-aliasing
+            rather than the resolution.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssMode.Off">
+            <summary>Off. Note that this does not release the feature's resources.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssMode.MaxPerformance">
+            <summary>Performance.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssMode.Balanced">
+            <summary>Balanced.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssMode.MaxQuality">
+            <summary>Quality.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssMode.UltraPerformance">
+            <summary>Ultra performance.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssMode.UltraQuality">
+            <summary>Ultra quality.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssMode.Dlaa">
+            <summary>Native resolution, anti-aliasing only.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlDlssPreset">
+            <summary>Which trained model a DLSS mode should use.</summary>
+            <remarks>
+            Presets A to D were removed and E to I are deprecated or revert to the default, so only the
+            transformer-generation ones are named here. K is the best image quality and the default for
+            DLAA, quality and balanced; M is the performance default; L is the ultra-performance default.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssPreset.Default">
+            <summary>Whatever NVIDIA currently considers best for the mode.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssPreset.PresetJ">
+            <summary>Slightly less ghosting than K at the cost of more flicker. K is generally preferred.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssPreset.PresetK">
+            <summary>Transformer-based, the best image quality, at a higher cost.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssPreset.PresetL">
+            <summary>Sharper and more stable than J or K, and more expensive. The ultra-performance default.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssPreset.PresetM">
+            <summary>The quality gains of L closer to the speed of J and K. The performance default.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlDlssOptions">
+            <summary>How DLSS should behave, set whenever the player changes a setting.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.Mode">
+            <summary>Which mode to run.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.OutputWidth">
+            <summary>The final target width.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.OutputHeight">
+            <summary>The final target height.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.Sharpness">
+            <summary>Deprecated and ignored by the plugin. Sharpening is the host's job.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.PreExposure">
+            <summary>Any exposure already folded into the colour buffer. One when there is none.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.ExposureScale">
+            <summary>A scale applied to the tagged exposure value.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.ColorBuffersHdr">
+            <summary>Whether the colour buffers hold high dynamic range. They do here.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.IndicatorInvertAxisX">
+            <summary>Whether the on-screen indicator's horizontal axis is inverted.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.IndicatorInvertAxisY">
+            <summary>Whether the on-screen indicator's vertical axis is inverted.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.DlaaPreset">
+            <summary>The model to use at native resolution.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.QualityPreset">
+            <summary>The model to use for quality.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.BalancedPreset">
+            <summary>The model to use for balanced.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.PerformancePreset">
+            <summary>The model to use for performance.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.UltraPerformancePreset">
+            <summary>The model to use for ultra performance.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.UltraQualityPreset">
+            <summary>The model to use for ultra quality.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.UseAutoExposure">
+            <summary>
+            Whether DLSS should meter the frame itself. Setting this, or tagging no exposure buffer, puts
+            it into auto-exposure mode.
+            </summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptions.AlphaUpscalingEnabled">
+            <summary>Whether the alpha channel is upscaled too. Experimental, and it costs performance.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlDlssOptions.TypeId">
+            <summary>The structure's identity, from <c>sl_dlss.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlDlssOptions.Create">
+            <summary>Creates options carrying NVIDIA's recommended model for every mode.</summary>
+            <returns>The options.</returns>
+            <remarks>
+            The presets are set explicitly rather than left at <see cref="F:OpenIGI.Rendering.Streamline.SlDlssPreset.Default"/> so that
+            an over-the-air model change cannot silently move the picture out from under a calibration
+            that was measured against a known one.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlDlssOptimalSettings">
+            <summary>What DLSS says the render resolution should be for a mode and output size.</summary>
+            <remarks>
+            The render size is asked for rather than computed. The ratios are not a fixed table — they move
+            between model generations — and a host that hard-codes them ends up feeding the network something
+            it was not trained on.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptimalSettings.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptimalSettings.OptimalRenderWidth">
+            <summary>The render width to use.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptimalSettings.OptimalRenderHeight">
+            <summary>The render height to use.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptimalSettings.OptimalSharpness">
+            <summary>The sharpness DLSS would pick. Deprecated along with the option it feeds.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptimalSettings.RenderWidthMin">
+            <summary>The smallest render width dynamic resolution may fall to.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptimalSettings.RenderHeightMin">
+            <summary>The smallest render height dynamic resolution may fall to.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptimalSettings.RenderWidthMax">
+            <summary>The largest render width dynamic resolution may rise to.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssOptimalSettings.RenderHeightMax">
+            <summary>The largest render height dynamic resolution may rise to.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlDlssOptimalSettings.TypeId">
+            <summary>The structure's identity, from <c>sl_dlss.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlDlssOptimalSettings.Create">
+            <summary>Creates an empty structure for Streamline to fill.</summary>
+            <returns>The settings.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlDlssState">
+            <summary>What DLSS reports about a running viewport.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssState.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssState.EstimatedVramUsageInBytes">
+            <summary>How much video memory DLSS expects to occupy.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlDlssState.TypeId">
+            <summary>The structure's identity, from <c>sl_dlss.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlDlssState.Create">
+            <summary>Creates an empty structure for Streamline to fill.</summary>
+            <returns>The state.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlDlssDNormalRoughnessMode">
+            <summary>Whether roughness travels in the normal buffer or in one of its own.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDNormalRoughnessMode.Unpacked">
+            <summary>Two textures: normals, and roughness separately.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDNormalRoughnessMode.Packed">
+            <summary>One texture: the world normal in <c>xyz</c> and roughness in <c>w</c>.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlDlssDPreset">
+            <summary>Which trained model ray reconstruction should use.</summary>
+            <remarks>
+            A separate ladder from super resolution's: the two features have their own model families, and the
+            numbers do not line up. Only the ones NVIDIA currently recommends are named.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDPreset.Default">
+            <summary>Whatever NVIDIA currently considers best for the mode.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDPreset.PresetD">
+            <summary>A transformer model.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDPreset.PresetE">
+            <summary>A transformer model.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDPreset.PresetF">
+            <summary>The newest transformer model, and the default since Streamline 2.14.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlDlssDOptions">
+            <summary>How ray reconstruction should behave.</summary>
+            <remarks>
+            It carries the camera transform itself, unlike super resolution — the denoiser works in world
+            space, so it has to be able to get there from a pixel rather than only reproject between frames.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.Mode">
+            <summary>Which mode to run. Shares super resolution's ladder.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.OutputWidth">
+            <summary>The final target width.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.OutputHeight">
+            <summary>The final target height.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.Sharpness">
+            <summary>Deprecated, and ignored.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.PreExposure">
+            <summary>Any exposure already folded into the colour buffer.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.ExposureScale">
+            <summary>A scale applied to the tagged exposure value.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.ColorBuffersHdr">
+            <summary>Whether the colour buffers hold high dynamic range.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.IndicatorInvertAxisX">
+            <summary>Whether the on-screen indicator's horizontal axis is inverted.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.IndicatorInvertAxisY">
+            <summary>Whether the on-screen indicator's vertical axis is inverted.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.NormalRoughnessMode">
+            <summary>Whether roughness rides in the normal buffer's alpha.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.WorldToCameraView">
+            <summary>World space to camera view space, row-major.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.CameraViewToWorld">
+            <summary>Camera view space to world space, row-major.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.AlphaUpscalingEnabled">
+            <summary>Whether the alpha channel is upscaled too.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.DlaaPreset">
+            <summary>The model to use at native resolution.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.QualityPreset">
+            <summary>The model to use for quality.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.BalancedPreset">
+            <summary>The model to use for balanced.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.PerformancePreset">
+            <summary>The model to use for performance.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.UltraPerformancePreset">
+            <summary>The model to use for ultra performance.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptions.UltraQualityPreset">
+            <summary>The model to use for ultra quality.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlDlssDOptions.TypeId">
+            <summary>The structure's identity, from <c>sl_dlss_d.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlDlssDOptions.Create">
+            <summary>Creates options with ray reconstruction off.</summary>
+            <returns>The options.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlDlssDOptimalSettings">
+            <summary>What ray reconstruction says the render resolution should be.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptimalSettings.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptimalSettings.OptimalRenderWidth">
+            <summary>The render width to use.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptimalSettings.OptimalRenderHeight">
+            <summary>The render height to use.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptimalSettings.OptimalSharpness">
+            <summary>The sharpness it would pick. Deprecated along with the option it feeds.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptimalSettings.RenderWidthMin">
+            <summary>The smallest render width dynamic resolution may fall to.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptimalSettings.RenderHeightMin">
+            <summary>The smallest render height dynamic resolution may fall to.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptimalSettings.RenderWidthMax">
+            <summary>The largest render width dynamic resolution may rise to.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDOptimalSettings.RenderHeightMax">
+            <summary>The largest render height dynamic resolution may rise to.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlDlssDOptimalSettings.TypeId">
+            <summary>The structure's identity, from <c>sl_dlss_d.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlDlssDOptimalSettings.Create">
+            <summary>Creates an empty structure for Streamline to fill.</summary>
+            <returns>The settings.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlDlssDState">
+            <summary>What ray reconstruction reports about itself, chiefly its memory.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDState.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssDState.EstimatedVramUsageInBytes">
+            <summary>How much video memory the feature expects to use.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlDlssDState.TypeId">
+            <summary>The structure's identity, from <c>sl_dlss_d.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlDlssDState.Create">
+            <summary>Creates an empty structure for Streamline to fill.</summary>
+            <returns>The state.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlDlssGMode">
+            <summary>Whether frame generation runs.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGMode.Off">
+            <summary>Off. With <see cref="F:OpenIGI.Rendering.Streamline.SlDlssGFlags.RetainResourcesWhenOff"/> the feature keeps its memory.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGMode.On">
+            <summary>On, generating the configured number of frames between rendered ones.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGMode.Auto">
+            <summary>Let the plugin decide per frame. Not offered: it is a Direct3D 12 behaviour.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGMode.Dynamic">
+            <summary>Dynamic multi-frame generation. Direct3D 12 only; never requested on Vulkan.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlDlssGFlags">
+            <summary>Behaviour switches for frame generation.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGFlags.None">
+            <summary>None.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGFlags.ShowOnlyInterpolatedFrame">
+            <summary>A debugging view that shows only the generated frames.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGFlags.DynamicResolutionEnabled">
+            <summary>The inputs change size from frame to frame. Not set: the render size is fixed per mode.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGFlags.RequestVramEstimate">
+            <summary>Asks the next state query to estimate the memory the feature will need.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGFlags.RetainResourcesWhenOff">
+            <summary>
+            Keep the feature's resources while it is switched off. What lets a menu or a loading screen
+            pause frame generation and resume it a second later without rebuilding anything.
+            </summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGFlags.EnableFullscreenMenuDetection">
+            <summary>Let the plugin notice a full-screen menu on its own and stop interpolating it.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlDlssGQueueParallelismMode">
+            <summary>How much of the host's queue work may overlap frame generation's.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGQueueParallelismMode.BlockPresentingClientQueue">
+            <summary>The presenting queue waits for frame generation. The default, and the safe one.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGQueueParallelismMode.BlockNoClientQueues">
+            <summary>Nothing waits, and the host must instead wait on the inputs fence before reusing an input.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlDlssGStatus">
+            <summary>Why frame generation is not producing frames, as a set of reasons.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGStatus.Ok">
+            <summary>Working.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGStatus.FailResolutionTooLow">
+            <summary>The back buffer is smaller than the feature accepts.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGStatus.FailReflexNotDetectedAtRuntime">
+            <summary>Reflex is not running, and frame generation requires it.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGStatus.FailHdrFormatNotSupported">
+            <summary>The swapchain's HDR format is not one the feature supports.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGStatus.FailCommonConstantsInvalid">
+            <summary>The per-frame constants are invalid.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGStatus.FailGetCurrentBackBufferIndexNotCalled">
+            <summary>A Direct3D-only requirement; never reported on Vulkan.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlDlssGOptions">
+            <summary>How frame generation should behave.</summary>
+            <remarks>
+            Set only when something changes. The guide is explicit that this is not a per-frame call, and the
+            plugin logs a warning for every redundant one.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.Mode">
+            <summary>Whether frame generation runs.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.NumFramesToGenerate">
+            <summary>How many frames to generate between rendered ones: one for 2x, three for 4x.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.Flags">
+            <summary>Behaviour switches.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.DynamicResWidth">
+            <summary>The dynamic-resolution target width. Unused here.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.DynamicResHeight">
+            <summary>The dynamic-resolution target height. Unused here.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.NumBackBuffers">
+            <summary>How many images the swapchain holds. A hint for sizing the feature's own queue.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.MvecDepthWidth">
+            <summary>The width depth and motion are rendered at.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.MvecDepthHeight">
+            <summary>The height depth and motion are rendered at.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.ColorWidth">
+            <summary>The back buffer's width.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.ColorHeight">
+            <summary>The back buffer's height.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.ColorBufferFormat">
+            <summary>The back buffer's <c>VkFormat</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.MvecBufferFormat">
+            <summary>The motion-vector buffer's <c>VkFormat</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.DepthBufferFormat">
+            <summary>The depth buffer's <c>VkFormat</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.HudLessBufferFormat">
+            <summary>The interface-free colour's <c>VkFormat</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.UiBufferFormat">
+            <summary>The interface layer's <c>VkFormat</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.OnErrorCallback">
+            <summary>An optional callback for errors from the presents frame generation makes on the host's behalf.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.Reserved15">
+            <summary>Reserved by Streamline.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.QueueParallelismMode">
+            <summary>How much queue work may overlap. Must match across viewports.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.EnableUserInterfaceRecomposition">
+            <summary>Interpolate the interface-free colour and the interface separately, then recompose them.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGOptions.DynamicTargetFrameRate">
+            <summary>The dynamic mode's target rate. Unused here.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlDlssGOptions.TypeId">
+            <summary>The structure's identity, from <c>sl_dlss_g.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlDlssGOptions.Create">
+            <summary>Creates options with frame generation off and the C++ header's defaults.</summary>
+            <returns>The options.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlDlssGState">
+            <summary>What frame generation reports about itself.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGState.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGState.EstimatedVramUsageInBytes">
+            <summary>How much video memory the feature expects to use, when an estimate was asked for.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGState.Status">
+            <summary>Why it is not running, if it is not.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGState.MinWidthOrHeight">
+            <summary>The smallest back-buffer side it accepts.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGState.NumFramesActuallyPresented">
+            <summary>How many frames reached the screen since the last query, generated ones included.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGState.NumFramesToGenerateMax">
+            <summary>The most frames this system can generate per rendered one: one means 2x at most.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGState.Reserved4">
+            <summary>Reserved by Streamline.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGState.IsVsyncSupportAvailable">
+            <summary>Whether vertical sync may stay on while frame generation runs.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGState.InputsProcessingCompletionFence">
+            <summary>The <c>VkSemaphore</c> (timeline) signalled once the feature has finished with a frame's inputs.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGState.LastPresentInputsProcessingCompletionFenceValue">
+            <summary>The value <see cref="F:OpenIGI.Rendering.Streamline.SlDlssGState.InputsProcessingCompletionFence"/> reaches for the last presented frame.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlDlssGState.IsDynamicMfgSupported">
+            <summary>Whether dynamic multi-frame generation is available. Never on Vulkan today.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlDlssGState.TypeId">
+            <summary>The structure's identity, from <c>sl_dlss_g.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlDlssGState.Create">
+            <summary>Creates an empty structure for Streamline to fill.</summary>
+            <returns>The state.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlPclMarker">
+            <summary>The latency markers a frame passes through, from <c>sl_pcl.h</c>.</summary>
+            <remarks>
+            Only the markers this game can place honestly are named. Input sampling had a marker of its own
+            (6) until the header deprecated it; the driver now dates input from the simulation start.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPclMarker.SimulationStart">
+            <summary>Simulation for the frame starts.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPclMarker.SimulationEnd">
+            <summary>Simulation for the frame ends.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPclMarker.RenderSubmitStart">
+            <summary>Recording of the frame's commands starts.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPclMarker.RenderSubmitEnd">
+            <summary>The frame's commands have been submitted.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPclMarker.PresentStart">
+            <summary>Immediately before the present call.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPclMarker.PresentEnd">
+            <summary>Immediately after the present call returns.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPclMarker.TriggerFlash">
+            <summary>A click that should flash the latency indicator.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPclMarker.PcLatencyPing">
+            <summary>The latency ping the driver's statistics message asked for.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlPclOptions">
+            <summary>How the latency markers should be delivered.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPclOptions.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPclOptions.VirtualKey">
+            <summary>A function key to send pings with instead of a window message. Zero for the message.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPclOptions.IdThread">
+            <summary>The thread the statistics messages go to. Zero for the default.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlPclOptions.TypeId">
+            <summary>The structure's identity, from <c>sl_pcl.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlPclOptions.Create">
+            <summary>Creates options that use the window message.</summary>
+            <returns>The options.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlPclState">
+            <summary>What the latency-marker feature reports.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPclState.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPclState.StatsWindowMessage">
+            <summary>The window message latency pings arrive as.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlPclState.TypeId">
+            <summary>The structure's identity, from <c>sl_pcl.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlPclState.Create">
+            <summary>Creates an empty structure for Streamline to fill.</summary>
+            <returns>The state.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlReflexMode">
+            <summary>Which Reflex mode the driver should run.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexMode.Off">
+            <summary>Off. The sleep and the markers still run; they are how latency is measured at all.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexMode.LowLatency">
+            <summary>Starts each frame as late as the measured render time allows.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexMode.LowLatencyWithBoost">
+            <summary>As low latency, and also keeps the GPU's clocks up when the frame is processor-bound.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlReflexOptions">
+            <summary>How Reflex should behave.</summary>
+            <remarks>Set at start-up even when off, and again whenever the player changes it.</remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexOptions.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexOptions.Mode">
+            <summary>Which mode to run.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexOptions.FrameLimitUs">
+            <summary>A frame-rate cap in microseconds per frame, or zero for none. Independent of the mode.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexOptions.UseMarkersToOptimize">
+            <summary>A C++ <c>bool</c>. Left false: NVIDIA reserves it for integrations it has advised.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexOptions.VirtualKey">
+            <summary>A function key to send latency pings with instead of a window message. Zero for the message.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexOptions.IdThread">
+            <summary>The thread the latency statistics messages go to. Zero for the default.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlReflexOptions.TypeId">
+            <summary>The structure's identity, from <c>sl_reflex.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlReflexOptions.Create">
+            <summary>Creates options with Reflex off and no cap.</summary>
+            <returns>The options.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlReflexReport">
+            <summary>One frame's latency timings, as the driver measured them.</summary>
+            <remarks>Times are in microseconds on the driver's own clock; only the differences mean anything.</remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.FrameId">
+            <summary>Which frame this describes.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.InputSampleTime">
+            <summary>When input was sampled.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.SimStartTime">
+            <summary>When simulation started.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.SimEndTime">
+            <summary>When simulation ended.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.RenderSubmitStartTime">
+            <summary>When the frame's commands started being recorded.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.RenderSubmitEndTime">
+            <summary>When they were submitted.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.PresentStartTime">
+            <summary>When the present call was made.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.PresentEndTime">
+            <summary>When it returned.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.DriverStartTime">
+            <summary>When the driver started on the frame.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.DriverEndTime">
+            <summary>When the driver finished with it.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.OsRenderQueueStartTime">
+            <summary>When it entered the operating system's render queue.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.OsRenderQueueEndTime">
+            <summary>When it left.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.GpuRenderStartTime">
+            <summary>When the GPU started on it.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.GpuRenderEndTime">
+            <summary>When the GPU finished it.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.GpuActiveRenderTimeUs">
+            <summary>How long the GPU was actually busy with it.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexReport.GpuFrameTimeUs">
+            <summary>The GPU's frame time.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlReflexState">
+            <summary>Whether Reflex can run here, and the last frames' latency timings.</summary>
+            <remarks>
+            Laid out explicitly: the header's two arrays of 64 reports are padded in ways a sequential mirror
+            of fixed byte buffers would get wrong, and the offsets below are the compiler's.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexState.ReportCount">
+            <summary>How many frames of timings the state carries.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexState.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexState.LowLatencyAvailable">
+            <summary>A C++ <c>bool</c>: whether low-latency mode can run on this system.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexState.LatencyReportAvailable">
+            <summary>A C++ <c>bool</c>: whether the reports below hold anything.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexState.StatsWindowMessage">
+            <summary>The window message the driver's latency statistics arrive as.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexState.FrameReports">
+            <summary>The last frames' timings, <see cref="F:OpenIGI.Rendering.Streamline.SlReflexState.ReportCount"/> of them, oldest first.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexState.FlashIndicatorDriverControlled">
+            <summary>A C++ <c>bool</c>: whether the driver owns the latency flash indicator.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlReflexState.FrameReports2">
+            <summary>A second set of per-frame timings added in version 2. Not read here.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlReflexState.TypeId">
+            <summary>The structure's identity, from <c>sl_reflex.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlReflexState.Create">
+            <summary>Creates an empty structure for Streamline to fill.</summary>
+            <returns>The state.</returns>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlReflexState.Report(System.Int32)">
+            <summary>Reads one frame's timings.</summary>
+            <param name="index">Which report, from zero to <see cref="F:OpenIGI.Rendering.Streamline.SlReflexState.ReportCount"/> minus one.</param>
+            <returns>The report.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlResource">
+            <summary>A resource handed to Streamline, described in full because Vulkan cannot be asked.</summary>
+            <remarks>
+            Direct3D lets Streamline query a resource for its dimensions and format. Vulkan has no equivalent
+            for a <c>VkImage</c>, so the host has to supply every field, and the image view is mandatory
+            rather than optional. <see cref="F:OpenIGI.Rendering.Streamline.SlResource.State"/> is the <c>VkImageLayout</c> the image will be in
+            <em>when Streamline uses it</em>, which is not necessarily the layout it is in when tagged. The
+            RHI rests every image in <c>General</c> between passes and Streamline only ever runs between passes,
+            which makes that distinction moot here and is why it is safe.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResource.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResource.Type">
+            <summary>What kind of resource this is.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResource.Native">
+            <summary>The <c>VkImage</c> or <c>VkBuffer</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResource.Memory">
+            <summary>The <c>VkDeviceMemory</c>, or zero. Streamline does not need it for an image.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResource.View">
+            <summary>The <c>VkImageView</c>. Mandatory on Vulkan.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResource.State">
+            <summary>The <c>VkImageLayout</c> the image is in when Streamline reads or writes it.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResource.Width">
+            <summary>The width in pixels.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResource.Height">
+            <summary>The height in pixels.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResource.NativeFormat">
+            <summary>The <c>VkFormat</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResource.MipLevels">
+            <summary>The number of mip levels.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResource.ArrayLayers">
+            <summary>The number of array layers.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResource.GpuVirtualAddress">
+            <summary>The GPU virtual address, where one applies. Zero for an image.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResource.Flags">
+            <summary>The <c>VkImageCreateFlags</c>. Has no default in the C++ header — always set it.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResource.Usage">
+            <summary>The <c>VkImageUsageFlags</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResource.InternalFlags">
+            <summary>Streamline's own bookkeeping flags. The host leaves them zero.</summary>
+            <remarks>
+            Was a single reserved <c>uint32_t</c> until 2.14, which split it in two. The size and every
+            other offset are unchanged.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResource.Reserved">
+            <summary>Reserved by Streamline.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlResource.TypeId">
+            <summary>The structure's identity, from <c>sl_core_types.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlResource.Image2D(System.IntPtr,System.IntPtr,System.UInt32,System.UInt32,System.UInt32,System.UInt32,System.UInt32)">
+            <summary>Creates a described two-dimensional image resource.</summary>
+            <param name="image">The <c>VkImage</c> handle.</param>
+            <param name="view">The <c>VkImageView</c> handle.</param>
+            <param name="layout">The <c>VkImageLayout</c> the image is in when Streamline uses it.</param>
+            <param name="format">The <c>VkFormat</c>.</param>
+            <param name="width">The width in pixels.</param>
+            <param name="height">The height in pixels.</param>
+            <param name="usage">The <c>VkImageUsageFlags</c> the image was created with.</param>
+            <returns>The resource description.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlResourceTag">
+            <summary>A resource paired with the role it plays for a feature.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResourceTag.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResourceTag.Resource">
+            <summary>A pointer to the <see cref="T:OpenIGI.Rendering.Streamline.SlResource"/>, which must outlive the call.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResourceTag.Type">
+            <summary>Which <see cref="T:OpenIGI.Rendering.Streamline.SlBufferType"/> this resource is.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResourceTag.Lifecycle">
+            <summary>How long the resource stays valid.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResourceTag.Extent">
+            <summary>The region to use. Left zeroed, the whole resource is used.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlResourceTag.TypeId">
+            <summary>The structure's identity, from <c>sl_core_types.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlResourceTag.For(System.IntPtr,System.UInt32,OpenIGI.Rendering.Streamline.SlResourceLifecycle)">
+            <summary>Creates a tag over the whole of a resource.</summary>
+            <param name="resource">A pointer to the resource description.</param>
+            <param name="bufferType">The role the resource plays, from <see cref="T:OpenIGI.Rendering.Streamline.SlBufferType"/>.</param>
+            <param name="lifecycle">How long the resource stays valid.</param>
+            <returns>The tag.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlConstants">
+            <summary>The per-frame camera state every Streamline feature reads.</summary>
+            <remarks>
+            <para>
+            Every matrix here is row-major and must be free of the temporal jitter — the jitter is supplied
+            separately in <see cref="F:OpenIGI.Rendering.Streamline.SlConstants.JitterOffset"/>, in pixels, because the features need to know what the
+            rasteriser was displaced by rather than to have it folded into the transform.
+            </para>
+            <para>
+            Fields left at <see cref="F:OpenIGI.Rendering.Streamline.SlAbi.InvalidFloat"/> or <see cref="F:OpenIGI.Rendering.Streamline.SlBoolean.Invalid"/> are rejected
+            where Streamline considers them mandatory, so <see cref="F:OpenIGI.Rendering.Streamline.SlConstants.Reset"/> below fills the whole structure
+            rather than relying on a zeroed one.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.CameraViewToClip">
+            <summary>Camera view space to clip space, unjittered.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.ClipToCameraView">
+            <summary>Clip space to camera view space.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.ClipToLensClip">
+            <summary>Optional lens distortion in clip space.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.ClipToPrevClip">
+            <summary>This frame's clip space to the previous frame's clip space.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.PrevClipToClip">
+            <summary>The inverse of <see cref="F:OpenIGI.Rendering.Streamline.SlConstants.ClipToPrevClip"/>.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.JitterOffset">
+            <summary>This frame's sub-pixel jitter, in pixels.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.MvecScale">
+            <summary>What the motion-vector buffer must be multiplied by to land in the range -1 to 1.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.CameraPinholeOffset">
+            <summary>Optional pinhole offset.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.CameraPos">
+            <summary>The camera position in world space.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.CameraUp">
+            <summary>The camera's up vector in world space.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.CameraRight">
+            <summary>The camera's right vector in world space.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.CameraFwd">
+            <summary>The camera's forward vector in world space.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.CameraNear">
+            <summary>The near plane distance.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.CameraFar">
+            <summary>The far plane distance.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.CameraFov">
+            <summary>The vertical field of view in radians.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.CameraAspectRatio">
+            <summary>Width over height.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.MotionVectorsInvalidValue">
+            <summary>What an uninitialised motion vector reads as. Only needed when motion is not camera-inclusive.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.DepthInverted">
+            <summary>Whether nearer surfaces have the higher depth value. True here — this renderer is reverse-Z.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.CameraMotionIncluded">
+            <summary>Whether camera motion is already in the motion-vector buffer.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.MotionVectors3D">
+            <summary>Whether motion vectors carry a third component.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.Reset">
+            <summary>Whether the previous frame bears no relation to this one.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.OrthographicProjection">
+            <summary>Whether the projection is orthographic.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.MotionVectorsDilated">
+            <summary>Whether the motion vectors have already been dilated.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.MotionVectorsJittered">
+            <summary>Whether the motion vectors carry the jitter.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlConstants.MinRelativeLinearDepthObjectSeparation">
+            <summary>How far apart two surfaces must be, in linear depth, to count as separate objects.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlConstants.TypeId">
+            <summary>The structure's identity, from <c>sl_consts.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlConstants.Create">
+            <summary>Creates a fully-populated structure with every optional field explicitly unset.</summary>
+            <returns>The constants, ready to have the caller's values written over them.</returns>
+            <remarks>
+            Streamline's own defaults are not zero — an unset float is
+            <see cref="F:OpenIGI.Rendering.Streamline.SlAbi.InvalidFloat"/> and an unset flag is <see cref="F:OpenIGI.Rendering.Streamline.SlBoolean.Invalid"/> — so a
+            default-constructed mirror would be telling Streamline that every optional value is a
+            deliberate zero. This reproduces the C++ constructor instead.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlPreferences">
+            <summary>What <c>slInit</c> is told about the host.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.ShowConsole">
+            <summary>Whether Streamline opens its own console window. A C++ <c>bool</c>, so one byte.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.LogLevel">
+            <summary>How much Streamline logs.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.PathsToPlugins">
+            <summary>An array of directories to search for plugins.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.NumPathsToPlugins">
+            <summary>How many entries <see cref="F:OpenIGI.Rendering.Streamline.SlPreferences.PathsToPlugins"/> holds.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.PathToLogsAndData">
+            <summary>Where Streamline may write its log.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.AllocateCallback">
+            <summary>An optional host allocator.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.ReleaseCallback">
+            <summary>An optional host deallocator.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.LogMessageCallback">
+            <summary>Where Streamline's log lines are delivered.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.Flags">
+            <summary>Behaviour switches.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.FeaturesToLoad">
+            <summary>An array of feature identifiers to load. Nothing loads if this is empty.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.NumFeaturesToLoad">
+            <summary>How many entries <see cref="F:OpenIGI.Rendering.Streamline.SlPreferences.FeaturesToLoad"/> holds.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.ApplicationId">
+            <summary>The NVIDIA-issued application identifier, where one has been obtained.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.Engine">
+            <summary>Which engine this is.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.EngineVersion">
+            <summary>The engine version, as UTF-8.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.ProjectId">
+            <summary>The project identifier, as UTF-8.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferences.RenderApi">
+            <summary>Which rendering API the host drives. Must be set, or the Vulkan requirements come back empty.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlPreferences.TypeId">
+            <summary>The structure's identity, from <c>sl_core_types.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlPreferences.Create(OpenIGI.Rendering.Streamline.SlRenderApi)">
+            <summary>Creates preferences for a host that loads only the plugins it was shipped with.</summary>
+            <param name="renderApi">The graphics API the host drives.</param>
+            <returns>The preferences.</returns>
+            <remarks>
+            Streamline's own defaults turn on over-the-air updates and the loading of what they download.
+            Both are left off: every plugin is signature-checked before <c>slInit</c>, and a plugin fetched
+            afterwards would never have been.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlAdapterInfo">
+            <summary>Which adapter a feature is being asked about.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlAdapterInfo.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlAdapterInfo.DeviceLuid">
+            <summary>A pointer to the adapter LUID. Ignored when <see cref="F:OpenIGI.Rendering.Streamline.SlAdapterInfo.VkPhysicalDevice"/> is set.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlAdapterInfo.DeviceLuidSizeInBytes">
+            <summary>How many bytes the LUID occupies.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlAdapterInfo.VkPhysicalDevice">
+            <summary>The <c>VkPhysicalDevice</c>, which is how a Vulkan host identifies its adapter.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlAdapterInfo.TypeId">
+            <summary>The structure's identity, from <c>sl_core_types.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlAdapterInfo.ForVulkan(System.IntPtr)">
+            <summary>Creates adapter information naming a Vulkan physical device.</summary>
+            <param name="physicalDevice">The <c>VkPhysicalDevice</c> handle.</param>
+            <returns>The adapter information.</returns>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlAdapterInfo.ForLuid(System.IntPtr)">
+            <summary>Creates adapter information naming a DXGI adapter by its LUID.</summary>
+            <param name="luid">Where the eight bytes of the LUID are, which must outlive every query.</param>
+            <returns>The adapter information.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlFeatureRequirements">
+            <summary>What a feature needs of the machine, the driver and the Vulkan device.</summary>
+            <remarks>
+            The Vulkan members are the reason this must be read before the instance and device are created:
+            they name extensions, <c>VkPhysicalDeviceVulkan12Features</c>/<c>13Features</c> bits and extra
+            queues that have to be in the create-infos.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.Flags">
+            <summary>Which APIs the feature supports and what it needs turned on.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.MaxNumCpuThreads">
+            <summary>How many CPU threads the feature may use.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.MaxNumViewports">
+            <summary>How many viewports the feature supports at once.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.NumRequiredTags">
+            <summary>How many tags the feature requires.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.RequiredTags">
+            <summary>An array of the required <see cref="T:OpenIGI.Rendering.Streamline.SlBufferType"/> values.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.OsVersionDetected">
+            <summary>The operating-system version found.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.OsVersionRequired">
+            <summary>The operating-system version required.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.DriverVersionDetected">
+            <summary>The driver version found.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.DriverVersionRequired">
+            <summary>The driver version required.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.VkNumComputeQueuesRequired">
+            <summary>How many extra compute queues the feature wants.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.VkNumGraphicsQueuesRequired">
+            <summary>How many extra graphics queues the feature wants.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.VkNumDeviceExtensions">
+            <summary>How many device extensions the feature needs.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.VkDeviceExtensions">
+            <summary>An array of UTF-8 device extension names.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.VkNumInstanceExtensions">
+            <summary>How many instance extensions the feature needs.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.VkInstanceExtensions">
+            <summary>An array of UTF-8 instance extension names.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.VkNumFeatures12">
+            <summary>How many Vulkan 1.2 feature bits the feature needs.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.VkFeatures12">
+            <summary>An array of UTF-8 <c>VkPhysicalDeviceVulkan12Features</c> field names.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.VkNumFeatures13">
+            <summary>How many Vulkan 1.3 feature bits the feature needs.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.VkFeatures13">
+            <summary>An array of UTF-8 <c>VkPhysicalDeviceVulkan13Features</c> field names.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirements.VkNumOpticalFlowQueuesRequired">
+            <summary>How many optical-flow queues the feature wants. Frame generation only.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlFeatureRequirements.TypeId">
+            <summary>The structure's identity, from <c>sl_core_types.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlFeatureRequirements.Create">
+            <summary>Creates an empty structure for Streamline to fill.</summary>
+            <returns>The requirements.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlFeatureVersion">
+            <summary>The Streamline and NGX versions behind a feature.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureVersion.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureVersion.VersionSl">
+            <summary>The Streamline plugin version.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureVersion.VersionNgx">
+            <summary>The NGX model version — for DLSS, which neural network is actually loaded.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlFeatureVersion.TypeId">
+            <summary>The structure's identity, from <c>sl_core_types.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlFeatureVersion.Create">
+            <summary>Creates an empty structure for Streamline to fill.</summary>
+            <returns>The version.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlViewportHandle">
+            <summary>Which viewport a call refers to. The host picks the number.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlViewportHandle.Header">
+            <summary>The structure header.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlViewportHandle.Value">
+            <summary>The host-chosen viewport identifier.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.SlViewportHandle.TypeId">
+            <summary>The structure's identity, from <c>sl_core_types.h</c>.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlViewportHandle.For(System.UInt32)">
+            <summary>Creates a handle for a viewport number.</summary>
+            <param name="value">The viewport identifier.</param>
+            <returns>The handle.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlAbi">
+            <summary>
+            The Streamline SDK's own types, mirrored for P/Invoke.
+            </summary>
+            <remarks>
+            <para>
+            Streamline's headers are C++ — namespaces, member functions, default arguments and a polymorphic
+            frame token — but every function this backend needs is a flat <c>extern "C"</c> export on
+            <c>sl.interposer.dll</c> or a feature function fetched by name, and every structure crossing that
+            boundary is plain data. So the types are mirrored here rather than reached through a native shim:
+            it keeps the repository free of C++, which matters because nothing else in it is native and the CI
+            matrix builds on machines with no MSVC at all.
+            </para>
+            <para>
+            The price is that the layouts have to be exactly right, and a wrong one does not fail loudly — it
+            hands the plugin a garbage pointer. The layouts below were therefore taken from the compiler
+            rather than derived by hand: a throwaway program compiled against the 2.14.1 headers printed every
+            <c>sizeof</c>, <c>offsetof</c> and the enum values that matter, and <c>StreamlineLayoutTests</c>
+            pins those numbers. Change a field here and that test is what tells you.
+            </para>
+            <para>
+            Two traps are worth naming because a reasonable guess gets both wrong. <c>structVersion</c> is a
+            <c>size_t</c>, so eight bytes and not four; a <c>uint</c> there shifts every field after it.
+            And <c>Boolean</c> is <c>enum Boolean : char</c> — one byte, with a third value
+            <see cref="F:OpenIGI.Rendering.Streamline.SlBoolean.Invalid"/> that means "not supplied", which is what several fields default to.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlAbi.SdkVersion">
+            <summary>The SDK version <c>slInit</c> is called with, from <c>sl_version.h</c>.</summary>
+            <remarks>
+            <c>(major &lt;&lt; 48) | (minor &lt;&lt; 32) | (patch &lt;&lt; 16) | 0xfedc</c> for Streamline
+            2.14.1. Streamline checks it to reject a header/binary mismatch, so it moves with the DLLs
+            that <c>tools/fetch-streamline.ps1</c> pins.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlAbi.InvalidFloat">
+            <summary>The value Streamline treats as "this float was never set".</summary>
+            <remarks>
+            Streamline's own <c>float2/3/4</c> default-construct to this rather than to zero, so a field
+            left at zero reads as a deliberate zero and a field left unset must carry this instead. Every
+            optional constant is filled explicitly for that reason.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlAbi.InvalidUint">
+            <summary>The value Streamline treats as "this integer was never set".</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlBoolean">
+            <summary>Streamline's tri-state boolean: one byte, with an explicit "not supplied".</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBoolean.False">
+            <summary>False.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBoolean.True">
+            <summary>True.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBoolean.Invalid">
+            <summary>Not supplied. Streamline rejects this for any field it considers mandatory.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlResult">
+            <summary>Streamline's result codes, numbered exactly as <c>sl_result.h</c> declares them.</summary>
+            <remarks>
+            The header declares a plain sequence with no explicit values, so every member carries its ordinal
+            here. An earlier mirror named a handful from memory and put most of them on the wrong number, which
+            made every refusal it logged describe a different failure from the one that happened.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.Ok">
+            <summary>The call succeeded.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorIO">
+            <summary>A file could not be read or written.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorDriverOutOfDate">
+            <summary>The graphics driver is older than the feature requires.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorOSOutOfDate">
+            <summary>The operating system is older than the feature requires.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorOSDisabledHWS">
+            <summary>Hardware-accelerated GPU scheduling is off and the feature needs it.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorDeviceNotCreated">
+            <summary>The device was not created, or was created before Streamline was told about it.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorNoSupportedAdapterFound">
+            <summary>No adapter on this machine supports the feature.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorAdapterNotSupported">
+            <summary>This adapter does not support the feature.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorNoPlugins">
+            <summary>No plugins were found.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorVulkanAPI">
+            <summary>A Vulkan call inside Streamline failed.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorDXGIAPI">
+            <summary>A DXGI call inside Streamline failed.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorD3DAPI">
+            <summary>A Direct3D call inside Streamline failed.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorNRDAPI">
+            <summary>Retired with the denoiser plugin it named; kept so the numbering holds.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorNVAPI">
+            <summary>An NVAPI call inside Streamline failed.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorReflexAPI">
+            <summary>A Reflex call inside Streamline failed.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorNGXFailed">
+            <summary>NGX, the runtime the DLSS models run on, failed.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorJSONParsing">
+            <summary>A plugin's JSON configuration could not be parsed.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorMissingProxy">
+            <summary>A proxy object Streamline expected the host to be using is missing.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorMissingResourceState">
+            <summary>A tagged resource carries no state.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorInvalidIntegration">
+            <summary>The host is calling Streamline in a way it does not support.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorMissingInputParameter">
+            <summary>A required input was not supplied.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorNotInitialized">
+            <summary>The feature was not initialised.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorComputeFailed">
+            <summary>A compute dispatch inside Streamline failed.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorInitNotCalled">
+            <summary><c>slInit</c> has not been called.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorExceptionHandler">
+            <summary>Streamline's own exception handler caught something.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorInvalidParameter">
+            <summary>A parameter was out of range or malformed.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorMissingConstants">
+            <summary>The per-frame constants were not supplied for this frame.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorDuplicatedConstants">
+            <summary>The per-frame constants were supplied twice for this frame.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorMissingOrInvalidAPI">
+            <summary>A required API entry point is missing or wrong.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorCommonConstantsMissing">
+            <summary>The per-frame constants every feature shares are missing.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorUnsupportedInterface">
+            <summary>The interface handed in is not one Streamline supports.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorFeatureMissing">
+            <summary>The feature's plugin is missing from the search path.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorFeatureNotSupported">
+            <summary>The feature exists but is not supported in this configuration.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorFeatureMissingHooks">
+            <summary>The feature needs hooks that are not in place.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorFeatureFailedToLoad">
+            <summary>The feature's plugin failed to load.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorFeatureWrongPriority">
+            <summary>The feature's plugin has the wrong priority.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorFeatureMissingDependency">
+            <summary>A plugin the feature depends on is missing.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorFeatureManagerInvalidState">
+            <summary>The plugin manager is in a state that does not allow the call.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.ErrorInvalidState">
+            <summary>Streamline is in a state that does not allow the call.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResult.WarnOutOfVRAM">
+            <summary>The call succeeded, but video memory is running out.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlRenderApi">
+            <summary>Which rendering API the host is driving. Must be set before <c>slInit</c>.</summary>
+            <remarks>
+            Getting this wrong is quiet rather than loud: <c>slGetFeatureRequirements</c> reports the Vulkan
+            extension and feature requirements only when Streamline has been told the host is on Vulkan.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlRenderApi.D3D11">
+            <summary>Direct3D 11.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlRenderApi.D3D12">
+            <summary>Direct3D 12.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlRenderApi.Vulkan">
+            <summary>Vulkan.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlEngineType">
+            <summary>How Streamline should describe the host engine in its logs.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlEngineType.Custom">
+            <summary>An engine of the host's own.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlLogLevel">
+            <summary>How much Streamline logs.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlLogLevel.Off">
+            <summary>Nothing.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlLogLevel.Default">
+            <summary>Warnings and errors.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlLogLevel.Verbose">
+            <summary>Everything.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlLogType">
+            <summary>The severity of a message arriving through Streamline's log callback.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlLogType.Info">
+            <summary>Informational.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlLogType.Warn">
+            <summary>A warning.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlLogType.Error">
+            <summary>An error.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlPreferenceFlags">
+            <summary>Behaviour switches passed to <c>slInit</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferenceFlags.None">
+            <summary>None.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferenceFlags.DisableCommandListStateTracking">
+            <summary>
+            Streamline will not save and restore command-buffer state around its own work, so the host
+            must. The RHI binds everything per pass and evaluates only between passes, so there is never
+            any state for Streamline to put back, and having it shadow every bind would be pure cost.
+            </summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferenceFlags.DisableDebugText">
+            <summary>Suppress the debug text the development plugins draw over the frame.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferenceFlags.UseManualHooking">
+            <summary>
+            The host hooks only the entry points Streamline names, rather than routing the whole graphics API
+            through the interposer. Direct3D 12 uses it, since its device comes from the Agility SDK's device
+            factory; Vulkan does not, and loads its API through the interposer instead.
+            </summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferenceFlags.AllowOta">
+            <summary>Allow Streamline to fetch newer plugins over the air.</summary>
+            <remarks>
+            Never set. A plugin downloaded at run time is not one the signature check before
+            <c>slInit</c> ever saw, so taking one would undo the reason that check exists.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferenceFlags.LoadDownloadedPlugins">
+            <summary>Load plugins that the over-the-air updater downloaded. Never set, as above.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlPreferenceFlags.UseFrameBasedResourceTagging">
+            <summary>
+            Required to use <c>slSetTagForFrame</c>. Without it only the deprecated, frame-less
+            <c>slSetTag</c> is legal, and the two cannot be mixed.
+            </summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlFeatureRequirementFlags">
+            <summary>What a feature reports about the machine it has been asked to run on.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirementFlags.None">
+            <summary>None.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirementFlags.D3D11Supported">
+            <summary>The feature supports Direct3D 11.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirementFlags.D3D12Supported">
+            <summary>The feature supports Direct3D 12.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirementFlags.VulkanSupported">
+            <summary>The feature supports Vulkan.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirementFlags.VSyncOffRequired">
+            <summary>The feature needs vertical sync to be off.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeatureRequirementFlags.HardwareSchedulingRequired">
+            <summary>The feature needs hardware-accelerated GPU scheduling.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlResourceType">
+            <summary>What kind of thing a tagged resource is.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResourceType.Tex2d">
+            <summary>A two-dimensional texture. Everything this backend tags is one.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResourceType.Buffer">
+            <summary>A buffer.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlResourceLifecycle">
+            <summary>How long a tagged resource stays valid, which decides whether Streamline must copy it.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResourceLifecycle.OnlyValidNow">
+            <summary>
+            The host may change or destroy it once the tag is taken, so Streamline copies it. Costs video
+            memory; use only where the resource genuinely cannot be held.
+            </summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResourceLifecycle.ValidUntilPresent">
+            <summary>
+            It stays untouched until the frame is presented. What frame generation needs of depth and
+            motion, because it reads them at present time, long after the evaluate that consumed them.
+            </summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlResourceLifecycle.ValidUntilEvaluate">
+            <summary>It stays untouched until <c>slEvaluateFeature</c> returns. Avoids the copy.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlFeature">
+            <summary>The feature identifiers this backend can ask Streamline for, from <c>sl_core_types.h</c>.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeature.Dlss">
+            <summary>DLSS super resolution, which also provides DLAA.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeature.Nis">
+            <summary>NVIDIA Image Scaling. Not loaded; named so a log line reads.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeature.Reflex">
+            <summary>Reflex, the low-latency mode.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeature.Pcl">
+            <summary>The PC latency markers Reflex is driven by.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeature.DlssG">
+            <summary>DLSS frame generation, including multi-frame generation.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFeature.DlssRr">
+            <summary>DLSS ray reconstruction.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlBufferType">
+            <summary>The buffer roles a tagged resource can fill, from <c>sl_core_types.h</c>.</summary>
+            <remarks>Only the roles this backend supplies are named; the full table is in the header.</remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBufferType.Depth">
+            <summary>The hardware depth buffer.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBufferType.MotionVectors">
+            <summary>Per-pixel motion vectors.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBufferType.HudLessColor">
+            <summary>The final colour before any interface is drawn over it. Frame generation interpolates it.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBufferType.ScalingInputColor">
+            <summary>The colour to upscale, at render resolution, before tone mapping.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBufferType.ScalingOutputColor">
+            <summary>Where the upscaled colour is written, at output resolution.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBufferType.Albedo">
+            <summary>The diffuse albedo: what is left of the base colour once the metal has taken its share.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBufferType.SpecularAlbedo">
+            <summary>The specular albedo: the directional reflectance the specular lighting was scaled by.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBufferType.Exposure">
+            <summary>A one-by-one texture holding the exposure the colour buffer has <em>not</em> had applied.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBufferType.NormalRoughness">
+            <summary>The world normal, with roughness in its alpha when the packed mode is asked for.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBufferType.UiColorAndAlpha">
+            <summary>The interface's colour, premultiplied, with its coverage in alpha.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBufferType.BiasCurrentColorHint">
+            <summary>A per-pixel hint that the current frame should be trusted over the history.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBufferType.ColorBeforeTransparency">
+            <summary>The scene colour before transparent surfaces were composited over it.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBufferType.SpecularHitDistance">
+            <summary>The world-space distance a specular ray travelled from the primary surface to its hit.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBufferType.LinearDepth">
+            <summary>View-space depth, as an alternative to the hardware depth buffer.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlBufferType.UiAlpha">
+            <summary>The interface's coverage alone, one channel. Preferred over colour-and-alpha where both exist.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlStructType">
+            <summary>A GUID identifying one of Streamline's structure types.</summary>
+            <remarks>
+            Streamline validates the type and version of every structure handed to it, so these are not
+            decoration: a zeroed one is rejected. The trailing eight bytes are carried as a single
+            <see cref="T:System.UInt64"/> rather than a fixed buffer because that keeps the mirror blittable, and the
+            packing order is the array order read little-endian.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlStructType.#ctor(System.UInt32,System.UInt16,System.UInt16,System.UInt64)">
+            <summary>A GUID identifying one of Streamline's structure types.</summary>
+            <remarks>
+            Streamline validates the type and version of every structure handed to it, so these are not
+            decoration: a zeroed one is rejected. The trailing eight bytes are carried as a single
+            <see cref="T:System.UInt64"/> rather than a fixed buffer because that keeps the mirror blittable, and the
+            packing order is the array order read little-endian.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlStructType.Data1">
+            <summary>The first GUID field.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlStructType.Data2">
+            <summary>The second GUID field.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlStructType.Data3">
+            <summary>The third GUID field.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlStructType.Data4">
+            <summary>The trailing eight GUID bytes, packed little-endian.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlStructType.Pack(System.Byte,System.Byte,System.Byte,System.Byte,System.Byte,System.Byte,System.Byte,System.Byte)">
+            <summary>Packs the eight trailing GUID bytes in the order the header writes them.</summary>
+            <param name="b0">Byte zero.</param>
+            <param name="b1">Byte one.</param>
+            <param name="b2">Byte two.</param>
+            <param name="b3">Byte three.</param>
+            <param name="b4">Byte four.</param>
+            <param name="b5">Byte five.</param>
+            <param name="b6">Byte six.</param>
+            <param name="b7">Byte seven.</param>
+            <returns>The packed value.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlStructHeader">
+            <summary>The chainable, versioned header every Streamline structure begins with.</summary>
+            <remarks>
+            <c>StructVersion</c> is a <c>size_t</c>. Declaring it as a four-byte integer is the single most
+            likely way to get this wrong, and it silently shifts every field that follows.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlStructHeader.Next">
+            <summary>The next structure in the optional-parameter chain, or zero.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlStructHeader.Type">
+            <summary>Which structure this is.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlStructHeader.StructVersion">
+            <summary>Which revision of that structure this is.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlStructHeader.For(OpenIGI.Rendering.Streamline.SlStructType,System.UInt32)">
+            <summary>Builds a header for a structure type and version.</summary>
+            <param name="type">The structure's GUID.</param>
+            <param name="version">The structure's version, as declared by its header macro.</param>
+            <returns>The header.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlFloat2">
+            <summary>A pair of floats.</summary>
+            <param name="x">The first component.</param>
+            <param name="y">The second component.</param>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlFloat2.#ctor(System.Single,System.Single)">
+            <summary>A pair of floats.</summary>
+            <param name="x">The first component.</param>
+            <param name="y">The second component.</param>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFloat2.X">
+            <summary>The first component.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFloat2.Y">
+            <summary>The second component.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlFloat3">
+            <summary>A triple of floats.</summary>
+            <param name="x">The first component.</param>
+            <param name="y">The second component.</param>
+            <param name="z">The third component.</param>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlFloat3.#ctor(System.Single,System.Single,System.Single)">
+            <summary>A triple of floats.</summary>
+            <param name="x">The first component.</param>
+            <param name="y">The second component.</param>
+            <param name="z">The third component.</param>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFloat3.X">
+            <summary>The first component.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFloat3.Y">
+            <summary>The second component.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFloat3.Z">
+            <summary>The third component.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlFloat4x4">
+            <summary>A four-by-four matrix, stored row-major as Streamline requires.</summary>
+            <remarks>
+            Streamline's matrices act on row vectors (<c>v * M</c>); the engine's act on column vectors
+            (<c>M * v</c>). The same transform is therefore each other's transpose, and everything handed over
+            is written through <see cref="M:OpenIGI.Rendering.Streamline.SlFloat4x4.Set(System.Int32,System.Int32,System.Single)"/> from the engine's own matrix with the indices swapped.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlFloat4x4.M">
+            <summary>The sixteen elements, four rows of four.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlFloat4x4.Set(System.Int32,System.Int32,System.Single)">
+            <summary>Writes one element.</summary>
+            <param name="row">The row, in Streamline's convention.</param>
+            <param name="column">The column, in Streamline's convention.</param>
+            <param name="value">The value.</param>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlFloat4x4.Get(System.Int32,System.Int32)">
+            <summary>Reads one element.</summary>
+            <param name="row">The row, in Streamline's convention.</param>
+            <param name="column">The column, in Streamline's convention.</param>
+            <returns>The value.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlExtent">
+            <summary>A rectangle within a tagged resource.</summary>
+            <remarks>
+            Note the field order: top before left. Left zeroed, Streamline uses the whole resource.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlExtent.Top">
+            <summary>The topmost row.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlExtent.Left">
+            <summary>The leftmost column.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlExtent.Width">
+            <summary>The width in pixels.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlExtent.Height">
+            <summary>The height in pixels.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.SlVersion">
+            <summary>A version triple.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlVersion.Major">
+            <summary>The major component.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlVersion.Minor">
+            <summary>The minor component.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.SlVersion.Build">
+            <summary>The build component.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.SlVersion.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.StreamlineFeatureRequirements">
+            <summary>What one Streamline feature needs of the machine and of the Vulkan device.</summary>
+            <remarks>
+            A managed copy rather than the native structure, because the arrays Streamline returns are its
+            own memory and the device builder reads them long after the call that produced them. Copying at
+            the boundary is a handful of small strings once at start-up.
+            </remarks>
+            <param name="Flags">Which APIs the feature supports and what it needs turned on.</param>
+            <param name="InstanceExtensions">Instance extensions the feature needs enabled.</param>
+            <param name="DeviceExtensions">Device extensions the feature needs enabled.</param>
+            <param name="Features12">
+            <c>VkPhysicalDeviceVulkan12Features</c> field names the feature needs set.
+            </param>
+            <param name="Features13">
+            <c>VkPhysicalDeviceVulkan13Features</c> field names the feature needs set.
+            </param>
+            <param name="ComputeQueues">Extra compute queues the feature wants created.</param>
+            <param name="GraphicsQueues">Extra graphics queues the feature wants created.</param>
+            <param name="OpticalFlowQueues">Extra optical-flow queues the feature wants created.</param>
+            <param name="DriverDetected">The driver version found on this machine.</param>
+            <param name="DriverRequired">The driver version the feature needs.</param>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineFeatureRequirements.#ctor(OpenIGI.Rendering.Streamline.SlFeatureRequirementFlags,System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String},System.UInt32,System.UInt32,System.UInt32,OpenIGI.Rendering.Streamline.SlVersion,OpenIGI.Rendering.Streamline.SlVersion)">
+            <summary>What one Streamline feature needs of the machine and of the Vulkan device.</summary>
+            <remarks>
+            A managed copy rather than the native structure, because the arrays Streamline returns are its
+            own memory and the device builder reads them long after the call that produced them. Copying at
+            the boundary is a handful of small strings once at start-up.
+            </remarks>
+            <param name="Flags">Which APIs the feature supports and what it needs turned on.</param>
+            <param name="InstanceExtensions">Instance extensions the feature needs enabled.</param>
+            <param name="DeviceExtensions">Device extensions the feature needs enabled.</param>
+            <param name="Features12">
+            <c>VkPhysicalDeviceVulkan12Features</c> field names the feature needs set.
+            </param>
+            <param name="Features13">
+            <c>VkPhysicalDeviceVulkan13Features</c> field names the feature needs set.
+            </param>
+            <param name="ComputeQueues">Extra compute queues the feature wants created.</param>
+            <param name="GraphicsQueues">Extra graphics queues the feature wants created.</param>
+            <param name="OpticalFlowQueues">Extra optical-flow queues the feature wants created.</param>
+            <param name="DriverDetected">The driver version found on this machine.</param>
+            <param name="DriverRequired">The driver version the feature needs.</param>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineFeatureRequirements.Flags">
+            <summary>Which APIs the feature supports and what it needs turned on.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineFeatureRequirements.InstanceExtensions">
+            <summary>Instance extensions the feature needs enabled.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineFeatureRequirements.DeviceExtensions">
+            <summary>Device extensions the feature needs enabled.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineFeatureRequirements.Features12">
+            <summary>
+            <c>VkPhysicalDeviceVulkan12Features</c> field names the feature needs set.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineFeatureRequirements.Features13">
+            <summary>
+            <c>VkPhysicalDeviceVulkan13Features</c> field names the feature needs set.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineFeatureRequirements.ComputeQueues">
+            <summary>Extra compute queues the feature wants created.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineFeatureRequirements.GraphicsQueues">
+            <summary>Extra graphics queues the feature wants created.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineFeatureRequirements.OpticalFlowQueues">
+            <summary>Extra optical-flow queues the feature wants created.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineFeatureRequirements.DriverDetected">
+            <summary>The driver version found on this machine.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineFeatureRequirements.DriverRequired">
+            <summary>The driver version the feature needs.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineFeatureRequirements.SupportsVulkan">
+            <summary>Gets a value indicating whether the feature runs on Vulkan at all.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineFeatureRequirements.DriverIsNewEnough">
+            <summary>Gets a value indicating whether the driver on this machine is new enough.</summary>
+            <remarks>
+            Streamline reports zero for both when it has not looked, which reads as new enough. That is
+            the right answer: the feature's own support check is the authority, and this is only here so
+            the log can say <em>why</em> a machine was turned down.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineFeatureRequirements.From(OpenIGI.Rendering.Streamline.SlFeatureRequirements@)">
+            <summary>Copies a native requirements structure into managed memory.</summary>
+            <param name="native">The structure Streamline filled.</param>
+            <returns>The copy.</returns>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.StreamlineOptions">
+            <summary>Where the NVIDIA Streamline runtime is, and how to start it.</summary>
+            <remarks>
+            <para>
+            Streamline is the NVIDIA layer DLSS, ray reconstruction, frame generation and Reflex are reached
+            through. It ships as signed proprietary DLLs this GPL repository does not carry:
+            players get them as the optional <c>nvidia-streamline</c> runtime pack from the launcher, and a
+            development checkout gets them from <c>tools/fetch-streamline.ps1</c>. Which folder is used is the
+            application's decision; the backend only ever loads from the one it is handed here.
+            </para>
+            <para>
+            Every failure past this point is survivable. A missing folder, an unsigned file, a machine with no
+            NVIDIA adapter or an old driver each leave the backend running on its own reconstruction, and say why.
+            </para>
+            </remarks>
+            <param name="Directory">The absolute path of the folder holding <c>sl.interposer.dll</c> and its plugins.</param>
+            <param name="Development">
+            Load the development binaries from the folder's <c>development</c> subfolder instead: they draw
+            NVIDIA's debug overlays and read the plugins' JSON configuration files. Never what a player runs.
+            </param>
+            <param name="LogDirectory">
+            Where Streamline may write its log and the NGX runtime its data. Separate from
+            <paramref name="Directory"/> because an installed pack's folder is not necessarily writable.
+            </param>
+            <param name="FrameGeneration">
+            Whether frame generation is wanted from the start. Its plugin is otherwise unloaded before the first
+            swapchain is built: while it is loaded the host renders off-screen and pays a copy every frame, even
+            with frame generation off, so it is loaded only on request (and the swapchain rebuilt around that).
+            </param>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineOptions.#ctor(System.String,System.Boolean,System.String,System.Boolean)">
+            <summary>Where the NVIDIA Streamline runtime is, and how to start it.</summary>
+            <remarks>
+            <para>
+            Streamline is the NVIDIA layer DLSS, ray reconstruction, frame generation and Reflex are reached
+            through. It ships as signed proprietary DLLs this GPL repository does not carry:
+            players get them as the optional <c>nvidia-streamline</c> runtime pack from the launcher, and a
+            development checkout gets them from <c>tools/fetch-streamline.ps1</c>. Which folder is used is the
+            application's decision; the backend only ever loads from the one it is handed here.
+            </para>
+            <para>
+            Every failure past this point is survivable. A missing folder, an unsigned file, a machine with no
+            NVIDIA adapter or an old driver each leave the backend running on its own reconstruction, and say why.
+            </para>
+            </remarks>
+            <param name="Directory">The absolute path of the folder holding <c>sl.interposer.dll</c> and its plugins.</param>
+            <param name="Development">
+            Load the development binaries from the folder's <c>development</c> subfolder instead: they draw
+            NVIDIA's debug overlays and read the plugins' JSON configuration files. Never what a player runs.
+            </param>
+            <param name="LogDirectory">
+            Where Streamline may write its log and the NGX runtime its data. Separate from
+            <paramref name="Directory"/> because an installed pack's folder is not necessarily writable.
+            </param>
+            <param name="FrameGeneration">
+            Whether frame generation is wanted from the start. Its plugin is otherwise unloaded before the first
+            swapchain is built: while it is loaded the host renders off-screen and pays a copy every frame, even
+            with frame generation off, so it is loaded only on request (and the swapchain rebuilt around that).
+            </param>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineOptions.Directory">
+            <summary>The absolute path of the folder holding <c>sl.interposer.dll</c> and its plugins.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineOptions.Development">
+            <summary>
+            Load the development binaries from the folder's <c>development</c> subfolder instead: they draw
+            NVIDIA's debug overlays and read the plugins' JSON configuration files. Never what a player runs.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineOptions.LogDirectory">
+            <summary>
+            Where Streamline may write its log and the NGX runtime its data. Separate from
+            <paramref name="Directory"/> because an installed pack's folder is not necessarily writable.
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineOptions.FrameGeneration">
+            <summary>
+            Whether frame generation is wanted from the start. Its plugin is otherwise unloaded before the first
+            swapchain is built: while it is loaded the host renders off-screen and pays a copy every frame, even
+            with frame generation off, so it is loaded only on request (and the swapchain rebuilt around that).
+            </summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineOptions.EffectiveDirectory">
+            <summary>The folder Streamline is loaded from, after the development switch is applied.</summary>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.StreamlineRuntime">
+            <summary>Owns one Streamline session: from <c>slInit</c> before the device to <c>slShutdown</c> before the device dies.</summary>
+            <remarks>
+            <para>
+            This must be constructed <em>before</em> the device. On Vulkan Streamline's documentation is explicit
+            that the instance and device have to be created after <c>slInit</c>, and the reason is visible in what
+            it does with them: in proxy mode its own <c>vkCreateInstance</c> and <c>vkCreateDevice</c> add the
+            extensions, feature bits and extra queues its plugins need, so a device created first is one it
+            cannot use, and the failure shows up later as a feature that simply reports itself unsupported. On
+            Direct3D 12 the device comes from the Agility SDK's device factory, which the interposer cannot stand
+            in for, so the session runs with manual hooking: the backend hands the device over with
+            <c>slSetD3DDevice</c> and upgrades its DXGI factory so the swapchain is Streamline's to hook.
+            </para>
+            <para>
+            And it must be shut down before the device is destroyed: shutting down tears NGX down against that
+            device, and doing it afterwards faults inside the driver with nothing in the log.
+            </para>
+            <para>
+            Every failure here is survivable. Each is reported once and leaves the caller with no runtime, and
+            the backend runs its own temporal resolve exactly as it would have without one.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.StreamlineRuntime.LogCategory">
+            <summary>The category every Streamline log line is written under.</summary>
+        </member>
+        <member name="F:OpenIGI.Rendering.Streamline.StreamlineRuntime.ProjectId">
+            <summary>This project's identifier, as NGX requires it.</summary>
+            <remarks>
+            It has to be a GUID-shaped string, and NGX rejects anything else — which fails as a bare "could
+            not initialise NGX, all features requiring it are disabled", with nothing pointing at the
+            identifier. A readable name here costs DLSS entirely. Generated once and fixed: NVIDIA keys
+            per-application state off it.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineRuntime.Directory">
+            <summary>Gets the folder the plugins were loaded from.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineRuntime.IsAvailable">
+            <summary>Gets a value indicating whether the session is open.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineRuntime.Features">
+            <summary>Gets the features this session asked Streamline to load.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineRuntime.FeatureApi">
+            <summary>Gets the entry points of the features, once <see cref="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.BindFeatureFunctions(System.Func{System.UInt32,System.Boolean})"/> has run.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineRuntime.Api">
+            <summary>Gets the core entry points.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineRuntime.CurrentFrame">
+            <summary>Gets this frame's token, or zero before <see cref="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.BeginFrame"/> has minted one.</summary>
+            <remarks>
+            One token per frame, shared by everything. Streamline requires that the frame handed to
+            <c>slSetConstants</c>, <c>slSetTagForFrame</c>, <c>slEvaluateFeature</c>, the Reflex sleep and the
+            latency markers all match — two features each minting their own would describe two frames.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineRuntime.FrameIndex">
+            <summary>Gets how many frames have been minted, which is the index the current one carries.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.TryCreate(OpenIGI.Rendering.Streamline.StreamlineOptions,System.ReadOnlySpan{System.UInt32},OpenIGI.Core.Diagnostics.IOpenIgiLogger,OpenIGI.Rendering.Streamline.SlRenderApi)">
+            <summary>Starts Streamline, or reports why it could not be started.</summary>
+            <param name="options">Where the runtime is.</param>
+            <param name="features">The feature identifiers to load, from <see cref="T:OpenIGI.Rendering.Streamline.SlFeature"/>.</param>
+            <param name="logger">Where to report what happened.</param>
+            <param name="renderApi">The graphics API the host drives.</param>
+            <returns>The runtime when it started, otherwise <see langword="null"/>.</returns>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineRuntime.InterposerPath">
+            <summary>Gets the interposer's full path, which a Vulkan host loads its API through in proxy mode.</summary>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineRuntime.RenderApi">
+            <summary>Gets the graphics API this session was started for.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.LogFeatureRequirements">
+            <summary>Writes what each loaded feature asks of the machine and the device into the log.</summary>
+            <remarks>
+            Nothing acts on these: in proxy mode Streamline adds its own extensions, features and queues when
+            it forwards instance and device creation. They are logged because when a feature reports itself
+            unsupported later, this is the record of what it wanted and what the machine had.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.QueryRequirements(System.UInt32)">
+            <summary>Reads what a feature needs of the machine, the driver and the device.</summary>
+            <param name="feature">The feature identifier.</param>
+            <returns>The requirements, or <see langword="null"/> when the feature could not be asked.</returns>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.IsFeatureSupported(System.UInt32,OpenIGI.Rendering.Streamline.SlAdapterInfo@)">
+            <summary>Asks whether a feature can run on an adapter.</summary>
+            <param name="feature">The feature identifier.</param>
+            <param name="adapter">The adapter, as the backend names it: its <c>VkPhysicalDevice</c> or its LUID.</param>
+            <returns>The result, which names the reason when the answer is no.</returns>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.SetD3DDevice(System.IntPtr)">
+            <summary>Hands a Direct3D 12 device to a session started with manual hooking.</summary>
+            <param name="device">The <c>ID3D12Device</c>.</param>
+            <returns>The result.</returns>
+            <remarks>Before anything else asks Streamline about the device: its plugins attach to it here.</remarks>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.UpgradeInterface(System.IntPtr@)">
+            <summary>Swaps a DXGI interface for Streamline's proxy of it, so what it creates is Streamline's to hook.</summary>
+            <param name="native">The interface; on success it is replaced by the proxy, which holds it.</param>
+            <returns>The result.</returns>
+            <remarks>
+            The factory a swapchain is made from: Reflex's present markers, PCL and frame generation all work
+            through the hooked present, and with manual hooking nothing is hooked unless the host asks.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.IsFeatureLoaded(System.UInt32)">
+            <summary>Asks whether a feature's plugin is loaded.</summary>
+            <param name="feature">The feature identifier.</param>
+            <returns><see langword="true"/> when it is.</returns>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.SetFeatureLoaded(System.UInt32,System.Boolean)">
+            <summary>Loads or unloads a feature's plugin.</summary>
+            <param name="feature">The feature identifier.</param>
+            <param name="loaded">Whether it should be loaded.</param>
+            <returns>The result.</returns>
+            <remarks>
+            Frame generation is the reason this exists: while its plugin is loaded the host renders off-screen
+            and pays a copy every frame even with the feature off, so it is unloaded whenever it is not wanted
+            — and the swapchain has to be rebuilt around the change.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.DescribeVersion(System.UInt32)">
+            <summary>Reads which Streamline plugin and which trained model are behind a feature.</summary>
+            <param name="feature">The feature identifier.</param>
+            <returns>A description for the log, or <see langword="null"/> when it could not be read.</returns>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.BindFeatureFunctions(System.Func{System.UInt32,System.Boolean})">
+            <summary>Resolves every feature's own entry points. Valid only once the device exists.</summary>
+            <param name="usable">Which features to resolve: asking a plugin that never loaded logs an error per name.</param>
+            <returns>The entry points; a feature left out leaves its entries zero.</returns>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.BeginFrame">
+            <summary>Mints the token this frame's Streamline calls will all carry, if a new frame has begun.</summary>
+            <returns><see langword="true"/> when this call started a new frame.</returns>
+            <remarks>
+            <para>
+            A frame here means a frame that reaches the screen, which is not the same as a pass of the host's
+            loop. That loop comes round more often than it draws — it pumps events, collects finished bakes and
+            runs simulation ticks with nothing to render — so a token minted per pass would run several frames
+            ahead of the presents, and everything keyed off the frame would be describing one that never existed.
+            </para>
+            <para>
+            It cost a real regression once: Reflex sleeps to pace the frame it is given, so a sleep per pass
+            paced several times per presented frame and took the frame's processor time from about one
+            millisecond to eight. Hence the guard, rather than trusting the call site.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.EndFrame">
+            <summary>Reports that the frame the current token names has been presented.</summary>
+            <remarks>
+            What lets the next pass of the host's loop mint the next token. Called from the backend's own
+            present, because that is the only place that knows a frame actually reached the screen.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineRuntime.FrameOpen">
+            <summary>Gets a value indicating whether a token has been minted and not yet presented.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.Describe(OpenIGI.Rendering.Streamline.SlResult)">
+            <summary>Turns a Streamline result into something worth reading in a log.</summary>
+            <param name="result">The result code.</param>
+            <returns>The description.</returns>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.Describe(System.UInt32)">
+            <summary>Names a feature for a log line.</summary>
+            <param name="feature">The feature identifier.</param>
+            <returns>The name.</returns>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.Dispose">
+            <summary>Ends the session. Must run before the Vulkan device is destroyed.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineRuntime.IsExpectedWarning(System.String)">
+            <summary>Whether a Streamline warning is one every start on this platform gives, and no fault of ours.</summary>
+            <param name="text">The warning.</param>
+            <returns><see langword="true"/> for the warnings that are expected and harmless here.</returns>
+            <remarks>
+            <para>
+            The common plugin asks to hook vkCmdBindPipeline, vkCmdBindDescriptorSets and vkBeginCommandBuffer, which
+            Streamline 2.14's Vulkan interposer has no hooks for (its plugin manager maps only the present, swapchain,
+            surface and device-wait-idle calls), so every Vulkan application logs the three. Those hooks exist to
+            restore command-buffer state after an evaluation, which with command-list state tracking off -- now
+            Streamline's default, and set here -- the application does itself; this one rebinds everything per pass.
+            </para>
+            <para>
+            The frame-generation plugin, on a GPU that cannot run it, says so three ways as it declines to load. The
+            renderer reports the same fact once, in its own words, as frame generation's reason.
+            </para>
+            <para>
+            Kept in the log, at information, rather than dropped: they say what Streamline did.
+            </para>
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Rendering.Streamline.StreamlineSession">
+            <summary>Streamline's features behind the RHI, whichever graphics API the device runs.</summary>
+            <remarks>
+            <para>
+            Everything here is the same on Vulkan and on Direct3D 12: which features run, the options and constants,
+            Reflex, frame generation's state, and which frame every call belongs to. What Streamline needs that the
+            RHI does not say -- the native image, its view, its format, the state it is in, the command list -- is
+            asked of the backend through <see cref="T:OpenIGI.Rendering.Streamline.IStreamlineGraphicsAdapter"/>, so nothing above the backend ever
+            holds a native handle and no backend repeats any of this.
+            </para>
+            <para>
+            Evaluation happens between passes, never inside one: the encoder opens each pass as an object of its
+            own and binds everything that pass uses when it opens, so no pipeline or descriptor state survives
+            across Streamline's work for it to disturb. A full barrier either side makes what was written before
+            visible to Streamline and what Streamline wrote visible after. That is what lets the session run with
+            Streamline's own state tracking switched off.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.#ctor(OpenIGI.Rendering.Streamline.StreamlineRuntime,OpenIGI.Rendering.Streamline.IStreamlineGraphicsAdapter,OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <summary>Initialises a new instance of the <see cref="T:OpenIGI.Rendering.Streamline.StreamlineSession"/> class.</summary>
+            <param name="runtime">The runtime, already started, with the device handed to it.</param>
+            <param name="adapter">The backend's native side.</param>
+            <param name="logger">Where to report.</param>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineSession.Description">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineSession.FrameIndex">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineSession.FrameOpen">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineSession.FrameGenerationLoaded">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Rendering.Streamline.StreamlineSession.WaitAcquireOnAllStages">
+            <summary>Gets a value indicating whether the frame's image may still be written when it is handed out.</summary>
+            <remarks>
+            While frame generation is loaded the image handed out is Streamline's, and it may still be writing it,
+            so a backend waits for it at every stage rather than at colour output alone.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.Support(OpenIGI.Rendering.Rhi.RhiStreamlineFeature)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.BeginFrame">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.Sleep">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.Mark(OpenIGI.Rendering.Rhi.RhiLatencyMarker)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.SetLatencyOptions(OpenIGI.Rendering.Rhi.RhiLowLatencyMode,System.Int32)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.LatencyState">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.SetConstants(System.Int32,OpenIGI.Rendering.Rhi.RhiStreamlineConstants@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.Tag(System.Int32,System.ReadOnlySpan{OpenIGI.Rendering.Rhi.RhiStreamlineTag},OpenIGI.Rendering.Rhi.IRhiCommandEncoder)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.TryGetRenderSize(OpenIGI.Rendering.Rhi.RhiStreamlineFeature,OpenIGI.Rendering.Rhi.RhiDlssMode,System.Int32,System.Int32,OpenIGI.Rendering.Rhi.RhiDlssRenderSize@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.SetSuperResolutionOptions(System.Int32,OpenIGI.Rendering.Rhi.RhiDlssMode,System.Int32,System.Int32)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.SetRayReconstructionOptions(System.Int32,OpenIGI.Rendering.Rhi.RhiDlssMode,System.Int32,System.Int32,System.Numerics.Matrix4x4@,System.Numerics.Matrix4x4@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.SetFrameGenerationLoaded(System.Boolean)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.SetFrameGenerationOptions(System.Int32,OpenIGI.Rendering.Rhi.RhiFrameGenerationOptions@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.FrameGenerationState(System.Int32)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.Evaluate(OpenIGI.Rendering.Rhi.RhiStreamlineFeature,System.Int32,OpenIGI.Rendering.Rhi.IRhiCommandEncoder,System.String@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.FreeResources(OpenIGI.Rendering.Rhi.RhiStreamlineFeature,System.Int32)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.PrepareForPresent(System.Action{OpenIGI.Rendering.Rhi.IRhiTexture})">
+            <summary>Hands over the textures tagged until the present, for the backend to put back in their tagged state.</summary>
+            <param name="restore">What puts one back, recorded last before the present.</param>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.BeforePresent">
+            <summary>Marks the start of the present.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.AfterPresent">
+            <summary>Marks the end of the present and closes the frame.</summary>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.Dispose">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Rendering.Streamline.StreamlineSession.Copy(System.Numerics.Matrix4x4@,OpenIGI.Rendering.Streamline.SlFloat4x4@)">
+            <summary>Copies a matrix across. <see cref="T:System.Numerics.Matrix4x4"/> and Streamline share a convention, so nothing is transposed.</summary>
+        </member>
+    </members>
+</doc>

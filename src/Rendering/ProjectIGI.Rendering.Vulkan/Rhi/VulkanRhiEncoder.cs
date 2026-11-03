@@ -47,13 +47,15 @@ internal sealed unsafe class VulkanRhiCommandEncoder : IRhiCommandEncoder
     {
         ArgumentNullException.ThrowIfNull(descriptor);
         ThrowIfFinished();
-        _device.RequireDynamicRendering();
 
         Barrier();
 
         List<VulkanRhiTexture> attached = [];
         RenderingAttachmentInfo[] colours =
             new RenderingAttachmentInfo[Math.Max(descriptor.ColorAttachments.Count, 1)];
+
+        // Only read on the render pass path, where the pass has to name the format of every attachment.
+        Format[] colourFormats = new Format[Math.Max(descriptor.ColorAttachments.Count, 1)];
 
         int width = int.MaxValue;
         int height = int.MaxValue;
@@ -67,6 +69,7 @@ internal sealed unsafe class VulkanRhiCommandEncoder : IRhiCommandEncoder
             // and General is not a layout a colour attachment may be written in.
             _device.Transition(_command, view.Owner, ImageLayout.ColorAttachmentOptimal);
             attached.Add(view.Owner);
+            colourFormats[i] = VulkanRhiTranslation.TextureFormat(view.Format);
 
             width = Math.Min(width, view.Owner.Width);
             height = Math.Min(height, view.Owner.Height);
@@ -153,7 +156,10 @@ internal sealed unsafe class VulkanRhiCommandEncoder : IRhiCommandEncoder
             occlusion.NeedsReset = false;
         }
 
-        if (_device.UseDynamicRendering)
+        RenderPass pass = default;
+        Framebuffer framebuffer = default;
+
+        if (_device.BeginsPassDynamically)
         {
             fixed (RenderingAttachmentInfo* firstColour = colours)
             {
@@ -172,54 +178,89 @@ internal sealed unsafe class VulkanRhiCommandEncoder : IRhiCommandEncoder
         }
         else
         {
-            Format[] colorFormats = new Format[descriptor.ColorAttachments.Count];
-            ImageView[] fbAttachments = new ImageView[descriptor.ColorAttachments.Count + (hasDepth ? 1 : 0)];
-            ClearValue[] clearValues = new ClearValue[descriptor.ColorAttachments.Count + (hasDepth ? 1 : 0)];
+            // The same description, turned into the two objects older Vulkan wants: a render pass naming
+            // what is attached, and a framebuffer naming the images. Both are cached by the device, so a
+            // frame that draws into the same targets as the last one pays a lookup and nothing else.
+            int colourCount = descriptor.ColorAttachments.Count;
 
-            for (int i = 0; i < descriptor.ColorAttachments.Count; i++)
+            ImageView[] views = new ImageView[Math.Max(colourCount, 1)];
+            AttachmentLoadOp[] loads = new AttachmentLoadOp[Math.Max(colourCount, 1)];
+            AttachmentStoreOp[] stores = new AttachmentStoreOp[Math.Max(colourCount, 1)];
+            Format[] formats = new Format[Math.Max(colourCount, 1)];
+
+            uint samples = 1;
+
+            for (int i = 0; i < colourCount; i++)
             {
-                VulkanRhiTextureView view = (VulkanRhiTextureView)descriptor.ColorAttachments[i].View;
-                colorFormats[i] = VulkanRhiTranslation.TextureFormat(view.Owner.Format);
-                fbAttachments[i] = view.Handle;
-                clearValues[i] = new ClearValue
-                {
-                    Color = new ClearColorValue(
-                        descriptor.ColorAttachments[i].ClearValue.R,
-                        descriptor.ColorAttachments[i].ClearValue.G,
-                        descriptor.ColorAttachments[i].ClearValue.B,
-                        descriptor.ColorAttachments[i].ClearValue.A)
-                };
+                views[i] = colours[i].ImageView;
+                loads[i] = colours[i].LoadOp;
+                stores[i] = colours[i].StoreOp;
+                formats[i] = colourFormats[i];
+
+                samples = Math.Max(
+                    samples,
+                    (uint)((VulkanRhiTextureView)descriptor.ColorAttachments[i].View).Owner.SampleCount);
             }
 
             Format depthFormat = Format.Undefined;
-            if (hasDepth && descriptor.DepthAttachment is { } dAtt)
+            Format stencilFormat = Format.Undefined;
+            ImageView depthView = default;
+            AttachmentLoadOp depthLoad = AttachmentLoadOp.DontCare;
+            AttachmentStoreOp depthStore = AttachmentStoreOp.DontCare;
+            ImageLayout depthLayout = ImageLayout.Undefined;
+
+            if (descriptor.DepthAttachment is { } depthSource)
             {
-                VulkanRhiTextureView view = (VulkanRhiTextureView)dAtt.View;
-                depthFormat = VulkanRhiTranslation.TextureFormat(view.Owner.Format);
-                int depthIdx = descriptor.ColorAttachments.Count;
-                fbAttachments[depthIdx] = view.Handle;
-                clearValues[depthIdx] = new ClearValue
-                {
-                    DepthStencil = new ClearDepthStencilValue(dAtt.DepthClearValue, 0)
-                };
+                VulkanRhiTextureView depthImageView = (VulkanRhiTextureView)depthSource.View;
+                depthFormat = VulkanRhiTranslation.TextureFormat(depthImageView.Format);
+                stencilFormat = depthImageView.Format.HasStencil() ? depthFormat : Format.Undefined;
+                depthView = depthImageView.Handle;
+                depthLoad = depth.LoadOp;
+                depthStore = depth.StoreOp;
+                depthLayout = depth.ImageLayout;
+                samples = Math.Max(samples, (uint)depthImageView.Owner.SampleCount);
             }
 
-            RenderPass renderPass = _device.GetOrCreateRenderPass(colorFormats, depthFormat);
-            Framebuffer framebuffer = _device.GetOrCreateFramebuffer(renderPass, fbAttachments, (uint)width, (uint)height);
+            (pass, framebuffer) = _device.RenderPasses.Begin(
+                formats.AsSpan(0, colourCount),
+                loads.AsSpan(0, colourCount),
+                stores.AsSpan(0, colourCount),
+                views.AsSpan(0, colourCount),
+                depthFormat,
+                stencilFormat,
+                depthLoad,
+                depthStore,
+                depthLayout,
+                depthView,
+                samples,
+                (uint)width,
+                (uint)height,
+                descriptor.Label);
 
-            fixed (ClearValue* pClearValues = clearValues)
+            ClearValue[] clearValues = new ClearValue[colourCount + (hasDepth ? 1 : 0)];
+            for (int i = 0; i < colourCount; i++)
             {
-                RenderPassBeginInfo beginInfo = new RenderPassBeginInfo
+                clearValues[i] = colours[i].ClearValue;
+            }
+
+            if (hasDepth)
+            {
+                clearValues[colourCount] = depth.ClearValue;
+            }
+
+            fixed (ClearValue* firstClear = clearValues)
+            {
+                RenderPassBeginInfo begin = new()
                 {
                     SType = StructureType.RenderPassBeginInfo,
-                    RenderPass = renderPass,
+                    RenderPass = pass,
                     Framebuffer = framebuffer,
                     RenderArea = new Rect2D(new Offset2D(0, 0), new Extent2D((uint)width, (uint)height)),
                     ClearValueCount = (uint)clearValues.Length,
-                    PClearValues = pClearValues,
+                    PClearValues = clearValues.Length > 0 ? firstClear : null,
                 };
 
-                _vk.CmdBeginRenderPass(_command, &beginInfo, SubpassContents.Inline);
+                _vk.CmdBeginRenderPass(_command, &begin, SubpassContents.Inline);
             }
         }
 
@@ -229,7 +270,9 @@ internal sealed unsafe class VulkanRhiCommandEncoder : IRhiCommandEncoder
             _command,
             attached,
             descriptor.OcclusionQuerySet as VulkanRhiQuerySet,
-            descriptor.Timestamps);
+            descriptor.Timestamps,
+            pass,
+            framebuffer);
     }
 
     /// <inheritdoc/>

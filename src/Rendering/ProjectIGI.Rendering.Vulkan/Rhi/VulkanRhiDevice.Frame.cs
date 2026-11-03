@@ -135,6 +135,10 @@ internal sealed unsafe partial class VulkanRhiDevice
         RetireFrameTexture(_frameSlot);
         ReleaseSlot(_frameSlot);
 
+        // Same reasoning for the framebuffers that frame built: the views they named have just been
+        // disposed, and the driver is free to hand those handle values straight back out.
+        RenderPasses.BeginFrame(_frameSlot);
+
         Result acquired = swapchain.AcquireNextImage(_acquired[_frameSlot], out _imageIndex);
         if (acquired is Result.ErrorOutOfDateKhr)
         {
@@ -398,6 +402,9 @@ internal sealed unsafe partial class VulkanRhiDevice
             RhiTextureFormat format = _offscreen[0].Format;
 
             _vk.DeviceWaitIdle(_device.Device);
+
+            // The offscreen targets are about to be replaced, and framebuffers name their views.
+            _renderPasses?.InvalidateFramebuffers();
             AttachOffscreen(width, height, format);
             return;
         }
@@ -406,6 +413,10 @@ internal sealed unsafe partial class VulkanRhiDevice
             ?? throw new GraphicsDeviceException("This device has no swapchain to configure.");
 
         _vk.DeviceWaitIdle(_device.Device);
+
+        // Before anything they name is replaced: a framebuffer holds the exact image views attached when it
+        // was built, so every one of them is stale the moment the swapchain is rebuilt.
+        _renderPasses?.InvalidateFramebuffers();
 
         for (int i = 0; i < _frameTextures.Length; i++)
         {

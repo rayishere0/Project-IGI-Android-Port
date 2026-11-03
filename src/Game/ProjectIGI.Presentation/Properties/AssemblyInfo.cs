@@ -4,13 +4,13 @@ using System.Runtime.CompilerServices;
 // 26,000 lines public would demand an XML doc on every member of it (CS1591 is an error here) for no
 // gain. Only the seam types this project introduces are public. The hosts and title projects that
 // consume the renderers are named here instead.
-[assembly: InternalsVisibleTo("ProjectIGI.Presentation.Tests")]
+[assembly: InternalsVisibleTo("OpenIGI.Presentation.Tests")]
 
 // The world renderer's draw order is a title-visible behaviour -- the render group has to be its outer
 // key -- and the suite that proves it needs an I.G.I. 2 level to be observable at all.
-[assembly: InternalsVisibleTo("ProjectIGI.Game.Igi2.Tests")]
-[assembly: InternalsVisibleTo("ProjectIGI.Game.Igi1.Tests")]
-[assembly: InternalsVisibleTo("ProjectIGI.Desktop.Tests")]
+[assembly: InternalsVisibleTo("OpenIGI.Game.Igi2.Tests")]
+[assembly: InternalsVisibleTo("OpenIGI.Game.Igi1.Tests")]
+[assembly: InternalsVisibleTo("OpenIGI.Desktop.Tests")]
 
 // A title's own renderers live in its presentation project and draw with the shared presentation helpers -- the
 // canvas, the badge sprite, the vector primitives. Promoting each one to public API as it is needed

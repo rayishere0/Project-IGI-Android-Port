@@ -20,9 +20,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="ProjectIGI.Rendering.Vulkan" />
-    <InternalsVisibleTo Include="ProjectIGI.Rendering.D3D12" />
-    <InternalsVisibleTo Include="ProjectIGI.Rendering.Streamline.Tests" />
+    <InternalsVisibleTo Include="OpenIGI.Rendering.Vulkan" />
+    <InternalsVisibleTo Include="OpenIGI.Rendering.D3D12" />
+    <InternalsVisibleTo Include="OpenIGI.Rendering.Streamline.Tests" />
   </ItemGroup>
 
 </Project>

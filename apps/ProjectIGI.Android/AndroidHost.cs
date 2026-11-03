@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using ProjectIGI.Android;
 using ProjectIGI.Audio.OpenAL;
 using ProjectIGI.Composition;
 using ProjectIGI.Core.Configuration;
@@ -18,7 +19,10 @@ using ProjectIGI.Rendering.Pipeline;
 using ProjectIGI.Rendering.Vulkan;
 using ProjectIGI.Rendering.Vulkan.Rhi;
 
-namespace ProjectIGI.Android;
+// The native bridge (app/android/app/src/main/cpp/jni/jni_bridge.cpp) resolves this type by the
+// literal string "OpenIGI.Android.AndroidHost", so the namespace is part of the ABI, not a naming
+// preference. It stays OpenIGI.* even though the projects are named ProjectIGI.*.
+namespace OpenIGI.Android;
 
 public static class AndroidHost
 {
@@ -139,8 +143,10 @@ public static class AndroidHost
             _logger.Information("AndroidHost", $"Vulkan initialized on adapter: {_vulkan.Device.AdapterName}");
 
             // Ensure all CVars from all assemblies are registered into the catalog before applying preset:
-            Rendering.Generated.CVarRegistrations.RegisterAll();
-            Game.Generated.CVarRegistrations.RegisterAll();
+            // Fully qualified: this file sits in the OpenIGI.Android namespace, so a relative
+            // "Rendering.Generated" would look under OpenIGI and find nothing.
+            ProjectIGI.Rendering.Generated.CVarRegistrations.RegisterAll();
+            ProjectIGI.Game.Generated.CVarRegistrations.RegisterAll();
 
             string settingsPath = Path.Combine(dataDir, SettingsPaths.SettingsFileName);
             bool settingsExist = File.Exists(settingsPath);

@@ -1,0 +1,52 @@
+<Solution>
+  <Folder Name="/apps/">
+    <Project Path="apps/ProjectIGI.Android/ProjectIGI.Android.csproj" />
+    <Project Path="apps/ProjectIGI.Composition/ProjectIGI.Composition.csproj" />
+  </Folder>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Audio/">
+    <Project Path="src/Audio/ProjectIGI.Audio.OpenAL/ProjectIGI.Audio.OpenAL.csproj" />
+    <Project Path="src/Audio/ProjectIGI.Audio/ProjectIGI.Audio.csproj" />
+  </Folder>
+  <Folder Name="/src/Core/">
+    <Project Path="src/Core/ProjectIGI.Core/ProjectIGI.Core.csproj" />
+    <Project Path="src/Core/ProjectIGI.Formats/ProjectIGI.Formats.csproj" />
+    <Project Path="src/Core/ProjectIGI.Generators/ProjectIGI.Generators.csproj" />
+    <Project Path="src/Core/ProjectIGI.Scripting/ProjectIGI.Scripting.csproj" />
+  </Folder>
+  <Folder Name="/src/Engine/">
+    <Project Path="src/Engine/ProjectIGI.Engine/ProjectIGI.Engine.csproj" />
+    <Project Path="src/Engine/ProjectIGI.Host/ProjectIGI.Host.csproj" />
+    <Project Path="src/Engine/ProjectIGI.Modding.Loader/ProjectIGI.Modding.Loader.csproj" />
+    <Project Path="src/Engine/ProjectIGI.Modding.Presentation/ProjectIGI.Modding.Presentation.csproj" />
+    <Project Path="src/Engine/ProjectIGI.Modding/ProjectIGI.Modding.csproj" />
+  </Folder>
+  <Folder Name="/src/Game/">
+    <Project Path="src/Game/ProjectIGI.Frontend.Settings/ProjectIGI.Frontend.Settings.csproj" />
+    <Project Path="src/Game/ProjectIGI.Frontend/ProjectIGI.Frontend.csproj" />
+    <Project Path="src/Game/ProjectIGI.Game.Igi1/ProjectIGI.Game.Igi1.csproj" />
+    <Project Path="src/Game/ProjectIGI.Game.Igi2/ProjectIGI.Game.Igi2.csproj" />
+    <Project Path="src/Game/ProjectIGI.Game/ProjectIGI.Game.csproj" />
+    <Project Path="src/Game/ProjectIGI.Presentation.Igi1/ProjectIGI.Presentation.Igi1.csproj" />
+    <Project Path="src/Game/ProjectIGI.Presentation.Igi2/ProjectIGI.Presentation.Igi2.csproj" />
+    <Project Path="src/Game/ProjectIGI.Presentation/ProjectIGI.Presentation.csproj" />
+  </Folder>
+  <Folder Name="/src/Platform/">
+    <Project Path="src/Platform/ProjectIGI.Input/ProjectIGI.Input.csproj" />
+    <Project Path="src/Platform/ProjectIGI.Platform.Desktop/ProjectIGI.Platform.Desktop.csproj" />
+    <Project Path="src/Platform/ProjectIGI.Platform/ProjectIGI.Platform.csproj" />
+  </Folder>
+  <Folder Name="/src/Rendering/">
+    <Project Path="src/Rendering/ProjectIGI.Rendering.Pipeline/ProjectIGI.Rendering.Pipeline.csproj" />
+    <Project Path="src/Rendering/ProjectIGI.Rendering.Rhi/ProjectIGI.Rendering.Rhi.csproj" />
+    <Project Path="src/Rendering/ProjectIGI.Rendering.Streamline/ProjectIGI.Rendering.Streamline.csproj" />
+    <Project Path="src/Rendering/ProjectIGI.Rendering.Vulkan/ProjectIGI.Rendering.Vulkan.csproj" />
+    <Project Path="src/Rendering/ProjectIGI.Rendering/ProjectIGI.Rendering.csproj" />
+    <Project Path="src/Rendering/ProjectIGI.Shaders/ProjectIGI.Shaders.csproj" />
+  </Folder>
+  <Folder Name="/src/UI/">
+    <Project Path="src/UI/ProjectIGI.UI.Kit/ProjectIGI.UI.Kit.csproj" />
+    <Project Path="src/UI/ProjectIGI.UI.Rhi/ProjectIGI.UI.Rhi.csproj" />
+    <Project Path="src/UI/ProjectIGI.UI/ProjectIGI.UI.csproj" />
+  </Folder>
+</Solution>

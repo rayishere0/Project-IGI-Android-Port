@@ -1,0 +1,911 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OpenIGI.Input</name>
+    </assembly>
+    <members>
+        <member name="T:OpenIGI.Input.GamepadButton">
+            <summary>A button (or a digital direction) on a game controller.</summary>
+            <remarks>
+            The names follow the common cross-vendor layout: <see cref="F:OpenIGI.Input.GamepadButton.South"/>/<see cref="F:OpenIGI.Input.GamepadButton.East"/>/<see cref="F:OpenIGI.Input.GamepadButton.West"/>/
+            <see cref="F:OpenIGI.Input.GamepadButton.North"/> are the four face buttons by position — A/B/X/Y on an Xbox pad, ✕/○/□/△ on a
+            PlayStation one — named by where they sit rather than by a vendor's letter, so a binding does not
+            change meaning with the hardware. Values are contiguous from zero so they index a bit in
+            <see cref="T:OpenIGI.Input.GamepadState"/>.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Input.GamepadButton.South">
+            <summary>The bottom face button — A / ✕. The conventional "accept".</summary>
+        </member>
+        <member name="F:OpenIGI.Input.GamepadButton.East">
+            <summary>The right face button — B / ○. The conventional "back".</summary>
+        </member>
+        <member name="F:OpenIGI.Input.GamepadButton.West">
+            <summary>The left face button — X / □.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.GamepadButton.North">
+            <summary>The top face button — Y / △.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.GamepadButton.LeftShoulder">
+            <summary>The left shoulder bumper.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.GamepadButton.RightShoulder">
+            <summary>The right shoulder bumper.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.GamepadButton.LeftStick">
+            <summary>The left stick pressed in.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.GamepadButton.RightStick">
+            <summary>The right stick pressed in.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.GamepadButton.Start">
+            <summary>The start / menu button.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.GamepadButton.Back">
+            <summary>The back / view / select button.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.GamepadButton.DpadUp">
+            <summary>The directional pad up.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.GamepadButton.DpadDown">
+            <summary>The directional pad down.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.GamepadButton.DpadLeft">
+            <summary>The directional pad left.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.GamepadButton.DpadRight">
+            <summary>The directional pad right.</summary>
+        </member>
+        <member name="T:OpenIGI.Input.GamepadState">
+            <summary>
+            The per-frame state of a game controller: its buttons with a previous-frame shadow for edge
+            detection, its two analogue sticks and its two triggers.
+            </summary>
+            <remarks>
+            <para>
+            Modelled on <see cref="T:OpenIGI.Input.KeyboardState"/> and <see cref="T:OpenIGI.Input.MouseState"/>: the host writes the raw device
+            state each frame through the setters, game and UI code only read the edge tests. It carries no
+            dependency on any input backend — the desktop host maps Silk.NET's controller to it — so a test can
+            drive a gamepad without hardware.
+            </para>
+            <para>
+            Like the other devices it honours <see cref="P:OpenIGI.Input.GamepadState.Captured"/>: while a layer in front of the game has
+            taken the frame's input, every read returns idle so the game beneath sees nothing.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Input.GamepadState.IsConnected">
+            <summary>Gets or sets a value indicating whether a controller is connected.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.GamepadState.Captured">
+            <summary>Gets or sets a value indicating whether the frame's input has been taken by a layer above.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.GamepadState.LeftStickX">
+            <summary>Gets the left stick's horizontal axis, -1 (left) to 1 (right).</summary>
+        </member>
+        <member name="P:OpenIGI.Input.GamepadState.LeftStickY">
+            <summary>Gets the left stick's vertical axis, -1 (up) to 1 (down).</summary>
+        </member>
+        <member name="P:OpenIGI.Input.GamepadState.RightStickX">
+            <summary>Gets the right stick's horizontal axis, -1 (left) to 1 (right).</summary>
+        </member>
+        <member name="P:OpenIGI.Input.GamepadState.RightStickY">
+            <summary>Gets the right stick's vertical axis, -1 (up) to 1 (down).</summary>
+        </member>
+        <member name="P:OpenIGI.Input.GamepadState.LeftTrigger">
+            <summary>Gets the left trigger, 0 to 1.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.GamepadState.RightTrigger">
+            <summary>Gets the right trigger, 0 to 1.</summary>
+        </member>
+        <member name="M:OpenIGI.Input.GamepadState.BeginFrame">
+            <summary>Takes the previous-frame shadow. Call before applying the frame's device state.</summary>
+        </member>
+        <member name="M:OpenIGI.Input.GamepadState.SetButton(OpenIGI.Input.GamepadButton,System.Boolean)">
+            <summary>Sets whether a button is held.</summary>
+            <param name="button">The button.</param>
+            <param name="down">Whether it is held.</param>
+        </member>
+        <member name="M:OpenIGI.Input.GamepadState.SetLeftStick(System.Single,System.Single)">
+            <summary>Sets the left stick axes, with the vertical already flipped so positive is downwards.</summary>
+            <param name="x">The horizontal axis, -1 to 1.</param>
+            <param name="y">The vertical axis, -1 (up) to 1 (down).</param>
+        </member>
+        <member name="M:OpenIGI.Input.GamepadState.SetRightStick(System.Single,System.Single)">
+            <summary>Sets the right stick axes, with the vertical already flipped so positive is downwards.</summary>
+            <param name="x">The horizontal axis, -1 to 1.</param>
+            <param name="y">The vertical axis, -1 (up) to 1 (down).</param>
+        </member>
+        <member name="M:OpenIGI.Input.GamepadState.SetTriggers(System.Single,System.Single)">
+            <summary>Sets the trigger pressures.</summary>
+            <param name="left">The left trigger, 0 to 1.</param>
+            <param name="right">The right trigger, 0 to 1.</param>
+        </member>
+        <member name="M:OpenIGI.Input.GamepadState.IsDown(OpenIGI.Input.GamepadButton)">
+            <summary>Determines whether a button is held this frame.</summary>
+            <param name="button">The button.</param>
+            <returns><see langword="true"/> when it is held and input is not captured.</returns>
+        </member>
+        <member name="M:OpenIGI.Input.GamepadState.WasPressed(OpenIGI.Input.GamepadButton)">
+            <summary>Determines whether a button went down this frame.</summary>
+            <param name="button">The button.</param>
+            <returns><see langword="true"/> on the frame it was first pressed and input is not captured.</returns>
+        </member>
+        <member name="M:OpenIGI.Input.GamepadState.WasReleased(OpenIGI.Input.GamepadButton)">
+            <summary>Determines whether a button came up this frame.</summary>
+            <param name="button">The button.</param>
+            <returns><see langword="true"/> on the frame it was released and input is not captured.</returns>
+        </member>
+        <member name="M:OpenIGI.Input.GamepadState.Reset">
+            <summary>Clears all state.</summary>
+        </member>
+        <member name="M:OpenIGI.Input.GamepadState.Release">
+            <summary>Releases every held button, as the global input disable does to the keyboard.</summary>
+        </member>
+        <member name="T:OpenIGI.Input.InputBindings">
+            <summary>
+            Maps named actions to keys, with more than one key allowed per action.
+            </summary>
+            <remarks>
+            The original binds actions by name from configuration, storing raw DirectInput scan codes — so a
+            binding read from a retail config resolves through this table unchanged. Action names are compared
+            ordinally and case-insensitively, matching the original's case-insensitive config parsing.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Input.InputBindings.Actions">
+            <summary>Gets the action names that have at least one key bound.</summary>
+        </member>
+        <member name="M:OpenIGI.Input.InputBindings.Bind(System.String,OpenIGI.Input.KeyCode)">
+            <summary>Binds a key to an action, in addition to any keys already bound.</summary>
+            <param name="action">The action name.</param>
+            <param name="key">The key to bind.</param>
+            <exception cref="T:System.ArgumentException"><paramref name="action"/> is empty or whitespace.</exception>
+        </member>
+        <member name="M:OpenIGI.Input.InputBindings.Clear(System.String)">
+            <summary>Removes every key bound to an action.</summary>
+            <param name="action">The action name.</param>
+            <returns><see langword="true"/> when the action had bindings.</returns>
+        </member>
+        <member name="M:OpenIGI.Input.InputBindings.GetKeys(System.String)">
+            <summary>Gets the keys bound to an action.</summary>
+            <param name="action">The action name.</param>
+            <returns>The bound keys, or an empty list when the action is unbound.</returns>
+        </member>
+        <member name="M:OpenIGI.Input.InputBindings.IsDown(OpenIGI.Input.KeyboardState,System.String)">
+            <summary>Determines whether any key bound to an action is down.</summary>
+            <param name="keyboard">The keyboard to test.</param>
+            <param name="action">The action name.</param>
+            <returns><see langword="true"/> when at least one bound key is down.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="keyboard"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.Input.InputBindings.WasPressed(OpenIGI.Input.KeyboardState,System.String)">
+            <summary>Determines whether any key bound to an action went down this frame.</summary>
+            <param name="keyboard">The keyboard to test.</param>
+            <param name="action">The action name.</param>
+            <returns><see langword="true"/> when at least one bound key was pressed this frame.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="keyboard"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="T:OpenIGI.Input.InputState">
+            <summary>
+            The per-frame input snapshot the engine reads: keyboard, mouse and game controller, each with its
+            previous-frame shadow.
+            </summary>
+            <remarks>
+            The host owns one of these and advances it once per frame, before the tick. Game code only reads
+            it, so a replay or a test can drive the same state without a window.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Input.InputState.Keyboard">
+            <summary>Gets the keyboard.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.InputState.Mouse">
+            <summary>Gets the mouse.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.InputState.Gamepad">
+            <summary>Gets the primary game controller.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.InputState.Touch">
+            <summary>Gets the fingers on a touch screen.</summary>
+            <remarks>Not suppressed with the rest: the screen's own controls read it, and skipping a cutscene is one of them.</remarks>
+        </member>
+        <member name="P:OpenIGI.Input.InputState.Suppressed">
+            <summary>Gets or sets a value indicating whether input is suppressed.</summary>
+            <remarks>
+            The original zeroes its key array while a global disable flag is set — during loading screens
+            and cutscenes — rather than skipping the poll, so keys held across the disable are seen as
+            released and then freshly pressed. <see cref="M:OpenIGI.Input.InputState.BeginFrame"/> reproduces that.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Input.InputState.Captured">
+            <summary>Gets or sets a value indicating whether the shell has taken this frame's input.</summary>
+            <remarks>
+            <para>
+            Distinct from <see cref="P:OpenIGI.Input.InputState.Suppressed"/>, which is the original's global disable. This is for the
+            developer console and, later, the shell's text fields: something in front of the game is using
+            the keyboard this frame, so game code must see nothing while the thing in front of it still
+            can.
+            </para>
+            <para>
+            Set it <em>after</em> the capturing code has read its input, and it lasts until the next
+            <see cref="M:OpenIGI.Input.InputState.BeginFrame"/>. Unlike <see cref="P:OpenIGI.Input.InputState.Suppressed"/> it does not clear the device state,
+            which matters on an event-driven host: a key held down is only reported once, so discarding it
+            would lose the key until it was released and pressed again.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Input.InputState.BeginFrame">
+            <summary>Advances both devices to a new frame, taking their shadows.</summary>
+            <remarks>
+            Call this <em>before</em> the host dispatches the frame's input events, so that the shadow
+            describes the previous frame and everything the pump delivers belongs to this one. That is the
+            ordering <c>Input_Poll</c> uses, and it is what makes edge detection exact.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Input.InputState.Reset">
+            <summary>Clears every device.</summary>
+        </member>
+        <member name="T:OpenIGI.Input.KeyboardState">
+            <summary>
+            The 256-key state model of the original, with the previous frame's shadow that makes edge detection
+            exact.
+            </summary>
+            <remarks>
+            <para>
+            The original keeps three 256-byte arrays: the current state, the previous frame's copy, and a
+            separate array written by the window-message hook when the game runs with <c>-WinInput</c>. A key
+            is down when its byte has the high bit set. <see cref="M:OpenIGI.Input.KeyboardState.Update(System.ReadOnlySpan{System.Byte})"/> reproduces
+            <c>Input_Poll</c> (<c>0x490230</c>) exactly, including the ordering that matters: <b>the shadow is
+            taken before the new state is read, unconditionally, every frame</b> — so a frame where the device
+            could not be read reports every key as released with a correct falling edge rather than a stuck
+            key.
+            </para>
+            <para>
+            Indices are DirectInput scan codes; see <see cref="T:OpenIGI.Input.KeyCode"/>.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Input.KeyboardState.KeyCount">
+            <summary>The number of keys tracked, matching the original's array size.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyboardState.DownValue">
+            <summary>The byte value the original writes for a key that is down.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyboardState.PressQueueCapacity">
+            <summary>The most presses the queue holds before it starts dropping them.</summary>
+            <remarks>
+            The original's event queue is a fixed ring, and a full one refuses further writes rather than
+            growing. The cap matters here for the same reason it does there: a consumer that stops draining
+            — a level load, a stalled frame — must not be able to make the queue grow without bound.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Input.KeyboardState.Current">
+            <summary>Gets the current state bytes, one per scan code.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.KeyboardState.Previous">
+            <summary>Gets the previous frame's state bytes, one per scan code.</summary>
+        </member>
+        <member name="M:OpenIGI.Input.KeyboardState.Update(System.ReadOnlySpan{System.Byte})">
+            <summary>Takes the frame shadow and replaces the current state.</summary>
+            <param name="keys">The new state, one byte per scan code, high bit set for down. Shorter spans leave the remaining keys released.</param>
+            <exception cref="T:System.ArgumentException"><paramref name="keys"/> is longer than <see cref="F:OpenIGI.Input.KeyboardState.KeyCount"/>.</exception>
+        </member>
+        <member name="M:OpenIGI.Input.KeyboardState.Release">
+            <summary>Takes the frame shadow and clears every key, as the original does when the device cannot be read.</summary>
+        </member>
+        <member name="M:OpenIGI.Input.KeyboardState.SetKey(OpenIGI.Input.KeyCode,System.Boolean)">
+            <summary>Sets one key's state without taking a shadow. For hosts that receive key events rather than polling a device.</summary>
+            <param name="key">The key.</param>
+            <param name="down"><see langword="true"/> when the key is down.</param>
+            <remarks>
+            Pair with <see cref="M:OpenIGI.Input.KeyboardState.BeginFrame"/>, which takes the shadow once per frame. A rising edge is also
+            queued — see <see cref="M:OpenIGI.Input.KeyboardState.TryDequeuePress(OpenIGI.Input.KeyCode@)"/> — because a consumer running slower than the host's
+            event dispatch would otherwise never see it.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Input.KeyboardState.Captured">
+            <summary>Gets or sets a value indicating whether the shell has taken this frame's keyboard input.</summary>
+            <remarks>
+            While set, every read reports nothing but the underlying state is left intact — see
+            <c>InputState.Captured</c>. The capturing code sets this once it has read what it needs, so the
+            developer console can type without the player also walking.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Input.KeyboardState.PendingPressCount">
+            <summary>Gets the number of presses waiting to be read.</summary>
+        </member>
+        <member name="M:OpenIGI.Input.KeyboardState.TryDequeuePress(OpenIGI.Input.KeyCode@)">
+            <summary>Takes the oldest press that has not been read yet.</summary>
+            <param name="key">Receives the key.</param>
+            <returns><see langword="false"/> when nothing is waiting.</returns>
+            <remarks>
+            <para>
+            This is the original's input event queue — <c>Input_HasEvent</c> (<c>0x48A910</c>) and
+            <c>Input_NextEvent</c> (<c>0x48A8D0</c>), which <c>MenuManager_HandleKeys</c> drains in a
+            <c>while</c> loop. It is not an alternative spelling of <see cref="M:OpenIGI.Input.KeyboardState.WasPressed(OpenIGI.Input.KeyCode)"/>.
+            </para>
+            <para>
+            The difference is only visible when the reader and the host run at different rates, which is
+            exactly the menu's situation: presses are dispatched at the display's rate and read at the
+            simulation's 30 Hz. <see cref="M:OpenIGI.Input.KeyboardState.WasPressed(OpenIGI.Input.KeyCode)"/> compares against a shadow taken every frame, so a
+            press between two ticks is overwritten before any tick sees it — the queue keeps it.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Input.KeyboardState.TryDequeueNavigationPress(OpenIGI.Input.KeyCode@)">
+            <summary>Takes the oldest queued navigation key while preserving unrelated key presses.</summary>
+            <param name="key">Receives the navigation key.</param>
+            <returns><see langword="true"/> when a navigation key was waiting.</returns>
+        </member>
+        <member name="M:OpenIGI.Input.KeyboardState.EnqueueCharacter(System.Char)">
+            <summary>Records a typed character.</summary>
+            <param name="character">The character the platform decoded.</param>
+            <remarks>
+            Separate from the press queue because a key and a character are different things: the same
+            press yields <c>KEY_A</c> and either <c>a</c> or <c>A</c> depending on modifiers and layout,
+            and only the platform knows which. A text field wants the character.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Input.KeyboardState.TryDequeueCharacter(System.Char@)">
+            <summary>Takes the oldest typed character that has not been read yet.</summary>
+            <param name="character">Receives the character.</param>
+            <returns><see langword="false"/> when nothing is waiting.</returns>
+        </member>
+        <member name="M:OpenIGI.Input.KeyboardState.BeginFrame">
+            <summary>Takes the frame shadow, leaving the current state in place.</summary>
+            <remarks>
+            The event-driven counterpart to <see cref="M:OpenIGI.Input.KeyboardState.Update(System.ReadOnlySpan{System.Byte})"/>: call once per frame before the host
+            dispatches that frame's key events through <see cref="M:OpenIGI.Input.KeyboardState.SetKey(OpenIGI.Input.KeyCode,System.Boolean)"/>.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Input.KeyboardState.IsDown(OpenIGI.Input.KeyCode)">
+            <summary>Determines whether a key is down this frame.</summary>
+            <param name="key">The key.</param>
+            <returns><see langword="true"/> when the key is down.</returns>
+        </member>
+        <member name="M:OpenIGI.Input.KeyboardState.IsUp(OpenIGI.Input.KeyCode)">
+            <summary>Determines whether a key is up this frame.</summary>
+            <param name="key">The key.</param>
+            <returns><see langword="true"/> when the key is up.</returns>
+        </member>
+        <member name="M:OpenIGI.Input.KeyboardState.WasPressed(OpenIGI.Input.KeyCode)">
+            <summary>Determines whether a key went down between the previous frame and this one.</summary>
+            <param name="key">The key.</param>
+            <returns><see langword="true"/> on the frame the key is first down.</returns>
+        </member>
+        <member name="M:OpenIGI.Input.KeyboardState.WasReleased(OpenIGI.Input.KeyCode)">
+            <summary>Determines whether a key went up between the previous frame and this one.</summary>
+            <param name="key">The key.</param>
+            <returns><see langword="true"/> on the frame the key is first up again.</returns>
+        </member>
+        <member name="M:OpenIGI.Input.KeyboardState.Reset">
+            <summary>Clears both the current state and the shadow.</summary>
+        </member>
+        <member name="T:OpenIGI.Input.KeyCode">
+            <summary>
+            A keyboard key, identified by its DirectInput <c>DIK_*</c> scan code.
+            </summary>
+            <remarks>
+            <para>
+            The original indexes its three 256-byte key arrays by these codes, and mission scripts and config
+            files store them as raw numbers — so the numbering is part of the data format, not an
+            implementation detail. A key binding read from a retail config must resolve to the same physical
+            key.
+            </para>
+            <para>
+            These are <em>positional</em> codes: <see cref="F:OpenIGI.Input.KeyCode.Q"/> is the key where Q sits on a US layout,
+            whatever the active layout prints on it.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.None">
+            <summary>No key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Escape">
+            <summary>The Escape key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.D1">
+            <summary>The 1 key on the number row.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.D2">
+            <summary>The 2 key on the number row.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.D3">
+            <summary>The 3 key on the number row.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.D4">
+            <summary>The 4 key on the number row.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.D5">
+            <summary>The 5 key on the number row.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.D6">
+            <summary>The 6 key on the number row.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.D7">
+            <summary>The 7 key on the number row.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.D8">
+            <summary>The 8 key on the number row.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.D9">
+            <summary>The 9 key on the number row.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.D0">
+            <summary>The 0 key on the number row.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Minus">
+            <summary>The minus key on the number row.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Equals">
+            <summary>The equals key on the number row.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Backspace">
+            <summary>The Backspace key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Tab">
+            <summary>The Tab key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Q">
+            <summary>The Q key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.W">
+            <summary>The W key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.E">
+            <summary>The E key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.R">
+            <summary>The R key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.T">
+            <summary>The T key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Y">
+            <summary>The Y key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.U">
+            <summary>The U key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.I">
+            <summary>The I key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.O">
+            <summary>The O key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.P">
+            <summary>The P key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.LeftBracket">
+            <summary>The left bracket key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.RightBracket">
+            <summary>The right bracket key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Return">
+            <summary>The Return key on the main block.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.LeftControl">
+            <summary>The left Control key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.A">
+            <summary>The A key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.S">
+            <summary>The S key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.D">
+            <summary>The D key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.F">
+            <summary>The F key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.G">
+            <summary>The G key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.H">
+            <summary>The H key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.J">
+            <summary>The J key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.K">
+            <summary>The K key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.L">
+            <summary>The L key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Semicolon">
+            <summary>The semicolon key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Apostrophe">
+            <summary>The apostrophe key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Grave">
+            <summary>The grave accent key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.LeftShift">
+            <summary>The left Shift key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Backslash">
+            <summary>The backslash key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Z">
+            <summary>The Z key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.X">
+            <summary>The X key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.C">
+            <summary>The C key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.V">
+            <summary>The V key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.B">
+            <summary>The B key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.N">
+            <summary>The N key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.M">
+            <summary>The M key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Comma">
+            <summary>The comma key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Period">
+            <summary>The period key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Slash">
+            <summary>The slash key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.RightShift">
+            <summary>The right Shift key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.NumpadMultiply">
+            <summary>The multiply key on the numeric keypad.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.LeftAlt">
+            <summary>The left Alt key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Space">
+            <summary>The space bar.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.CapsLock">
+            <summary>The Caps Lock key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.F1">
+            <summary>The F1 key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.F2">
+            <summary>The F2 key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.F3">
+            <summary>The F3 key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.F4">
+            <summary>The F4 key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.F5">
+            <summary>The F5 key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.F6">
+            <summary>The F6 key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.F7">
+            <summary>The F7 key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.F8">
+            <summary>The F8 key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.F9">
+            <summary>The F9 key. The original's cheat gate listens on this one.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.F10">
+            <summary>The F10 key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.NumLock">
+            <summary>The Num Lock key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.ScrollLock">
+            <summary>The Scroll Lock key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Numpad7">
+            <summary>The 7 key on the numeric keypad.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Numpad8">
+            <summary>The 8 key on the numeric keypad.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Numpad9">
+            <summary>The 9 key on the numeric keypad.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.NumpadSubtract">
+            <summary>The subtract key on the numeric keypad.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Numpad4">
+            <summary>The 4 key on the numeric keypad.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Numpad5">
+            <summary>The 5 key on the numeric keypad.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Numpad6">
+            <summary>The 6 key on the numeric keypad.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.NumpadAdd">
+            <summary>The add key on the numeric keypad.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Numpad1">
+            <summary>The 1 key on the numeric keypad.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Numpad2">
+            <summary>The 2 key on the numeric keypad.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Numpad3">
+            <summary>The 3 key on the numeric keypad.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Numpad0">
+            <summary>The 0 key on the numeric keypad.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.NumpadDecimal">
+            <summary>The decimal key on the numeric keypad.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.F11">
+            <summary>The F11 key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.F12">
+            <summary>The F12 key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.NumpadEnter">
+            <summary>The Return key on the numeric keypad.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.RightControl">
+            <summary>The right Control key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.NumpadDivide">
+            <summary>The divide key on the numeric keypad.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.PrintScreen">
+            <summary>The Print Screen key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.RightAlt">
+            <summary>The right Alt key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Pause">
+            <summary>The Pause key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Home">
+            <summary>The Home key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Up">
+            <summary>The up arrow key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.PageUp">
+            <summary>The Page Up key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Left">
+            <summary>The left arrow key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Right">
+            <summary>The right arrow key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.End">
+            <summary>The End key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Down">
+            <summary>The down arrow key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.PageDown">
+            <summary>The Page Down key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Insert">
+            <summary>The Insert key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Delete">
+            <summary>The Delete key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.LeftWindows">
+            <summary>The left Windows key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.RightWindows">
+            <summary>The right Windows key.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.KeyCode.Application">
+            <summary>The Application (menu) key.</summary>
+        </member>
+        <member name="T:OpenIGI.Input.MouseButton">
+            <summary>A mouse button, numbered as DirectInput reports them.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.MouseButton.Left">
+            <summary>The left button. Fire, and menu select.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.MouseButton.Right">
+            <summary>The right button. Aim down sights, and menu back.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.MouseButton.Middle">
+            <summary>The middle button.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.MouseButton.Extra1">
+            <summary>The first extra button.</summary>
+        </member>
+        <member name="F:OpenIGI.Input.MouseButton.Extra2">
+            <summary>The second extra button.</summary>
+        </member>
+        <member name="T:OpenIGI.Input.MouseState">
+            <summary>
+            Mouse position, per-frame motion and button state, with the same previous-frame shadow as
+            <see cref="T:OpenIGI.Input.KeyboardState"/>.
+            </summary>
+            <remarks>
+            <para>
+            Position is in client pixels with the origin at the top-left. <see cref="P:OpenIGI.Input.MouseState.DeltaX"/> and
+            <see cref="P:OpenIGI.Input.MouseState.DeltaY"/> are the motion accumulated since the last <see cref="M:OpenIGI.Input.MouseState.BeginFrame"/> and are what
+            look control reads. They are <em>not</em> derived from this type's own position: the host measures
+            each step against its own baseline and drops that baseline whenever the pointer is moved by
+            something other than the player, so a cursor lock re-centring the pointer does not arrive here as a
+            movement. Position, which a shell needs to keep tracking across the same event, is left alone.
+            </para>
+            <para>
+            While the cursor is locked the host reports raw device counts, so motion is unbounded and unaffected
+            by the pointer sitting at the edge of the window. While it is <em>not</em> locked the backend clamps
+            the pointer to the window, and motion past the edge is genuinely lost — which is correct for a menu,
+            and the reason look control locks the cursor.
+            </para>
+            <para>
+            <see cref="M:OpenIGI.Input.MouseState.BeginFrame"/> must run <em>before</em> the host dispatches the frame's input events: it
+            takes the button shadow and zeroes the motion accumulators, and everything the pump then delivers
+            belongs to the frame about to run.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Input.MouseState.ButtonCount">
+            <summary>The number of buttons tracked.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.MouseState.Captured">
+            <summary>Gets or sets a value indicating whether the shell has taken this frame's mouse input.</summary>
+            <remarks>
+            While set, buttons and motion read as idle but the underlying state is left intact — see
+            <c>InputState.Captured</c>. The pointer position is still reported, because a shell that has
+            taken the mouse is the very thing that needs to know where it is.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Input.MouseState.X">
+            <summary>Gets the pointer's horizontal position in client pixels.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.MouseState.Y">
+            <summary>Gets the pointer's vertical position in client pixels.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.MouseState.DeltaX">
+            <summary>Gets the horizontal motion accumulated so far this frame.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.MouseState.DeltaY">
+            <summary>Gets the vertical motion accumulated so far this frame.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.MouseState.WheelDelta">
+            <summary>Gets the wheel movement accumulated so far this frame, in notches.</summary>
+        </member>
+        <member name="M:OpenIGI.Input.MouseState.BeginFrame">
+            <summary>Takes the button shadow and clears the motion accumulators for a new frame.</summary>
+        </member>
+        <member name="M:OpenIGI.Input.MouseState.SetPosition(System.Single,System.Single)">
+            <summary>Records a pointer move.</summary>
+            <param name="x">The new horizontal position in client pixels.</param>
+            <param name="y">The new vertical position in client pixels.</param>
+        </member>
+        <member name="M:OpenIGI.Input.MouseState.AddMotion(System.Single,System.Single)">
+            <summary>Accumulates relative motion for the current frame.</summary>
+            <param name="dx">The horizontal motion.</param>
+            <param name="dy">The vertical motion.</param>
+        </member>
+        <member name="M:OpenIGI.Input.MouseState.AddWheel(System.Single)">
+            <summary>Accumulates wheel movement for the current frame.</summary>
+            <param name="delta">The movement in notches.</param>
+        </member>
+        <member name="M:OpenIGI.Input.MouseState.SetButton(OpenIGI.Input.MouseButton,System.Boolean)">
+            <summary>Sets a button's state.</summary>
+            <param name="button">The button.</param>
+            <param name="down"><see langword="true"/> when the button is down.</param>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="button"/> is not a tracked button.</exception>
+        </member>
+        <member name="M:OpenIGI.Input.MouseState.IsDown(OpenIGI.Input.MouseButton)">
+            <summary>Determines whether a button is down this frame.</summary>
+            <param name="button">The button.</param>
+            <returns><see langword="true"/> when the button is down.</returns>
+        </member>
+        <member name="M:OpenIGI.Input.MouseState.WasPressed(OpenIGI.Input.MouseButton)">
+            <summary>Determines whether a button went down between the previous frame and this one.</summary>
+            <param name="button">The button.</param>
+            <returns><see langword="true"/> on the frame the button is first down.</returns>
+        </member>
+        <member name="M:OpenIGI.Input.MouseState.WasReleased(OpenIGI.Input.MouseButton)">
+            <summary>Determines whether a button went up between the previous frame and this one.</summary>
+            <param name="button">The button.</param>
+            <returns><see langword="true"/> on the frame the button is first up again.</returns>
+        </member>
+        <member name="M:OpenIGI.Input.MouseState.Reset">
+            <summary>Clears buttons, motion and the shadow. Position is left alone.</summary>
+        </member>
+        <member name="T:OpenIGI.Input.TouchPoint">
+            <summary>A finger on the screen.</summary>
+            <param name="Id">What tells it from the other fingers for as long as it stays down.</param>
+            <param name="X">Where it is now, in window pixels.</param>
+            <param name="Y">Where it is now, in window pixels.</param>
+            <param name="StartX">Where it came down, in window pixels.</param>
+            <param name="StartY">Where it came down, in window pixels.</param>
+            <param name="DeltaX">How far it has moved this frame, in window pixels.</param>
+            <param name="DeltaY">How far it has moved this frame, in window pixels.</param>
+            <param name="Began">Whether it came down this frame.</param>
+            <param name="Ended">Whether it was lifted this frame; it is gone the next.</param>
+        </member>
+        <member name="M:OpenIGI.Input.TouchPoint.#ctor(System.Int32,System.Single,System.Single,System.Single,System.Single,System.Single,System.Single,System.Boolean,System.Boolean)">
+            <summary>A finger on the screen.</summary>
+            <param name="Id">What tells it from the other fingers for as long as it stays down.</param>
+            <param name="X">Where it is now, in window pixels.</param>
+            <param name="Y">Where it is now, in window pixels.</param>
+            <param name="StartX">Where it came down, in window pixels.</param>
+            <param name="StartY">Where it came down, in window pixels.</param>
+            <param name="DeltaX">How far it has moved this frame, in window pixels.</param>
+            <param name="DeltaY">How far it has moved this frame, in window pixels.</param>
+            <param name="Began">Whether it came down this frame.</param>
+            <param name="Ended">Whether it was lifted this frame; it is gone the next.</param>
+        </member>
+        <member name="P:OpenIGI.Input.TouchPoint.Id">
+            <summary>What tells it from the other fingers for as long as it stays down.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.TouchPoint.X">
+            <summary>Where it is now, in window pixels.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.TouchPoint.Y">
+            <summary>Where it is now, in window pixels.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.TouchPoint.StartX">
+            <summary>Where it came down, in window pixels.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.TouchPoint.StartY">
+            <summary>Where it came down, in window pixels.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.TouchPoint.DeltaX">
+            <summary>How far it has moved this frame, in window pixels.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.TouchPoint.DeltaY">
+            <summary>How far it has moved this frame, in window pixels.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.TouchPoint.Began">
+            <summary>Whether it came down this frame.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.TouchPoint.Ended">
+            <summary>Whether it was lifted this frame; it is gone the next.</summary>
+        </member>
+        <member name="T:OpenIGI.Input.TouchState">
+            <summary>The fingers on a touch screen this frame, as the window reported them.</summary>
+            <remarks>
+            The window reports each finger coming down, moving and lifting; a finger that comes down and lifts within one frame is
+            still seen for that frame, with <see cref="P:OpenIGI.Input.TouchPoint.Began"/> and <see cref="P:OpenIGI.Input.TouchPoint.Ended"/> both set, so a quick tap is
+            never lost between two frames.
+            </remarks>
+        </member>
+        <member name="P:OpenIGI.Input.TouchState.Points">
+            <summary>Gets the fingers down this frame, and those lifted this frame.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.TouchState.InUse">
+            <summary>Gets whether the screen has been touched since the window opened: whether there is a touch screen to show controls on.</summary>
+        </member>
+        <member name="P:OpenIGI.Input.TouchState.AnyDown">
+            <summary>Gets whether any finger is down.</summary>
+        </member>
+        <member name="M:OpenIGI.Input.TouchState.BeginFrame">
+            <summary>Starts a frame: fingers lifted last frame are let go, and this frame's movement starts from nought.</summary>
+        </member>
+        <member name="M:OpenIGI.Input.TouchState.Down(System.Int32,System.Single,System.Single)">
+            <summary>A finger came down.</summary>
+        </member>
+        <member name="M:OpenIGI.Input.TouchState.Move(System.Int32,System.Single,System.Single)">
+            <summary>A finger moved.</summary>
+        </member>
+        <member name="M:OpenIGI.Input.TouchState.Up(System.Int32,System.Single,System.Single)">
+            <summary>A finger was lifted, or the system took it away.</summary>
+        </member>
+        <member name="M:OpenIGI.Input.TouchState.Release">
+            <summary>Lets go of every finger, as the window loses the screen.</summary>
+        </member>
+    </members>
+</doc>

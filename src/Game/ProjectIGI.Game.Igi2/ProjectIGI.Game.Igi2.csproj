@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <InternalsVisibleTo Include="ProjectIGI.Game.Igi2.Tests" />
+    <InternalsVisibleTo Include="OpenIGI.Game.Igi2.Tests" />
   </ItemGroup>
 
   <ItemGroup>

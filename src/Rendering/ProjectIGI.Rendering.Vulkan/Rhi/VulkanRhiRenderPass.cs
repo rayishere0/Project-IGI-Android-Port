@@ -30,6 +30,12 @@ internal sealed unsafe class VulkanRhiRenderPassEncoder : IRhiRenderPassEncoder
     private readonly (Silk.NET.Vulkan.Buffer Buffer, ulong Offset)[] _boundVertices = new (Silk.NET.Vulkan.Buffer, ulong)[8];
     private (Silk.NET.Vulkan.Buffer Buffer, ulong Offset, IndexType Type) _boundIndices;
     private VulkanRhiPipelineLayout? _layout;
+
+    // Set only on the render pass path: a device that cannot begin a pass from its attachments begins one
+    // from these instead. Both are owned by the device's cache, not by the pass, so they are never destroyed
+    // here -- only used.
+    private readonly RenderPass _renderPass;
+    private readonly Framebuffer _framebuffer;
     private bool _ended;
     private bool _disposed;
 
@@ -40,13 +46,17 @@ internal sealed unsafe class VulkanRhiRenderPassEncoder : IRhiRenderPassEncoder
     /// <param name="attachments">The textures attached, to put back when the pass ends.</param>
     /// <param name="occlusion">The set an occlusion query writes into.</param>
     /// <param name="timestamps">The timestamps the pass writes; the end one is written as it ends.</param>
+    /// <param name="renderPass">The render pass object, or a default handle when the device begins passes dynamically.</param>
+    /// <param name="framebuffer">The framebuffer attached, or a default handle on the dynamic path.</param>
     public VulkanRhiRenderPassEncoder(
         VulkanRhiDevice device,
         Vk vk,
         CommandBuffer command,
         List<VulkanRhiTexture> attachments,
         VulkanRhiQuerySet? occlusion,
-        RhiTimestampWrites? timestamps = null)
+        RhiTimestampWrites? timestamps = null,
+        RenderPass renderPass = default,
+        Framebuffer framebuffer = default)
     {
         _timestamps = timestamps;
         _device = device;
@@ -54,6 +64,8 @@ internal sealed unsafe class VulkanRhiRenderPassEncoder : IRhiRenderPassEncoder
         _command = command;
         _attachments = attachments;
         _occlusion = occlusion;
+        _renderPass = renderPass;
+        _framebuffer = framebuffer;
     }
 
     /// <inheritdoc/>
@@ -306,13 +318,13 @@ internal sealed unsafe class VulkanRhiRenderPassEncoder : IRhiRenderPassEncoder
     {
         ThrowIfEnded();
 
-        if (_device.UseDynamicRendering)
+        if (_renderPass.Handle != 0)
         {
-            _vk.CmdEndRendering(_command);
+            _vk.CmdEndRenderPass(_command);
         }
         else
         {
-            _vk.CmdEndRenderPass(_command);
+            _vk.CmdEndRendering(_command);
         }
 
         _ended = true;

@@ -1,0 +1,170 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OpenIGI.Audio.OpenAL</name>
+    </assembly>
+    <members>
+        <member name="T:OpenIGI.Audio.OpenAL.OpenAlAudioDevice">
+            <summary>An <see cref="T:OpenIGI.Audio.IAudioDevice"/> on OpenAL Soft, through Silk.NET.</summary>
+            <remarks>
+            <para>
+            The original drives DirectSound directly and hand-computes every sound's apparent position into
+            volume, pan and playback frequency (<c>0x496E60</c>). This backend can do either: with
+            <see cref="P:OpenIGI.Audio.AudioDeviceOptions.Spatial"/> off it feeds OpenAL the gain and pan
+            <see cref="T:OpenIGI.Audio.VanillaSpatialiser"/> produces, and with it on it hands over the position and lets OpenAL
+            place the sound properly.
+            </para>
+            <para>
+            <b>The distance model is linear in both profiles.</b> OpenAL's
+            <see cref="F:Silk.NET.OpenAL.DistanceModel.LinearDistanceClamped"/> computes exactly the fade the original does —
+            full gain inside the reference distance, a straight line to silence at the maximum, clamped either
+            side — so the min and max distances the game's own data carries keep meaning what their authors
+            intended. Choosing an inverse model instead would be more physical and less faithful, and would
+            quietly retune every sound in the game.
+            </para>
+            <para>
+            <b>Divergence, and it is audible if you go looking:</b> OpenAL has no per-channel gain for a mono
+            source, so the vanilla profile's pan is approximated by placing the source on a unit circle around
+            the listener rather than by attenuating one output channel by an exact number of millibels. The
+            <em>gain</em> curve is exact — it goes through the original's own table — but the stereo image is a
+            close likeness rather than a reproduction. Making it exact would mean owning the mixer.
+            </para>
+            <para>
+            The voice pool, stealing, handles and stream refills are <see cref="T:OpenIGI.Audio.VoicePool`1"/>'s, shared
+            with every other backend; what is here is only what OpenAL itself needs to be told.
+            </para>
+            <para>
+            If no device can be opened the object still constructs and behaves as silence, with
+            <see cref="P:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.IsAvailable"/> false. Nothing about a missing sound card may stop the game booting.
+            </para>
+            </remarks>
+            <content>
+            The time warp: every voice slowed and muffled at once, through OpenAL's pitch and, where the driver has the effects extension
+            (<c>ALC_EXT_EFX</c>), a low-pass filter on each source's direct path.
+            </content>
+            <remarks>
+            The extension's entry points are looked up by name rather than through a binding of their own: three calls and a handful of
+            constants, from the OpenAL 1.1 effects extension's specification. A driver without it still slows; it only does not muffle.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.#ctor(OpenIGI.Audio.AudioDeviceOptions,OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Audio.OpenAL.OpenAlAudioDevice"/> class.</summary>
+            <param name="options">How to open the device.</param>
+            <param name="logger">Where to report what happened, or <see langword="null"/> for silence.</param>
+        </member>
+        <member name="P:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.IsAvailable">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.VoiceCount">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.ActiveVoiceCount">
+            <inheritdoc/>
+        </member>
+        <member name="P:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.Listener">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.SetCategoryGain(OpenIGI.Audio.SoundCategory,System.Single)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.GetCategoryGain(OpenIGI.Audio.SoundCategory)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.CreateBuffer(OpenIGI.Audio.AudioFormat,System.ReadOnlySpan{System.Byte})">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.DestroyBuffer(OpenIGI.Audio.AudioBufferHandle)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.Play(OpenIGI.Audio.AudioBufferHandle,OpenIGI.Audio.VoiceParameters@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.PlayStream(OpenIGI.Audio.ISampleSource,OpenIGI.Audio.VoiceParameters@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.IsPlaying(OpenIGI.Audio.AudioVoiceHandle)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.SetVoiceParameters(OpenIGI.Audio.AudioVoiceHandle,OpenIGI.Audio.VoiceParameters@)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.StopVoice(OpenIGI.Audio.AudioVoiceHandle)">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.StopAll">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.Update">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.Dispose">
+            <inheritdoc/>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.Silence(OpenIGI.Audio.OpenAL.OpenAlVoice)">
+            <summary>Stops a voice's source, before the pool clears the slot for reuse.</summary>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.SetDistances(Silk.NET.OpenAL.AL,System.UInt32,System.Single,System.Single,System.Single)">
+            <summary>Sets a source's distance range, keeping the two distances apart.</summary>
+            <remarks>
+            <b>The two must never be equal.</b> The distance model in force is
+            <see cref="F:Silk.NET.OpenAL.DistanceModel.LinearDistanceClamped"/>, whose gain is
+            <c>1 - rolloff * (d - reference) / (max - reference)</c>. An equal pair makes that a division by
+            zero: the result is a NaN gain, and a NaN gain is silence, not loudness. A flat voice wants no
+            attenuation at all and the obvious way to ask for it -- reference and max both one, rolloff zero
+            -- is exactly the case that breaks, because the zero rolloff multiplies a NaN rather than
+            replacing it. Separating the two and leaving the rolloff at zero asks for the same thing safely.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.PumpStream(Silk.NET.OpenAL.AL,OpenIGI.Audio.OpenAL.OpenAlVoice)">
+            <summary>Refills processed buffers and keeps a starved source moving.</summary>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.FillStreamBuffer(Silk.NET.OpenAL.AL,OpenIGI.Audio.OpenAL.OpenAlVoice,System.UInt32)">
+            <summary>Pulls one buffer's worth of samples from a voice's stream into an OpenAL buffer.</summary>
+            <returns><see langword="false"/> when the stream is finished and the buffer was not filled.</returns>
+        </member>
+        <member name="F:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.WarpStep">
+            <summary>How small a change to the warp is not worth re-applying every voice for.</summary>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDevice.SetTimeWarp(System.Single,System.Single)">
+            <inheritdoc/>
+            <remarks>
+            Muffling is a low-pass on each source's direct path: the high frequencies fall to a tenth and the whole a little, so the
+            world sounds heard through glass. Every sounding voice is re-applied when the warp moves, as a bus's gain is.
+            </remarks>
+        </member>
+        <member name="T:OpenIGI.Audio.OpenAL.OpenAlAudioDeviceFactory">
+            <summary>Opens <see cref="T:OpenIGI.Audio.OpenAL.OpenAlAudioDevice"/> instances.</summary>
+            <remarks>
+            The desktop backend's half of the <see cref="T:OpenIGI.Audio.IAudioDeviceFactory"/> seam. It adds nothing to the
+            device's own construction — it exists so that the host can name the interface instead of the
+            backend, and so the composition root stays the only place that decides which backend runs.
+            </remarks>
+        </member>
+        <member name="F:OpenIGI.Audio.OpenAL.OpenAlAudioDeviceFactory.Instance">
+            <summary>The shared instance.</summary>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlAudioDeviceFactory.Open(OpenIGI.Audio.AudioDeviceOptions,OpenIGI.Core.Diagnostics.IOpenIgiLogger)">
+            <inheritdoc/>
+            <remarks><see cref="T:OpenIGI.Audio.OpenAL.OpenAlAudioDevice"/> degrades to silence on its own when it cannot open.</remarks>
+        </member>
+        <member name="T:OpenIGI.Audio.OpenAL.OpenAlVoice">
+            <summary>One slot in the device's voice pool: a <see cref="T:OpenIGI.Audio.VoiceSlot"/> that owns an OpenAL source.</summary>
+            <remarks>
+            A slot owns its source for the whole life of the device — sources are created once at startup and
+            reused, because creating one per sound would make a firefight allocate hundreds a second. The
+            allocation, stealing and handle bookkeeping is the pool's; only the OpenAL names live here.
+            </remarks>
+        </member>
+        <member name="M:OpenIGI.Audio.OpenAL.OpenAlVoice.#ctor(System.Int32,System.UInt32)">
+            <summary>Initializes a new instance of the <see cref="T:OpenIGI.Audio.OpenAL.OpenAlVoice"/> class.</summary>
+            <param name="index">The slot index.</param>
+            <param name="source">The OpenAL source name this slot owns.</param>
+        </member>
+        <member name="P:OpenIGI.Audio.OpenAL.OpenAlVoice.Source">
+            <summary>Gets the OpenAL source name.</summary>
+        </member>
+        <member name="P:OpenIGI.Audio.OpenAL.OpenAlVoice.StreamBuffers">
+            <summary>Gets or sets the OpenAL buffers a streaming voice cycles through.</summary>
+        </member>
+    </members>
+</doc>
