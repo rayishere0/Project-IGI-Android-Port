@@ -1,0 +1,69 @@
+{
+  "module": "Shadow",
+  "variant": "veldrid",
+  "entryPoints": [
+    {
+      "name": "vertexMain",
+      "stage": "Vertex",
+      "workgroupSize": null
+    },
+    {
+      "name": "fragmentMain",
+      "stage": "Fragment",
+      "workgroupSize": null
+    }
+  ],
+  "bindings": [
+    {
+      "name": "uDiffuse",
+      "group": 0,
+      "binding": 0,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 0,
+        "space": 0
+      }
+    },
+    {
+      "name": "uDiffuseSampler",
+      "group": 0,
+      "binding": 1,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 0,
+        "space": 0
+      }
+    }
+  ],
+  "pushBlock": null,
+  "specializationConstants": [
+    {
+      "name": "cAlphaReference",
+      "id": 0,
+      "default": 1056997505,
+      "hlslOffset": 4
+    },
+    {
+      "name": "cClipYDown",
+      "id": 64,
+      "default": 1,
+      "hlslOffset": 0
+    }
+  ],
+  "globals": null,
+  "hlslConstants": {
+    "class": "ConstantBuffer",
+    "register": 0,
+    "space": 0
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "module": "ObjectVelocity",
+  "variant": "veldrid",
+  "entryPoints": [
+    {
+      "name": "vertexMain",
+      "stage": "Vertex",
+      "workgroupSize": null
+    },
+    {
+      "name": "fragmentMain",
+      "stage": "Fragment",
+      "workgroupSize": null
+    }
+  ],
+  "bindings": [],
+  "pushBlock": null,
+  "specializationConstants": [
+    {
+      "name": "cClipYDown",
+      "id": 64,
+      "default": 1,
+      "hlslOffset": 0
+    }
+  ],
+  "globals": null,
+  "hlslConstants": {
+    "class": "ConstantBuffer",
+    "register": 0,
+    "space": 0
+  }
+}

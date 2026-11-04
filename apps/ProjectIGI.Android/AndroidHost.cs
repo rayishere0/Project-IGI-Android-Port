@@ -185,7 +185,6 @@ public static class AndroidHost
                 GraphicsPresetRegistry.Default.Apply(GraphicsPreset.Vanilla);
                 FrameCVars.MissionWarmUp.Value = 25;
                 DisplayCVars.Renderer.Value = useVulkan ? RendererBackend.Vulkan : RendererBackend.OpenGL;
-                DisplayCVars.Backend.Value = useVulkan ? "vulkan" : "opengl";
                 ReconstructionCVars.FrameLimit.Value = 30;
             }
 
@@ -204,7 +203,6 @@ public static class AndroidHost
             {
                 _logger.Information("AndroidHost", "Initializing Veldrid GraphicsDevice with Vulkan 1.1 backend and Swapchain.");
                 DisplayCVars.Renderer.Value = RendererBackend.Vulkan;
-                DisplayCVars.Backend.Value = "vulkan";
 
                 var vOptions = new GraphicsDeviceOptions(
                     debug: true,
@@ -246,7 +244,6 @@ public static class AndroidHost
                     _logger.Error("AndroidHost", "Failed to create Veldrid Vulkan GraphicsDevice! Falling back to OpenGL ES...", ex);
                     useVulkan = false;
                     DisplayCVars.Renderer.Value = RendererBackend.OpenGL;
-                    DisplayCVars.Backend.Value = "opengl";
                 }
             }
 
@@ -254,7 +251,6 @@ public static class AndroidHost
             {
                 _logger.Information("AndroidHost", "Binding OpenGL ES context to GraphicsDevice via Veldrid.");
                 DisplayCVars.Renderer.Value = RendererBackend.OpenGL;
-                DisplayCVars.Backend.Value = "opengl";
 
                 nint currentEglContext = GetEglContext();
                 if (currentEglContext == nint.Zero)

@@ -399,21 +399,8 @@ public class VeldridRhiDevice : IRhiDevice
             }
             else
             {
-                // Direct GLSL/ESSL 300 shader creation path for OpenGLES/OpenGL
-                string rawGlsl = "";
-                try { rawGlsl = ShaderCatalog.GetGlslEs(vertMod.Descriptor.Module, vertMod.Descriptor.Variant); } catch { }
-
-                string vertGlsl;
-                if (!string.IsNullOrEmpty(rawGlsl))
-                {
-                    vertGlsl = rawGlsl.Contains("#version 300 es")
-                        ? rawGlsl.Replace("#version 300 es", "#version 300 es\n#define VERTEX 1\n")
-                        : "#version 300 es\n#define VERTEX 1\n" + rawGlsl;
-                }
-                else
-                {
-                    vertGlsl = "#version 300 es\nprecision mediump float;\nlayout(location = 0) in vec2 aPos;\nlayout(location = 1) in vec2 aUv;\nlayout(location = 2) in vec4 aColor;\nout vec2 vUv;\nout vec4 vColor;\nvoid main() { vUv = aUv; vColor = aColor; gl_Position = vec4(aPos, 0.0, 1.0); }";
-                }
+                // Direct GLSL/ESSL 300 fallback shader creation path for OpenGLES/OpenGL
+                string vertGlsl = "#version 300 es\nprecision mediump float;\nlayout(location = 0) in vec2 aPos;\nlayout(location = 1) in vec2 aUv;\nlayout(location = 2) in vec4 aColor;\nout vec2 vUv;\nout vec4 vColor;\nvoid main() { vUv = aUv; vColor = aColor; gl_Position = vec4(aPos, 0.0, 1.0); }";
 
                 string vertEntryPoint = string.IsNullOrWhiteSpace(descriptor.Vertex.EntryPoint) ? "main" : descriptor.Vertex.EntryPoint;
                 var vertDesc = new ShaderDescription(global::Veldrid.ShaderStages.Vertex, Encoding.UTF8.GetBytes(vertGlsl), vertEntryPoint);
@@ -421,20 +408,7 @@ public class VeldridRhiDevice : IRhiDevice
 
                 if (fragMod != null)
                 {
-                    string fragRawGlsl = "";
-                    try { fragRawGlsl = ShaderCatalog.GetGlslEs(fragMod.Descriptor.Module, fragMod.Descriptor.Variant); } catch { }
-
-                    string fragGlsl;
-                    if (!string.IsNullOrEmpty(fragRawGlsl))
-                    {
-                        fragGlsl = fragRawGlsl.Contains("#version 300 es")
-                            ? fragRawGlsl.Replace("#version 300 es", "#version 300 es\n#define FRAGMENT 1\n")
-                            : "#version 300 es\n#define FRAGMENT 1\n" + fragRawGlsl;
-                    }
-                    else
-                    {
-                        fragGlsl = "#version 300 es\nprecision mediump float;\nin vec2 vUv;\nin vec4 vColor;\nout vec4 fragColor;\nuniform sampler2D uTexture;\nvoid main() { fragColor = texture(uTexture, vUv) * vColor; }";
-                    }
+                    string fragGlsl = "#version 300 es\nprecision mediump float;\nin vec2 vUv;\nin vec4 vColor;\nout vec4 fragColor;\nuniform sampler2D uTexture;\nvoid main() { fragColor = texture(uTexture, vUv) * vColor; }";
 
                     string fragEntryPoint = string.IsNullOrWhiteSpace(descriptor.Fragment?.EntryPoint) ? "main" : descriptor.Fragment!.EntryPoint;
                     var fragDesc = new ShaderDescription(global::Veldrid.ShaderStages.Fragment, Encoding.UTF8.GetBytes(fragGlsl), fragEntryPoint);
@@ -492,12 +466,7 @@ public class VeldridRhiDevice : IRhiDevice
             }
             else
             {
-                string compGlsl = "";
-                try { compGlsl = ShaderCatalog.GetGlslEs(compMod.Descriptor.Module, compMod.Descriptor.Variant); } catch { }
-                if (string.IsNullOrEmpty(compGlsl))
-                {
-                    compGlsl = "#version 300 es\nlayout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;\nvoid main() {}";
-                }
+                string compGlsl = "#version 300 es\nlayout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;\nvoid main() {}";
 
                 string entryPoint = string.IsNullOrWhiteSpace(descriptor.Compute.EntryPoint) ? "main" : descriptor.Compute.EntryPoint;
                 var compDesc = new ShaderDescription(global::Veldrid.ShaderStages.Compute, Encoding.UTF8.GetBytes(compGlsl), entryPoint);
@@ -619,8 +588,6 @@ public class VeldridRhiDevice : IRhiDevice
 
     public bool BeginFrame(out RhiFrame frame)
     {
-        _commandListIndex = 0;
-
         if (_device == null)
         {
             frame = default;

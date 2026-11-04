@@ -40,6 +40,7 @@
     <Project Path="src/Rendering/ProjectIGI.Rendering.Pipeline/ProjectIGI.Rendering.Pipeline.csproj" />
     <Project Path="src/Rendering/ProjectIGI.Rendering.Rhi/ProjectIGI.Rendering.Rhi.csproj" />
     <Project Path="src/Rendering/ProjectIGI.Rendering.Streamline/ProjectIGI.Rendering.Streamline.csproj" />
+    <Project Path="src/Rendering/ProjectIGI.Rendering.Veldrid/ProjectIGI.Rendering.Veldrid.csproj" />
     <Project Path="src/Rendering/ProjectIGI.Rendering.Vulkan/ProjectIGI.Rendering.Vulkan.csproj" />
     <Project Path="src/Rendering/ProjectIGI.Rendering/ProjectIGI.Rendering.csproj" />
     <Project Path="src/Rendering/ProjectIGI.Shaders/ProjectIGI.Shaders.csproj" />

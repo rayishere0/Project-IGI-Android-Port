@@ -23,6 +23,7 @@
     <ProjectReference Include="..\..\src\Game\ProjectIGI.Presentation\ProjectIGI.Presentation.csproj" />
     <ProjectReference Include="..\..\src\Engine\ProjectIGI.Host\ProjectIGI.Host.csproj" />
     <ProjectReference Include="..\..\src\Rendering\ProjectIGI.Rendering.Vulkan\ProjectIGI.Rendering.Vulkan.csproj" />
+    <ProjectReference Include="..\..\src\Rendering\ProjectIGI.Rendering.Veldrid\ProjectIGI.Rendering.Veldrid.csproj" />
     <ProjectReference Include="..\..\src\Rendering\ProjectIGI.Rendering.Pipeline\ProjectIGI.Rendering.Pipeline.csproj" />
     <ProjectReference Include="..\..\src\UI\ProjectIGI.UI\ProjectIGI.UI.csproj" />
     <ProjectReference Include="..\..\src\Game\ProjectIGI.Frontend\ProjectIGI.Frontend.csproj" />

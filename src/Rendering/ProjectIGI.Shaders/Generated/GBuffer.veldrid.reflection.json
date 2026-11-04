@@ -1,0 +1,150 @@
+{
+  "module": "GBuffer",
+  "variant": "veldrid",
+  "entryPoints": [
+    {
+      "name": "vertexMain",
+      "stage": "Vertex",
+      "workgroupSize": null
+    },
+    {
+      "name": "fragmentMain",
+      "stage": "Fragment",
+      "workgroupSize": null
+    }
+  ],
+  "bindings": [
+    {
+      "name": "uDiffuse",
+      "group": 0,
+      "binding": 0,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 0,
+        "space": 0
+      }
+    },
+    {
+      "name": "uDiffuseSampler",
+      "group": 0,
+      "binding": 1,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 0,
+        "space": 0
+      }
+    },
+    {
+      "name": "uLightmap",
+      "group": 0,
+      "binding": 2,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 1,
+        "space": 0
+      }
+    },
+    {
+      "name": "uLightmapSampler",
+      "group": 0,
+      "binding": 3,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 1,
+        "space": 0
+      }
+    },
+    {
+      "name": "uDetail",
+      "group": 0,
+      "binding": 4,
+      "kind": "Texture",
+      "dimensions": 2,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ShaderResource",
+        "register": 2,
+        "space": 0
+      }
+    },
+    {
+      "name": "uDetailSampler",
+      "group": 0,
+      "binding": 5,
+      "kind": "Sampler",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "Sampler",
+        "register": 2,
+        "space": 0
+      }
+    },
+    {
+      "name": "frame",
+      "group": 1,
+      "binding": 0,
+      "kind": "UniformBuffer",
+      "dimensions": 0,
+      "storageFormat": "None",
+      "wgslStorageFormat": "None",
+      "storageAccess": "None",
+      "hlsl": {
+        "class": "ConstantBuffer",
+        "register": 2,
+        "space": 0
+      }
+    }
+  ],
+  "pushBlock": null,
+  "specializationConstants": [
+    {
+      "name": "cAlphaReference",
+      "id": 0,
+      "default": 1056997505,
+      "hlslOffset": 8
+    },
+    {
+      "name": "cClipYDown",
+      "id": 64,
+      "default": 1,
+      "hlslOffset": 4
+    },
+    {
+      "name": "cSamplerDecodes",
+      "id": 66,
+      "default": 0,
+      "hlslOffset": 0
+    }
+  ],
+  "globals": null,
+  "hlslConstants": {
+    "class": "ConstantBuffer",
+    "register": 0,
+    "space": 0
+  }
+}

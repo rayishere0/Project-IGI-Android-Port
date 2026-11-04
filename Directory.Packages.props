@@ -40,6 +40,8 @@
     <PackageVersion Include="Microsoft.Direct3D.D3D12" Version="1.619.6" />
     <PackageVersion Include="Silk.NET.OpenAL" Version="2.22.0" />
     <PackageVersion Include="Silk.NET.OpenAL.Soft.Native" Version="1.23.1" />
+    <PackageVersion Include="Veldrid" Version="4.9.0" />
+    <PackageVersion Include="Veldrid.SPIRV" Version="1.0.15" />
   </ItemGroup>
 
   <ItemGroup Label="Source generators">

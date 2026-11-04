@@ -164,16 +164,6 @@ public sealed class RetailMenuHost : IRetailMenuPresenter
                 _logger.Information(LogCategory, $"[Diag] Menu draw: background='{screen.Background}' quads={_batch.QuadCount} drawCalls={_batch.DrawCallCount}");
             }
         }
-
-        // TEMPORARY DIAGNOSTIC (black-screen investigation): draw a fullscreen opaque white
-        // quad on top of the menu, through the same sprite path (white fallback texture, white
-        // colour, opaque blend). It needs no game texture, so it splits the last fork cleanly:
-        // a WHITE screen means the sprite path, shader, present and display all work, and the
-        // black is in texture sampling at the GPU; a still-BLACK screen means the sprite path
-        // or present itself is broken, and no texture work will fix it. Remove after diagnosis.
-        _batch.Begin();
-        _batch.FillRect(new RectF(0, 0, _screenWidth(), _screenHeight()), Bgra32.White, BlendMode.Opaque);
-        _batch.End();
     }
 
     /// <inheritdoc/>
