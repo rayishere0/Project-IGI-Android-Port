@@ -146,13 +146,15 @@ public static class AndroidHost
             FrameCVars.OffscreenScene.Value = false;
             LightingCVars.Lighting.Value = LightingModel.Baked;
 
+            // Force the original classic IGI HUD (disables Remastered overlays)
+            HudCVars.RemasteredHud.Value = false;
+
             if (!settingsExist)
             {
                 // Enforce maximum speed profile on Android mobile by default on initial launch:
                 GraphicsPresetRegistry.Default.Apply(GraphicsPreset.Vanilla);
                 FrameCVars.MissionWarmUp.Value = 25;
                 DisplayCVars.Renderer.Value = RendererBackend.Vulkan;
-                DisplayCVars.Backend.Value = "vulkan";
                 ReconstructionCVars.FrameLimit.Value = 30;
             }
 
@@ -172,7 +174,6 @@ public static class AndroidHost
 
             _logger.Information("AndroidHost", "Initializing native Vulkan 1.3 device.");
             DisplayCVars.Renderer.Value = RendererBackend.Vulkan;
-            DisplayCVars.Backend.Value = "vulkan";
 
             // The native window is the ANativeWindow* the JNI bridge obtained from the Surface;
             // AndroidVulkanSurfaceProvider hands it to vkCreateAndroidSurfaceKHR. This mirrors

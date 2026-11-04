@@ -238,7 +238,7 @@ JNIEXPORT jboolean JNICALL Java_com_projectigi_app_NativeEngine_nativeStartGame
 
 
     g_game_running.store(true);
-    g_game_thread = std::thread([landscapeWidth, landscapeHeight, dataDir, options, isVulkan]() {
+    g_game_thread = std::thread([landscapeWidth, landscapeHeight, dataDir, options]() {
         LOGI("Game thread started. Attaching thread to Java VM...");
         JNIEnv* env = nullptr;
         if (g_jvm) {
