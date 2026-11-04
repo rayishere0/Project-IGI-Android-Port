@@ -2,9 +2,6 @@
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
 #include <android/log.h>
-#include <EGL/egl.h>
-#include <GLES3/gl3.h>
-#include "../graphics/egl_manager.h"
 #include <dlfcn.h>
 #include <dirent.h>
 #include <string>
@@ -18,9 +15,6 @@
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 
-#ifndef NATIVE_WINDOW_API_EGL
-#define NATIVE_WINDOW_API_EGL 1
-#endif
 
 
 // CoreCLR hosting function signatures
@@ -65,7 +59,6 @@ static StopFn g_stop_fn = nullptr;
 static std::thread g_game_thread;
 static std::atomic<bool> g_game_running{false};
 static ANativeWindow* g_native_window = nullptr;
-static jobject g_surface_global_ref = nullptr;
 
 static JavaVM* g_jvm = nullptr;
 static std::mutex g_surface_mutex;
@@ -231,13 +224,6 @@ JNIEXPORT jboolean JNICALL Java_com_projectigi_app_NativeEngine_nativeStartGame
         g_native_window = nullptr;
     }
 
-    if (g_surface_global_ref != nullptr) {
-        env->DeleteGlobalRef(g_surface_global_ref);
-        g_surface_global_ref = nullptr;
-    }
-    if (surface != nullptr) {
-        g_surface_global_ref = env->NewGlobalRef(surface);
-    }
 
     g_native_window = ANativeWindow_fromSurface(env, surface);
     if (!g_native_window) {
@@ -250,24 +236,6 @@ JNIEXPORT jboolean JNICALL Java_com_projectigi_app_NativeEngine_nativeStartGame
 
     std::string dataDir = filesDir + "/Project IGI";
 
-    // 1. Explicitly destroy EGL surface and context if previously created
-    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    if (display != EGL_NO_DISPLAY) {
-        eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-        EGLSurface currentSurface = eglGetCurrentSurface(EGL_DRAW);
-        if (currentSurface != EGL_NO_SURFACE) {
-            eglDestroySurface(display, currentSurface);
-        }
-        EGLContext currentContext = eglGetCurrentContext();
-        if (currentContext != EGL_NO_CONTEXT) {
-            eglDestroyContext(display, currentContext);
-        }
-        eglReleaseThread();
-    }
-
-    // 2. We don't disconnect the EGL API from the native window anymore.
-
-    bool isVulkan = (options.find("vulkan") != std::string::npos);
 
     g_game_running.store(true);
     g_game_thread = std::thread([landscapeWidth, landscapeHeight, dataDir, options, isVulkan]() {
@@ -278,27 +246,11 @@ JNIEXPORT jboolean JNICALL Java_com_projectigi_app_NativeEngine_nativeStartGame
             LOGI("JVM AttachCurrentThread returned %d, JNIEnv=%p", attachResult, env);
         }
 
-        if (isVulkan) {
-            LOGI("Vulkan backend selected: Bypassing EGL surface creation so vkCreateAndroidSurfaceKHR has exclusive access (%dx%d)...", landscapeWidth, landscapeHeight);
-        } else {
-            LOGI("OpenGL backend selected: Initializing EGL for C# OpenGLES engine (%dx%d)...", landscapeWidth, landscapeHeight);
-
-            if (!projectigi::EglManager::instance().createEGL(g_native_window)) {
-                LOGE("Failed to create EGL context on game thread!");
-                if (g_jvm) {
-                    g_jvm->DetachCurrentThread();
-                }
-                g_game_running.store(false);
-                return;
-            }
-        }
+        LOGI("Vulkan backend selected: vkCreateAndroidSurfaceKHR has exclusive access (%dx%d)...", landscapeWidth, landscapeHeight);
 
         int exitCode = g_run_fn((intptr_t)g_native_window, landscapeWidth, landscapeHeight, (intptr_t)dataDir.c_str(), (intptr_t)options.c_str());
         LOGI("ProjectIGI managed game loop ended with exit code: %d", exitCode);
 
-        if (!isVulkan) {
-            projectigi::EglManager::instance().destroyEGL();
-        }
 
         if (g_jvm) {
             g_jvm->DetachCurrentThread();
@@ -330,10 +282,6 @@ JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnSurfaceDestr
     if (g_game_thread.joinable()) {
         g_game_thread.join();
     }
-    if (g_surface_global_ref != nullptr && env != nullptr) {
-        env->DeleteGlobalRef(g_surface_global_ref);
-        g_surface_global_ref = nullptr;
-    }
     if (g_native_window) {
         ANativeWindow_release(g_native_window);
         g_native_window = nullptr;
@@ -349,13 +297,6 @@ JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnSurfaceRecre
         g_native_window = nullptr;
     }
 
-    if (g_surface_global_ref != nullptr) {
-        env->DeleteGlobalRef(g_surface_global_ref);
-        g_surface_global_ref = nullptr;
-    }
-    if (surface != nullptr) {
-        g_surface_global_ref = env->NewGlobalRef(surface);
-    }
 
     if (surface) {
         g_native_window = ANativeWindow_fromSurface(env, surface);
@@ -421,105 +362,12 @@ JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeShutdown
     if (g_game_thread.joinable()) {
         g_game_thread.join();
     }
-    if (g_surface_global_ref != nullptr && env != nullptr) {
-        env->DeleteGlobalRef(g_surface_global_ref);
-        g_surface_global_ref = nullptr;
-    }
     if (g_native_window) {
         ANativeWindow_release(g_native_window);
         g_native_window = nullptr;
     }
 }
 
-static EGLDisplay g_EglDisplay = EGL_NO_DISPLAY;
-static EGLSurface g_EglSurface = EGL_NO_SURFACE;
-static EGLContext g_EglContext = EGL_NO_CONTEXT;
 
-extern "C" {
-    JNIEXPORT intptr_t JNICALL get_android_surface_global_ref() {
-        return reinterpret_cast<intptr_t>(g_surface_global_ref);
-    }
-
-    JNIEXPORT jboolean JNICALL veldrid_init_egl_on_current_thread() {
-        if (!g_native_window) {
-            LOGE("veldrid_init_egl_on_current_thread: g_native_window is null!");
-            return JNI_FALSE;
-        }
-        LOGI("veldrid_init_egl_on_current_thread: Initializing EglManager for OpenGL ES fallback on game thread...");
-        bool success = projectigi::EglManager::instance().createEGL(g_native_window);
-        if (success) {
-            g_EglDisplay = eglGetCurrentDisplay();
-            g_EglSurface = eglGetCurrentSurface(EGL_DRAW);
-            g_EglContext = eglGetCurrentContext();
-            LOGI("veldrid_init_egl_on_current_thread succeeded! EGL context: %p", g_EglContext);
-        } else {
-            LOGE("veldrid_init_egl_on_current_thread failed!");
-        }
-        return success ? JNI_TRUE : JNI_FALSE;
-    }
-
-    // Veldrid RHI bindings
-    JNIEXPORT void JNICALL veldrid_cache_egl_state() {
-        g_EglDisplay = eglGetCurrentDisplay();
-        g_EglSurface = eglGetCurrentSurface(EGL_DRAW);
-        g_EglContext = eglGetCurrentContext();
-        LOGI("veldrid_cache_egl_state: display=%p, surface=%p, context=%p", g_EglDisplay, g_EglSurface, g_EglContext);
-    }
-
-    JNIEXPORT jlong JNICALL veldrid_get_egl_context() {
-        return reinterpret_cast<jlong>(eglGetCurrentContext());
-    }
-
-    JNIEXPORT void* JNICALL veldrid_get_proc_address(const char* name) {
-        void* addr = (void*)eglGetProcAddress(name);
-        if (!addr) {
-            static void* gles3Lib = dlopen("libGLESv3.so", RTLD_NOW | RTLD_GLOBAL);
-            if (gles3Lib) addr = dlsym(gles3Lib, name);
-        }
-        return addr;
-    }
-
-    JNIEXPORT void JNICALL veldrid_make_current(jlong ctx) {
-        if (ctx == 0) {
-            EGLDisplay disp = g_EglDisplay != EGL_NO_DISPLAY ? g_EglDisplay : eglGetCurrentDisplay();
-            eglMakeCurrent(disp, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-        } else {
-            if (g_EglDisplay != EGL_NO_DISPLAY && g_EglSurface != EGL_NO_SURFACE) {
-                eglMakeCurrent(g_EglDisplay, g_EglSurface, g_EglSurface, reinterpret_cast<EGLContext>(ctx));
-            } else {
-                projectigi::EglManager::instance().makeCurrent();
-            }
-            g_EglDisplay = eglGetCurrentDisplay();
-            g_EglSurface = eglGetCurrentSurface(EGL_DRAW);
-            g_EglContext = eglGetCurrentContext();
-        }
-    }
-
-    JNIEXPORT void JNICALL veldrid_swap_buffers() {
-        if (g_EglDisplay != EGL_NO_DISPLAY && g_EglSurface != EGL_NO_SURFACE && g_EglContext != EGL_NO_CONTEXT) {
-            eglMakeCurrent(g_EglDisplay, g_EglSurface, g_EglSurface, g_EglContext);
-
-            GLint readFbo = 0;
-            GLint drawFbo = 0;
-            glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &readFbo);
-            glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &drawFbo);
-
-            if (readFbo != 0 || drawFbo != 0) {
-                glBindFramebuffer(GL_READ_FRAMEBUFFER, readFbo != 0 ? readFbo : drawFbo);
-                glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-                glBlitFramebuffer(0, 0, 2400, 1080, 0, 0, 2400, 1080, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-            }
-
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            if (!eglSwapBuffers(g_EglDisplay, g_EglSurface)) {
-                // If swap fails, attempt projectigi EglManager fallback
-                projectigi::EglManager::instance().swapBuffers();
-            }
-        } else {
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            projectigi::EglManager::instance().swapBuffers();
-        }
-    }
-}
 
 } // extern "C"

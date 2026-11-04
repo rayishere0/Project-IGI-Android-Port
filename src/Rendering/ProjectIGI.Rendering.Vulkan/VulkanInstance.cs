@@ -149,14 +149,14 @@ internal sealed unsafe class VulkanInstance : IDisposable
 
     private Instance CreateInstance(List<string> extensions, bool withValidationLayer, bool withPortability)
     {
-        uint apiVersion = Vk.Version12;
+        // Vulkan 1.3 only: the Android build requires a 1.3 loader. Dynamic rendering and
+        // synchronisation-2 barriers are core in 1.3; there is no 1.2 fallback.
         uint supported;
-        if (Vk.EnumerateInstanceVersion(&supported) == Result.Success && supported >= Vk.Version13)
+        if (Vk.EnumerateInstanceVersion(&supported) != Result.Success || supported < Vk.Version13)
         {
-            // Request 1.3 when the loader offers it — that is where dynamic rendering and the
-            // synchronisation-2 barriers this backend prefers become core rather than extensions.
-            apiVersion = Vk.Version13;
+            throw new GraphicsDeviceException("Vulkan 1.3 is required but the loader does not offer it.");
         }
+        uint apiVersion = Vk.Version13;
 
         nint appName = SilkMarshal.StringToPtr("ProjectIGI");
         nint engineName = SilkMarshal.StringToPtr("ProjectIGI");
