@@ -52,6 +52,9 @@ public sealed class Sprite2DPass : IDisposable
     private int _frame;
     private bool _disposed;
 
+    // TEMPORARY DIAGNOSTIC (black-screen investigation): last time a sprite draw was reported.
+    private DateTime _lastDrawDiag;
+
     /// <summary>Initialises a new instance of the <see cref="Sprite2DPass"/> class.</summary>
     /// <param name="device">The device everything here is made on.</param>
     /// <param name="textures">Where a handle is turned into something bindable.</param>
@@ -164,6 +167,42 @@ public sealed class Sprite2DPass : IDisposable
         if (vertices.IsEmpty || indices.IsEmpty)
         {
             return;
+        }
+
+        // TEMPORARY DIAGNOSTIC (black-screen investigation): report what the sprite draws
+        // actually submit — vertex bounds, texture coordinates, first vertex colour and the
+        // projection in force — so a black screen can be told apart from degenerate geometry
+        // (bounds collapsed or off-screen, UVs all zero, colours black) versus a shader or
+        // present problem (bounds and UVs sane, textures known non-black from PR #8, still
+        // black on screen). Logged to stdout, which reaches logcat, at most once a second.
+        // Remove after diagnosis.
+        DateTime now = DateTime.UtcNow;
+        if (now - _lastDrawDiag >= TimeSpan.FromSeconds(1))
+        {
+            _lastDrawDiag = now;
+            float minX = vertices[0].X, maxX = vertices[0].X;
+            float minY = vertices[0].Y, maxY = vertices[0].Y;
+            float minU = vertices[0].U, maxU = vertices[0].U;
+            float minV = vertices[0].V, maxV = vertices[0].V;
+            for (int i = 1; i < vertices.Length; i++)
+            {
+                Vertex2D vertex = vertices[i];
+                if (vertex.X < minX) minX = vertex.X;
+                if (vertex.X > maxX) maxX = vertex.X;
+                if (vertex.Y < minY) minY = vertex.Y;
+                if (vertex.Y > maxY) maxY = vertex.Y;
+                if (vertex.U < minU) minU = vertex.U;
+                if (vertex.U > maxU) maxU = vertex.U;
+                if (vertex.V < minV) minV = vertex.V;
+                if (vertex.V > maxV) maxV = vertex.V;
+            }
+
+            var color = vertices[0].Color;
+            Console.WriteLine(
+                $"[Diag] Sprite draw: bounds=({minX},{minY})-({maxX},{maxY}) " +
+                $"uv=({minU},{minV})-({maxU},{maxV}) tex={texture} blend={blend} " +
+                $"n={vertices.Length} color=({color.R},{color.G},{color.B},{color.A}) " +
+                $"proj=({_projectionWidth},{_projectionHeight})");
         }
 
         pass.SetPipeline(Sprites.ForBlend(blend));
