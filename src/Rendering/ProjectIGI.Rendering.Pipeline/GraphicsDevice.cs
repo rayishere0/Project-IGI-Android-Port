@@ -368,7 +368,6 @@ public sealed partial class GraphicsDevice : IGraphicsDevice
 
         SealEncoder("frame");
         _device.Submit(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_sealed));
-        _sealed.Clear();
         _skySubmittedSlot = _skyRecordedSlot;
         _skyRecordedSlot = -1;
 
@@ -384,6 +383,15 @@ public sealed partial class GraphicsDevice : IGraphicsDevice
 
         _device.EndFrame(_frame);
         _inFrame = false;
+
+        // The sealed buffers own their command lists, and EndFrame has waited the
+        // device idle on Vulkan: only now is freeing them safe. Clearing without
+        // disposing leaked them; disposing before submit crashed frame 2.
+        foreach (IRhiCommandBuffer sealedBuffer in _sealed)
+        {
+            sealedBuffer.Dispose();
+        }
+        _sealed.Clear();
 
         // What frame generation did with the frame just presented, read on the presenting thread as its
         // plugin asks.

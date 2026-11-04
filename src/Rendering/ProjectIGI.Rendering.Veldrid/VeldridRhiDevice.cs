@@ -651,6 +651,9 @@ public class VeldridRhiDevice : IRhiDevice
         {
             Console.WriteLine($"[VeldridRhiDevice] Error in ConfigureSurface: {ex}");
         }
+        // The resize just destroyed the old swapchain's images; any framebuffer the
+        // encoder cached against them is dangling now.
+        VeldridRhiCommandEncoder.InvalidateFramebufferCache();
         _swapchainView = null;
     }
 

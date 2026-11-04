@@ -211,6 +211,19 @@ public class VeldridRhiCommandEncoder : IRhiCommandEncoder
         });
     }
 
+    /// <summary>Clears the framebuffer cache, disposing what it held.</summary>
+    /// <remarks>Call after a swapchain resize: cached framebuffers reference the old
+    /// swapchain's images, and reusing one after ResizeMainWindow destroys them is
+    /// the same use-after-free family as the command-list bug.</remarks>
+    public static void InvalidateFramebufferCache()
+    {
+        foreach (Framebuffer fb in FbCache.Values)
+        {
+            try { fb.Dispose(); } catch { }
+        }
+        FbCache.Clear();
+    }
+
     public IRhiRenderPassEncoder BeginRenderPass(RhiRenderPassDescriptor descriptor)
     {
         EnsureRecording();
@@ -347,6 +360,11 @@ public class VeldridRhiCommandEncoder : IRhiCommandEncoder
 
     public void ResolveQuerySet(IRhiQuerySet querySet, int firstQuery, int queryCount, IRhiBuffer destination, ulong destinationOffset) { EnsureRecording(); }
 
+    // Set once Finish hands the command list to the returned buffer. From that point the
+    // buffer owns the list, and freeing it here would hand vkQueueSubmit a dead
+    // VkCommandBuffer on the next SwapBuffers -- the Adreno SIGSEGV that killed frame 2.
+    private bool _transferred;
+
     public IRhiCommandBuffer Finish(string label = "")
     {
         if (_isRecording && CommandList != null)
@@ -354,10 +372,19 @@ public class VeldridRhiCommandEncoder : IRhiCommandEncoder
             CommandList.End();
             _isRecording = false;
         }
+        _transferred = true;
         return new VeldridRhiCommandBuffer(CommandList!) { Label = label };
     }
 
-    public void Dispose() => CommandList?.Dispose();
+    public void Dispose()
+    {
+        // Only free a list this encoder still owns: one abandoned without Finish
+        // (shutdown, a dropped frame). A finished list belongs to its buffer now.
+        if (!_transferred)
+        {
+            CommandList?.Dispose();
+        }
+    }
 }
 
 public class VeldridRhiRenderPassEncoder : IRhiRenderPassEncoder
