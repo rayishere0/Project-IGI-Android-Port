@@ -16,8 +16,7 @@ using ProjectIGI.Host.Infrastructure;
 using ProjectIGI.Platform;
 using ProjectIGI.Rendering;
 using ProjectIGI.Rendering.Pipeline;
-using ProjectIGI.Rendering.Veldrid;
-using Veldrid;
+using ProjectIGI.Rendering.Vulkan.Rhi;
 
 // The native bridge (app/android/app/src/main/cpp/jni/jni_bridge.cpp) resolves this type by the
 // literal string "OpenIGI.Android.AndroidHost", so the namespace is part of the ABI, not a naming
@@ -29,6 +28,7 @@ public static class AndroidHost
     private static GameHost? _gameHost;
     private static AndroidGameWindow? _window;
     private static ProjectIGI.Rendering.Pipeline.GraphicsDevice? _device;
+    private static VulkanRhi? _vulkanRhi;
     private static LogRouter? _logger;
 
     public delegate int RunCallback(nint nativeWindow, int width, int height, nint dataDirPtr, nint optionsPtr);
@@ -39,34 +39,8 @@ public static class AndroidHost
 
     private static DllImportResolver? _openAlResolver;
 
-    [DllImport("projectigi", EntryPoint = "veldrid_get_egl_context")]
-    private static extern nint GetEglContext();
-
-    [DllImport("projectigi", EntryPoint = "veldrid_get_proc_address")]
-    private static extern nint GetProcAddress([MarshalAs(UnmanagedType.LPStr)] string name);
-
-    [DllImport("projectigi", EntryPoint = "veldrid_cache_egl_state")]
-    private static extern void CacheEglState();
-
-    [DllImport("projectigi", EntryPoint = "veldrid_make_current")]
-    private static extern void MakeCurrent(nint context);
-
-    [DllImport("projectigi", EntryPoint = "veldrid_swap_buffers")]
-    private static extern void SwapBuffers();
-
-    [DllImport("projectigi", EntryPoint = "get_current_jni_env")]
-    public static extern nint GetCurrentJniEnv();
-
-    [DllImport("projectigi", EntryPoint = "get_android_surface_global_ref")]
-    public static extern nint GetAndroidSurfaceGlobalRef();
-
-    [DllImport("projectigi", EntryPoint = "veldrid_init_egl_on_current_thread")]
-    public static extern bool InitEglOnCurrentThread();
-
-    private static void ClearCurrentContext()
-    {
-        MakeCurrent(nint.Zero);
-    }
+    // Vulkan-only build: no EGL imports. The native Vulkan surface owns the window exclusively,
+    // so the EGL context helpers the Veldrid/OpenGL ES path used are gone.
 
     [UnmanagedCallersOnly(EntryPoint = "Run")]
     public static int Run(nint nativeWindow, int width, int height, nint dataDirPtr, nint optionsPtr)
@@ -97,7 +71,7 @@ public static class AndroidHost
         _logger = new LogRouter().AddSink(new AndroidLogSink());
         _logger.Information("AndroidHost", $"Booting ProjectIGI Android native host: {landscapeWidth}x{landscapeHeight}, dataDir: '{dataDir}'");
 
-            // Configure OpenAL native library resolver
+        // Configure OpenAL native library resolver
         try
         {
             string parentDir = !string.IsNullOrEmpty(dataDir) ? (Path.GetDirectoryName(dataDir) ?? dataDir) : string.Empty;
@@ -163,16 +137,9 @@ public static class AndroidHost
             string settingsPath = Path.Combine(dataDir, SettingsPaths.SettingsFileName);
             bool settingsExist = File.Exists(settingsPath);
 
-            string? backendSetting = SettingsFile.ReadAssignment(settingsPath, "r_backend");
-            if (string.IsNullOrEmpty(backendSetting))
-            {
-                backendSetting = SettingsFile.ReadAssignment(settingsPath, "r_renderer");
-            }
-            if (string.IsNullOrEmpty(backendSetting))
-            {
-                backendSetting = "opengl";
-            }
-            bool useVulkan = backendSetting.Equals("vulkan", StringComparison.OrdinalIgnoreCase);
+            // Vulkan-only build: the r_backend/r_renderer setting is ignored. OpenGL ES and
+            // Veldrid are removed; the native Vulkan 1.3 renderer is the only backend.
+            _logger.Information("AndroidHost", "Vulkan-only build: ignoring r_backend setting, forcing Vulkan 1.3.");
 
             // Enforce maximum speed profile on Android mobile unconditionally:
             LightingCVars.Deferred.Value = false;
@@ -184,8 +151,8 @@ public static class AndroidHost
                 // Enforce maximum speed profile on Android mobile by default on initial launch:
                 GraphicsPresetRegistry.Default.Apply(GraphicsPreset.Vanilla);
                 FrameCVars.MissionWarmUp.Value = 25;
-                DisplayCVars.Renderer.Value = useVulkan ? RendererBackend.Vulkan : RendererBackend.OpenGL;
-                DisplayCVars.Backend.Value = useVulkan ? "vulkan" : "opengl";
+                DisplayCVars.Renderer.Value = RendererBackend.Vulkan;
+                DisplayCVars.Backend.Value = "vulkan";
                 ReconstructionCVars.FrameLimit.Value = 30;
             }
 
@@ -194,137 +161,46 @@ public static class AndroidHost
                 _logger?.Information("AndroidHost", $"[FirstChanceException] {args.Exception.GetType().Name}: {args.Exception.Message}");
             };
 
-            nint jniEnv = GetCurrentJniEnv();
-
             if (landscapeWidth <= 0) landscapeWidth = 1280;
             if (landscapeHeight <= 0) landscapeHeight = 720;
 
-            Veldrid.GraphicsDevice? veldridGd = null;
-            if (useVulkan)
+            if (nativeWindow == nint.Zero)
             {
-                _logger.Information("AndroidHost", "Initializing Veldrid GraphicsDevice with Vulkan 1.1 backend and Swapchain.");
-                DisplayCVars.Renderer.Value = RendererBackend.Vulkan;
-                DisplayCVars.Backend.Value = "vulkan";
-
-                var vOptions = new GraphicsDeviceOptions(
-                    debug: true,
-                    swapchainDepthFormat: PixelFormat.D24_UNorm_S8_UInt,
-                    syncToVerticalBlank: true,
-                    resourceBindingModel: ResourceBindingModel.Improved);
-
-                try
-                {
-                    nint surfaceJObject = GetAndroidSurfaceGlobalRef();
-                    nint env = GetCurrentJniEnv();
-                    _logger.Information("AndroidHost", $"Creating Veldrid Vulkan surface with Surface JObject: 0x{surfaceJObject:X}, JNIEnv: 0x{env:X}");
-
-                    if (surfaceJObject == nint.Zero)
-                    {
-                        _logger.Error("AndroidHost", "ERROR: Native surface JObject handle is IntPtr.Zero!");
-                        throw new InvalidOperationException("Native surface JObject handle is IntPtr.Zero!");
-                    }
-
-                    if (env == nint.Zero)
-                    {
-                        _logger.Error("AndroidHost", "ERROR: JNIEnv handle is IntPtr.Zero!");
-                        throw new InvalidOperationException("JNIEnv handle is IntPtr.Zero!");
-                    }
-
-                    var scSource = SwapchainSource.CreateAndroidSurface(surfaceJObject, env);
-                    var scDesc = new SwapchainDescription(
-                        scSource,
-                        (uint)landscapeWidth,
-                        (uint)landscapeHeight,
-                        vOptions.SwapchainDepthFormat,
-                        vOptions.SyncToVerticalBlank,
-                        vOptions.SwapchainSrgbFormat);
-
-                    veldridGd = Veldrid.GraphicsDevice.CreateVulkan(vOptions, scDesc);
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error("AndroidHost", "Failed to create Veldrid Vulkan GraphicsDevice! Falling back to OpenGL ES...", ex);
-                    useVulkan = false;
-                    DisplayCVars.Renderer.Value = RendererBackend.OpenGL;
-                    DisplayCVars.Backend.Value = "opengl";
-                }
+                _logger.Error("AndroidHost", "ERROR: Native window handle is IntPtr.Zero!");
+                throw new InvalidOperationException("Native window handle is IntPtr.Zero!");
             }
 
-            if (!useVulkan)
-            {
-                _logger.Information("AndroidHost", "Binding OpenGL ES context to GraphicsDevice via Veldrid.");
-                DisplayCVars.Renderer.Value = RendererBackend.OpenGL;
-                DisplayCVars.Backend.Value = "opengl";
+            _logger.Information("AndroidHost", "Initializing native Vulkan 1.3 device.");
+            DisplayCVars.Renderer.Value = RendererBackend.Vulkan;
+            DisplayCVars.Backend.Value = "vulkan";
 
-                nint currentEglContext = GetEglContext();
-                if (currentEglContext == nint.Zero)
-                {
-                    _logger.Information("AndroidHost", "No active EGL context. Initializing EglManager on current thread for GLES fallback...");
-                    bool eglOk = InitEglOnCurrentThread();
-                    _logger.Information("AndroidHost", $"InitEglOnCurrentThread returned: {eglOk}");
-                    currentEglContext = GetEglContext();
-                }
+            // The native window is the ANativeWindow* the JNI bridge obtained from the Surface;
+            // AndroidVulkanSurfaceProvider hands it to vkCreateAndroidSurfaceKHR. This mirrors
+            // desktop's VulkanRhi.CreateForSurface(new VulkanSurfaceProvider(...)) exactly.
+            _vulkanRhi = VulkanRhi.CreateForSurface(
+                new AndroidVulkanSurfaceProvider(nativeWindow),
+                landscapeWidth,
+                landscapeHeight,
+                vsync: true,
+                _logger,
+                enableValidation: false,
+                streamline: null);
 
-                if (currentEglContext == nint.Zero)
-                {
-                    MakeCurrent((nint)1);
-                    currentEglContext = GetEglContext();
-                }
-
-                CacheEglState();
-
-                if (currentEglContext == nint.Zero)
-                {
-                    _logger.Error("AndroidHost", "FATAL: No EGL context current on game thread!");
-                }
-                else
-                {
-                    _logger.Information("AndroidHost", $"EGL context active on game thread: 0x{currentEglContext:X}");
-                }
-
-                var platformInfo = new Veldrid.OpenGL.OpenGLPlatformInfo(
-                    openGLContextHandle: GetEglContext(),
-                    getProcAddress: name => GetProcAddress(name),
-                    makeCurrent: ctx => MakeCurrent(ctx),
-                    getCurrentContext: () => GetEglContext(),
-                    clearCurrentContext: () => MakeCurrent(IntPtr.Zero),
-                    deleteContext: _ => { },
-                    swapBuffers: () => SwapBuffers(),
-                    setSyncToVerticalBlank: _ => { });
-
-                var vOptions = new GraphicsDeviceOptions(
-                    debug: false,
-                    swapchainDepthFormat: PixelFormat.D24_UNorm_S8_UInt,
-                    syncToVerticalBlank: true,
-                    resourceBindingModel: ResourceBindingModel.Improved);
-
-                veldridGd = Veldrid.GraphicsDevice.CreateOpenGL(
-                    vOptions,
-                    platformInfo,
-                    (uint)landscapeWidth,
-                    (uint)landscapeHeight);
-            }
-
-            var rhiDevice = new VeldridRhiDevice(veldridGd!);
+            var rhiDevice = _vulkanRhi.Device;
             _device = new ProjectIGI.Rendering.Pipeline.GraphicsDevice(
                 rhiDevice,
                 new DisplayMode(landscapeWidth, landscapeHeight, 32, 60),
                 captureFrames: options.ScreenshotPath is not null,
                 logger: _logger);
 
-            _logger.Information("AndroidHost", $"Veldrid initialized on adapter: {rhiDevice.AdapterName}");
-            rhiDevice.ConfigureSurface(landscapeWidth, landscapeHeight, true);
-            _logger.Information("AndroidHost", $"Configured Veldrid surface dimensions: {landscapeWidth}x{landscapeHeight}");
+            // The pipeline GraphicsDevice configures the surface itself (and on resize) through
+            // IRhiDevice.ConfigureSurface; there is no manual surface step here.
+            _logger.Information("AndroidHost", $"Native Vulkan initialized on adapter: {rhiDevice.AdapterName}");
 
             ProjectIGI.Rendering.Generated.CVarRegistrations.RegisterAll();
             ProjectIGI.Game.Generated.CVarRegistrations.RegisterAll();
 
-            RendererBackend chosenBackend = DisplayCVars.Renderer.Value;
-            if (chosenBackend == RendererBackend.Auto)
-            {
-                chosenBackend = useVulkan ? RendererBackend.Vulkan : RendererBackend.OpenGL;
-            }
-
+            RendererBackend chosenBackend = RendererBackend.Vulkan;
             _logger.Information("AndroidHost", $"Using rendering API: {chosenBackend} (Settings exist: {settingsExist})");
 
             int exitCode;
@@ -370,6 +246,8 @@ public static class AndroidHost
             _gameHost = null;
             _device?.Dispose();
             _device = null;
+            _vulkanRhi?.Dispose();
+            _vulkanRhi = null;
             _window?.Dispose();
             _window = null;
         }
@@ -405,35 +283,5 @@ public static class AndroidHost
     public static void Stop()
     {
         _window?.Close();
-    }
-
-    [DllImport("vulkan", EntryPoint = "vkCreateAndroidSurfaceKHR")]
-    private static extern unsafe int vkCreateAndroidSurfaceKHR(
-        nint instance,
-        AndroidSurfaceCreateInfoKHR* pCreateInfo,
-        void* pAllocator,
-        nint* pSurface);
-
-    private struct AndroidSurfaceCreateInfoKHR
-    {
-        public int sType;
-        public nint pNext;
-        public uint flags;
-        public nint window;
-    }
-
-    private static unsafe Silk.NET.Vulkan.Result CreateAndroidSurface(nint instanceHandle, nint nativeWindow, out Silk.NET.Vulkan.SurfaceKHR surface)
-    {
-        surface = default;
-        AndroidSurfaceCreateInfoKHR createInfo = new()
-        {
-            sType = 1000008000, // VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR
-            window = nativeWindow
-        };
-
-        nint surfaceHandle = 0;
-        int result = vkCreateAndroidSurfaceKHR(instanceHandle, &createInfo, null, &surfaceHandle);
-        surface = new Silk.NET.Vulkan.SurfaceKHR((ulong)(long)surfaceHandle);
-        return (Silk.NET.Vulkan.Result)result;
     }
 }
