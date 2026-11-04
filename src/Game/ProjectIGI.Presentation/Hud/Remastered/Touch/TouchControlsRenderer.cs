@@ -8,11 +8,19 @@ using ProjectIGI.UI.Text;
 
 namespace ProjectIGI.Presentation.Hud.Remastered.Touch;
 
-/// <summary>Draws a touch screen's controls with classic Project I.G.I. military phosphor green and tactical glass styling.</summary>
+/// <summary>Draws a touch screen's controls with our own I.G.I. styling: flat dark olive, properly translucent, no glow, no glass.</summary>
 public static class TouchControlsRenderer
 {
-    private static readonly Bgra32 Glass = Bgra32.FromRgba(6, 14, 8, 120);
-    private static readonly Bgra32 GlassHeld = Bgra32.FromRgba(78, 255, 120, 85);
+    // In-game buttons: flat I.G.I. olive. Idle is translucent so the game shows through;
+    // held is clearly more solid, so a press reads instantly. Glyphs stay fully opaque to stay readable.
+    private static readonly Bgra32 IgiFill = Bgra32.FromRgba(22, 28, 16, 135);
+    private static readonly Bgra32 IgiFillHeld = Bgra32.FromRgba(38, 48, 26, 215);
+    private static readonly Bgra32 IgiRim = Bgra32.FromRgba(158, 176, 118, 200);
+    private static readonly Bgra32 IgiRimHeld = Bgra32.FromRgba(190, 205, 140, 255);
+    private static readonly Bgra32 IgiInk = Bgra32.FromRgba(238, 242, 224, 255);
+    private static readonly Bgra32 IgiInkFaint = Bgra32.FromRgba(150, 165, 115, 165);
+    private static readonly Bgra32 IgiStickFill = Bgra32.FromRgba(22, 28, 16, 90);
+    // The palette below stays for the customization toolbar only; it is a config tool, not the game buttons.
     private static readonly Bgra32 Rim = Bgra32.FromRgba(78, 255, 120, 90);
     private static readonly Bgra32 Ink = Bgra32.FromRgba(220, 255, 215, 240);
     private static readonly Bgra32 InkFaint = Bgra32.FromRgba(110, 160, 105, 140);
@@ -29,7 +37,6 @@ public static class TouchControlsRenderer
         ArgumentNullException.ThrowIfNull(controls);
 
         UiPainter painter = UiPainter.Create(batch, context);
-        Bgra32 accent = theme?.Palette.Accent ?? DefaultAccent;
         float rim = MathF.Max(1f, context.Px(2f));
         float stroke = MathF.Max(1.5f, context.Px(4f));
 
@@ -57,17 +64,17 @@ public static class TouchControlsRenderer
             }
 
             bool live = spot.Button == TouchButton.Use && offered;
-            Disc(painter, spot.Centre, spot.Radius, held ? GlassHeld : Glass, held || live ? accent : Rim, held || live ? rim * 1.6f : rim);
+            Disc(painter, spot.Centre, spot.Radius, held ? IgiFillHeld : IgiFill, held || live ? IgiRimHeld : IgiRim, held || live ? rim * 1.6f : rim);
 
             HudIcon action = spot.Button == TouchButton.Use && model is { Actions: [var first, ..] } ? first.Icon : HudIcon.None;
             if (action.IsSome && icons is not null
-                && DrawPicture(batch, icons, action, spot.Centre, spot.Radius * 1.25f, spot.Radius * 1.05f, Ink))
+                && DrawPicture(batch, icons, action, spot.Centre, spot.Radius * 1.25f, spot.Radius * 1.05f, IgiInk))
             {
                 continue;
             }
 
             float size = spot.Radius * (spot.Button == TouchButton.Fire ? 0.5f : 0.46f);
-            Bgra32 ink = spot.Button == TouchButton.Use && !offered && !held ? InkFaint : Ink;
+            Bgra32 ink = spot.Button == TouchButton.Use && !offered && !held ? IgiInkFaint : IgiInk;
             DrawGlyph(painter, spot.Button, spot.Centre, size, spot.Radius > context.Px(80f) ? stroke * 1.3f : stroke, ink);
         }
 
@@ -210,21 +217,21 @@ public static class TouchControlsRenderer
         float reach = controls.StickReachPixels;
         UiVec2 origin = controls.StickOrigin ?? controls.StickRest;
         bool active = controls.StickOrigin is not null;
-        painter.PushOpacity(active ? 1f : 0.6f);
+        painter.PushOpacity(active ? 1f : 0.85f);
 
-        painter.FillArc(origin, 0f, reach, 0f, MathF.Tau, Bgra32.FromRgba(6, 14, 8, 70));
-        painter.FillArc(origin, reach - rim, reach, 0f, MathF.Tau, Rim);
+        painter.FillArc(origin, 0f, reach, 0f, MathF.Tau, IgiStickFill);
+        painter.FillArc(origin, reach - rim, reach, 0f, MathF.Tau, IgiRim);
 
         float caret = reach * 0.09f;
         float at = reach - (caret * 1.8f);
-        painter.DrawChevron(new UiVec2(origin.X, origin.Y - at), caret, UiDirection.Up, stroke * 0.6f, InkFaint);
-        painter.DrawChevron(new UiVec2(origin.X, origin.Y + at), caret, UiDirection.Down, stroke * 0.6f, InkFaint);
-        painter.DrawChevron(new UiVec2(origin.X - at, origin.Y), caret, UiDirection.Left, stroke * 0.6f, InkFaint);
-        painter.DrawChevron(new UiVec2(origin.X + at, origin.Y), caret, UiDirection.Right, stroke * 0.6f, InkFaint);
+        painter.DrawChevron(new UiVec2(origin.X, origin.Y - at), caret, UiDirection.Up, stroke * 0.6f, IgiInkFaint);
+        painter.DrawChevron(new UiVec2(origin.X, origin.Y + at), caret, UiDirection.Down, stroke * 0.6f, IgiInkFaint);
+        painter.DrawChevron(new UiVec2(origin.X - at, origin.Y), caret, UiDirection.Left, stroke * 0.6f, IgiInkFaint);
+        painter.DrawChevron(new UiVec2(origin.X + at, origin.Y), caret, UiDirection.Right, stroke * 0.6f, IgiInkFaint);
 
         UiVec2 knob = new(origin.X + (controls.Stick.X * reach), origin.Y + (controls.Stick.Y * reach));
         float knobRadius = reach * 0.4f;
-        Disc(painter, knob, knobRadius, active ? GlassHeld : Glass, active ? HighlightSelect : Rim, rim);
+        Disc(painter, knob, knobRadius, active ? IgiFillHeld : IgiFill, active ? IgiRimHeld : IgiRim, rim);
         painter.PopOpacity();
     }
 
@@ -235,12 +242,12 @@ public static class TouchControlsRenderer
         UiRect box = spot.Box;
         float cut = box.Height * 0.22f;
         painter.FillCutRect(box with { Y = box.Y + context.Px(3f) }, cut, UiCorners.TopLeft | UiCorners.BottomRight, Shade);
-        painter.FillCutRect(box, cut, UiCorners.TopLeft | UiCorners.BottomRight, held ? GlassHeld : Glass);
-        painter.StrokeCutRect(box, cut, UiCorners.TopLeft | UiCorners.BottomRight, rim, Rim);
+        painter.FillCutRect(box, cut, UiCorners.TopLeft | UiCorners.BottomRight, held ? IgiFillHeld : IgiFill);
+        painter.StrokeCutRect(box, cut, UiCorners.TopLeft | UiCorners.BottomRight, rim, held ? IgiRimHeld : IgiRim);
 
         float mark = box.Height * 0.16f;
         UiVec2 corner = new(box.X + (mark * 1.6f), box.Y + (mark * 1.5f));
-        DrawGlyph(painter, TouchButton.Weapon, corner, mark, stroke * 0.7f, InkFaint);
+        DrawGlyph(painter, TouchButton.Weapon, corner, mark, stroke * 0.7f, IgiInkFaint);
 
         HudWeaponView? weapon = model?.Weapon;
         string? rounds = weapon is { Magazine: { } loaded }
@@ -252,17 +259,17 @@ public static class TouchControlsRenderer
         {
             UiVec2 extent = font.Measure(rounds, textSize);
             textWidth = extent.X + (box.Height * 0.25f);
-            painter.DrawText(font, rounds, new UiVec2(box.Right - textWidth, box.Bottom - extent.Y - (box.Height * 0.16f)), textSize, Ink);
+            painter.DrawText(font, rounds, new UiVec2(box.Right - textWidth, box.Bottom - extent.Y - (box.Height * 0.16f)), textSize, IgiInk);
         }
 
         UiVec2 middle = new(box.X + ((box.Width - textWidth) * 0.5f) + (mark * 0.8f), box.Y + (box.Height * 0.5f));
         if (weapon is { Icon.IsSome: true } shown && icons is not null
-            && DrawPicture(batch, icons, shown.Icon, middle, (box.Width - textWidth) * 0.7f, box.Height * 0.66f, Ink))
+            && DrawPicture(batch, icons, shown.Icon, middle, (box.Width - textWidth) * 0.7f, box.Height * 0.66f, IgiInk))
         {
             return;
         }
 
-        DrawGlyph(painter, TouchButton.Weapon, middle, box.Height * 0.25f, stroke, Ink);
+        DrawGlyph(painter, TouchButton.Weapon, middle, box.Height * 0.25f, stroke, IgiInk);
     }
 
     private static bool DrawPicture(SpriteBatch batch, IHudIconSource icons, HudIcon icon, UiVec2 centre, float maxWidth, float maxHeight, Bgra32 ink)
