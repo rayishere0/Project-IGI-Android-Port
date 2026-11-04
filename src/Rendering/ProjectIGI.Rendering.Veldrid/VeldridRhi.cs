@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Text;
 using ProjectIGI.Rendering.Rhi;
 using Veldrid;
@@ -387,10 +388,83 @@ public class VeldridRhiCommandEncoder : IRhiCommandEncoder
     }
 }
 
+/// <summary>Per-device uniform ring that backs <see cref="VeldridRhiRenderPassEncoder.SetPushData"/>.</summary>
+/// <remarks>
+/// Veldrid exposes no push-constant API, so push data is written into slots of one uniform buffer
+/// and bound as set 3 (OPENIGI_PUSH_CONSTANT_GROUP) with a dynamic offset naming the slot. Slots are
+/// 256 bytes: that covers every push block the RHI allows and keeps dynamic offsets aligned to the
+/// uniform-buffer alignment Vulkan guarantees. The ring holds far more than one frame's push traffic,
+/// so a slot is never overwritten while a submitted frame still reads it; the cursor simply wraps.
+/// </remarks>
+public sealed class VeldridPushRing : IDisposable
+{
+    public const int SlotSizeBytes = 256;
+    public const int SlotCount = 256;
+
+    private readonly GraphicsDevice _device;
+    private readonly DeviceBuffer _buffer;
+    private readonly Dictionary<ResourceLayout, ResourceSet> _sets = new();
+    private readonly object _gate = new();
+    private int _nextSlot;
+
+    public VeldridPushRing(GraphicsDevice device)
+    {
+        _device = device;
+        _buffer = device.ResourceFactory.CreateBuffer(new BufferDescription(
+            (uint)(SlotSizeBytes * SlotCount),
+            BufferUsage.UniformBuffer | BufferUsage.Dynamic));
+    }
+
+    /// <summary>Writes push data into the next slot and returns the set and dynamic offset to bind.</summary>
+    public (ResourceSet Set, uint Offset) Write(ResourceLayout pushLayout, ReadOnlySpan<byte> data)
+    {
+        lock (_gate)
+        {
+            int slot = _nextSlot;
+            _nextSlot = (_nextSlot + 1) % SlotCount;
+            uint offset = (uint)(slot * SlotSizeBytes);
+
+            if (!_sets.TryGetValue(pushLayout, out ResourceSet? set))
+            {
+                set = _device.ResourceFactory.CreateResourceSet(new ResourceSetDescription(
+                    pushLayout,
+                    new DeviceBufferRange(_buffer, 0, SlotSizeBytes)));
+                _sets[pushLayout] = set;
+            }
+
+            int length = Math.Min(data.Length, SlotSizeBytes);
+            if (length > 0)
+            {
+                unsafe
+                {
+                    fixed (byte* ptr = data)
+                    {
+                        _device.UpdateBuffer(_buffer, offset, (IntPtr)ptr, (uint)length);
+                    }
+                }
+            }
+
+            return (set, offset);
+        }
+    }
+
+    public void Dispose()
+    {
+        foreach (ResourceSet set in _sets.Values)
+        {
+            try { set.Dispose(); } catch { }
+        }
+        _sets.Clear();
+        try { _buffer.Dispose(); } catch { }
+    }
+}
+
 public class VeldridRhiRenderPassEncoder : IRhiRenderPassEncoder
 {
     private readonly CommandList _commandList;
     private readonly VeldridRhiCommandEncoder _encoder;
+    private static readonly ConcurrentDictionary<GraphicsDevice, VeldridPushRing> PushRings = new();
+    private VeldridRhiPipelineLayout? _boundLayout;
 
     public CommandList CommandList => _commandList;
 
@@ -421,40 +495,37 @@ public class VeldridRhiRenderPassEncoder : IRhiRenderPassEncoder
         }
     }
 
-    [System.Runtime.InteropServices.DllImport("GLESv2", EntryPoint = "glGetIntegerv")]
-    private static extern void glGetIntegerv(int pname, out int paramsVal);
-
-    [System.Runtime.InteropServices.DllImport("GLESv2", EntryPoint = "glGetUniformLocation")]
-    private static extern int glGetUniformLocation(int program, [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPStr)] string name);
-
-    [System.Runtime.InteropServices.DllImport("GLESv2", EntryPoint = "glUniform2f")]
-    private static extern void glUniform2f(int location, float v0, float v1);
-
     public void SetPushData(ReadOnlySpan<byte> data, int offset = 0)
     {
         Begin();
-        if (data.Length >= 8)
+        // Veldrid has no push-constant API, and its pipeline layouts carry no push range, so the
+        // previous implementation — OpenGL calls that only exist on the GLES backend — silently set
+        // nothing on Vulkan, leaving the sprite shader's projection at (0,0) and every sprite vertex
+        // dividing by zero (the black menu). Push data instead rides the per-device uniform ring,
+        // bound as set OPENIGI_PUSH_CONSTANT_GROUP (3), which the pipeline layout reserves for
+        // pipelines that declare push data. Pipelines without a set-3 layout (no push data, or built
+        // before the layout change) simply skip the bind.
+        if (offset < 0 || offset > data.Length || _commandList == null)
         {
-            unsafe
-            {
-                fixed (byte* ptr = data.Slice(offset))
-                {
-                    float* fPtr = (float*)ptr;
-                    float w = fPtr[0];
-                    float h = fPtr[1];
-                    glGetIntegerv(0x8B8D /* GL_CURRENT_PROGRAM */, out int prog);
-                    if (prog > 0)
-                    {
-                        int loc = glGetUniformLocation(prog, "push.projectionSize");
-                        if (loc < 0) loc = glGetUniformLocation(prog, "push");
-                        if (loc >= 0)
-                        {
-                            glUniform2f(loc, w, h);
-                        }
-                    }
-                }
-            }
+            return;
         }
+        ReadOnlySpan<byte> push = data.Slice(offset);
+        if (push.IsEmpty)
+        {
+            return;
+        }
+        if (_boundLayout?.ResourceLayouts == null || _boundLayout.ResourceLayouts.Length <= 3)
+        {
+            return;
+        }
+        ResourceLayout? pushLayout = _boundLayout.ResourceLayouts[3];
+        if (pushLayout == null)
+        {
+            return;
+        }
+        VeldridPushRing ring = PushRings.GetOrAdd(_encoder.Device, static device => new VeldridPushRing(device));
+        (ResourceSet set, uint dynOffset) = ring.Write(pushLayout, push);
+        _commandList.SetGraphicsResourceSet(3, set, new uint[] { dynOffset });
     }
     public void PushDebugGroup(string label) { Begin(); }
     public void PopDebugGroup() { }
@@ -466,6 +537,7 @@ public class VeldridRhiRenderPassEncoder : IRhiRenderPassEncoder
     public void SetPipeline(IRhiRenderPipeline pipeline)
     {
         Begin();
+        _boundLayout = (pipeline as VeldridRhiRenderPipeline)?.Layout as VeldridRhiPipelineLayout;
         if (_commandList != null && pipeline is VeldridRhiRenderPipeline vPipe && vPipe.Pipeline != null)
         {
             _commandList.SetPipeline(vPipe.Pipeline);
@@ -591,6 +663,10 @@ public class VeldridRhiComputePassEncoder : IRhiComputePassEncoder
         }
     }
 
+    // NOTE: same gap as the render pass had — compute push data is dropped here. The render-pass
+    // fix (uniform ring, set 3) does not cover compute, because Veldrid compute pipelines are
+    // created with no resource layouts at all; wiring a push set through compute pipeline creation
+    // is follow-up work, and no compute path is on the menu's critical path.
     public void SetPushData(ReadOnlySpan<byte> data, int offset = 0) { Begin(); }
     public void PushDebugGroup(string label) { Begin(); }
     public void PopDebugGroup() { }

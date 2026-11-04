@@ -4,51 +4,183 @@
   "modules": [
     {
       "id": "Sprite2D",
-      "source": "Ui/Sprite2D.slang"
+      "source": "Ui/Sprite2D.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "SdfText",
-      "source": "Ui/SdfText.slang"
+      "source": "Ui/SdfText.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "Loading",
-      "source": "Ui/Loading.slang"
+      "source": "Ui/Loading.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "Mesh3D",
-      "source": "World/Mesh3D.slang"
+      "source": "World/Mesh3D.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "Shadow",
-      "source": "World/Shadow.slang"
+      "source": "World/Shadow.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "Card",
-      "source": "World/Card.slang"
+      "source": "World/Card.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "GBuffer",
-      "source": "World/GBuffer.slang"
+      "source": "World/GBuffer.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "Glass",
-      "source": "World/Glass.slang"
+      "source": "World/Glass.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "Rain",
-      "source": "World/Rain.slang"
+      "source": "World/Rain.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "GlassLayer",
-      "source": "World/GlassLayer.slang"
+      "source": "World/GlassLayer.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "Occlusion",
-      "source": "World/Occlusion.slang"
+      "source": "World/Occlusion.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "Outline",
-      "source": "World/Outline.slang"
+      "source": "World/Outline.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "BloomDownsample",
@@ -210,7 +342,18 @@
     },
     {
       "id": "ObjectVelocity",
-      "source": "Deferred/ObjectVelocity.slang"
+      "source": "Deferred/ObjectVelocity.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "Ssao",
@@ -322,6 +465,15 @@
             "OPENIGI_RAY_QUERY": "0",
             "OPENIGI_MAX_LAMPS": "160"
           }
+        },
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
         }
       ]
     },
@@ -331,6 +483,15 @@
       "variants": [
         {
           "name": "default"
+        },
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
         }
       ]
     },
@@ -480,6 +641,15 @@
             "Spirv",
             "Dxil"
           ]
+        },
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
         }
       ]
     },
@@ -521,11 +691,33 @@
     },
     {
       "id": "Water",
-      "source": "World/Water.slang"
+      "source": "World/Water.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "Tracer",
-      "source": "World/Tracer.slang"
+      "source": "World/Tracer.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "ModDisplay",
@@ -533,15 +725,48 @@
     },
     {
       "id": "HudFx",
-      "source": "Ui/HudFx.slang"
+      "source": "Ui/HudFx.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "ScopeGlint",
-      "source": "Ui/ScopeGlint.slang"
+      "source": "Ui/ScopeGlint.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     },
     {
       "id": "Silhouette",
-      "source": "Post/Silhouette.slang"
+      "source": "Post/Silhouette.slang",
+      "variants": [
+        {
+          "name": "veldrid",
+          "defines": {
+            "OPENIGI_NO_PUSH_CONSTANTS": "1"
+          },
+          "targets": [
+            "Spirv"
+          ]
+        }
+      ]
     }
   ]
 }

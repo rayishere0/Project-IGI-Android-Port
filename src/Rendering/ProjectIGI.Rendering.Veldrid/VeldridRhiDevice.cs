@@ -266,6 +266,35 @@ public class VeldridRhiDevice : IRhiDevice
                 }
             }
 
+            // Veldrid has no push-constant API, so push data rides a uniform buffer bound as
+            // set OPENIGI_PUSH_CONSTANT_GROUP (3); see VeldridRhiRenderPassEncoder.SetPushData.
+            // Veldrid numbers sets by position in this list, so the sets between the last bind
+            // group and group 3 are padded with empty layouts. If the padding fails, the layout
+            // is returned without a push set and SetPushData becomes a no-op, as today.
+            if (descriptor.PushDataBytes > 0)
+            {
+                try
+                {
+                    while (resLayouts.Count < 3)
+                    {
+                        resLayouts.Add(_device.ResourceFactory.CreateResourceLayout(new ResourceLayoutDescription()));
+                    }
+
+                    global::Veldrid.ShaderStages pushStages = 0;
+                    if (descriptor.PushDataVisibility.HasFlag(RhiShaderStages.Vertex)) pushStages |= global::Veldrid.ShaderStages.Vertex;
+                    if (descriptor.PushDataVisibility.HasFlag(RhiShaderStages.Fragment)) pushStages |= global::Veldrid.ShaderStages.Fragment;
+                    if (descriptor.PushDataVisibility.HasFlag(RhiShaderStages.Compute)) pushStages |= global::Veldrid.ShaderStages.Compute;
+                    if (pushStages == 0) pushStages = global::Veldrid.ShaderStages.Vertex | global::Veldrid.ShaderStages.Fragment;
+
+                    resLayouts.Add(_device.ResourceFactory.CreateResourceLayout(new ResourceLayoutDescription(
+                        new ResourceLayoutElementDescription("push", ResourceKind.UniformBuffer, pushStages))));
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[VeldridRhiDevice] Could not add push-data layout to '{descriptor.Label}': {ex.Message}");
+                }
+            }
+
             return new VeldridRhiPipelineLayout() { Label = descriptor.Label, ResourceLayouts = resLayouts.ToArray() };
         }
         catch (Exception)
@@ -304,6 +333,27 @@ public class VeldridRhiDevice : IRhiDevice
         return vLayouts;
     }
 
+    /// <summary>Gets a module's SPIR-V for Veldrid, preferring the variant compiled without push constants.</summary>
+    /// <remarks>
+    /// Veldrid cannot set Vulkan push constants: its pipeline layouts carry no push range, and its
+    /// command lists expose no push API. So the Veldrid build of each push-using module compiles the
+    /// push block as a group-3 uniform buffer (OPENIGI_NO_PUSH_CONSTANTS), which
+    /// <see cref="VeldridRhiRenderPassEncoder.SetPushData"/> feeds from a ring. Until that variant is
+    /// built, this falls back to the requested variant, preserving today's behaviour (the push block
+    /// reads zero) rather than failing pipeline creation.
+    /// </remarks>
+    private static ReadOnlyMemory<byte> GetSpirvForVeldrid(ShaderModuleId module, ShaderVariant variant)
+    {
+        try
+        {
+            return ShaderCatalog.GetSpirv(module, new ShaderVariant("veldrid"));
+        }
+        catch (InvalidOperationException)
+        {
+            return ShaderCatalog.GetSpirv(module, variant);
+        }
+    }
+
     public IRhiRenderPipeline CreateRenderPipeline(RhiRenderPipelineDescriptor descriptor)
     {
         bool isDeferredEnabled = LightingCVars.Deferred.Value;
@@ -328,14 +378,14 @@ public class VeldridRhiDevice : IRhiDevice
 
             if (_device.BackendType == GraphicsBackend.Vulkan)
             {
-                ReadOnlyMemory<byte> vertSpv = ShaderCatalog.GetSpirv(vertMod.Descriptor.Module, vertMod.Descriptor.Variant);
+                ReadOnlyMemory<byte> vertSpv = GetSpirvForVeldrid(vertMod.Descriptor.Module, vertMod.Descriptor.Variant);
                 string vertEntryPoint = string.IsNullOrWhiteSpace(descriptor.Vertex.EntryPoint) ? "main" : descriptor.Vertex.EntryPoint;
                 var vertDesc = new ShaderDescription(global::Veldrid.ShaderStages.Vertex, vertSpv.ToArray(), vertEntryPoint);
                 var vertShader = _device.ResourceFactory.CreateShader(vertDesc);
 
                 if (fragMod != null)
                 {
-                    ReadOnlyMemory<byte> fragSpv = ShaderCatalog.GetSpirv(fragMod.Descriptor.Module, fragMod.Descriptor.Variant);
+                    ReadOnlyMemory<byte> fragSpv = GetSpirvForVeldrid(fragMod.Descriptor.Module, fragMod.Descriptor.Variant);
                     string fragEntryPoint = string.IsNullOrWhiteSpace(descriptor.Fragment?.EntryPoint) ? "main" : descriptor.Fragment!.EntryPoint;
                     var fragDesc = new ShaderDescription(global::Veldrid.ShaderStages.Fragment, fragSpv.ToArray(), fragEntryPoint);
                     var fragShader = _device.ResourceFactory.CreateShader(fragDesc);
@@ -416,7 +466,7 @@ public class VeldridRhiDevice : IRhiDevice
                 _device.MainSwapchain?.Framebuffer?.OutputDescription ?? _device.SwapchainFramebuffer.OutputDescription);
 
             var pipeline = _device.ResourceFactory.CreateGraphicsPipeline(pipelineDesc);
-            return new VeldridRhiRenderPipeline(pipeline) { Label = descriptor.Label };
+            return new VeldridRhiRenderPipeline(pipeline) { Label = descriptor.Label, Layout = descriptor.Layout };
         }
         catch (Exception ex)
         {
