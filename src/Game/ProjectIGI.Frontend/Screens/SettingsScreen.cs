@@ -21,7 +21,7 @@ public sealed class SettingsScreen : ShellScreen
 {
     private static readonly int[] FpsCapValues = [30, 60, 90, 120, 0];
     private static readonly string[] FpsCapLabels = ["30 FPS", "60 FPS", "90 FPS", "120 FPS", "UNCAPPED"];
-    private static readonly string[] RenderScaleLabels = ["720P (PERFORMANCE)", "900P (BALANCED)", "NATIVE (MAX)"];
+    private static readonly string[] RenderScaleLabels = ["540P (ULTRA)", "720P (PERFORMANCE)", "900P (BALANCED)", "NATIVE (MAX)"];
 
     private readonly float _initialOpacity;
     private readonly float _initialSensitivity;
@@ -186,7 +186,7 @@ public sealed class SettingsScreen : ShellScreen
 
         // ── Option 6: Render Resolution Quality (720p / 900p / Native) ───
         int currentRes = Context.Host.RenderScaleMode;
-        var resCycler = new OptionCycler(theme, "Resolution Quality", RenderScaleLabels, Math.Clamp(currentRes, 0, 2))
+        var resCycler = new OptionCycler(theme, "Resolution Quality", RenderScaleLabels, Math.Clamp(currentRes, 0, 3))
         {
             Width = 980f,
             Height = 56f,

@@ -21,7 +21,7 @@ public static class ReconstructionCVars
         CVar.Float(
             "r_scale",
             1.0f,
-            0.5f,
+            0.25f,
             2.0f,
             CVarOptions.Archive,
             "Render resolution as a fraction of the window: below 1 is faster, above 1 is supersampled."),
