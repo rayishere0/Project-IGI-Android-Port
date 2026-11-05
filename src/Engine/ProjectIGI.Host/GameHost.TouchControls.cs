@@ -198,6 +198,8 @@ public sealed partial class GameHost
             // only when the profile enables it. The window accumulates the gyro's
             // angle deltas (radians) each frame; here they become mouse counts so the
             // existing look path (sensitivity, inversion, zoom scaling) applies.
+            // The gyro has its own sensitivity (profile.GyroSensitivity, set by the
+            // slider in Settings), separate from the mouse sensitivity.
             // Axis signs are a best guess for landscape and must be verified on a
             // real device (flip yaw/pitch here if a direction feels backwards).
             // The motion is drained every frame even while disabled: the sensor keeps
@@ -207,7 +209,7 @@ public sealed partial class GameHost
             if (profile is { GyroEnabled: true } && (gyroYaw != 0f || gyroPitch != 0f))
             {
                 float radiansPerCount = MouseLookSettings.FromSensitivity(
-                    profile.MouseSensitivity, profile.InvertMouse).RadiansPerCount;
+                    profile.GyroSensitivity, profile.InvertMouse).RadiansPerCount;
                 float countsPerRadian = 1f / MathF.Max(0.00001f, radiansPerCount);
                 input.Mouse.AddMotion(gyroYaw * countsPerRadian, gyroPitch * countsPerRadian);
             }

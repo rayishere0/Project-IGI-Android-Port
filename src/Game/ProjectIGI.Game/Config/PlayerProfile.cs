@@ -149,6 +149,9 @@ public sealed class PlayerProfile
     /// <summary>Whether tilting the phone aims the view (gyroscope), Android only. Off by default: it fights the touch-look drag if left on.</summary>
     public bool GyroEnabled { get; set; }
 
+    /// <summary>How fast the view turns per radian of phone tilt (gyroscope aim). 0 to 1, like mouse sensitivity.</summary>
+    public float GyroSensitivity { get; set; } = 0.5f;
+
     /// <summary>Whether blood is drawn.</summary>
     /// <remarks><c>GOIsBlood</c>. The German build forces this off; see <see cref="GameConfig.IsGermany"/>.</remarks>
     public bool BloodEnabled { get; set; } = true;
@@ -438,6 +441,7 @@ public sealed class PlayerProfile
             InvertMouse = InvertMouse,
             MouseSensitivity = MouseSensitivity,
             GyroEnabled = GyroEnabled,
+            GyroSensitivity = GyroSensitivity,
             BloodEnabled = BloodEnabled,
             DisplayMode = DisplayMode,
             DeviceGuid = DeviceGuid,
