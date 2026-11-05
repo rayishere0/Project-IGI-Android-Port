@@ -124,7 +124,13 @@ public static class WgpuLibrary
     /// </remarks>
     public static IEnumerable<string> Candidates(string baseDirectory)
     {
-        ArgumentException.ThrowIfNullOrEmpty(baseDirectory);
+        // On Android the embedded CoreCLR reports an empty AppContext.BaseDirectory — there is
+        // no application directory in the .NET sense. Yield nothing so Resolve hands the search
+        // back to the runtime's default search, which finds the library in the APK's lib/ dir.
+        if (string.IsNullOrEmpty(baseDirectory))
+        {
+            yield break;
+        }
 
         string file = FileName();
         string rid = RuntimeIdentifier();
