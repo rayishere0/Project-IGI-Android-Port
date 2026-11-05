@@ -41,6 +41,8 @@
     <Project Path="src/Rendering/ProjectIGI.Rendering.Rhi/ProjectIGI.Rendering.Rhi.csproj" />
     <Project Path="src/Rendering/ProjectIGI.Rendering.Streamline/ProjectIGI.Rendering.Streamline.csproj" />
     <Project Path="src/Rendering/ProjectIGI.Rendering.Vulkan/ProjectIGI.Rendering.Vulkan.csproj" />
+    <Project Path="src/Rendering/ProjectIGI.Rendering.WebGpu/ProjectIGI.Rendering.WebGpu.csproj" />
+    <Project Path="src/Rendering/ProjectIGI.Rendering.WebGpu.Native/ProjectIGI.Rendering.WebGpu.Native.csproj" />
     <Project Path="src/Rendering/ProjectIGI.Rendering/ProjectIGI.Rendering.csproj" />
     <Project Path="src/Rendering/ProjectIGI.Shaders/ProjectIGI.Shaders.csproj" />
   </Folder>
