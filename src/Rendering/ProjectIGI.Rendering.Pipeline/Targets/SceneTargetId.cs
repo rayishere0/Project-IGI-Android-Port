@@ -52,9 +52,6 @@ public enum SceneTargetId
     /// <summary>The temporal resolve's output, at the size of the frame.</summary>
     ResolveOutput,
 
-    /// <summary>The FSR 1.0 upsample's output, at the size of the frame, sharpened afterwards into ResolveOutput.</summary>
-    FsrIntermediate,
-
     /// <summary>The resolve's history colour, at twice the frame in each axis.</summary>
     /// <remarks>
     /// The scale is the history's super-sampling factor over the <b>rendered</b> frame. Sizing it from

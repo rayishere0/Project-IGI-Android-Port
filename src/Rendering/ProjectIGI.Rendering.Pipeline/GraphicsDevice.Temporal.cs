@@ -35,7 +35,6 @@ public sealed partial class GraphicsDevice
 
     private ScreenSpacePasses? _screenPasses;
     private TemporalResolve? _temporal;
-    private FsrUpscale? _fsr;
     private ComputePass? _copyDepth;
 
     private TemporalAaSettings _taa = TemporalAaSettings.Off;
@@ -65,11 +64,6 @@ public sealed partial class GraphicsDevice
         if (TemporalResolve.RunsOn(_device))
         {
             _temporal ??= new TemporalResolve(_device, FramesInFlight);
-        }
-
-        if (FsrUpscale.RunsOn(_device))
-        {
-            _fsr ??= new FsrUpscale(_device, FramesInFlight);
         }
     }
 
@@ -234,30 +228,7 @@ public sealed partial class GraphicsDevice
         // match its history, shimmered on every edge of a still picture, and DLAA a little.
         CaptureFrameConstants();
 
-        if (_reconstructionPlan.Active == ReconstructionKind.Fsr && _fsr is { } fsr
-            && scene.OutputWidth > scene.Width)
-        {
-            // FSR 1.0: a spatial upscale, so it needs no temporal history and no jitter, and it
-            // runs whether or not the temporal accumulation is enabled. It writes the
-            // output-resolution picture into ResolveOutput, the same target the temporal resolve
-            // writes, so the resolve that follows reads it the same way.
-            using (IRhiComputePassEncoder pass = Encoder().BeginComputePass(new RhiComputePassDescriptor(
-                _profiler.Time(RenderStage.TemporalResolve, "fsr"),
-                "fsr")))
-            {
-                fsr.Record(
-                    pass,
-                    scene,
-                    FrameSlot,
-                    scene.Width,
-                    scene.Height,
-                    scene.OutputWidth,
-                    scene.OutputHeight);
-            }
-
-            _temporalResolved = true;
-        }
-        else if (settings.Enabled && TryRecordReconstruction(scene))
+        if (settings.Enabled && TryRecordReconstruction(scene))
         {
             // An NVIDIA reconstruction ran in the engine resolve's place and wrote the same output.
             _temporalResolved = true;
@@ -317,8 +288,6 @@ public sealed partial class GraphicsDevice
         _copyDepth = null;
         _temporal?.Dispose();
         _temporal = null;
-        _fsr?.Dispose();
-        _fsr = null;
         _screenPasses?.Dispose();
         _screenPasses = null;
     }

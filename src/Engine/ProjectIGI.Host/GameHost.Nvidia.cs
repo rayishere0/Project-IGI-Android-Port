@@ -9,8 +9,7 @@ namespace ProjectIGI.Host;
 /// </remarks>
 public sealed partial class GameHost
 {
-    // What reconstructed the last frame, for the settings page: the render scale has no say under
-    // DLSS (which chooses its own render size), but it does under FSR, which renders at r_scale.
+    // What reconstructed the last frame, for the settings page: the render scale has no say under DLSS.
     private ReconstructionKind _reconstructionActive = ReconstructionKind.Engine;
 
     /// <summary>Why a setting cannot take effect on this device, for the settings page; empty when it can.</summary>
@@ -33,7 +32,7 @@ public sealed partial class GameHost
             "r_reconstruction" or "r_dlss_quality" => nvidia,
             "r_frame_generation" => _device.FrameGenerationUnavailable,
             "r_low_latency" => _device.LowLatencyUnavailable,
-            "r_scale" when _reconstructionActive is ReconstructionKind.Dlss or ReconstructionKind.RayReconstruction =>
+            "r_scale" when _reconstructionActive != ReconstructionKind.Engine =>
                 "DLSS chooses the render size while it runs; set it with DLSS Quality",
             _ => DisplaySettingUnavailable(variable),
         };
