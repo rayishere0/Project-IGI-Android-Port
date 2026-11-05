@@ -161,7 +161,16 @@ public static class AndroidHost
                 FrameCVars.MissionWarmUp.Value = 25;
                 DisplayCVars.Renderer.Value = RendererBackend.Vulkan;
                 ReconstructionCVars.FrameLimit.Value = 30;
+
+                // Phones render far below native by default: a full-resolution 2400x1080
+                // frame is too much for a mid-range mobile GPU through WebGPU (10-20 fps).
+                // 720p-equivalent, upscaled by the temporal upscaler, is the performance tier.
+                _window?.RenderScaleMode = 0;
             }
+
+            // Show the tier actually being rendered (the r_scale loaded from settings), so
+            // the menu does not claim 720p while the frame is native, or the reverse.
+            _window?.SyncRenderScaleMode();
 
             AppDomain.CurrentDomain.FirstChanceException += (sender, args) =>
             {

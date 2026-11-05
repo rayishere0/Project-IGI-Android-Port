@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using ProjectIGI.Input;
 using ProjectIGI.Platform;
+using ProjectIGI.Rendering;
 
 namespace ProjectIGI.Android;
 
@@ -40,7 +41,45 @@ public sealed class AndroidGameWindow : IGameWindow
     public WindowMode Mode { get; set; } = WindowMode.BorderlessFullscreen;
     public int RefreshRate => 60;
     public bool CursorVisible { get; set; }
-    public int RenderScaleMode { get; set; } = 2;
+
+    // 0 = 720p performance, 1 = 900p balanced, 2 = native. Stored here, but the resolution
+    // itself lives in the renderer's r_scale console variable: setting a tier sets r_scale to
+    // that tier's height over this window's height, and r_scale is what the frame actually
+    // renders at (RenderResolutionPolicy) and what survives a restart (archived CVar). Before
+    // this the tier was a dead setting — it was stored and never read, so the game always
+    // rendered at full native resolution no matter what the menu said.
+    private int _renderScaleMode;
+
+    /// <summary>Gets or sets the render scale tier shown in Settings.</summary>
+    public int RenderScaleMode
+    {
+        get => _renderScaleMode;
+        set
+        {
+            _renderScaleMode = Math.Clamp(value, 0, 2);
+            float height = _height > 0 ? _height : 1080f;
+            ReconstructionCVars.RenderScale.Value = _renderScaleMode switch
+            {
+                0 => Math.Clamp(720f / height, 0.5f, 1f),
+                1 => Math.Clamp(900f / height, 0.5f, 1f),
+                _ => 1f,
+            };
+        }
+    }
+
+    /// <summary>Sets the tier that matches the render scale already in force (loaded from settings), so the menu shows the tier actually being rendered.</summary>
+    public void SyncRenderScaleMode()
+    {
+        float height = _height > 0 ? _height : 1080f;
+        float scale = ReconstructionCVars.RenderScale.Value;
+        float tier0 = Math.Clamp(720f / height, 0.5f, 1f);
+        float tier1 = Math.Clamp(900f / height, 0.5f, 1f);
+        float d0 = Math.Abs(scale - tier0);
+        float d1 = Math.Abs(scale - tier1);
+        float d2 = Math.Abs(scale - 1f);
+        _renderScaleMode = d0 <= d1 && d0 <= d2 ? 0 : d1 <= d2 ? 1 : 2;
+    }
+
     public bool CursorLocked { get; set; }
     public string ClipboardText { get; set; } = string.Empty;
     public bool IsFocused => true;
