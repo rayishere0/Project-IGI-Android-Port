@@ -12,6 +12,9 @@ public enum ReconstructionKind
     /// <summary>The engine's own temporal upscaler.</summary>
     Engine,
 
+    /// <summary>AMD FidelityFX Super Resolution 1.0: a spatial upscaler (edge-adaptive upsample plus contrast-adaptive sharpening) that needs no temporal history or motion vectors.</summary>
+    Fsr,
+
     /// <summary>DLSS super resolution, or DLAA at native resolution.</summary>
     Dlss,
 

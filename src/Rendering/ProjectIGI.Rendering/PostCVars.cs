@@ -287,6 +287,26 @@ public static class PostCVars
         high: "0.15",
         ultra: "0");
 
+    /// <summary>The display gamma: how bright the picture reads, 1 leaves it alone.</summary>
+    /// <remarks>
+    /// A display-space power curve applied after the tone map, so it lifts the sun-lit models and the
+    /// mid-tones without touching the exposure the tone map was built on. Above one the picture reads
+    /// brighter (more sunlight on the models); below one it reads darker. One is no change, so the
+    /// vanilla preset stays pixel-identical.
+    /// </remarks>
+    public static readonly NumericCVar<float> Gamma = Presets.Define(
+        CVar.Float(
+            "r_gamma",
+            1f,
+            0.5f,
+            2.5f,
+            CVarOptions.Archive,
+            "Display gamma: above 1 brightens the picture (more sunlight on the models), below 1 darkens it."),
+        vanilla: "1",
+        enhanced: "1",
+        high: "1",
+        ultra: "1");
+
     /// <summary>How strongly light shafts radiate from the sun when it is on screen.</summary>
     /// <remarks>
     /// The sky round the sun blurred outward in screen space, so a lattice, a fence or a roof edge between

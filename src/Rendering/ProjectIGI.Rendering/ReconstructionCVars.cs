@@ -182,19 +182,20 @@ public static class ReconstructionCVars
         high: "0.7",
         ultra: "0.7");
 
-    /// <summary>What reconstructs the frame: the engine's own temporal resolve, DLSS, or DLSS ray reconstruction.</summary>
+    /// <summary>What reconstructs the frame: the engine's own temporal resolve, FSR 1.0, DLSS, or DLSS ray reconstruction.</summary>
     /// <remarks>
     /// Not preset-managed: the NVIDIA kinds need the optional runtime and an adapter that runs them, and a
     /// preset that wrote one would be writing something half the machines it runs on cannot do. Where the
     /// chosen one cannot run the engine's resolve runs instead, and the log and the settings page say why.
-    /// Only meaningful with temporal anti-aliasing on (<c>r_taa</c> below one) on the deferred path.
+    /// Only meaningful with temporal anti-aliasing on (<c>r_taa</c> below one) on the deferred path, except
+    /// FSR, which is spatial and needs no temporal history.
     /// </remarks>
     public static readonly EnumCVar<ReconstructionKind> Reconstruction = CVar.Choice(
         "r_reconstruction",
         ReconstructionKind.Engine,
         CVarOptions.Archive,
-        "Reconstruction: engine is the built-in temporal resolve, dlss is NVIDIA DLSS / DLAA, "
-            + "rayreconstruction is DLSS ray reconstruction (needs hardware ray tracing).");
+        "Reconstruction: engine is the built-in temporal resolve, fsr is AMD FSR 1.0 spatial upscaling, "
+            + "dlss is NVIDIA DLSS / DLAA, rayreconstruction is DLSS ray reconstruction (needs hardware ray tracing).");
 
     /// <summary>How far below the output DLSS renders, when DLSS or ray reconstruction is the reconstruction.</summary>
     public static readonly EnumCVar<DlssQuality> DlssQualityMode = CVar.Choice(

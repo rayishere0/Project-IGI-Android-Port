@@ -78,6 +78,10 @@ namespace ProjectIGI.Rendering;
 /// softened the frame. Distinct from the sharpening inside the temporal resolve: that one fights the
 /// history's own resampling blur, and this one is a look.
 /// </param>
+/// <param name="Gamma">
+/// The display gamma, where 1 leaves the picture alone. Applied after the tone map as a power curve,
+/// so above one the sun-lit models and mid-tones read brighter and below one they read darker.
+/// </param>
 /// <param name="ColourLookup">
 /// How much of the authored <see cref="ColourLookupTable"/> to apply, where 1 is the whole grade and 0
 /// leaves the picture as the procedural knobs left it. A fraction is a genuine control rather than a
@@ -132,6 +136,7 @@ public readonly record struct PostProcessSettings(
     float Grain = 0f,
     float ChromaticAberration = 0f,
     float Sharpen = 0f,
+    float Gamma = 1.0f,
     float MotionBlur = 0f,
     float SpatialAa = 0f,
     float SpatialAaThreshold = 0.05f,
@@ -165,6 +170,7 @@ public readonly record struct PostProcessSettings(
     public bool IsIdentity =>
         ToneMap == ToneMapOperator.None
         && Exposure == 1.0f
+        && Gamma == 1.0f
         && !WantsBloom
         && !WantsGrading
         && !WantsCameraEffects

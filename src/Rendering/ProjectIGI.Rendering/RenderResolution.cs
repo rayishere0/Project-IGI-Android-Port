@@ -117,8 +117,10 @@ public static class RenderResolutionPolicy
         int height = Math.Max(1, (int)(outputHeight * renderScale));
 
         // Asked for only when the accumulation is running, because it is the accumulation that does the
-        // upsampling: without it these are two buffers holding a stretched copy.
-        bool upscales = temporal && renderScale < 1f;
+        // upsampling: without it these are two buffers holding a stretched copy. FSR is the exception:
+        // it is spatial, so it upscales without any accumulation, and it is the upscaler that runs when
+        // it is the active reconstruction.
+        bool upscales = (temporal || plan.Active == ReconstructionKind.Fsr) && renderScale < 1f;
         return new RenderResolution(
             width,
             height,
