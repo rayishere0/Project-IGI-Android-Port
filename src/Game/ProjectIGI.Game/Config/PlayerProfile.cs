@@ -146,6 +146,9 @@ public sealed class PlayerProfile
     /// <remarks>Defaults to <c>0.4f</c> — <c>0x3ECCCCCD</c> in <c>Config_ResetToDefaults</c>.</remarks>
     public float MouseSensitivity { get; set; } = 0.4f;
 
+    /// <summary>Whether tilting the phone aims the view (gyroscope), Android only. Off by default: it fights the touch-look drag if left on.</summary>
+    public bool GyroEnabled { get; set; }
+
     /// <summary>Whether blood is drawn.</summary>
     /// <remarks><c>GOIsBlood</c>. The German build forces this off; see <see cref="GameConfig.IsGermany"/>.</remarks>
     public bool BloodEnabled { get; set; } = true;
@@ -434,6 +437,7 @@ public sealed class PlayerProfile
             ActiveMission = ActiveMission,
             InvertMouse = InvertMouse,
             MouseSensitivity = MouseSensitivity,
+            GyroEnabled = GyroEnabled,
             BloodEnabled = BloodEnabled,
             DisplayMode = DisplayMode,
             DeviceGuid = DeviceGuid,

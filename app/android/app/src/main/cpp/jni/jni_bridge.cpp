@@ -45,6 +45,11 @@ typedef void (*TouchFn)(int action, int pointerId, float x, float y);
 typedef void (*KeyFn)(int keyCode, int down);
 typedef void (*ResizeFn)(int width, int height);
 typedef void (*StopFn)();
+typedef void (*GyroFn)(float yawRadians, float pitchRadians);
+typedef void (*TextFn)(const char* text);
+typedef int (*TextFocusFn)();
+typedef void (*SurfaceLostFn)();
+typedef void (*SurfaceRecreatedFn)(intptr_t nativeWindow, int width, int height);
 
 static void* g_coreclr_lib = nullptr;
 static void* g_host_handle = nullptr;
@@ -55,6 +60,11 @@ static TouchFn g_touch_fn = nullptr;
 static KeyFn g_key_fn = nullptr;
 static ResizeFn g_resize_fn = nullptr;
 static StopFn g_stop_fn = nullptr;
+static GyroFn g_gyro_fn = nullptr;
+static TextFn g_text_fn = nullptr;
+static TextFocusFn g_text_focus_fn = nullptr;
+static SurfaceLostFn g_surface_lost_fn = nullptr;
+static SurfaceRecreatedFn g_surface_recreated_fn = nullptr;
 
 static std::thread g_game_thread;
 static std::atomic<bool> g_game_running{false};
@@ -176,8 +186,13 @@ static bool initialize_coreclr(const std::string& filesDir, const std::string& n
     int res3 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnKey", (void**)&g_key_fn);
     int res4 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnResize", (void**)&g_resize_fn);
     int res5 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "Stop", (void**)&g_stop_fn);
+    int res6 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnGyro", (void**)&g_gyro_fn);
+    int res7 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnText", (void**)&g_text_fn);
+    int res8 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "IsTextFieldFocused", (void**)&g_text_focus_fn);
+    int res9 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnSurfaceLost", (void**)&g_surface_lost_fn);
+    int res10 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnSurfaceRecreated", (void**)&g_surface_recreated_fn);
 
-    LOGI("Delegate binding results: Run=0x%08X, OnTouch=0x%08X, OnKey=0x%08X, OnResize=0x%08X, Stop=0x%08X", res1, res2, res3, res4, res5);
+    LOGI("Delegate binding results: Run=0x%08X, OnTouch=0x%08X, OnKey=0x%08X, OnResize=0x%08X, Stop=0x%08X, OnGyro=0x%08X, OnText=0x%08X, IsTextFieldFocused=0x%08X, OnSurfaceLost=0x%08X, OnSurfaceRecreated=0x%08X", res1, res2, res3, res4, res5, res6, res7, res8, res9, res10);
 
     if (res1 < 0 || !g_run_fn) {
         LOGE("Failed to bind AndroidHost.Run: 0x%08X", res1);
@@ -276,11 +291,11 @@ JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnSurfaceChang
 JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnSurfaceDestroyed
   (JNIEnv *env, jclass clazz) {
     LOGI("nativeOnSurfaceDestroyed");
-    if (g_stop_fn) {
-        g_stop_fn();
-    }
-    if (g_game_thread.joinable()) {
-        g_game_thread.join();
+    // The surface is gone (app backgrounded) but the engine is NOT stopped: it idles with
+    // no surface until a new one arrives, so the player returns to the pause menu in the
+    // mission instead of the main menu. Genuine shutdown still goes through nativeShutdown.
+    if (g_surface_lost_fn) {
+        g_surface_lost_fn();
     }
     if (g_native_window) {
         ANativeWindow_release(g_native_window);
@@ -309,6 +324,15 @@ JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnSurfaceRecre
             int landscapeWidth = width > height ? width : height;
             int landscapeHeight = width > height ? height : width;
             ANativeWindow_setBuffersGeometry(g_native_window, landscapeWidth, landscapeHeight, 0);
+
+            // Hand the new window to managed code so it can rebind the presentation surface
+            // to it and resume in place (instead of restarting the engine to the main menu).
+            if (g_surface_recreated_fn) {
+                g_surface_recreated_fn(
+                    reinterpret_cast<intptr_t>(g_native_window),
+                    landscapeWidth,
+                    landscapeHeight);
+            }
         }
     }
 
@@ -356,6 +380,32 @@ JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnKey
     if (g_key_fn) {
         g_key_fn(keyCode, down ? 1 : 0);
     }
+}
+
+JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnGyro
+  (JNIEnv *env, jclass clazz, jfloat yawRadians, jfloat pitchRadians) {
+    if (g_gyro_fn) {
+        g_gyro_fn(yawRadians, pitchRadians);
+    }
+}
+
+JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnText
+  (JNIEnv *env, jclass clazz, jstring text) {
+    if (g_text_fn && text != nullptr) {
+        const char* utf8 = env->GetStringUTFChars(text, nullptr);
+        if (utf8 != nullptr) {
+            g_text_fn(utf8);
+            env->ReleaseStringUTFChars(text, utf8);
+        }
+    }
+}
+
+JNIEXPORT jboolean JNICALL Java_com_projectigi_app_NativeEngine_nativeIsTextFieldFocused
+  (JNIEnv *env, jclass clazz) {
+    if (g_text_focus_fn) {
+        return g_text_focus_fn() != 0 ? JNI_TRUE : JNI_FALSE;
+    }
+    return JNI_FALSE;
 }
 
 JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeShutdown

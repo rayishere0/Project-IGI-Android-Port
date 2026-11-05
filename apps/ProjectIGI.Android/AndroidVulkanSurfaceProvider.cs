@@ -11,9 +11,19 @@ namespace ProjectIGI.Android;
 /// </summary>
 public sealed unsafe class AndroidVulkanSurfaceProvider : IVulkanSurfaceProvider
 {
-    private readonly nint _nativeWindow;
+    private nint _nativeWindow;
 
     public AndroidVulkanSurfaceProvider(nint nativeWindow)
+    {
+        _nativeWindow = nativeWindow;
+    }
+
+    /// <summary>Points the provider at a new native window (after a surface recreate).</summary>
+    /// <remarks>
+    /// The window is only read when a surface is created, so this is safe to call while no
+    /// surface exists. The caller must recreate the surface (and its swapchain) after this.
+    /// </remarks>
+    public void SetWindow(nint nativeWindow)
     {
         _nativeWindow = nativeWindow;
     }

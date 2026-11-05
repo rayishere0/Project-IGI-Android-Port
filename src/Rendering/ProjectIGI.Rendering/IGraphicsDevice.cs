@@ -54,6 +54,14 @@ public interface IGraphicsDevice :
     /// </exception>
     void UpdateAnimatedMesh(MeshHandle mesh, ReadOnlySpan<Vertex3D> vertices);
 
+    /// <summary>Gets whether the device currently has a valid surface to present to.</summary>
+    /// <remarks>
+    /// Default is true. The Android backends report false after the native window is destroyed
+    /// (app backgrounded) until a new surface is bound, so the host can idle the loop instead of
+    /// presenting into a dead surface.
+    /// </remarks>
+    bool HasSurface => true;
+
     /// <summary>Sets the distance fog every following world draw is blended into.</summary>
     /// <param name="fog">The fog, or <see cref="SceneFog.None"/> to draw unfogged.</param>
     /// <remarks>

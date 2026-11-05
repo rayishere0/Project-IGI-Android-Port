@@ -29,9 +29,13 @@ public final class NativeEngine {
 
     public static native void nativeOnSurfaceChanged(int width, int height);
     public static native void nativeOnSurfaceDestroyed();
+    public static native void nativeOnSurfaceRecreated(Surface surface, int width, int height);
     public static native boolean nativeIsGameRunning();
     public static native void nativeOnTouch(int action, int pointerId, float x, float y);
     public static native void nativeOnKey(int keyCode, boolean down);
+    public static native void nativeOnGyro(float yawRadians, float pitchRadians);
+    public static native void nativeOnText(String text);
+    public static native boolean nativeIsTextFieldFocused();
     public static native void nativeShutdown();
 
     private NativeEngine() {}

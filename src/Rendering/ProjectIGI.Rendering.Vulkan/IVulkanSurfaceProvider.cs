@@ -38,4 +38,14 @@ public interface IVulkanSurfaceProvider
     /// <param name="khrSurface">The surface extension, already loaded for <paramref name="instance"/>.</param>
     /// <returns>The created surface.</returns>
     SurfaceKHR CreateSurface(Vk vk, Instance instance, KhrSurface khrSurface);
+
+    /// <summary>Points the provider at a new native window, for a surface recreate.</summary>
+    /// <remarks>
+    /// Default is a no-op: most providers are bound to one window for their lifetime. The Android
+    /// provider overrides it so a surface can be rebound to a fresh native window after the old
+    /// one is destroyed (tab-out / rotate).
+    /// </remarks>
+    void SetWindow(nint nativeWindow)
+    {
+    }
 }

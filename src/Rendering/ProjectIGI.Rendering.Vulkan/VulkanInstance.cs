@@ -38,6 +38,7 @@ internal sealed unsafe class VulkanInstance : IDisposable
     private static readonly DebugUtilsMessengerCallbackFunctionEXT DebugCallback = OnDebugMessage;
 
     private readonly IProjectIGILogger _logger;
+    private readonly IVulkanSurfaceProvider _surfaceProvider;
 
     // The messenger's user data: a handle back to this instance, so the static callback reports through
     // this instance's logger rather than a process-wide one.
@@ -60,6 +61,7 @@ internal sealed unsafe class VulkanInstance : IDisposable
     public VulkanInstance(IVulkanSurfaceProvider surfaceProvider, bool enableValidation, IProjectIGILogger logger, Vk? vk = null)
     {
         ArgumentNullException.ThrowIfNull(surfaceProvider);
+        _surfaceProvider = surfaceProvider;
         _logger = logger ?? NullLogger.Instance;
         Vk = vk ?? Vk.GetApi();
 
@@ -117,7 +119,22 @@ internal sealed unsafe class VulkanInstance : IDisposable
     public KhrSurface KhrSurface { get; }
 
     /// <summary>Gets the presentable surface for the window.</summary>
-    public SurfaceKHR Surface { get; }
+    public SurfaceKHR Surface { get; private set; }
+
+    /// <summary>
+    /// Destroys the current surface and creates a fresh one for a new native window.
+    /// </summary>
+    /// <param name="nativeWindow">The new native window the surface is created from.</param>
+    /// <remarks>
+    /// The caller must have waited idle and disposed the swapchain first: the old surface is
+    /// unusable the moment its window is destroyed, and the swapchain still references it.
+    /// </remarks>
+    public void RecreateSurface(nint nativeWindow)
+    {
+        _surfaceProvider.SetWindow(nativeWindow);
+        KhrSurface.DestroySurface(Instance, Surface, null);
+        Surface = _surfaceProvider.CreateSurface(Vk, Instance, KhrSurface);
+    }
 
     /// <inheritdoc/>
     public void Dispose()

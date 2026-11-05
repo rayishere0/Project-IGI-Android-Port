@@ -35,6 +35,9 @@ public sealed partial class GraphicsDevice : IGraphicsDevice
 
     private readonly IRhiDevice _device;
 
+    /// <summary>Gets whether the underlying device currently has a valid surface to present to.</summary>
+    public bool HasSurface => _device.HasSurface;
+
     // Markers taken while a frame was being recorded, armed once it has been sent. See MarkRecordedWork.
     private readonly List<RecordedWorkMarker> _unarmedMarkers = [];
     private readonly Sprite2DPass _sprites;

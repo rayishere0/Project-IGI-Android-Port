@@ -24,6 +24,11 @@ public sealed partial class GameHost
     private readonly HashSet<MouseButton> _touchButtons = [];
     private readonly HashSet<MouseButton> _touchButtonsWanted = [];
     private (bool Up, bool Down, bool Left, bool Right) _touchStickHeld;
+    // Crouch is a toggle, not a hold: one tap crouches, the next stands up, so the
+    // player can crouch and move with two fingers (stick + look) instead of holding
+    // a third finger on Crouch.
+    private bool _crouchToggled;
+    private bool _crouchHeldPrev;
 
     /// <summary>The action each button holds, as the profile names it.</summary>
     private static string? TouchAction(TouchButton button) => button switch
@@ -80,6 +85,14 @@ public sealed partial class GameHost
         TouchControlMode mode = CurrentTouchMode();
         _touchControls.Update(input.Touch, mode, new LayoutContext(_window.Width, _window.Height));
 
+        // Leaving play clears the crouch toggle, so the player does not come back
+        // from a menu or a computer still crouched.
+        if (mode != TouchControlMode.Play)
+        {
+            _crouchToggled = false;
+            _crouchHeldPrev = false;
+        }
+
         // No early return for Customizing: the Play/Computer blocks below are mode-gated, so
         // nothing new is wanted while customizing — but the release section at the end must still
         // run, or touch input held when customization started (e.g. Fire) stays latched and the
@@ -101,6 +114,21 @@ public sealed partial class GameHost
 
         if (mode == TouchControlMode.Play)
         {
+            // Crouch is a toggle: one tap crouches, the next stands up. Flip it on the
+            // press (held -> not held transition), not while the button is down, or a
+            // long hold would flip it every frame.
+            bool crouchHeld = _touchControls.Held.Contains(TouchButton.Crouch);
+            if (crouchHeld && !_crouchHeldPrev)
+            {
+                _crouchToggled = !_crouchToggled;
+            }
+
+            _crouchHeldPrev = crouchHeld;
+            if (_crouchToggled)
+            {
+                Want(profile, "Crouch");
+            }
+
             foreach (TouchButton button in _touchControls.Held)
             {
                 if (button == TouchButton.Pause)
@@ -120,6 +148,11 @@ public sealed partial class GameHost
                         _window.CursorLocked = false;
                         _logger.Information("Menu", "Paused via touch button.");
                     }
+                }
+                else if (button == TouchButton.Crouch)
+                {
+                    // Handled by the toggle above; do not hold the key while the button is down.
+                    continue;
                 }
                 else if (TouchAction(button) is { } action)
                 {
@@ -159,6 +192,24 @@ public sealed partial class GameHost
             if (_touchControls.Look is { } look && (look.X != 0f || look.Y != 0f))
             {
                 input.Mouse.AddMotion(look.X, look.Y);
+            }
+
+            // Gyroscope aim: tilt the phone to turn the view. Only in Play mode and
+            // only when the profile enables it. The window accumulates the gyro's
+            // angle deltas (radians) each frame; here they become mouse counts so the
+            // existing look path (sensitivity, inversion, zoom scaling) applies.
+            // Axis signs are a best guess for landscape and must be verified on a
+            // real device (flip yaw/pitch here if a direction feels backwards).
+            if (profile is { GyroEnabled: true })
+            {
+                (float gyroYaw, float gyroPitch) = _window.TakeGyroMotion();
+                if (gyroYaw != 0f || gyroPitch != 0f)
+                {
+                    float radiansPerCount = MouseLookSettings.FromSensitivity(
+                        profile.MouseSensitivity, profile.InvertMouse).RadiansPerCount;
+                    float countsPerRadian = 1f / MathF.Max(0.00001f, radiansPerCount);
+                    input.Mouse.AddMotion(gyroYaw * countsPerRadian, gyroPitch * countsPerRadian);
+                }
             }
         }
 

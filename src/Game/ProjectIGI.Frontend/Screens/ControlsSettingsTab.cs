@@ -122,9 +122,15 @@ internal static class ControlsSettingsTab
             context.Host.TouchOpacity = value;
         };
 
+        var gyroToggle = new Toggle(theme, "Gyroscope aim", profile.GyroEnabled)
+        {
+            Tooltip = "Tilt the phone to aim. Only on Android, and only while playing.",
+        };
+        gyroToggle.ValueChanged += value => profile.GyroEnabled = value;
+
         List<SettingsGroup> groups =
         [
-            SettingsGroup.Of("Mobile Controls & HUD", [touchCustomizerButton, touchOpacitySlider]),
+            SettingsGroup.Of("Mobile Controls & HUD", [touchCustomizerButton, touchOpacitySlider, gyroToggle]),
             SettingsGroup.Of("Mouse", [sensitivity, invert, resetButton]),
             SettingsGroup.Of("Key bindings", [.. bindingRows]),
         ];

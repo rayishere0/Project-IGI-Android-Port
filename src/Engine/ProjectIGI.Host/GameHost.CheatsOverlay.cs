@@ -62,7 +62,12 @@ public sealed partial class GameHost
 
         if (!_cheatsModalOpen)
         {
-            if (click && clickX >= gearX && clickX <= gearX + gearW && clickY >= gearY && clickY <= gearY + gearH)
+            // The gear itself is small (20 units), but a fingertip is not: give it a
+            // generous invisible hit area so big fingers can open the cheats modal.
+            float hit = 48f * scale;
+            float hitX = gearX + (gearW * 0.5f) - (hit * 0.5f);
+            float hitY = gearY + (gearH * 0.5f) - (hit * 0.5f);
+            if (click && clickX >= hitX && clickX <= hitX + hit && clickY >= hitY && clickY <= hitY + hit)
             {
                 _cheatsModalOpen = true;
                 // Suppress click so menu beneath does not click Play/Exit
