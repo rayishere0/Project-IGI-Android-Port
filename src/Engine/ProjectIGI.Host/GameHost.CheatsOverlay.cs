@@ -80,7 +80,7 @@ public sealed partial class GameHost
         }
 
         float modalW = Math.Min(700f * scale, width - (32f * scale));
-        float modalH = Math.Min(340f * scale, height - (32f * scale));
+        float modalH = Math.Min(410f * scale, height - (32f * scale));
         float modalX = (width - modalW) * 0.5f;
         float modalY = (height - modalH) * 0.5f;
 
@@ -122,6 +122,16 @@ public sealed partial class GameHost
         if (clickX >= btnX && clickX <= btnX + btnW && clickY >= r2Y && clickY <= r2Y + btnH)
         {
             PlayerCheatCVars.AllWeapons.Value = !PlayerCheatCVars.AllWeapons.Value;
+            state.Console.SaveSettings();
+            HostConfiguration.Save(_configuration, _logger);
+            return;
+        }
+
+        // Row 3: Unlock All Missions
+        float r3Y = contentY + (rowHeight * 3f);
+        if (clickX >= btnX && clickX <= btnX + btnW && clickY >= r3Y && clickY <= r3Y + btnH)
+        {
+            PlayerCheatCVars.UnlockAllLevels.Value = !PlayerCheatCVars.UnlockAllLevels.Value;
             state.Console.SaveSettings();
             HostConfiguration.Save(_configuration, _logger);
             return;
@@ -199,7 +209,7 @@ public sealed partial class GameHost
             painter.FillRect(new UiRect(0f, 0f, width, height), Bgra32.FromRgba(0, 0, 0, 215));
 
             float modalW = Math.Min(700f * scale, width - (32f * scale));
-            float modalH = Math.Min(340f * scale, height - (32f * scale));
+            float modalH = Math.Min(410f * scale, height - (32f * scale));
             float modalX = (width - modalW) * 0.5f;
             float modalY = (height - modalH) * 0.5f;
 
@@ -214,7 +224,7 @@ public sealed partial class GameHost
 
             if (_shellType is { } type)
             {
-                painter.DrawText(type.Heading, "TACTICAL OPERATIONS - CHEATS", new UiVec2(modalX + (20f * scale), modalY + (13f * scale)), 17f * scale, brightGreen);
+                painter.DrawText(type.Heading, "CHEATS", new UiVec2(modalX + (20f * scale), modalY + (13f * scale)), 17f * scale, brightGreen);
             }
 
             float contentY = modalY + barH + (12f * scale);
@@ -258,6 +268,7 @@ public sealed partial class GameHost
             DrawCheatRow(0, "INFINITE HEALTH", "Zero damage from bullets, explosions, falls and electric fences", PlayerCheatCVars.InfiniteHealth.Value);
             DrawCheatRow(1, "INFINITE AMMUNITION", "Magazines stay filled, reserves never deplete while firing", PlayerCheatCVars.InfiniteAmmo.Value);
             DrawCheatRow(2, "ALL WEAPONS", "Adds all weapons into inventory for the mission", PlayerCheatCVars.AllWeapons.Value);
+            DrawCheatRow(3, "UNLOCK ALL MISSIONS", "All 14 missions are selectable in Campaign", PlayerCheatCVars.UnlockAllLevels.Value);
 
             // Close button
             float closeW = 220f * scale;

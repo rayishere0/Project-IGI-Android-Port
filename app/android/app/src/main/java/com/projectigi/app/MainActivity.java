@@ -9,6 +9,7 @@ import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
+import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -21,6 +22,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Gravity;
@@ -50,6 +52,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private static final String TAG = "ProjectIGI";
@@ -78,6 +81,11 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     // Set when the surface dies while the game was running: the engine stops with it, so a
     // fresh surface means restart the game instead of staring at a black SurfaceView.
     private boolean autoRestartOnSurface = false;
+    // Total / copied bytes for the game-folder install, driving the determinate progress bar.
+    private long copyTotalBytes = 0;
+    private long copyDoneBytes = 0;
+    // Last time the progress bar was redrawn (uptime ms), to throttle UI updates.
+    private long lastProgressUiMs = 0;
     // True while this Activity is in the foreground. The quit watcher uses it to tell a Quit
     // in the main menu (foreground, game stops) from tabbing out (backgrounded, game stops too).
     private boolean isResumed = false;
@@ -225,6 +233,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         // Glowing progress bar
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setIndeterminate(true);
+        progressBar.setProgressTintList(ColorStateList.valueOf(Color.rgb(57, 227, 101)));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             progressBar.getIndeterminateDrawable().setColorFilter(
                 new BlendModeColorFilter(Color.rgb(57, 227, 101), BlendMode.SRC_IN));
@@ -566,7 +575,18 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         }
 
         // 2. Copy files from SAF tree to internal getFilesDir()/Project IGI
-        runOnUiThread(() -> statusText.setText("INSTALLING GAME FILES... PLEASE WAIT"));
+        // First count the total bytes (a metadata-only traversal, no byte transfer),
+        // so the progress bar can show real percent instead of spinning.
+        runOnUiThread(() -> statusText.setText("COUNTING GAME FILES..."));
+        copyTotalBytes = countTreeBytes(rootDoc);
+        copyDoneBytes = 0;
+        lastProgressUiMs = 0;
+        runOnUiThread(() -> {
+            progressBar.setIndeterminate(false);
+            progressBar.setMax(100);
+            progressBar.setProgress(0);
+            statusText.setText("INSTALLING GAME FILES... 0%");
+        });
 
         File targetDataDir = new File(getFilesDir(), "Project IGI");
         try {
@@ -577,6 +597,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
             Log.i(TAG, "Game files successfully copied and verified.");
             runOnUiThread(() -> {
+                progressBar.setProgress(100);
                 statusText.setText("GAME FILES VERIFIED & READY!");
                 updatePlayButtonState(true);
                 Toast.makeText(this, "Project I.G.I. game files installed successfully!", Toast.LENGTH_LONG).show();
@@ -588,6 +609,41 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 Toast.makeText(this, "Failed to copy game files: " + e.getMessage(), Toast.LENGTH_SHORT).show();
             });
         }
+    }
+
+    // Sums the bytes of every file under an SAF tree (metadata only, no copying).
+    // Used once before the install so the progress bar knows the total.
+    private long countTreeBytes(DocumentFile dir) {
+        long total = 0;
+        DocumentFile[] files = dir.listFiles();
+        for (DocumentFile file : files) {
+            if (file.isDirectory()) {
+                total += countTreeBytes(file);
+            } else if (file.isFile()) {
+                total += file.length();
+            }
+        }
+        return total;
+    }
+
+    // Redraws the install progress bar and status (percent + MB), throttled so the
+    // UI thread is not flooded by per-buffer updates. The final 100% is always shown.
+    private void reportCopyProgress() {
+        if (copyTotalBytes <= 0) return;
+        long now = SystemClock.uptimeMillis();
+        if (now - lastProgressUiMs < 150 && copyDoneBytes < copyTotalBytes) return;
+        lastProgressUiMs = now;
+        final int percent = (int) Math.min(100, (copyDoneBytes * 100) / copyTotalBytes);
+        final long done = copyDoneBytes;
+        final long total = copyTotalBytes;
+        runOnUiThread(() -> {
+            progressBar.setProgress(percent);
+            statusText.setText("INSTALLING GAME FILES... " + percent + "% (" + formatMb(done) + " / " + formatMb(total) + ")");
+        });
+    }
+
+    private static String formatMb(long bytes) {
+        return String.format(Locale.US, "%.0f MB", bytes / (1024f * 1024f));
     }
 
     private void copyDocumentTree(DocumentFile sourceDoc, File targetDir) throws IOException {
@@ -602,13 +658,24 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 copyDocumentTree(file, subDir);
             } else if (file.isFile()) {
                 File targetFile = new File(targetDir, file.getName());
+                long size = file.length();
+                // Skip files that are already there with the same size: re-selecting
+                // the same folder (or resuming an interrupted copy) then costs
+                // almost nothing instead of copying the whole game again.
+                if (targetFile.exists() && targetFile.length() == size) {
+                    copyDoneBytes += size;
+                    reportCopyProgress();
+                    continue;
+                }
                 try (InputStream in = getContentResolver().openInputStream(file.getUri());
                      OutputStream out = new FileOutputStream(targetFile)) {
                     if (in != null) {
-                        byte[] buffer = new byte[65536];
+                        byte[] buffer = new byte[262144];
                         int read;
                         while ((read = in.read(buffer)) != -1) {
                             out.write(buffer, 0, read);
+                            copyDoneBytes += read;
+                            reportCopyProgress();
                         }
                     }
                 }
@@ -939,8 +1006,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (!isGameStarted) return super.onKeyDown(keyCode, event);
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            NativeEngine.nativeOnKey(4, true);
-            surfaceView.postDelayed(() -> NativeEngine.nativeOnKey(4, false), 50);
+            // Consume here without sending: onBackPressed() sends the Back key once.
+            // Sending it here too pressed Escape twice, which opened the pause menu
+            // and immediately closed it again (or skipped past it).
             return true;
         }
         NativeEngine.nativeOnKey(keyCode, true);
