@@ -200,16 +200,16 @@ public sealed partial class GameHost
             // existing look path (sensitivity, inversion, zoom scaling) applies.
             // Axis signs are a best guess for landscape and must be verified on a
             // real device (flip yaw/pitch here if a direction feels backwards).
-            if (profile is { GyroEnabled: true })
+            // The motion is drained every frame even while disabled: the sensor keeps
+            // feeding the window, and a stale pile-up would spin the view the moment
+            // the toggle is switched on.
+            (float gyroYaw, float gyroPitch) = _window.TakeGyroMotion();
+            if (profile is { GyroEnabled: true } && (gyroYaw != 0f || gyroPitch != 0f))
             {
-                (float gyroYaw, float gyroPitch) = _window.TakeGyroMotion();
-                if (gyroYaw != 0f || gyroPitch != 0f)
-                {
-                    float radiansPerCount = MouseLookSettings.FromSensitivity(
-                        profile.MouseSensitivity, profile.InvertMouse).RadiansPerCount;
-                    float countsPerRadian = 1f / MathF.Max(0.00001f, radiansPerCount);
-                    input.Mouse.AddMotion(gyroYaw * countsPerRadian, gyroPitch * countsPerRadian);
-                }
+                float radiansPerCount = MouseLookSettings.FromSensitivity(
+                    profile.MouseSensitivity, profile.InvertMouse).RadiansPerCount;
+                float countsPerRadian = 1f / MathF.Max(0.00001f, radiansPerCount);
+                input.Mouse.AddMotion(gyroYaw * countsPerRadian, gyroPitch * countsPerRadian);
             }
         }
 

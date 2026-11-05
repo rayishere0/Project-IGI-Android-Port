@@ -126,6 +126,17 @@ public interface IGameWindow : IDisposable
     /// <summary>Processes pending window messages and updates <see cref="Input"/> for the new frame.</summary>
     void PumpEvents();
 
+    /// <summary>
+    /// Drains only the surface-recreated queue (a new native window after the old one was
+    /// destroyed), without touching input. The host calls this at the top of the frame so a
+    /// surface rebind is processed even while surfaceless, without a second full PumpEvents
+    /// (which would clear the per-frame touch deltas and Began flags a second time and
+    /// stutter the touch look and taps).
+    /// </summary>
+    void PumpSurfaceEvents()
+    {
+    }
+
     /// <summary>Requests that the window close, as though the user had asked.</summary>
     void Close();
 }

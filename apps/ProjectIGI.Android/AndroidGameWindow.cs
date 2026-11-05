@@ -18,8 +18,8 @@ public sealed class AndroidGameWindow : IGameWindow
     private readonly ConcurrentQueue<string> _textQueue = new();
     // A new native window after the old one was destroyed (tab-out / rotate). Drained on the
     // game thread by PumpEvents, which invokes SurfaceRecreated so the host can rebind the
-    // presentation surface to it.
-    private readonly ConcurrentQueue<(nint NativeWindow, int Width, int Height)> _surfaceQueue = new();
+    // presentation surface to it. Attempts counts rebind retries for the same surface.
+    private readonly ConcurrentQueue<(nint NativeWindow, int Width, int Height, int Attempts)> _surfaceQueue = new();
     private string _title = "Project I.G.I.";
     private int _width;
     private int _height;
@@ -40,8 +40,9 @@ public sealed class AndroidGameWindow : IGameWindow
     /// <summary>
     /// Invoked on the game thread when a new native window arrives after the old one was
     /// destroyed (tab-out / rotate). The host rebinds the presentation surface to it.
+    /// Returns true when the rebind succeeded; false to retry the same surface.
     /// </summary>
-    public Action<nint, int, int>? SurfaceRecreated { get; set; }
+    public Func<nint, int, int, bool>? SurfaceRecreated { get; set; }
 
     public string Title
     {
@@ -130,13 +131,7 @@ public sealed class AndroidGameWindow : IGameWindow
 
         Input.BeginFrame();
 
-        // A new native window after the old one was destroyed (tab-out / rotate): rebind the
-        // presentation surface to it on this (game) thread, since RHI calls must run on the
-        // thread that created the device.
-        while (_surfaceQueue.TryDequeue(out (nint NativeWindow, int Width, int Height) surface))
-        {
-            SurfaceRecreated?.Invoke(surface.NativeWindow, surface.Width, surface.Height);
-        }
+        PumpSurfaceEvents();
 
         while (_eventQueue.TryDequeue(out AndroidInputEvent ev))
         {
@@ -165,6 +160,30 @@ public sealed class AndroidGameWindow : IGameWindow
             foreach (char c in text)
             {
                 Input.Keyboard.EnqueueCharacter(c);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Drains only the surface-recreated queue, without touching input. The host calls this
+    /// at the top of the frame so a surface rebind is processed even while surfaceless.
+    /// It must NOT call Input.BeginFrame or drain the input queue: that would clear the
+    /// per-frame touch deltas and Began flags a second time and stutter the touch look.
+    /// </summary>
+    public void PumpSurfaceEvents()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        // A new native window after the old one was destroyed (tab-out / rotate): rebind the
+        // presentation surface to it on this (game) thread, since RHI calls must run on the
+        // thread that created the device. A failed rebind is retried a few times (the surface
+        // may not be ready yet); after that it stays lost and a restart recovers.
+        while (_surfaceQueue.TryDequeue(out (nint NativeWindow, int Width, int Height, int Attempts) surface))
+        {
+            bool rebound = SurfaceRecreated?.Invoke(surface.NativeWindow, surface.Width, surface.Height) ?? false;
+            if (!rebound && surface.Attempts < 3)
+            {
+                _surfaceQueue.Enqueue((surface.NativeWindow, surface.Width, surface.Height, surface.Attempts + 1));
             }
         }
     }
@@ -237,7 +256,7 @@ public sealed class AndroidGameWindow : IGameWindow
     /// <summary>Queues a new native window (after the old one was destroyed) for PumpEvents.</summary>
     public void EnqueueSurfaceRecreated(nint nativeWindow, int width, int height)
     {
-        _surfaceQueue.Enqueue((nativeWindow, width, height));
+        _surfaceQueue.Enqueue((nativeWindow, width, height, 0));
     }
 
     public void Close()
