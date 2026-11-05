@@ -40,8 +40,8 @@ public sealed class PauseScreen : ShellScreen
         // Central Green Wireframe Tactical Box ("Paused")
         var frame = new IgiTacticalFrame(theme, "Paused")
         {
-            Width = 760f,
-            Height = 620f,
+            Width = 880f,
+            Height = 720f,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         };
@@ -49,34 +49,34 @@ public sealed class PauseScreen : ShellScreen
         var menuStack = new StackPanel
         {
             Orientation = Orientation.Vertical,
-            Spacing = 18f,
-            Width = 660f,
+            Spacing = 22f,
+            Width = 780f,
             Margin = new Thickness(0f, 68f, 0f, 20f),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         };
 
-        var resumeBtn = new IgiMenuButton(theme, "RESUME") { TextSize = 28f, Height = 64f, Width = 620f };
+        var resumeBtn = new IgiMenuButton(theme, "RESUME") { TextSize = 34f, Height = 76f, Width = 740f };
         resumeBtn.Activated += () => Context.Host.ResumeMission();
         menuStack.AddChild(resumeBtn);
 
-        var restartBtn = new IgiMenuButton(theme, "RESTART MISSION") { TextSize = 28f, Height = 64f, Width = 620f };
+        var restartBtn = new IgiMenuButton(theme, "RESTART MISSION") { TextSize = 34f, Height = 76f, Width = 740f };
         restartBtn.Activated += () => Context.Host.RestartMission();
         menuStack.AddChild(restartBtn);
 
-        var customBtn = new IgiMenuButton(theme, "CUSTOMIZE CONTROLS") { TextSize = 28f, Height = 64f, Width = 620f };
+        var customBtn = new IgiMenuButton(theme, "CUSTOMIZE CONTROLS") { TextSize = 34f, Height = 76f, Width = 740f };
         customBtn.Activated += () => Context.Host.CustomizeTouchControls();
         menuStack.AddChild(customBtn);
 
-        var configBtn = new IgiMenuButton(theme, "CONFIGURATION") { TextSize = 28f, Height = 64f, Width = 620f };
+        var configBtn = new IgiMenuButton(theme, "CONFIGURATION") { TextSize = 34f, Height = 76f, Width = 740f };
         configBtn.Activated += () => Context.Stack.Reset(new SettingsScreen(Context));
         menuStack.AddChild(configBtn);
 
         var abortBtn = new IgiMenuButton(theme, "ABORT MISSION")
         {
-            TextSize = 28f,
-            Height = 64f,
-            Width = 620f,
+            TextSize = 34f,
+            Height = 76f,
+            Width = 740f,
             NormalColor = Bgra32.FromRgb(255, 95, 80),
             HoverColor = Bgra32.FromRgb(255, 180, 170),
         };

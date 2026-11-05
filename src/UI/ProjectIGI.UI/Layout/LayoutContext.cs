@@ -37,8 +37,12 @@ public sealed class LayoutContext
     /// <summary>The default authored reference height, a 16:9 canvas.</summary>
     public const float DefaultReferenceHeight = 1080f;
 
-    /// <summary>Gets or sets the global UI scale multiplier (default 1.0f).</summary>
-    public static float GlobalUiScale { get; set; } = 1.0f;
+    /// <summary>Gets or sets the global UI scale multiplier (default 1.2f).</summary>
+    /// <remarks>
+    /// The menus are authored at a 1920x1080 reference, so on a phone they render small;
+    /// 1.2 keeps them readable without overflowing the tallest screen (Configuration).
+    /// </remarks>
+    public static float GlobalUiScale { get; set; } = 1.2f;
 
     /// <summary>Gets or sets the global Text scale multiplier (default 1.0f).</summary>
     public static float GlobalTextScale { get; set; } = 1.0f;

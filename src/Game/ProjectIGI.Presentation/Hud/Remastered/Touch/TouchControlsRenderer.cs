@@ -95,7 +95,7 @@ public static class TouchControlsRenderer
 
         // Top Toolbar background strip
         float topY = safe.Y + Px(8f);
-        float barH = Px(52f);
+        float barH = Px(60f);
         UiRect barRect = new(safe.X, safe.Y, safe.Width, barH + Px(16f));
         painter.FillRect(barRect, Bgra32.FromRgba(6, 14, 8, 230));
         painter.StrokeLine(new UiVec2(safe.X, barRect.Bottom), new UiVec2(safe.Right, barRect.Bottom), Px(1.5f), Rim);
@@ -103,21 +103,21 @@ public static class TouchControlsRenderer
         // Header Title
         if (font is not null)
         {
-            painter.DrawText(font, "TACTICAL HUD CONFIGURATION // DRAG TO MOVE", new UiVec2(safe.X + Px(16f), topY + Px(14f)), Px(18f), DefaultAccent);
+            painter.DrawText(font, "TACTICAL HUD CONFIGURATION // DRAG TO MOVE", new UiVec2(safe.X + Px(16f), topY + Px(14f)), Px(22f), DefaultAccent);
         }
 
         // Toolbar Buttons
-        UiRect saveBox    = new(safe.Right - Px(210f), topY, Px(200f), barH);
-        UiRect resetBox   = new(safe.Right - Px(390f), topY, Px(170f), barH);
-        UiRect sizePlus   = new(safe.Right - Px(490f), topY, Px(90f), barH);
-        UiRect sizeMinus  = new(safe.Right - Px(590f), topY, Px(90f), barH);
-        UiRect opacityBox = new(safe.Right - Px(760f), topY, Px(160f), barH);
+        UiRect saveBox    = new(safe.Right - Px(230f), topY, Px(220f), barH);
+        UiRect resetBox   = new(safe.Right - Px(430f), topY, Px(190f), barH);
+        UiRect sizePlus   = new(safe.Right - Px(540f), topY, Px(100f), barH);
+        UiRect sizeMinus  = new(safe.Right - Px(650f), topY, Px(100f), barH);
+        UiRect opacityBox = new(safe.Right - Px(840f), topY, Px(180f), barH);
 
-        DrawToolButton(painter, saveBox, "SAVE & EXIT", font, Px(16f), fillAccent: true);
-        DrawToolButton(painter, resetBox, "RESET", font, Px(15f));
-        DrawToolButton(painter, sizePlus, "SIZE +", font, Px(15f));
-        DrawToolButton(painter, sizeMinus, "SIZE -", font, Px(15f));
-        DrawToolButton(painter, opacityBox, $"OPACITY: {(int)(TouchControls.GlobalOpacity * 100)}%", font, Px(14f));
+        DrawToolButton(painter, saveBox, "SAVE & EXIT", font, Px(19f), fillAccent: true);
+        DrawToolButton(painter, resetBox, "RESET", font, Px(18f));
+        DrawToolButton(painter, sizePlus, "SIZE +", font, Px(18f));
+        DrawToolButton(painter, sizeMinus, "SIZE -", font, Px(18f));
+        DrawToolButton(painter, opacityBox, $"OPACITY: {(int)(TouchControls.GlobalOpacity * 100)}%", font, Px(17f));
 
         // Draw Element Bounding / Selection and Labels
         foreach (TouchButtonSpot spot in controls.Layout)
