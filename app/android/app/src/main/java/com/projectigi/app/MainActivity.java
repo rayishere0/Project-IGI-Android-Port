@@ -666,9 +666,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
     private void launchGameNow() {
         statusText.setText("STARTING " + ("webgpu".equals(rendererBackend) ? "WEBGPU" : "VULKAN") + " RENDERER...");
-        if ("webgpu".equals(rendererBackend)) {
-            Toast.makeText(this, "WebGPU is not in this build yet — starting on Vulkan", Toast.LENGTH_LONG).show();
-        }
         if (pendingHolder != null && !isGameStarted) {
             startGameWithHolder(pendingHolder);
         }

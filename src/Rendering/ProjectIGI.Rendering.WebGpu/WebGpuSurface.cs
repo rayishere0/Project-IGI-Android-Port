@@ -5,7 +5,7 @@ namespace ProjectIGI.Rendering.WebGpu;
 
 /// <summary>Which window system a native handle belongs to.</summary>
 /// <remarks>
-/// The four desktop platforms wgpu-native can make a surface from, and the browser's canvas. A canvas
+/// The platforms wgpu-native can make a surface from, and the browser's canvas. A canvas
 /// has no handle to pass: the page owns it, and the browser build's webgpu.h makes the surface from it
 /// whatever the descriptor says.
 /// </remarks>
@@ -22,6 +22,9 @@ public enum WebGpuWindowSystem
 
     /// <summary>A Metal layer, which is what a Cocoa window's view is backed by.</summary>
     Metal,
+
+    /// <summary>An Android native window (ANativeWindow*): the window handle; the display is ignored.</summary>
+    Android,
 
     /// <summary>The page's canvas, in a browser. The handles are ignored.</summary>
     Canvas,
@@ -99,12 +102,13 @@ public sealed unsafe class WebGpuSurface : IDisposable
     {
         using WebGpuString name = new(label);
 
-        // One of four chained structures, chosen by the window system. Each is a different shape and the
+        // One of five chained structures, chosen by the window system. Each is a different shape and the
         // chain's type tag is what tells wgpu-native which it was handed.
         WGPUSurfaceSourceWindowsHWND win32 = default;
         WGPUSurfaceSourceXlibWindow xlib = default;
         WGPUSurfaceSourceWaylandSurface wayland = default;
         WGPUSurfaceSourceMetalLayer metal = default;
+        WGPUSurfaceSourceAndroidNativeWindow android = default;
         WGPUChainedStruct* chain;
 
         switch (handles.System)
@@ -146,6 +150,15 @@ public sealed unsafe class WebGpuSurface : IDisposable
                     layer = (void*)handles.Window,
                 };
                 chain = (WGPUChainedStruct*)&metal;
+                break;
+
+            case WebGpuWindowSystem.Android:
+                android = new WGPUSurfaceSourceAndroidNativeWindow
+                {
+                    chain = new WGPUChainedStruct { sType = WGPUSType.SurfaceSourceAndroidNativeWindow },
+                    window = (void*)handles.Window,
+                };
+                chain = (WGPUChainedStruct*)&android;
                 break;
 
             case WebGpuWindowSystem.Canvas:
