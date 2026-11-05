@@ -16,7 +16,9 @@ using ProjectIGI.Host.Infrastructure;
 using ProjectIGI.Platform;
 using ProjectIGI.Rendering;
 using ProjectIGI.Rendering.Pipeline;
+using ProjectIGI.Rendering.Rhi;
 using ProjectIGI.Rendering.Vulkan.Rhi;
+using ProjectIGI.Rendering.WebGpu;
 
 // The native bridge (app/android/app/src/main/cpp/jni/jni_bridge.cpp) resolves this type by the
 // literal string "OpenIGI.Android.AndroidHost", so the namespace is part of the ABI, not a naming
@@ -29,6 +31,7 @@ public static class AndroidHost
     private static AndroidGameWindow? _window;
     private static ProjectIGI.Rendering.Pipeline.GraphicsDevice? _device;
     private static VulkanRhi? _vulkanRhi;
+    private static WebGpuRhiDevice? _webGpuRhi;
     private static LogRouter? _logger;
 
     public delegate int RunCallback(nint nativeWindow, int width, int height, nint dataDirPtr, nint optionsPtr);
@@ -138,18 +141,10 @@ public static class AndroidHost
             bool settingsExist = File.Exists(settingsPath);
 
             // The launcher passes the backend the player picked (-vulkan / -webgpu) in the
-            // options string. Vulkan is the only backend in this build: the WebGPU RHI is
-            // ported (PR #16) but not yet merged, and there is no wgpu-native library or
-            // Android surface for it, so a WebGPU pick falls back to Vulkan for now.
+            // options string. WebGPU is attempted when picked; if its library or surface
+            // cannot be created (no libwgpu_native.so in the APK yet, or the adapter
+            // refuses), it falls back to native Vulkan so the game still starts.
             bool wantsWebGpu = optionsStr.Contains("webgpu", StringComparison.OrdinalIgnoreCase);
-            if (wantsWebGpu)
-            {
-                _logger.Information("AndroidHost", "WebGPU requested from the launcher, but the WebGPU RHI is not in this build yet — using native Vulkan.");
-            }
-            else
-            {
-                _logger.Information("AndroidHost", "Vulkan-only build: ignoring r_backend setting, forcing Vulkan 1.3.");
-            }
 
             // Enforce maximum speed profile on Android mobile unconditionally:
             LightingCVars.Deferred.Value = false;
@@ -182,22 +177,36 @@ public static class AndroidHost
                 throw new InvalidOperationException("Native window handle is IntPtr.Zero!");
             }
 
-            _logger.Information("AndroidHost", "Initializing native Vulkan 1.3 device.");
-            DisplayCVars.Renderer.Value = RendererBackend.Vulkan;
+            IRhiDevice rhiDevice;
+            RendererBackend chosenBackend;
+            if (wantsWebGpu)
+            {
+                try
+                {
+                    _logger.Information("AndroidHost", "Initializing WebGPU device.");
+                    _webGpuRhi = WebGpuRhiDevice.CreateForWindow(
+                        new WebGpuWindowHandles(WebGpuWindowSystem.Android, nint.Zero, nativeWindow),
+                        landscapeWidth,
+                        landscapeHeight,
+                        vsync: true);
+                    rhiDevice = _webGpuRhi;
+                    chosenBackend = RendererBackend.WebGpu;
+                    DisplayCVars.Renderer.Value = RendererBackend.WebGpu;
+                    _logger.Information("AndroidHost", $"WebGPU initialized on adapter: {rhiDevice.AdapterName}");
+                }
+                catch (Exception webGpuEx)
+                {
+                    _logger.Error("AndroidHost", "WebGPU could not start (is libwgpu_native.so in the APK?) — falling back to native Vulkan.", webGpuEx);
+                    _webGpuRhi?.Dispose();
+                    _webGpuRhi = null;
+                    (rhiDevice, chosenBackend) = CreateVulkanRhi(nativeWindow, landscapeWidth, landscapeHeight);
+                }
+            }
+            else
+            {
+                (rhiDevice, chosenBackend) = CreateVulkanRhi(nativeWindow, landscapeWidth, landscapeHeight);
+            }
 
-            // The native window is the ANativeWindow* the JNI bridge obtained from the Surface;
-            // AndroidVulkanSurfaceProvider hands it to vkCreateAndroidSurfaceKHR. This mirrors
-            // desktop's VulkanRhi.CreateForSurface(new VulkanSurfaceProvider(...)) exactly.
-            _vulkanRhi = VulkanRhi.CreateForSurface(
-                new AndroidVulkanSurfaceProvider(nativeWindow),
-                landscapeWidth,
-                landscapeHeight,
-                vsync: true,
-                _logger,
-                enableValidation: false,
-                streamline: null);
-
-            var rhiDevice = _vulkanRhi.Device;
             _device = new ProjectIGI.Rendering.Pipeline.GraphicsDevice(
                 rhiDevice,
                 new DisplayMode(landscapeWidth, landscapeHeight, 32, 60),
@@ -206,12 +215,10 @@ public static class AndroidHost
 
             // The pipeline GraphicsDevice configures the surface itself (and on resize) through
             // IRhiDevice.ConfigureSurface; there is no manual surface step here.
-            _logger.Information("AndroidHost", $"Native Vulkan initialized on adapter: {rhiDevice.AdapterName}");
 
             ProjectIGI.Rendering.Generated.CVarRegistrations.RegisterAll();
             ProjectIGI.Game.Generated.CVarRegistrations.RegisterAll();
 
-            RendererBackend chosenBackend = RendererBackend.Vulkan;
             _logger.Information("AndroidHost", $"Using rendering API: {chosenBackend} (Settings exist: {settingsExist})");
 
             int exitCode;
@@ -259,9 +266,35 @@ public static class AndroidHost
             _device = null;
             _vulkanRhi?.Dispose();
             _vulkanRhi = null;
+            _webGpuRhi?.Dispose();
+            _webGpuRhi = null;
             _window?.Dispose();
             _window = null;
         }
+    }
+
+    private static (IRhiDevice Device, RendererBackend Backend) CreateVulkanRhi(nint nativeWindow, int width, int height)
+    {
+        LogRouter logger = _logger!;
+
+        logger.Information("AndroidHost", "Initializing native Vulkan 1.3 device.");
+        DisplayCVars.Renderer.Value = RendererBackend.Vulkan;
+
+        // The native window is the ANativeWindow* the JNI bridge obtained from the Surface;
+        // AndroidVulkanSurfaceProvider hands it to vkCreateAndroidSurfaceKHR. This mirrors
+        // desktop's VulkanRhi.CreateForSurface(new VulkanSurfaceProvider(...)) exactly.
+        _vulkanRhi = VulkanRhi.CreateForSurface(
+            new AndroidVulkanSurfaceProvider(nativeWindow),
+            width,
+            height,
+            vsync: true,
+            logger,
+            enableValidation: false,
+            streamline: null);
+
+        IRhiDevice device = _vulkanRhi.Device;
+        logger.Information("AndroidHost", $"Native Vulkan initialized on adapter: {device.AdapterName}");
+        return (device, RendererBackend.Vulkan);
     }
 
     [UnmanagedCallersOnly(EntryPoint = "OnTouch")]
