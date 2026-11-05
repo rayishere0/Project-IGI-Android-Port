@@ -137,9 +137,19 @@ public static class AndroidHost
             string settingsPath = Path.Combine(dataDir, SettingsPaths.SettingsFileName);
             bool settingsExist = File.Exists(settingsPath);
 
-            // Vulkan-only build: the r_backend/r_renderer setting is ignored. OpenGL ES and
-            // Veldrid are removed; the native Vulkan 1.3 renderer is the only backend.
-            _logger.Information("AndroidHost", "Vulkan-only build: ignoring r_backend setting, forcing Vulkan 1.3.");
+            // The launcher passes the backend the player picked (-vulkan / -webgpu) in the
+            // options string. Vulkan is the only backend in this build: the WebGPU RHI is
+            // ported (PR #16) but not yet merged, and there is no wgpu-native library or
+            // Android surface for it, so a WebGPU pick falls back to Vulkan for now.
+            bool wantsWebGpu = optionsStr.Contains("webgpu", StringComparison.OrdinalIgnoreCase);
+            if (wantsWebGpu)
+            {
+                _logger.Information("AndroidHost", "WebGPU requested from the launcher, but the WebGPU RHI is not in this build yet — using native Vulkan.");
+            }
+            else
+            {
+                _logger.Information("AndroidHost", "Vulkan-only build: ignoring r_backend setting, forcing Vulkan 1.3.");
+            }
 
             // Enforce maximum speed profile on Android mobile unconditionally:
             LightingCVars.Deferred.Value = false;

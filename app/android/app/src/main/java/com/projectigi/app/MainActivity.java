@@ -56,6 +56,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private static final String ASSET_VERSION = "v22_perm_on_start";
     private static final int REQUEST_SELECT_GAME_FOLDER = 2001;
     private static final int REQUEST_STORAGE_PERMISSIONS = 1002;
+    private static final String PREFS_NAME = "projectigi_prefs";
+    private static final String PREF_RENDERER_BACKEND = "renderer_backend";
 
     private SurfaceView surfaceView;
     private FrameLayout rootLayout;
@@ -64,6 +66,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private ProgressBar progressBar;
     private Button selectFolderBtn;
     private Button playBtn;
+    private Button vulkanBtn;
+    private Button webGpuBtn;
+    private String rendererBackend = "vulkan";
 
     private boolean isExtracted = false;
     private boolean isGameFolderVerified = false;
@@ -129,6 +134,11 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
         // Request storage permissions on app startup
         requestStoragePermissionsOnStart();
+
+        // Restore the saved renderer backend (default: Vulkan)
+        rendererBackend = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            .getString(PREF_RENDERER_BACKEND, "vulkan");
+        if (!"webgpu".equals(rendererBackend)) rendererBackend = "vulkan";
 
         rootLayout = new FrameLayout(this);
         rootLayout.setBackgroundColor(Color.BLACK);
@@ -223,6 +233,46 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         statusText.setText("INITIALIZING SYSTEM ASSEMBLIES...");
         cardLayout.addView(statusText);
 
+        // Renderer selector: the backend the engine starts on (Vulkan or WebGPU)
+        TextView rendererLabel = new TextView(this);
+        rendererLabel.setTextColor(Color.rgb(180, 205, 185));
+        rendererLabel.setTextSize(10);
+        rendererLabel.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        rendererLabel.setGravity(Gravity.CENTER);
+        rendererLabel.setLetterSpacing(0.12f);
+        rendererLabel.setPadding(0, 0, 0, (int)(6 * density));
+        rendererLabel.setText("RENDERER");
+        cardLayout.addView(rendererLabel);
+
+        LinearLayout rendererRow = new LinearLayout(this);
+        rendererRow.setOrientation(LinearLayout.HORIZONTAL);
+        rendererRow.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams rendererRowParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        rendererRowParams.bottomMargin = (int)(14 * density);
+        cardLayout.addView(rendererRow, rendererRowParams);
+
+        vulkanBtn = new Button(this);
+        vulkanBtn.setText("VULKAN");
+        vulkanBtn.setTextSize(11);
+        vulkanBtn.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        LinearLayout.LayoutParams vulkanLp = new LinearLayout.LayoutParams(
+            (int)(160 * density), (int)(40 * density));
+        vulkanLp.rightMargin = (int)(12 * density);
+        vulkanBtn.setOnClickListener(v -> setRendererBackend("vulkan"));
+        rendererRow.addView(vulkanBtn, vulkanLp);
+
+        webGpuBtn = new Button(this);
+        webGpuBtn.setText("WEBGPU");
+        webGpuBtn.setTextSize(11);
+        webGpuBtn.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        LinearLayout.LayoutParams webGpuLp = new LinearLayout.LayoutParams(
+            (int)(160 * density), (int)(40 * density));
+        webGpuBtn.setOnClickListener(v -> setRendererBackend("webgpu"));
+        rendererRow.addView(webGpuBtn, webGpuLp);
+
+        updateRendererButtons();
+
         // Buttons Layout Row
         LinearLayout btnRow = new LinearLayout(this);
         btnRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -307,6 +357,35 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             }
             playBtn.setBackground(playBg);
         });
+    }
+
+    private void setRendererBackend(String backend) {
+        rendererBackend = "webgpu".equals(backend) ? "webgpu" : "vulkan";
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
+            .putString(PREF_RENDERER_BACKEND, rendererBackend).apply();
+        updateRendererButtons();
+    }
+
+    private void updateRendererButtons() {
+        if (vulkanBtn == null || webGpuBtn == null) return;
+        float density = getResources().getDisplayMetrics().density;
+        styleRendererButton(vulkanBtn, "vulkan".equals(rendererBackend), density);
+        styleRendererButton(webGpuBtn, "webgpu".equals(rendererBackend), density);
+    }
+
+    private void styleRendererButton(Button btn, boolean selected, float density) {
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(6 * density);
+        if (selected) {
+            bg.setColor(Color.rgb(57, 227, 101)); // Phosphor green
+            bg.setStroke((int)(2 * density), Color.rgb(180, 255, 195));
+            btn.setTextColor(Color.BLACK);
+        } else {
+            bg.setColor(Color.rgb(20, 52, 28)); // Dark green
+            bg.setStroke((int)(1 * density), Color.rgb(65, 80, 68));
+            btn.setTextColor(Color.rgb(100, 120, 105));
+        }
+        btn.setBackground(bg);
     }
 
     private void prepareAssetsAndStart() {
@@ -586,7 +665,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     }
 
     private void launchGameNow() {
-        statusText.setText("STARTING OPENGL RENDERER...");
+        statusText.setText("STARTING " + ("webgpu".equals(rendererBackend) ? "WEBGPU" : "VULKAN") + " RENDERER...");
+        if ("webgpu".equals(rendererBackend)) {
+            Toast.makeText(this, "WebGPU is not in this build yet — starting on Vulkan", Toast.LENGTH_LONG).show();
+        }
         if (pendingHolder != null && !isGameStarted) {
             startGameWithHolder(pendingHolder);
         }
@@ -750,7 +832,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         String nativeLibDir = getApplicationInfo().nativeLibraryDir;
 
         Log.i(TAG, "Calling nativeStartGame: " + landscapeWidth + "x" + landscapeHeight);
-        NativeEngine.nativeStartGame(holder.getSurface(), landscapeWidth, landscapeHeight, filesDir, nativeLibDir, "");
+        NativeEngine.nativeStartGame(holder.getSurface(), landscapeWidth, landscapeHeight, filesDir, nativeLibDir, "-" + rendererBackend);
     }
 
     @Override

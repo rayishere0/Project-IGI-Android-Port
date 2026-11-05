@@ -439,6 +439,11 @@ internal static class HostOptionsParser
                 // Accept internally passed Android renderer flags without throwing ArgumentException
                 continue;
             }
+            else if (arg.Equals("webgpu", StringComparison.OrdinalIgnoreCase))
+            {
+                // Accept internally passed Android renderer flags without throwing ArgumentException
+                continue;
+            }
             else
             {
                 // To safely prevent random args from throwing fatal exceptions on Android:
