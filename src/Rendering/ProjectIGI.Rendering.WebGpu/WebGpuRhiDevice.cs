@@ -145,6 +145,9 @@ public sealed unsafe partial class WebGpuRhiDevice : IRhiDevice
     {
         ThrowIfDisposed();
 
+        width = Math.Max(1, width);
+        height = Math.Max(1, height);
+
         _surface?.Dispose();
         _surface = null;
 

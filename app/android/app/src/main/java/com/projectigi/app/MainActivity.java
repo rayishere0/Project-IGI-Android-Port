@@ -1127,7 +1127,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         // a SurfaceView, so there is no Android View for the keyboard to target; this
         // invisible field is the target, and its TextWatcher forwards typed text.
         hiddenInput = new EditText(this);
-        hiddenInput.setVisibility(View.INVISIBLE);
+        // Visible (not INVISIBLE): some keyboards refuse to show for an invisible view.
+        // It is 1x1 with no background and no cursor, so nothing is actually drawn.
+        hiddenInput.setVisibility(View.VISIBLE);
+        hiddenInput.setCursorVisible(false);
         hiddenInput.setFocusable(true);
         hiddenInput.setFocusableInTouchMode(true);
         hiddenInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT

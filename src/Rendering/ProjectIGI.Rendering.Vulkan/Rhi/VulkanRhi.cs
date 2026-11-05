@@ -84,6 +84,9 @@ public sealed class VulkanRhi : IDisposable
     /// </remarks>
     public void RebindSurface(nint nativeWindow, int width, int height, bool vsync)
     {
+        width = Math.Max(1, width);
+        height = Math.Max(1, height);
+
         _instance.Vk.DeviceWaitIdle(_device.Device);
 
         _swapchain?.Dispose();

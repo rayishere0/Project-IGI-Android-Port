@@ -644,12 +644,14 @@ public sealed partial class GameHost : IDisposable
             }
 
             // The surface is gone (the app was backgrounded and Android destroyed its window):
-            // pump the input queue first so a surface-recreated event from the platform is
+            // drain only the surface queue so a surface-recreated event from the platform is
             // processed and the surface rebound, then idle instead of drawing. Drawing into a
             // dead surface throws; spinning without a present to pace against burns the battery.
+            // This must NOT be a full PumpEvents: that would clear the per-frame touch deltas
+            // and Began flags a second time and stutter the touch look and taps.
             // The pause menu is already open (the platform sent Back on background), so the
             // player returns to the pause menu in the mission, not the main menu.
-            _window.PumpEvents();
+            _window.PumpSurfaceEvents();
             if (!_device.HasSurface)
             {
                 Thread.Sleep(16);

@@ -27,6 +27,7 @@ public sealed class SettingsScreen : ShellScreen
     private readonly float _initialSensitivity;
     private readonly int _initialFpsCap;
     private readonly bool _initialInvert;
+    private readonly bool _initialGyro;
     private readonly float _initialUiScale;
     private readonly float _initialTextScale;
     private readonly int _initialRenderScale;
@@ -41,6 +42,7 @@ public sealed class SettingsScreen : ShellScreen
         _initialSensitivity = context.Host.TouchSensitivity;
         _initialFpsCap = ReconstructionCVars.FrameLimit.Value;
         _initialInvert = context.Config.Active?.InvertMouse ?? false;
+        _initialGyro = context.Config.Active?.GyroEnabled ?? false;
         _initialUiScale = LayoutContext.GlobalUiScale;
         _initialTextScale = LayoutContext.GlobalTextScale;
         _initialRenderScale = context.Host.RenderScaleMode;
@@ -214,6 +216,25 @@ public sealed class SettingsScreen : ShellScreen
         };
         configStack.AddChild(invertToggle);
 
+        // ── Gyroscope aim (Android only; tilt the phone to aim) ─────────────
+        // This is the live Configuration screen. (An earlier version put this toggle
+        // in ControlsSettingsTab, which nothing ever shows, so it never appeared.)
+        bool gyroState = Context.Config.Active?.GyroEnabled ?? false;
+        var gyroToggle = new Toggle(theme, "Gyroscope aim", gyroState)
+        {
+            Width = 980f,
+            Height = 56f,
+            Tooltip = "Tilt the phone to aim. Only on Android, and only while playing.",
+        };
+        gyroToggle.ValueChanged += val =>
+        {
+            if (Context.Config.Active is { } profile)
+            {
+                profile.GyroEnabled = val;
+            }
+        };
+        configStack.AddChild(gyroToggle);
+
         // ── Option 8: Show FPS Counter Overlay ───────────────────────────
         bool showFpsState = DisplayCVars.ShowFps.Value;
         var fpsToggle = new Toggle(theme, "Show FPS Counter", showFpsState)
@@ -275,6 +296,7 @@ public sealed class SettingsScreen : ShellScreen
             if (Context.Config.Active is { } profile)
             {
                 profile.InvertMouse = _initialInvert;
+                profile.GyroEnabled = _initialGyro;
             }
             CloseConfig();
         };

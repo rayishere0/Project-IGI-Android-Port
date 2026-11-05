@@ -394,8 +394,10 @@ public static class AndroidHost
     [UnmanagedCallersOnly(EntryPoint = "OnSurfaceRecreated")]
     public static void OnSurfaceRecreated(nint nativeWindow, int width, int height)
     {
-        int landscapeWidth = Math.Max(width, height);
-        int landscapeHeight = Math.Min(width, height);
+        // A surface can arrive at 0x0 (created before it is laid out); the swapchain
+        // needs at least 1x1, and the next resize corrects it to the real size.
+        int landscapeWidth = Math.Max(1, Math.Max(width, height));
+        int landscapeHeight = Math.Max(1, Math.Min(width, height));
         _window?.EnqueueSurfaceRecreated(nativeWindow, landscapeWidth, landscapeHeight);
     }
 
@@ -404,15 +406,19 @@ public static class AndroidHost
     /// alive so the player returns to the pause menu in the mission instead of the main menu.
     /// Runs on the game thread (invoked from PumpEvents).
     /// </summary>
+    /// <returns>True if the surface was rebound; false if it failed (the caller retries).</returns>
     /// <remarks>
-    /// If the rebind fails, the surface stays lost and the loop keeps idling; the player can still
-    /// quit from the (frozen) pause menu, and a fresh start recovers. It never throws into the
-    /// frame loop, because a failed rebind must not turn a backgrounding into a crash.
+    /// A failed rebind never throws into the frame loop, because a failed rebind must not turn
+    /// a backgrounding into a crash. The surface stays lost and the loop keeps idling; the
+    /// window retries the rebind a few times, and a restart recovers.
     /// </remarks>
-    private static void RebindSurface(nint nativeWindow, int width, int height)
+    private static bool RebindSurface(nint nativeWindow, int width, int height)
     {
         try
         {
+            width = Math.Max(1, width);
+            height = Math.Max(1, height);
+
             if (_activeBackend == RendererBackend.WebGpu && _webGpuRhi is { } webGpu)
             {
                 webGpu.RebindSurface(
@@ -427,10 +433,17 @@ public static class AndroidHost
                 vulkan.RebindSurface(nativeWindow, width, height, vsync: true);
                 _logger?.Information("AndroidHost", "Vulkan surface rebound to the new window; resuming in place.");
             }
+            else
+            {
+                return false;
+            }
+
+            return true;
         }
         catch (Exception ex)
         {
-            _logger?.Error("AndroidHost", "Surface rebind failed; the loop will keep idling and a restart recovers.", ex);
+            _logger?.Error("AndroidHost", "Surface rebind failed; will retry, and a restart recovers.", ex);
+            return false;
         }
     }
 
