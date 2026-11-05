@@ -1048,6 +1048,13 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
     @Override
     public void onBackPressed() {
+        // If the soft keyboard is showing, the first Back dismisses it (and clears the
+        // keyboard-icon request) instead of navigating — standard Android behaviour.
+        if (isGameStarted && imeShown) {
+            hideSoftKeyboard();
+            NativeEngine.nativeSetKeyboardRequested(false);
+            return;
+        }
         if (isGameStarted) {
             NativeEngine.nativeOnKey(4, true);
             surfaceView.postDelayed(() -> NativeEngine.nativeOnKey(4, false), 50);
@@ -1111,10 +1118,15 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                     return;
                 }
                 // Integrate the rates (rad/s) into per-event angle deltas (radians).
-                // Axis signs are a best guess for landscape and must be verified on a
-                // real device (flip yaw/pitch here if a direction feels backwards).
-                float yawDelta = event.values[1] * dt;
-                float pitchDelta = event.values[0] * dt;
+                // In landscape the axes are swapped: rotating around the device's X axis
+                // (values[0]) tilts the view left/right, and rotating around the Y axis
+                // (values[1]) aims up/down. Both are negated so the view follows the tilt:
+                // calibrated from a device report where tilt-down moved the view right,
+                // tilt-up moved it left, and tilt-right aimed down (axes swapped, signs
+                // backwards). If a direction still feels backwards on a given device,
+                // flip the sign of that line only.
+                float yawDelta = -event.values[0] * dt;
+                float pitchDelta = -event.values[1] * dt;
                 NativeEngine.nativeOnGyro(yawDelta, pitchDelta);
             }
 
@@ -1183,7 +1195,12 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     }
 
     private void updateImeVisibility() {
-        boolean focused = isGameStarted && NativeEngine.nativeIsTextFieldFocused();
+        // Show the keyboard when a text field is focused OR when the player asked for it
+        // via the keyboard icon in the main menu (under the cheats gear), so player names
+        // and other menu text can be typed even when the automatic focus detection does
+        // not fire. The icon toggles the request; Back clears it.
+        boolean focused = isGameStarted && (NativeEngine.nativeIsTextFieldFocused()
+            || NativeEngine.nativeIsKeyboardRequested());
         InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
         if (focused && !imeShown) {
             if (hiddenInput != null && imm != null) {

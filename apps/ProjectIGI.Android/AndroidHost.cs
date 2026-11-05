@@ -366,6 +366,23 @@ public static class AndroidHost
         return _gameHost is { } host && host.IsTextFieldFocused ? 1 : 0;
     }
 
+    /// <summary>Whether the player asked for the soft keyboard via the main-menu keyboard icon.</summary>
+    [UnmanagedCallersOnly(EntryPoint = "IsKeyboardRequested")]
+    public static int IsKeyboardRequested()
+    {
+        return _gameHost is { } host && host.KeyboardRequested ? 1 : 0;
+    }
+
+    /// <summary>Sets the soft-keyboard request flag (the Android side clears it when Back dismisses the keyboard).</summary>
+    [UnmanagedCallersOnly(EntryPoint = "SetKeyboardRequested")]
+    public static void SetKeyboardRequested(int value)
+    {
+        if (_gameHost is { } host)
+        {
+            host.KeyboardRequested = value != 0;
+        }
+    }
+
     [UnmanagedCallersOnly(EntryPoint = "OnResize")]
     public static void OnResize(int width, int height)
     {

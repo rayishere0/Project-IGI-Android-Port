@@ -55,6 +55,14 @@ public sealed partial class GameHost : IDisposable
     /// <summary>Gets whether the shell currently has a text field focused (for the Android soft keyboard).</summary>
     public bool IsTextFieldFocused { get; private set; }
 
+    /// <summary>
+    /// Whether the player asked for the soft keyboard via the keyboard icon in the main menu
+    /// (under the cheats gear). The Android side polls this and shows the IME while it is set,
+    /// so player names and other menu text can be typed even when the automatic focus
+    /// detection does not fire. Toggled by the icon; cleared by Back.
+    /// </summary>
+    public bool KeyboardRequested { get; set; }
+
     // --- Environment, supplied by the composition root ---
     private readonly IPlatformHost _platform;
     private readonly IWorkScheduler _work;
