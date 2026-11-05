@@ -16,6 +16,7 @@ namespace ProjectIGI.Frontend.Screens;
 /// </summary>
 public sealed class CheatsScreen : ShellScreen
 {
+    private IgiMenuButton? _unlockBtn;
     private IgiMenuButton? _ammoBtn;
     private IgiMenuButton? _damageBtn;
     private IgiMenuButton? _weaponsBtn;
@@ -75,15 +76,23 @@ public sealed class CheatsScreen : ShellScreen
             VerticalAlignment = VerticalAlignment.Center,
         };
 
-        // Header info note
-        var infoLabel = new Label(theme.Heading, "TACTICAL OVERRIDE SYSTEM", 26f, Bgra32.FromRgb(160, 240, 160))
+        // Cheat 1: Unlock All Missions
+        _unlockBtn = new IgiMenuButton(theme, GetUnlockText())
         {
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0f, 0f, 0f, 16f),
+            TextSize = 34f,
+            Height = 72f,
+            Width = 840f,
+            NormalColor = PlayerCheatCVars.UnlockAllLevels.Value ? Bgra32.FromRgb(78, 255, 120) : Bgra32.FromRgb(150, 180, 150),
         };
-        stack.AddChild(infoLabel);
+        _unlockBtn.Activated += () =>
+        {
+            PlayerCheatCVars.UnlockAllLevels.Value = !PlayerCheatCVars.UnlockAllLevels.Value;
+            _unlockBtn.Text = GetUnlockText();
+            _unlockBtn.NormalColor = PlayerCheatCVars.UnlockAllLevels.Value ? Bgra32.FromRgb(78, 255, 120) : Bgra32.FromRgb(150, 180, 150);
+        };
+        stack.AddChild(_unlockBtn);
 
-        // Cheat 1: Unlimited Ammo
+        // Cheat 2: Unlimited Ammo
         _ammoBtn = new IgiMenuButton(theme, GetAmmoText())
         {
             TextSize = 34f,
@@ -99,7 +108,7 @@ public sealed class CheatsScreen : ShellScreen
         };
         stack.AddChild(_ammoBtn);
 
-        // Cheat 2: No Damage
+        // Cheat 3: No Damage
         _damageBtn = new IgiMenuButton(theme, GetDamageText())
         {
             TextSize = 34f,
@@ -115,7 +124,7 @@ public sealed class CheatsScreen : ShellScreen
         };
         stack.AddChild(_damageBtn);
 
-        // Cheat 3: All Weapons
+        // Cheat 4: All Weapons
         _weaponsBtn = new IgiMenuButton(theme, GetWeaponsText())
         {
             TextSize = 34f,
@@ -170,6 +179,9 @@ public sealed class CheatsScreen : ShellScreen
 
         return root;
     }
+
+    private static string GetUnlockText() =>
+        $"Unlock All Missions:  [ {(PlayerCheatCVars.UnlockAllLevels.Value ? "ON" : "OFF")} ]";
 
     private static string GetAmmoText() =>
         $"Unlimited Ammo:  [ {(PlayerCheatCVars.InfiniteAmmo.Value ? "ON" : "OFF")} ]";

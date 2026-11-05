@@ -79,11 +79,11 @@ public sealed partial class GameHost
 
         TouchControlMode mode = CurrentTouchMode();
         _touchControls.Update(input.Touch, mode, new LayoutContext(_window.Width, _window.Height));
-        if (mode == TouchControlMode.Customizing)
-        {
-            return;
-        }
 
+        // No early return for Customizing: the Play/Computer blocks below are mode-gated, so
+        // nothing new is wanted while customizing — but the release section at the end must still
+        // run, or touch input held when customization started (e.g. Fire) stays latched and the
+        // weapon keeps firing for the whole customization session.
         _touchKeysWanted.Clear();
         _touchButtonsWanted.Clear();
         PlayerProfile? profile = _configuration.Active;
