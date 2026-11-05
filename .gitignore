@@ -7,6 +7,14 @@
 *.apk
 *.aab
 
+# Release signing key — never commit this. If it leaks, anyone can sign APKs
+# as you; if you lose it, you can never update the app for existing users.
+# The keystore file and keystore.properties (which holds its passwords) both
+# stay on the build machine only. See app/android/keystore.properties.example.
+*.keystore
+*.jks
+keystore.properties
+
 # Local configuration & IDE
 local.properties
 .artifacts/

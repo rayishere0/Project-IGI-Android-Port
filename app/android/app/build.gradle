@@ -1,5 +1,20 @@
 apply plugin: 'com.android.application'
 
+// Release signing: the key and passwords live in keystore.properties at the
+// project root (app/android/keystore.properties), which is never committed —
+// see .gitignore. If that file is absent (a machine without the release key),
+// the release build falls back to the debug key so it can still build, but
+// that APK is not for distribution: the debug key is per-machine, so an
+// update signed with it fails on devices that installed a differently
+// signed build. See keystore.properties.example for the file's format.
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+} else {
+    logger.warn("keystore.properties not found: release builds will be signed with the debug key and are not for distribution.")
+}
+
 android {
     namespace "com.projectigi.app"
     compileSdk rootProject.ext.compileSdkVersion
@@ -42,10 +57,21 @@ android {
         }
     }
 
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.debug
+            signingConfig keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
         debug {
