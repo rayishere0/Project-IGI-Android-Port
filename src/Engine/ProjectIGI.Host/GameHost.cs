@@ -657,11 +657,17 @@ public sealed partial class GameHost : IDisposable
             // dead surface throws; spinning without a present to pace against burns the battery.
             // This must NOT be a full PumpEvents: that would clear the per-frame touch deltas
             // and Began flags a second time and stutter the touch look and taps.
-            // The pause menu is already open (the platform sent Back on background), so the
-            // player returns to the pause menu in the mission, not the main menu.
+            // The game is forced into the paused state here, not just by the Back key the
+            // platform sends: that key cannot pause during a cutscene (skipping needs a hold,
+            // and the pause check refuses while one plays), so backgrounding mid-cutscene
+            // otherwise never pauses. PauseForBackground skips the cutscene first, then opens
+            // the pause menu; it is idempotent, so calling it every idle frame is safe. The
+            // player returns to the pause menu in the mission, not the main menu, and no
+            // keyboard pops up on return (no text field is focused while paused).
             _window.PumpSurfaceEvents();
             if (!_device.HasSurface)
             {
+                PauseForBackground(state);
                 Thread.Sleep(16);
                 continue;
             }

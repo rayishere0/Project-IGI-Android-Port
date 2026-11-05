@@ -20,7 +20,8 @@
             android:launchMode="singleTask"
             android:name="com.projectigi.app.MainActivity"
             android:screenOrientation="sensorLandscape"
-            android:theme="@style/AppTheme.NoActionBar">
+            android:theme="@style/AppTheme.NoActionBar"
+            android:windowSoftInputMode="adjustNothing">
 
             <!-- Fullscreen immersive: hide status bar + nav bar -->
             <meta-data
