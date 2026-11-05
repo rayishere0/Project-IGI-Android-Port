@@ -49,8 +49,8 @@ public sealed class MainMenuScreen : ShellScreen
         // 2. Central Green Wireframe Tactical Box ("Main Menu")
         var frame = new IgiTacticalFrame(theme, "Main Menu")
         {
-            Width = 840f,
-            Height = 660f,
+            Width = 920f,
+            Height = 720f,
             Margin = new Thickness(0f, 40f, 0f, 0f),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
@@ -59,22 +59,22 @@ public sealed class MainMenuScreen : ShellScreen
         var menuStack = new StackPanel
         {
             Orientation = Orientation.Vertical,
-            Spacing = 16f,
-            Width = 740f,
+            Spacing = 20f,
+            Width = 820f,
             Margin = new Thickness(0f, 54f, 0f, 16f),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         };
 
-        var playBtn = new IgiMenuButton(theme, "Play Project IGI") { TextSize = 34f, Height = 66f, Width = 680f };
+        var playBtn = new IgiMenuButton(theme, "Play Project IGI") { TextSize = 40f, Height = 78f, Width = 760f };
         playBtn.Activated += () => Context.Stack.Reset(new CampaignScreen(Context));
         menuStack.AddChild(playBtn);
 
-        var configBtn = new IgiMenuButton(theme, "Configuration") { TextSize = 34f, Height = 66f, Width = 680f };
+        var configBtn = new IgiMenuButton(theme, "Configuration") { TextSize = 40f, Height = 78f, Width = 760f };
         configBtn.Activated += () => Context.Stack.Reset(new SettingsScreen(Context));
         menuStack.AddChild(configBtn);
 
-        var quitBtn = new IgiMenuButton(theme, "Quit") { TextSize = 34f, Height = 66f, Width = 680f };
+        var quitBtn = new IgiMenuButton(theme, "Quit") { TextSize = 40f, Height = 78f, Width = 760f };
         quitBtn.Activated += () => Context.Host.Quit();
         menuStack.AddChild(quitBtn);
 
@@ -90,9 +90,9 @@ public sealed class MainMenuScreen : ShellScreen
 
         var readmeBtn = new IgiMenuButton(theme, "Read Me")
         {
-            TextSize = 24f,
-            Height = 46f,
-            Width = 360f,
+            TextSize = 28f,
+            Height = 54f,
+            Width = 420f,
             NormalColor = Bgra32.FromRgb(225, 175, 60),
             HoverColor = Bgra32.FromRgb(255, 230, 140),
         };

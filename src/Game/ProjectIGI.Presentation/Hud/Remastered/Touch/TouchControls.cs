@@ -462,12 +462,12 @@ public sealed class TouchControls
         UiRect safe = context.SafeRect;
 
         float topY = safe.Y + Px(10f);
-        float btnH = Px(48f);
-        UiRect saveBox    = new(safe.Right - Px(210f), topY, Px(200f), btnH);
-        UiRect resetBox   = new(safe.Right - Px(390f), topY, Px(170f), btnH);
-        UiRect sizePlus   = new(safe.Right - Px(490f), topY, Px(90f), btnH);
-        UiRect sizeMinus  = new(safe.Right - Px(590f), topY, Px(90f), btnH);
-        UiRect opacityBox = new(safe.Right - Px(760f), topY, Px(160f), btnH);
+        float btnH = Px(60f);
+        UiRect saveBox    = new(safe.Right - Px(230f), topY, Px(220f), btnH);
+        UiRect resetBox   = new(safe.Right - Px(430f), topY, Px(190f), btnH);
+        UiRect sizePlus   = new(safe.Right - Px(540f), topY, Px(100f), btnH);
+        UiRect sizeMinus  = new(safe.Right - Px(650f), topY, Px(100f), btnH);
+        UiRect opacityBox = new(safe.Right - Px(840f), topY, Px(180f), btnH);
 
         // Multi-touch pinch-to-zoom for real-time resizing of controls
         if (touch.Points.Count >= 2)

@@ -81,7 +81,7 @@ public sealed class SettingsScreen : ShellScreen
         var frame = new IgiTacticalFrame(theme, "Configuration")
         {
             Width = 1100f,
-            Height = 940f,
+            Height = 880f,
             Margin = new Thickness(0f, 15f, 0f, 0f),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
@@ -142,16 +142,16 @@ public sealed class SettingsScreen : ShellScreen
         };
         configStack.AddChild(sensSlider);
 
-        // ── Option 4: UI Size Slider (80% to 150%) ─────────────────────────
+        // ── Option 4: UI Size Slider (80% to 200%) ─────────────────────────
         int initialUiPct = (int)Math.Round(LayoutContext.GlobalUiScale * 100f);
-        var uiSizeSlider = new Slider(theme, "UI Size", 80f, 150f, initialUiPct, 5f)
+        var uiSizeSlider = new Slider(theme, "UI Size", 80f, 200f, initialUiPct, 5f)
         {
             Width = 980f,
             Height = 56f,
         };
         uiSizeSlider.ValueChanged += value =>
         {
-            LayoutContext.GlobalUiScale = Math.Clamp(value / 100f, 0.8f, 1.5f);
+            LayoutContext.GlobalUiScale = Math.Clamp(value / 100f, 0.8f, 2.0f);
         };
         configStack.AddChild(uiSizeSlider);
 
