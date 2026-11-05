@@ -73,6 +73,19 @@ public sealed partial class GameHost
                 // Suppress click so menu beneath does not click Play/Exit
                 input.Mouse.SetButton(MouseButton.Left, down: false);
             }
+
+            // Keyboard icon just under the gear: taps toggle the soft keyboard so the
+            // player can type names and other menu text even when the automatic
+            // focus detection does not fire. Same generous hit area as the gear.
+            float kbX = gearX;
+            float kbY = gearY + gearH + (8f * scale);
+            float kbHitX = kbX + (gearW * 0.5f) - (hit * 0.5f);
+            float kbHitY = kbY + (gearH * 0.5f) - (hit * 0.5f);
+            if (click && clickX >= kbHitX && clickX <= kbHitX + hit && clickY >= kbHitY && clickY <= kbHitY + hit)
+            {
+                KeyboardRequested = !KeyboardRequested;
+                input.Mouse.SetButton(MouseButton.Left, down: false);
+            }
             return;
         }
 
@@ -206,6 +219,36 @@ public sealed partial class GameHost
         // Gear Hub & axle hole
         painter.FillRect(new UiRect(gCenterX - gRadius, gCenterY - gRadius, gRadius * 2f, gRadius * 2f), brightGreen);
         painter.FillRect(new UiRect(gCenterX - (gRadius * 0.4f), gCenterY - (gRadius * 0.4f), gRadius * 0.8f, gRadius * 0.8f), darkBg);
+
+        // ── 1b. Keyboard icon just under the gear ────────────────────────────
+        // Tapping it toggles the soft keyboard so player names and other menu text
+        // can be typed even when the automatic focus detection does not fire.
+        // It is drawn highlighted while the keyboard is requested.
+        float kbX = gearX;
+        float kbY = gearY + gearH + (8f * scale);
+        float kbW = gearW;
+        float kbH = gearH;
+        painter.FillRect(new UiRect(kbX, kbY, kbW, kbH), KeyboardRequested ? Bgra32.FromRgba(16, 44, 22, 235) : darkBg);
+        painter.StrokeRect(new UiRect(kbX, kbY, kbW, kbH), 1.5f * scale, brightGreen);
+        // Two rows of keys and a spacebar, in the same green as the gear.
+        float key = 2.5f * scale;
+        float keyGap = 1.5f * scale;
+        float keysW = (4f * key) + (3f * keyGap);
+        float keysX = kbX + ((kbW - keysW) * 0.5f);
+        float row1Y = kbY + (4.5f * scale);
+        for (int i = 0; i < 4; i++)
+        {
+            painter.FillRect(new UiRect(keysX + (i * (key + keyGap)), row1Y, key, key), brightGreen);
+        }
+        float row2Y = row1Y + key + keyGap;
+        for (int i = 0; i < 4; i++)
+        {
+            painter.FillRect(new UiRect(keysX + (i * (key + keyGap)), row2Y, key, key), brightGreen);
+        }
+        float spaceW = keysW * 0.6f;
+        float spaceX = kbX + ((kbW - spaceW) * 0.5f);
+        float spaceY = row2Y + key + keyGap;
+        painter.FillRect(new UiRect(spaceX, spaceY, spaceW, key), brightGreen);
 
         // ── 2. Cheats Modal Overlay ───────────────────────────────────────
         if (_cheatsModalOpen)

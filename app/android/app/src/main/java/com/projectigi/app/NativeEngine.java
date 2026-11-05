@@ -36,6 +36,8 @@ public final class NativeEngine {
     public static native void nativeOnGyro(float yawRadians, float pitchRadians);
     public static native void nativeOnText(String text);
     public static native boolean nativeIsTextFieldFocused();
+    public static native boolean nativeIsKeyboardRequested();
+    public static native void nativeSetKeyboardRequested(boolean requested);
     public static native void nativeShutdown();
 
     private NativeEngine() {}

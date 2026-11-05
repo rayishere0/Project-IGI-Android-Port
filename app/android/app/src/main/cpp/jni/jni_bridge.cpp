@@ -48,6 +48,8 @@ typedef void (*StopFn)();
 typedef void (*GyroFn)(float yawRadians, float pitchRadians);
 typedef void (*TextFn)(const char* text);
 typedef int (*TextFocusFn)();
+typedef int (*KeyboardRequestedFn)();
+typedef void (*SetKeyboardRequestedFn)(int value);
 typedef void (*SurfaceLostFn)();
 typedef void (*SurfaceRecreatedFn)(intptr_t nativeWindow, int width, int height);
 
@@ -63,6 +65,8 @@ static StopFn g_stop_fn = nullptr;
 static GyroFn g_gyro_fn = nullptr;
 static TextFn g_text_fn = nullptr;
 static TextFocusFn g_text_focus_fn = nullptr;
+static KeyboardRequestedFn g_keyboard_requested_fn = nullptr;
+static SetKeyboardRequestedFn g_set_keyboard_requested_fn = nullptr;
 static SurfaceLostFn g_surface_lost_fn = nullptr;
 static SurfaceRecreatedFn g_surface_recreated_fn = nullptr;
 
@@ -191,8 +195,10 @@ static bool initialize_coreclr(const std::string& filesDir, const std::string& n
     int res8 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "IsTextFieldFocused", (void**)&g_text_focus_fn);
     int res9 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnSurfaceLost", (void**)&g_surface_lost_fn);
     int res10 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnSurfaceRecreated", (void**)&g_surface_recreated_fn);
+    int res11 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "IsKeyboardRequested", (void**)&g_keyboard_requested_fn);
+    int res12 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "SetKeyboardRequested", (void**)&g_set_keyboard_requested_fn);
 
-    LOGI("Delegate binding results: Run=0x%08X, OnTouch=0x%08X, OnKey=0x%08X, OnResize=0x%08X, Stop=0x%08X, OnGyro=0x%08X, OnText=0x%08X, IsTextFieldFocused=0x%08X, OnSurfaceLost=0x%08X, OnSurfaceRecreated=0x%08X", res1, res2, res3, res4, res5, res6, res7, res8, res9, res10);
+    LOGI("Delegate binding results: Run=0x%08X, OnTouch=0x%08X, OnKey=0x%08X, OnResize=0x%08X, Stop=0x%08X, OnGyro=0x%08X, OnText=0x%08X, IsTextFieldFocused=0x%08X, OnSurfaceLost=0x%08X, OnSurfaceRecreated=0x%08X, IsKeyboardRequested=0x%08X, SetKeyboardRequested=0x%08X", res1, res2, res3, res4, res5, res6, res7, res8, res9, res10, res11, res12);
 
     if (res1 < 0 || !g_run_fn) {
         LOGE("Failed to bind AndroidHost.Run: 0x%08X", res1);
@@ -406,6 +412,21 @@ JNIEXPORT jboolean JNICALL Java_com_projectigi_app_NativeEngine_nativeIsTextFiel
         return g_text_focus_fn() != 0 ? JNI_TRUE : JNI_FALSE;
     }
     return JNI_FALSE;
+}
+
+JNIEXPORT jboolean JNICALL Java_com_projectigi_app_NativeEngine_nativeIsKeyboardRequested
+  (JNIEnv *env, jclass clazz) {
+    if (g_keyboard_requested_fn) {
+        return g_keyboard_requested_fn() != 0 ? JNI_TRUE : JNI_FALSE;
+    }
+    return JNI_FALSE;
+}
+
+JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeSetKeyboardRequested
+  (JNIEnv *env, jclass clazz, jboolean requested) {
+    if (g_set_keyboard_requested_fn) {
+        g_set_keyboard_requested_fn(requested ? 1 : 0);
+    }
 }
 
 JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeShutdown
