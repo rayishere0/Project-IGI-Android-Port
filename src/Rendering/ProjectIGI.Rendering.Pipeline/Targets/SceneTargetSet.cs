@@ -57,6 +57,9 @@ public sealed class SceneTargetSet : IDisposable
         new(SceneTargetId.ClosestDepth, RhiTextureFormat.R32Float, SceneTargetScale.Full, Compute),
         // At the presented size: the resolve reconstructs to it, and everything after reads it there.
         new(SceneTargetId.ResolveOutput, RhiTextureFormat.Rgba16Float, SceneTargetScale.Output, Compute),
+        // FSR 1.0's upsample writes here at the presented size; the sharpening pass reads it and
+        // writes the final picture into ResolveOutput.
+        new(SceneTargetId.FsrIntermediate, RhiTextureFormat.Rgba16Float, SceneTargetScale.Output, Compute),
         new(SceneTargetId.ResolveHistoryColour, RhiTextureFormat.Rgba16Float, SceneTargetScale.Double, Compute, SceneTargetHistory.PingPong),
         new(SceneTargetId.ResolveHistoryMetadata, RhiTextureFormat.R8Unorm, SceneTargetScale.Double, Compute, SceneTargetHistory.PingPong),
 

@@ -23,6 +23,7 @@ public sealed class SettingsScreen : ShellScreen
     private static readonly int[] FpsCapValues = [30, 60, 90, 120, 0];
     private static readonly string[] FpsCapLabels = ["30 FPS", "60 FPS", "90 FPS", "120 FPS", "UNCAPPED"];
     private static readonly string[] RenderScaleLabels = ["540P (ULTRA)", "720P (PERFORMANCE)", "900P (BALANCED)", "NATIVE (MAX)"];
+    private static readonly string[] UpscalerLabels = ["ENGINE", "FSR 1.0"];
 
     private readonly float _initialOpacity;
     private readonly float _initialSensitivity;
@@ -34,6 +35,14 @@ public sealed class SettingsScreen : ShellScreen
     private readonly float _initialTextScale;
     private readonly int _initialRenderScale;
     private readonly bool _initialShowFps;
+    private readonly float _initialGamma;
+    private readonly ReconstructionKind _initialUpscaler;
+
+    private ScrollView? _scroll;
+    private UiVec2? _touchDragStart;
+    private float _touchDragStartOffset;
+    private bool _isDragging;
+    private Control? _pendingTapTarget;
 
     /// <summary>Initializes a new instance of the <see cref="SettingsScreen"/> class.</summary>
     /// <param name="context">The shared shell context.</param>
@@ -50,6 +59,8 @@ public sealed class SettingsScreen : ShellScreen
         _initialTextScale = LayoutContext.GlobalTextScale;
         _initialRenderScale = context.Host.RenderScaleMode;
         _initialShowFps = DisplayCVars.ShowFps.Value;
+        _initialGamma = PostCVars.Gamma.Value;
+        _initialUpscaler = ReconstructionCVars.Reconstruction.Value;
     }
 
     /// <inheritdoc/>
@@ -87,13 +98,24 @@ public sealed class SettingsScreen : ShellScreen
             VerticalAlignment = VerticalAlignment.Center,
         };
 
+        // The options scroll: there are more of them than the frame holds, so the list lives in
+        // a ScrollView and the OK/Cancel bar stays fixed at the bottom of the frame.
+        _scroll = new ScrollView(theme)
+        {
+            Width = 1010f,
+            Height = 740f,
+            Margin = new Thickness(60f, 42f, 30f, 0f),
+            ScrollbarWidth = 14f,
+            ScrollbarHitWidth = 56f,
+        };
+
         var configStack = new StackPanel
         {
             Orientation = Orientation.Vertical,
             Spacing = 14f,
             Width = 980f,
-            Margin = new Thickness(60f, 42f, 60f, 42f),
         };
+        _scroll.SetContent(configStack);
 
         // ── Option 1: On-Screen Touch Controls Customizer ─────────────────
         var customizeRow = new FlexPanel
@@ -203,6 +225,38 @@ public sealed class SettingsScreen : ShellScreen
         };
         configStack.AddChild(resCycler);
 
+        // ── Upscaler: how the render-resolution frame is brought to the screen ──
+        // Engine is the built-in temporal resolve; FSR 1.0 is AMD's spatial upscaler
+        // (edge-adaptive upsample + contrast-adaptive sharpening), which is cheaper and
+        // needs no temporal history. It upscales from the Resolution Quality above.
+        int currentUpscaler = ReconstructionCVars.Reconstruction.Value == ReconstructionKind.Fsr ? 1 : 0;
+        var upscalerCycler = new OptionCycler(theme, "Upscaler", UpscalerLabels, currentUpscaler)
+        {
+            Width = 980f,
+            Height = 56f,
+            ContentWidth = 320f,
+        };
+        upscalerCycler.SelectionChanged += index =>
+        {
+            ReconstructionCVars.Reconstruction.Value = index == 1 ? ReconstructionKind.Fsr : ReconstructionKind.Engine;
+        };
+        configStack.AddChild(upscalerCycler);
+
+        // ── Gamma: how bright the picture reads ─────────────────────────────
+        // A display-space power curve applied after the tone map. Above 1 the sun-lit
+        // models and mid-tones read brighter; below 1 they read darker. 1 is no change.
+        float initialGamma = PostCVars.Gamma.Value;
+        var gammaSlider = new Slider(theme, "Gamma", 50f, 250f, (int)Math.Round(initialGamma * 100f), 5f)
+        {
+            Width = 980f,
+            Height = 56f,
+        };
+        gammaSlider.ValueChanged += value =>
+        {
+            PostCVars.Gamma.Value = Math.Clamp(value / 100f, 0.5f, 2.5f);
+        };
+        configStack.AddChild(gammaSlider);
+
         // ── Option 7: Invert Mouse / Look Pitch ───────────────────────────
         bool invertState = Context.Config.Active?.InvertMouse ?? false;
         var invertToggle = new Toggle(theme, "Invert Look / Mouse", invertState)
@@ -271,7 +325,7 @@ public sealed class SettingsScreen : ShellScreen
         };
         configStack.AddChild(fpsToggle);
 
-        frame.AddChild(configStack);
+        frame.AddChild(_scroll);
 
         // ── Bottom Buttons: OK & Cancel ──────────────────────────────────
         var btnBar = new FlexPanel
@@ -316,6 +370,8 @@ public sealed class SettingsScreen : ShellScreen
             LayoutContext.GlobalUiScale = _initialUiScale;
             LayoutContext.GlobalTextScale = _initialTextScale;
             DisplayCVars.ShowFps.Value = _initialShowFps;
+            PostCVars.Gamma.Value = _initialGamma;
+            ReconstructionCVars.Reconstruction.Value = _initialUpscaler;
             if (Context.Config.Active is { } profile)
             {
                 profile.InvertMouse = _initialInvert;
@@ -351,6 +407,54 @@ public sealed class SettingsScreen : ShellScreen
         {
             CloseConfig();
             return false;
+        }
+
+        // Drag to scroll the options list, mirroring the mission list: a drag scrolls, a
+        // tap still activates the control under the pointer.
+        if (_scroll is not null)
+        {
+            var pointer = new UiVec2(input.Mouse.X, input.Mouse.Y);
+            bool insideScroll = _scroll.Bounds.Contains(pointer);
+
+            if (input.Mouse.WasPressed(MouseButton.Left))
+            {
+                if (insideScroll && !_scroll.IsOverScrollbar(pointer))
+                {
+                    _touchDragStart = pointer;
+                    _touchDragStartOffset = _scroll.ScrollOffset;
+                    _isDragging = false;
+                    _pendingTapTarget = Focus?.FocusAt(pointer) as Control;
+                    return false;
+                }
+            }
+            else if (_touchDragStart is { } start && input.Mouse.IsDown(MouseButton.Left))
+            {
+                float dy = pointer.Y - start.Y;
+                if (!_isDragging && MathF.Abs(dy) > 10f)
+                {
+                    _isDragging = true;
+                }
+
+                if (_isDragging)
+                {
+                    _scroll.ScrollOffset = _touchDragStartOffset - dy;
+                    return false;
+                }
+            }
+            else if (input.Mouse.WasReleased(MouseButton.Left) || !input.Mouse.IsDown(MouseButton.Left))
+            {
+                if (_touchDragStart is not null)
+                {
+                    _touchDragStart = null;
+                    if (!_isDragging)
+                    {
+                        _pendingTapTarget?.ActivateAt(pointer);
+                    }
+                    _isDragging = false;
+                    _pendingTapTarget = null;
+                    return false;
+                }
+            }
         }
 
         return base.HandleInput(nav, input);

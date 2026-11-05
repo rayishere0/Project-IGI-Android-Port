@@ -32,7 +32,7 @@ public readonly record struct ResolveFrameState(
 public static class ResolvePushBlock
 {
     /// <summary>How many floats the block holds.</summary>
-    public const int Floats = 20;
+    public const int Floats = 24;
 
     /// <summary>How far the grain's phase steps each frame.</summary>
     /// <remarks>
@@ -96,5 +96,12 @@ public static class ResolvePushBlock
         block[17] = mask ? 1f : post.Saturation;
         block[18] = !mask && post.GreenPhosphor ? 1f : 0f;
         block[19] = mask ? 0f : Math.Clamp(post.NightShift, 0f, 1f);
+
+        // The display gamma, applied after the tone map. One under a mask view: a mask holds a
+        // code value, not radiance, so no display curve belongs on it.
+        block[20] = mask ? 1f : Math.Clamp(post.Gamma, 0.5f, 2.5f);
+        block[21] = 0f;
+        block[22] = 0f;
+        block[23] = 0f;
     }
 }

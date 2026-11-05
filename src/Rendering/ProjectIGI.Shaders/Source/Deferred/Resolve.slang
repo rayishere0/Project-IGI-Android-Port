@@ -39,6 +39,9 @@ struct Resolve
 
     // contrast, saturation, green phosphor, night shift.
     float4 grade;
+
+    // display gamma, unused, unused, unused.
+    float4 display;
 };
 
 OPENIGI_PUSH_CONSTANT(Resolve, resolve);
@@ -224,6 +227,16 @@ float4 fragmentMain(Varyings input) : SV_Target
     return ToTarget(ResolveDisplay(input));
 }
 
+// The display gamma, applied last, after the tone map and the grade: a power curve on the
+// display-encoded picture, so above one the sun-lit models and mid-tones read brighter and below
+// one they read darker. One is no change. Clamped to the range the setting allows, so a zero or
+// negative value can never invert the picture.
+float3 ApplyGamma(float3 colour)
+{
+    float gamma = clamp(resolve.display.x, 0.5, 2.5);
+    return pow(max(colour, float3(0.0, 0.0, 0.0)), 1.0 / gamma);
+}
+
 /// The resolved frame at the display encoding, whatever the target does with it.
 float4 ResolveDisplay(Varyings input)
 {
@@ -242,10 +255,11 @@ float4 ResolveDisplay(Varyings input)
     {
         return float4(
             clamp(
-                ApplyGrain(
-                    ApplyGrade(
-                        ApplyLut(EncodeSrgb(clamp(Reinhard(colour, resolve.params.z), 0.0, 1.0)))),
-                    vUv),
+                ApplyGamma(
+                    ApplyGrain(
+                        ApplyGrade(
+                            ApplyLut(EncodeSrgb(clamp(Reinhard(colour, resolve.params.z), 0.0, 1.0)))),
+                        vUv)),
                 0.0,
                 1.0),
             1.0);
@@ -268,13 +282,13 @@ float4 ResolveDisplay(Varyings input)
         colour = ApplyNightShift(colour) * vignette;
         return float4(
             clamp(
-                ApplyGrain(ApplyGrade(ApplyLut(LinearToSrgbDisplay(ToneMapScene(colour)))), vUv),
+                ApplyGamma(ApplyGrain(ApplyGrade(ApplyLut(LinearToSrgbDisplay(ToneMapScene(colour)))), vUv)),
                 0.0,
                 1.0),
             1.0);
     }
 
     return float4(
-        clamp(ApplyGrain(ApplyGrade(ApplyLut(EncodeSrgb(clamp(colour, 0.0, 1.0)))), vUv), 0.0, 1.0),
+        clamp(ApplyGamma(ApplyGrain(ApplyGrade(ApplyLut(EncodeSrgb(clamp(colour, 0.0, 1.0)))), vUv)), 0.0, 1.0),
         1.0);
 }
