@@ -288,6 +288,11 @@ JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnSurfaceDestr
     }
 }
 
+JNIEXPORT jboolean JNICALL Java_com_projectigi_app_NativeEngine_nativeIsGameRunning
+  (JNIEnv *env, jclass clazz) {
+    return g_game_running.load() ? JNI_TRUE : JNI_FALSE;
+}
+
 JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnSurfaceRecreated
   (JNIEnv *env, jclass clazz, jobject surface, jint width, jint height) {
     LOGI("Java_com_projectigi_app_NativeEngine_nativeOnSurfaceRecreated: %dx%d", width, height);

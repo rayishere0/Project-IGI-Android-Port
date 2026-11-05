@@ -29,6 +29,7 @@ public final class NativeEngine {
 
     public static native void nativeOnSurfaceChanged(int width, int height);
     public static native void nativeOnSurfaceDestroyed();
+    public static native boolean nativeIsGameRunning();
     public static native void nativeOnTouch(int action, int pointerId, float x, float y);
     public static native void nativeOnKey(int keyCode, boolean down);
     public static native void nativeShutdown();

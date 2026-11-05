@@ -75,6 +75,17 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private boolean isGameStarted = false;
     private SurfaceHolder pendingHolder = null;
 
+    // Set when the surface dies while the game was running: the engine stops with it, so a
+    // fresh surface means restart the game instead of staring at a black SurfaceView.
+    private boolean autoRestartOnSurface = false;
+    // True while this Activity is in the foreground. The quit watcher uses it to tell a Quit
+    // in the main menu (foreground, game stops) from tabbing out (backgrounded, game stops too).
+    private boolean isResumed = false;
+    // Watches for the game thread ending while we are in the foreground (a Quit), so Quit in
+    // the main menu closes the app instead of leaving a black screen behind.
+    private volatile boolean quitWatcherStopped = false;
+    private Thread quitWatcherThread = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -809,6 +820,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private synchronized void startGameWithHolder(SurfaceHolder holder) {
         if (isGameStarted) return;
         isGameStarted = true;
+        autoRestartOnSurface = false;
 
         // Hide splash after starting
         runOnUiThread(() -> {
@@ -829,7 +841,42 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         String nativeLibDir = getApplicationInfo().nativeLibraryDir;
 
         Log.i(TAG, "Calling nativeStartGame: " + landscapeWidth + "x" + landscapeHeight);
-        NativeEngine.nativeStartGame(holder.getSurface(), landscapeWidth, landscapeHeight, filesDir, nativeLibDir, "-" + rendererBackend);
+        boolean started = NativeEngine.nativeStartGame(holder.getSurface(), landscapeWidth, landscapeHeight, filesDir, nativeLibDir, "-" + rendererBackend);
+        if (started) {
+            startQuitWatcher();
+        } else {
+            isGameStarted = false;
+        }
+    }
+
+    // Watches the game thread: if it ends while this Activity is in the foreground, the
+    // user pressed Quit in the main menu, so close the app entirely instead of leaving
+    // a black SurfaceView behind. Backgrounding also ends the game thread, but then
+    // isResumed is false, so this does nothing and the surface-restart path takes over.
+    private void startQuitWatcher() {
+        if (quitWatcherThread != null && quitWatcherThread.isAlive()) return;
+        quitWatcherStopped = false;
+        quitWatcherThread = new Thread(() -> {
+            boolean sawRunning = false;
+            while (!quitWatcherStopped) {
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    break;
+                }
+                boolean running = NativeEngine.nativeIsGameRunning();
+                if (running) {
+                    sawRunning = true;
+                    continue;
+                }
+                if (sawRunning && isResumed && isGameStarted) {
+                    Log.i(TAG, "Game exited in the foreground (Quit): closing the app");
+                    runOnUiThread(() -> finishAffinity());
+                    break;
+                }
+            }
+        });
+        quitWatcherThread.start();
     }
 
     @Override
@@ -838,6 +885,12 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         pendingHolder = holder;
         if (isExtracted && isGameFolderVerified && !isGameStarted) {
             // Holder is ready
+        }
+        // Returning from the background: the surface died with the engine, so a fresh
+        // surface means start the game again instead of a black screen.
+        if (autoRestartOnSurface && !isGameStarted) {
+            Log.i(TAG, "surfaceCreated: restarting game after backgrounding");
+            startGameWithHolder(holder);
         }
     }
 
@@ -852,6 +905,11 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         Log.i(TAG, "surfaceDestroyed");
+        // The engine stops with the surface. Remember to start it again when a fresh
+        // surface arrives (returning from the background), rather than a black screen.
+        if (isGameStarted) {
+            autoRestartOnSurface = true;
+        }
         NativeEngine.nativeOnSurfaceDestroyed();
         isGameStarted = false;
         pendingHolder = null;
@@ -913,6 +971,25 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        isResumed = false;
+        // The game goes into its paused state when the app leaves the foreground (Home,
+        // recents, switching apps): the same Back press that opens the pause menu in-game.
+        // In the main menu Back is a no-op, so this is safe there too.
+        if (isGameStarted) {
+            NativeEngine.nativeOnKey(4, true);
+            surfaceView.postDelayed(() -> NativeEngine.nativeOnKey(4, false), 50);
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        isResumed = true;
+    }
+
+    @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
@@ -922,6 +999,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
     @Override
     protected void onDestroy() {
+        quitWatcherStopped = true;
+        if (quitWatcherThread != null) quitWatcherThread.interrupt();
         super.onDestroy();
         NativeEngine.nativeShutdown();
     }
