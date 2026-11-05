@@ -327,10 +327,7 @@ public sealed partial class GameHost
         // It is a translation in clip space, which is exactly a sub-pixel shift of the whole
         // frustum: clip.xy += offset * clip.w, applied uniformly at every depth. Moving the camera
         // instead would shift the near plane more than the far one and reproject wrongly.
-        // FSR 1.0 is spatial, not temporal: it needs no jitter and no history, so the temporal
-        // accumulation (and the jitter it is built on) is switched off while it is the reconstruction.
-        bool wantsTemporal = ReconstructionCVars.Reconstruction.Value != ReconstructionKind.Fsr
-            && ReconstructionCVars.TemporalFeedback.Value < 1f
+        bool wantsTemporal = ReconstructionCVars.TemporalFeedback.Value < 1f
             && FrameCVars.OffscreenScene.Value
             && LightingCVars.Deferred.Value;
 

@@ -23,7 +23,6 @@ public sealed class SettingsScreen : ShellScreen
     private static readonly int[] FpsCapValues = [30, 60, 90, 120, 0];
     private static readonly string[] FpsCapLabels = ["30 FPS", "60 FPS", "90 FPS", "120 FPS", "UNCAPPED"];
     private static readonly string[] RenderScaleLabels = ["540P (ULTRA)", "720P (PERFORMANCE)", "900P (BALANCED)", "NATIVE (MAX)"];
-    private static readonly string[] UpscalerLabels = ["ENGINE", "FSR 1.0"];
 
     private readonly float _initialOpacity;
     private readonly float _initialSensitivity;
@@ -36,7 +35,6 @@ public sealed class SettingsScreen : ShellScreen
     private readonly int _initialRenderScale;
     private readonly bool _initialShowFps;
     private readonly float _initialGamma;
-    private readonly ReconstructionKind _initialUpscaler;
 
     private ScrollView? _scroll;
     private UiVec2? _touchDragStart;
@@ -60,7 +58,6 @@ public sealed class SettingsScreen : ShellScreen
         _initialRenderScale = context.Host.RenderScaleMode;
         _initialShowFps = DisplayCVars.ShowFps.Value;
         _initialGamma = PostCVars.Gamma.Value;
-        _initialUpscaler = ReconstructionCVars.Reconstruction.Value;
     }
 
     /// <inheritdoc/>
@@ -225,23 +222,6 @@ public sealed class SettingsScreen : ShellScreen
         };
         configStack.AddChild(resCycler);
 
-        // ── Upscaler: how the render-resolution frame is brought to the screen ──
-        // Engine is the built-in temporal resolve; FSR 1.0 is AMD's spatial upscaler
-        // (edge-adaptive upsample + contrast-adaptive sharpening), which is cheaper and
-        // needs no temporal history. It upscales from the Resolution Quality above.
-        int currentUpscaler = ReconstructionCVars.Reconstruction.Value == ReconstructionKind.Fsr ? 1 : 0;
-        var upscalerCycler = new OptionCycler(theme, "Upscaler", UpscalerLabels, currentUpscaler)
-        {
-            Width = 980f,
-            Height = 56f,
-            ContentWidth = 320f,
-        };
-        upscalerCycler.SelectionChanged += index =>
-        {
-            ReconstructionCVars.Reconstruction.Value = index == 1 ? ReconstructionKind.Fsr : ReconstructionKind.Engine;
-        };
-        configStack.AddChild(upscalerCycler);
-
         // ── Gamma: how bright the picture reads ─────────────────────────────
         // A display-space power curve applied after the tone map. Above 1 the sun-lit
         // models and mid-tones read brighter; below 1 they read darker. 1 is no change.
@@ -371,7 +351,6 @@ public sealed class SettingsScreen : ShellScreen
             LayoutContext.GlobalTextScale = _initialTextScale;
             DisplayCVars.ShowFps.Value = _initialShowFps;
             PostCVars.Gamma.Value = _initialGamma;
-            ReconstructionCVars.Reconstruction.Value = _initialUpscaler;
             if (Context.Config.Active is { } profile)
             {
                 profile.InvertMouse = _initialInvert;

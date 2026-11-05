@@ -95,14 +95,6 @@
       "source": "TemporalUpscale/DilateVelocity.slang"
     },
     {
-      "id": "FsrEasu",
-      "source": "Fsr/FsrEasu.slang"
-    },
-    {
-      "id": "FsrRcas",
-      "source": "Fsr/FsrRcas.slang"
-    },
-    {
       "id": "MotionBlurFlatten",
       "source": "Post/MotionBlurFlatten.slang"
     },

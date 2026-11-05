@@ -88,12 +88,6 @@ public enum ShaderModuleId
     /// <summary>Temporal resolve: each pixel's motion taken from the closest surface around it.</summary>
     UpscaleDilateVelocity,
 
-    /// <summary>FSR 1.0: the edge-adaptive spatial upsample from render to output resolution.</summary>
-    FsrEasu,
-
-    /// <summary>FSR 1.0: the robust contrast-adaptive sharpening of the upscaled picture.</summary>
-    FsrRcas,
-
     /// <summary>Motion blur: one velocity per pixel, and each tile reduced to its fastest and slowest.</summary>
     MotionBlurFlatten,
 

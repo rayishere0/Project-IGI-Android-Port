@@ -258,14 +258,6 @@ public sealed partial class GraphicsDevice
             _rayReconstructionFault = string.Empty;
         }
 
-        // FSR 1.0 is spatial, not temporal: it needs no jitter, no history and no NVIDIA runtime.
-        // It renders at the render scale (the plan leaves the size at zero, so the policy derives
-        // it from r_scale) and upscales with its own edge-adaptive pass. It runs on any backend.
-        if (request.Kind == ReconstructionKind.Fsr)
-        {
-            return new ReconstructionPlan(ReconstructionKind.Fsr, 0, 0, string.Empty);
-        }
-
         if (request.Kind == ReconstructionKind.Engine || !request.Temporal)
         {
             return ReconstructionPlan.Engine();
@@ -302,13 +294,7 @@ public sealed partial class GraphicsDevice
 
     private Dictionary<ReconstructionKind, string> BuildReconstructionSupport()
     {
-        // FSR 1.0 is two compute shaders, so it runs on any backend that runs compute; it needs
-        // no NVIDIA runtime and no hardware ray tracing.
-        Dictionary<ReconstructionKind, string> support = new()
-        {
-            [ReconstructionKind.Engine] = string.Empty,
-            [ReconstructionKind.Fsr] = string.Empty,
-        };
+        Dictionary<ReconstructionKind, string> support = new() { [ReconstructionKind.Engine] = string.Empty };
 
         if (_device.Streamline is not { } streamline)
         {
