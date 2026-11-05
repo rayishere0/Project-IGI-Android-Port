@@ -1,3 +1,4 @@
+using System.Globalization;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Input;
 using ProjectIGI.Rendering;
@@ -28,6 +29,7 @@ public sealed class SettingsScreen : ShellScreen
     private readonly int _initialFpsCap;
     private readonly bool _initialInvert;
     private readonly bool _initialGyro;
+    private readonly float _initialGyroSensitivity;
     private readonly float _initialUiScale;
     private readonly float _initialTextScale;
     private readonly int _initialRenderScale;
@@ -43,6 +45,7 @@ public sealed class SettingsScreen : ShellScreen
         _initialFpsCap = ReconstructionCVars.FrameLimit.Value;
         _initialInvert = context.Config.Active?.InvertMouse ?? false;
         _initialGyro = context.Config.Active?.GyroEnabled ?? false;
+        _initialGyroSensitivity = context.Config.Active?.GyroSensitivity ?? 0.5f;
         _initialUiScale = LayoutContext.GlobalUiScale;
         _initialTextScale = LayoutContext.GlobalTextScale;
         _initialRenderScale = context.Host.RenderScaleMode;
@@ -235,6 +238,26 @@ public sealed class SettingsScreen : ShellScreen
         };
         configStack.AddChild(gyroToggle);
 
+        // ── Gyroscope sensitivity ────────────────────────────────────────────
+        float gyroSensState = Context.Config.Active?.GyroSensitivity ?? 0.5f;
+        var gyroSensSlider = new Slider(theme, "Gyroscope sensitivity", 0f, 1f, gyroSensState, 0.05f)
+        {
+            Width = 980f,
+            Height = 56f,
+            Format = v => string.Create(
+                CultureInfo.InvariantCulture,
+                $"{MouseLookSettings.FromSensitivity(v, invertPitch: false).TurnDistanceCentimetres():0} cm/360°"),
+            Tooltip = "How fast the view turns when you tilt the phone.\n\nSame scale as mouse sensitivity — the readout is how far a full turn takes.",
+        };
+        gyroSensSlider.ValueChanged += value =>
+        {
+            if (Context.Config.Active is { } profile)
+            {
+                profile.GyroSensitivity = value;
+            }
+        };
+        configStack.AddChild(gyroSensSlider);
+
         // ── Option 8: Show FPS Counter Overlay ───────────────────────────
         bool showFpsState = DisplayCVars.ShowFps.Value;
         var fpsToggle = new Toggle(theme, "Show FPS Counter", showFpsState)
@@ -297,6 +320,7 @@ public sealed class SettingsScreen : ShellScreen
             {
                 profile.InvertMouse = _initialInvert;
                 profile.GyroEnabled = _initialGyro;
+                profile.GyroSensitivity = _initialGyroSensitivity;
             }
             CloseConfig();
         };
