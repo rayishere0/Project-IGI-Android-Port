@@ -1078,9 +1078,20 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         }
         lastGyroTimestampNs = 0;
         hideSoftKeyboard();
+        // Clear the keyboard-icon request and the hidden field's focus, or the IME
+        // poller (or a focused EditText) pops the keyboard up again the moment the
+        // app returns to the foreground. The keyboard only comes back when the player
+        // taps the keyboard icon again or focuses a text field.
+        NativeEngine.nativeSetKeyboardRequested(false);
+        if (hiddenInput != null) {
+            hiddenInput.clearFocus();
+        }
         // The game goes into its paused state when the app leaves the foreground (Home,
         // recents, switching apps): the same Back press that opens the pause menu in-game.
-        // In the main menu Back is a no-op, so this is safe there too.
+        // In the main menu Back is a no-op, so this is safe there too. The C# side also
+        // forces the pause when the surface is gone, which covers a cutscene (Back alone
+        // cannot pause there: skipping needs a hold and the pause check refuses while
+        // one plays).
         if (isGameStarted) {
             NativeEngine.nativeOnKey(4, true);
             surfaceView.postDelayed(() -> NativeEngine.nativeOnKey(4, false), 50);

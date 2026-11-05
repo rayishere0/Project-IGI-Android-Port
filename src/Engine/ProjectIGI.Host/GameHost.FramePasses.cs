@@ -414,6 +414,48 @@ public sealed partial class GameHost
         }
     }
 
+    /// <summary>
+    /// Forces the game into the paused state when the app leaves the foreground (tab-out).
+    /// A cutscene is skipped first — the Back key cannot do this, because skipping needs the
+    /// key held until the ring fills and the pause check refuses to run while a cutscene is
+    /// playing — then the pause menu opens over the mission. Idempotent, so the frame loop
+    /// can call it every frame while the surface is gone. No text field is focused while
+    /// paused, so the Android side will not pop the keyboard up when the app returns.
+    /// </summary>
+    private void PauseForBackground(FrameLoopState state)
+    {
+        // Skip any playing mission cutscene immediately. The hold-to-skip ring cannot fill
+        // from a brief Back tap, so backgrounding during a cutscene otherwise never pauses.
+        if (_mission.Cutscenes?.IsPlaying == true || _mission.Cutscenes?.ActiveScene != null)
+        {
+            _mission.Cutscenes?.RequestBreak();
+            _cutsceneSounds.StopAll();
+            _mission.Objectives?.ClearCutsceneMessages();
+        }
+
+        // Open the pause menu over the mission, if one is running and the menu is not
+        // already open. This is the same state HandleEscape sets, minus the Escape press
+        // and the cutscene refusal (the cutscene is already broken above).
+        if (_session.Mission is not null
+            && state.Shell is not null
+            && !_menuFlow.MenuMode
+            && !_menuFlow.PauseMenu
+            && !state.Console.IsOpen
+            && !_computerOpen
+            && !_session.FailedMenu
+            && _mission.MenusEnabled)
+        {
+            _menuFlow.MenuMode = true;
+            _menuFlow.PauseMenu = true;
+            state.Shell.OpenPauseMenu();
+            HostedPlayer?.HoldStill();
+            _window.CursorLocked = false;
+            _logger.Information("Menu", "Paused (background).");
+        }
+
+        IsTextFieldFocused = false;
+    }
+
     /// <summary>Fires the console statements <c>-runat</c> scheduled for this frame.</summary>
     private void RunDeferredCommands(FrameLoopState state)
     {
