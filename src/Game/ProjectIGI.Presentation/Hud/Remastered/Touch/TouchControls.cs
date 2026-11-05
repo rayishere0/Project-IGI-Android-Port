@@ -191,7 +191,7 @@ public sealed class TouchControls
     /// <summary>The stick's reach, in design units.</summary>
     public const float StickReach = 120f;
 
-    private const float FireRadius = 110f;
+    private const float FireRadius = 80f;
     private const float LeftFireRadius = 68f;
     private const float ButtonRadius = 62f;
     private const float SmallRadius = 50f;
@@ -674,7 +674,12 @@ public sealed class TouchControls
         _laidOutFor = (context.Viewport.X, context.Viewport.Y);
         _layout.Clear();
         UiRect safe = context.SafeRect;
-        float Px(float design) => context.Px(design);
+        // Touch buttons keep a fixed physical size: they must NOT grow or shrink with the
+        // menu UI-size setting (GlobalUiScale), or Reset in the customiser would restore a
+        // different button size for every UI size. Divide the UI-size multiplier back out
+        // so the layout uses only the display's reference scale.
+        float touchScale = context.Scale / MathF.Max(0.5f, LayoutContext.GlobalUiScale);
+        float Px(float design) => design * touchScale;
 
         UiVec2 ResolvePos(TouchElementId id, UiVec2 defaultPos)
         {
@@ -719,11 +724,11 @@ public sealed class TouchControls
         UiVec2 defLeftFire = new(safe.X + Px(250f), safe.Bottom - Px(540f));
         _layout.Add(new TouchButtonSpot(TouchButton.Fire, ResolvePos(TouchElementId.FireLeft, defLeftFire), Px(LeftFireRadius) * Scale(TouchElementId.FireLeft), ElementId: TouchElementId.FireLeft));
 
-        // Weapon card and Use
-        float cardRadius = Px(52f);
+        // Weapon (round, not a wide card: the wide rectangle was awkward to tap) and Use.
+        // The current weapon and ammo stay visible in the HUD's own weapon widget.
         UiVec2 defWeapon = new(safe.X + (safe.Width * 0.5f), safe.Bottom - Px(90f));
         UiVec2 defUse = new(safe.X + (safe.Width * 0.5f), safe.Bottom - Px(250f));
-        _layout.Add(new TouchButtonSpot(TouchButton.Weapon, ResolvePos(TouchElementId.WeaponCard, defWeapon), cardRadius * Scale(TouchElementId.WeaponCard), ElementId: TouchElementId.WeaponCard, Card: true));
+        _layout.Add(new TouchButtonSpot(TouchButton.Weapon, ResolvePos(TouchElementId.WeaponCard, defWeapon), Px(ButtonRadius) * Scale(TouchElementId.WeaponCard), ElementId: TouchElementId.WeaponCard));
         _layout.Add(new TouchButtonSpot(TouchButton.Use, ResolvePos(TouchElementId.Use, defUse), Px(SmallRadius) * Scale(TouchElementId.Use), ElementId: TouchElementId.Use));
 
         // Computer close

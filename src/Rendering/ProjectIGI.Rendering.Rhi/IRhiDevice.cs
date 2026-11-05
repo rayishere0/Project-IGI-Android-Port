@@ -225,6 +225,23 @@ public interface IRhiDevice : IDisposable
     /// <param name="vsync">Whether to wait for the display.</param>
     void ConfigureSurface(int width, int height, bool vsync);
 
+    /// <summary>Gets whether the device currently has a valid surface to present to.</summary>
+    /// <remarks>
+    /// Default is true: most backends always have a surface. The Android backends report
+    /// false after the native window is destroyed (app backgrounded) until a new surface is
+    /// bound, so the host can idle the loop instead of presenting into a dead surface.
+    /// </remarks>
+    bool HasSurface => true;
+
+    /// <summary>Marks the surface as lost (its native window was destroyed).</summary>
+    /// <remarks>
+    /// Default is a no-op. The Android backends record it so <see cref="HasSurface"/> reports
+    /// false until a new surface is bound.
+    /// </remarks>
+    void NotifySurfaceLost()
+    {
+    }
+
     /// <summary>Waits until every submission has completed.</summary>
     /// <remarks>
     /// For shutdown and for a resize, where a resource about to be destroyed may still be in flight. Not

@@ -23,7 +23,7 @@ public sealed class VulkanRhi : IDisposable
     private readonly VulkanAllocator _allocator;
     private readonly VulkanCommands _commands;
     private readonly VulkanRhiDevice _rhi;
-    private readonly VulkanSwapchain? _swapchain;
+    private VulkanSwapchain? _swapchain;
     private readonly StreamlineRuntime? _streamlineRuntime;
     private readonly StreamlineSession? _streamline;
     private bool _disposed;
@@ -66,6 +66,37 @@ public sealed class VulkanRhi : IDisposable
 
     /// <summary>Gets the device everything draws through.</summary>
     public IRhiDevice Device => _rhi;
+
+    /// <summary>
+    /// Rebinds the presentation surface to a new native window (after the old one was destroyed,
+    /// e.g. the app was backgrounded and its surface went away), keeping the device, pipelines,
+    /// textures and all other GPU state alive so the game resumes in place.
+    /// </summary>
+    /// <param name="nativeWindow">The new native window the surface is created from.</param>
+    /// <param name="width">The new surface width in pixels.</param>
+    /// <param name="height">The new surface height in pixels.</param>
+    /// <param name="vsync">Whether to wait for the display.</param>
+    /// <remarks>
+    /// The device is waited idle first and the old swapchain disposed before the surface is
+    /// destroyed: the old surface is unusable the moment its window is destroyed, and the
+    /// swapchain still references it. If any step fails, the caller should fall back to a full
+    /// engine restart rather than presenting through a half-rebuilt surface.
+    /// </remarks>
+    public void RebindSurface(nint nativeWindow, int width, int height, bool vsync)
+    {
+        _instance.Vk.DeviceWaitIdle(_device.Device);
+
+        _swapchain?.Dispose();
+        _swapchain = null;
+
+        _instance.RecreateSurface(nativeWindow);
+
+        VulkanSwapchain swapchain = new(_instance, _device, width, height, vsync);
+        _rhi.AttachSwapchain(swapchain);
+        _swapchain = swapchain;
+
+        _rhi.ConfigureSurface(width, height, vsync);
+    }
 
     /// <summary>Gets how many nanoseconds one tick of the device's timestamp counter is.</summary>
     public double TimestampPeriodNanoseconds => _rhi.TimestampPeriodNanoseconds;

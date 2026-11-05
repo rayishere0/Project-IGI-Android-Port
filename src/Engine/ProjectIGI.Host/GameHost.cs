@@ -52,6 +52,9 @@ public sealed partial class GameHost : IDisposable
     // second of the menu, as a player choosing it would leave.
     private const int EntryTimeSettleFrames = 60;
 
+    /// <summary>Gets whether the shell currently has a text field focused (for the Android soft keyboard).</summary>
+    public bool IsTextFieldFocused { get; private set; }
+
     // --- Environment, supplied by the composition root ---
     private readonly IPlatformHost _platform;
     private readonly IWorkScheduler _work;
@@ -638,6 +641,19 @@ public sealed partial class GameHost : IDisposable
             if (_stopRequested)
             {
                 break;
+            }
+
+            // The surface is gone (the app was backgrounded and Android destroyed its window):
+            // pump the input queue first so a surface-recreated event from the platform is
+            // processed and the surface rebound, then idle instead of drawing. Drawing into a
+            // dead surface throws; spinning without a present to pace against burns the battery.
+            // The pause menu is already open (the platform sent Back on background), so the
+            // player returns to the pause menu in the mission, not the main menu.
+            _window.PumpEvents();
+            if (!_device.HasSurface)
+            {
+                Thread.Sleep(16);
+                continue;
             }
 
             // The whole point of promoting the backdrop instead of loading it is that no frame is ever

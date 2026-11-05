@@ -188,6 +188,9 @@ public sealed partial class GameHost
             var shellFrame = new LayoutContext(_window.Width, _window.Height);
             state.Shell.Update(shellFrame, _window.Input, shellElapsed);
             DrainPressQueue(state, executeBinds: false);
+            // Whether a text field is focused, for the Android soft keyboard: the Java
+            // side polls this (via IsTextFieldFocused) and shows/hides the IME.
+            IsTextFieldFocused = state.Shell.Stack.Top?.Focus?.Focused is ProjectIGI.UI.Widgets.TextBox;
             if (!state.Console.IsOpen)
             {
                 _window.Input.Captured = true;
@@ -592,7 +595,7 @@ public sealed partial class GameHost
             _device.EndStageTiming();
         }
 
-        // ── Top-Left FPS Counter Overlay ─────────────────────────────────
+        // ── Top-Right FPS Counter Overlay ────────────────────────────────
         if (DisplayCVars.ShowFps.Value)
         {
             DrawFpsCounter(state);
@@ -602,7 +605,7 @@ public sealed partial class GameHost
         DrawCheatsOverlay(state);
     }
 
-    /// <summary>Draws a small FPS counter overlay at the top left corner of the screen.</summary>
+    /// <summary>Draws a small FPS counter overlay at the top right corner of the screen.</summary>
     private void DrawFpsCounter(FrameLoopState state)
     {
         _shellType ??= ProjectIGI.Presentation.Text.UiFontLibrary.Typography(_device);
@@ -620,7 +623,10 @@ public sealed partial class GameHost
 
         string text = FormattableString.Invariant($"{fps:0.0} FPS");
         float scale = UiScale.Resolve(_options.UiScale, _window.Width, _window.Height);
-        float x = 20f * scale;
+        // Top right, clear of the mission messages that sit top left (computer text uses the
+        // same green, so the counter hid among them).
+        UiVec2 extent = type.Mono.Measure(text, 16f * scale);
+        float x = SafeWindowWidth - extent.X - (20f * scale);
         float y = 16f * scale;
         float fontSize = 16f * scale;
 

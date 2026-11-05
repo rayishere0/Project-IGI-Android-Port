@@ -12,6 +12,16 @@ import android.content.res.AssetManager;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.EditText;
 import android.graphics.BitmapFactory;
 import android.graphics.BlendMode;
 import android.graphics.BlendModeColorFilter;
@@ -78,14 +88,23 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private boolean isGameStarted = false;
     private SurfaceHolder pendingHolder = null;
 
-    // Set when the surface dies while the game was running: the engine stops with it, so a
-    // fresh surface means restart the game instead of staring at a black SurfaceView.
-    private boolean autoRestartOnSurface = false;
     // Total / copied bytes for the game-folder install, driving the determinate progress bar.
     private long copyTotalBytes = 0;
     private long copyDoneBytes = 0;
     // Last time the progress bar was redrawn (uptime ms), to throttle UI updates.
     private long lastProgressUiMs = 0;
+    // Gyroscope aim: the sensor and its listener, and the last event timestamp (ns)
+    // so rates (rad/s) integrate into per-event angle deltas.
+    private SensorManager sensorManager;
+    private Sensor gyroSensor;
+    private SensorEventListener gyroListener;
+    private long lastGyroTimestampNs = 0;
+    // Soft keyboard: a hidden, zero-size EditText the IME types into, and a poller
+    // that shows/hides the keyboard when the game focuses a text field.
+    private EditText hiddenInput;
+    private Handler imeHandler;
+    private Runnable imePoller;
+    private boolean imeShown = false;
     // True while this Activity is in the foreground. The quit watcher uses it to tell a Quit
     // in the main menu (foreground, game stops) from tabbing out (backgrounded, game stops too).
     private boolean isResumed = false;
@@ -168,6 +187,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         surfaceView.setOnTouchListener((v, event) -> onTouchEvent(event));
         rootLayout.addView(surfaceView, new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        setupGyroAndKeyboard();
 
         // Authentic Project I.G.I. Launcher Splash
         splashLayout = new FrameLayout(this);
@@ -611,39 +632,44 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         }
     }
 
-    // Sums the bytes of every file under an SAF tree (metadata only, no copying).
-    // Used once before the install so the progress bar knows the total.
-    private long countTreeBytes(DocumentFile dir) {
+    // Sums a SAF tree's bytes without copying anything, so the install can show a
+    // real determinate progress bar. Metadata-only (listFiles + length), no streams.
+    private long countTreeBytes(DocumentFile doc) {
         long total = 0;
-        DocumentFile[] files = dir.listFiles();
+        DocumentFile[] files = doc.listFiles();
         for (DocumentFile file : files) {
             if (file.isDirectory()) {
                 total += countTreeBytes(file);
             } else if (file.isFile()) {
-                total += file.length();
+                total += Math.max(0, file.length());
             }
         }
         return total;
     }
 
-    // Redraws the install progress bar and status (percent + MB), throttled so the
-    // UI thread is not flooded by per-buffer updates. The final 100% is always shown.
+    // Reports copy progress to the UI thread, throttled so the bar is redrawn at
+    // most ~7 times a second (the final 100% always goes through).
     private void reportCopyProgress() {
-        if (copyTotalBytes <= 0) return;
+        if (copyTotalBytes <= 0) {
+            return;
+        }
         long now = SystemClock.uptimeMillis();
-        if (now - lastProgressUiMs < 150 && copyDoneBytes < copyTotalBytes) return;
+        int pct = (int) Math.min(100, (copyDoneBytes * 100L) / copyTotalBytes);
+        if (pct < 100 && now - lastProgressUiMs < 150) {
+            return;
+        }
         lastProgressUiMs = now;
-        final int percent = (int) Math.min(100, (copyDoneBytes * 100) / copyTotalBytes);
+        final int p = pct;
         final long done = copyDoneBytes;
         final long total = copyTotalBytes;
         runOnUiThread(() -> {
-            progressBar.setProgress(percent);
-            statusText.setText("INSTALLING GAME FILES... " + percent + "% (" + formatMb(done) + " / " + formatMb(total) + ")");
+            progressBar.setProgress(p);
+            statusText.setText("INSTALLING GAME FILES... " + p + "% (" + formatMb(done) + " / " + formatMb(total) + ")");
         });
     }
 
     private static String formatMb(long bytes) {
-        return String.format(Locale.US, "%.0f MB", bytes / (1024f * 1024f));
+        return String.format(Locale.US, "%.0f MB", bytes / (1024.0 * 1024.0));
     }
 
     private void copyDocumentTree(DocumentFile sourceDoc, File targetDir) throws IOException {
@@ -658,12 +684,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 copyDocumentTree(file, subDir);
             } else if (file.isFile()) {
                 File targetFile = new File(targetDir, file.getName());
-                long size = file.length();
-                // Skip files that are already there with the same size: re-selecting
-                // the same folder (or resuming an interrupted copy) then costs
-                // almost nothing instead of copying the whole game again.
-                if (targetFile.exists() && targetFile.length() == size) {
-                    copyDoneBytes += size;
+                // Already there with the same size: skip the copy but count it toward
+                // progress, so re-selecting the same folder (or resuming) is nearly free.
+                if (targetFile.exists() && targetFile.length() == file.length()) {
+                    copyDoneBytes += Math.max(0, file.length());
                     reportCopyProgress();
                     continue;
                 }
@@ -887,7 +911,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private synchronized void startGameWithHolder(SurfaceHolder holder) {
         if (isGameStarted) return;
         isGameStarted = true;
-        autoRestartOnSurface = false;
 
         // Hide splash after starting
         runOnUiThread(() -> {
@@ -953,11 +976,15 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         if (isExtracted && isGameFolderVerified && !isGameStarted) {
             // Holder is ready
         }
-        // Returning from the background: the surface died with the engine, so a fresh
-        // surface means start the game again instead of a black screen.
-        if (autoRestartOnSurface && !isGameStarted) {
-            Log.i(TAG, "surfaceCreated: restarting game after backgrounding");
-            startGameWithHolder(holder);
+        // Returning from the background: the engine survived (it idles with no surface),
+        // so hand it the new surface and it resumes in the mission, at the pause menu,
+        // instead of restarting to the main menu.
+        if (isGameStarted) {
+            android.graphics.Rect frame = holder.getSurfaceFrame();
+            int w = frame.width() > 0 ? frame.width() : surfaceView.getWidth();
+            int h = frame.height() > 0 ? frame.height() : surfaceView.getHeight();
+            Log.i(TAG, "surfaceCreated: rebinding live engine to new surface " + w + "x" + h);
+            NativeEngine.nativeOnSurfaceRecreated(holder.getSurface(), w, h);
         }
     }
 
@@ -972,13 +999,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         Log.i(TAG, "surfaceDestroyed");
-        // The engine stops with the surface. Remember to start it again when a fresh
-        // surface arrives (returning from the background), rather than a black screen.
-        if (isGameStarted) {
-            autoRestartOnSurface = true;
-        }
+        // The surface is gone (app backgrounded) but the engine keeps running: it idles with
+        // no surface until a new one arrives, so the player returns to the pause menu in the
+        // mission instead of the main menu. isGameStarted stays true.
         NativeEngine.nativeOnSurfaceDestroyed();
-        isGameStarted = false;
         pendingHolder = null;
     }
 
@@ -1042,6 +1066,11 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     protected void onPause() {
         super.onPause();
         isResumed = false;
+        if (sensorManager != null && gyroListener != null) {
+            sensorManager.unregisterListener(gyroListener);
+        }
+        lastGyroTimestampNs = 0;
+        hideSoftKeyboard();
         // The game goes into its paused state when the app leaves the foreground (Home,
         // recents, switching apps): the same Back press that opens the pause menu in-game.
         // In the main menu Back is a no-op, so this is safe there too.
@@ -1055,6 +1084,125 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     protected void onResume() {
         super.onResume();
         isResumed = true;
+        if (sensorManager != null && gyroSensor != null && gyroListener != null) {
+            sensorManager.registerListener(gyroListener, gyroSensor, SensorManager.SENSOR_DELAY_GAME);
+        }
+    }
+
+    // Gyroscope aim + the soft keyboard for text fields (player-name box).
+    private void setupGyroAndKeyboard() {
+        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        if (sensorManager != null) {
+            gyroSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        }
+        gyroListener = new SensorEventListener() {
+            @Override
+            public void onSensorChanged(SensorEvent event) {
+                if (!isGameStarted || gyroSensor == null) {
+                    return;
+                }
+                if (lastGyroTimestampNs == 0) {
+                    lastGyroTimestampNs = event.timestamp;
+                    return;
+                }
+                float dt = (event.timestamp - lastGyroTimestampNs) / 1_000_000_000f;
+                lastGyroTimestampNs = event.timestamp;
+                if (dt <= 0f || dt > 0.1f) {
+                    return;
+                }
+                // Integrate the rates (rad/s) into per-event angle deltas (radians).
+                // Axis signs are a best guess for landscape and must be verified on a
+                // real device (flip yaw/pitch here if a direction feels backwards).
+                float yawDelta = event.values[1] * dt;
+                float pitchDelta = event.values[0] * dt;
+                NativeEngine.nativeOnGyro(yawDelta, pitchDelta);
+            }
+
+            @Override
+            public void onAccuracyChanged(Sensor sensor, int accuracy) {
+            }
+        };
+
+        // Hidden, zero-size EditText the IME types into. The game draws its own UI on
+        // a SurfaceView, so there is no Android View for the keyboard to target; this
+        // invisible field is the target, and its TextWatcher forwards typed text.
+        hiddenInput = new EditText(this);
+        hiddenInput.setVisibility(View.INVISIBLE);
+        hiddenInput.setFocusable(true);
+        hiddenInput.setFocusableInTouchMode(true);
+        hiddenInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+            | android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        hiddenInput.setBackground(null);
+        rootLayout.addView(hiddenInput, new FrameLayout.LayoutParams(1, 1));
+        final String[] lastText = {""};
+        hiddenInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                String now = s.toString();
+                String prev = lastText[0];
+                if (now.length() > prev.length() && now.startsWith(prev)) {
+                    // Inserted text: forward only the new characters.
+                    NativeEngine.nativeOnText(now.substring(prev.length()));
+                } else if (now.length() < prev.length()) {
+                    // Deleted text: one Backspace per removed character.
+                    int removed = prev.length() - now.length();
+                    for (int i = 0; i < removed; i++) {
+                        NativeEngine.nativeOnKey(67, true);
+                        NativeEngine.nativeOnKey(67, false);
+                    }
+                }
+                lastText[0] = now;
+            }
+        });
+
+        // Polls whether the game has a text field focused and shows/hides the IME.
+        // The game tells us via nativeIsTextFieldFocused(); the IME needs a focused View,
+        // which is the hidden EditText above.
+        imeHandler = new Handler(Looper.getMainLooper());
+        imePoller = new Runnable() {
+            @Override
+            public void run() {
+                updateImeVisibility();
+                if (imeHandler != null) {
+                    imeHandler.postDelayed(this, 250);
+                }
+            }
+        };
+        imeHandler.post(imePoller);
+    }
+
+    private void updateImeVisibility() {
+        boolean focused = isGameStarted && NativeEngine.nativeIsTextFieldFocused();
+        InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (focused && !imeShown) {
+            if (hiddenInput != null && imm != null) {
+                hiddenInput.requestFocus();
+                imm.showSoftInput(hiddenInput, 0);
+            }
+            imeShown = true;
+        } else if (!focused && imeShown) {
+            hideSoftKeyboard();
+        }
+    }
+
+    private void hideSoftKeyboard() {
+        if (!imeShown) {
+            return;
+        }
+        imeShown = false;
+        InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (hiddenInput != null && imm != null) {
+            imm.hideSoftInputFromWindow(hiddenInput.getWindowToken(), 0);
+            hiddenInput.setText("");
+        }
     }
 
     @Override
@@ -1069,6 +1217,12 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     protected void onDestroy() {
         quitWatcherStopped = true;
         if (quitWatcherThread != null) quitWatcherThread.interrupt();
+        if (imeHandler != null && imePoller != null) {
+            imeHandler.removeCallbacks(imePoller);
+        }
+        if (sensorManager != null && gyroListener != null) {
+            sensorManager.unregisterListener(gyroListener);
+        }
         super.onDestroy();
         NativeEngine.nativeShutdown();
     }

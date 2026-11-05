@@ -117,6 +117,9 @@ public interface IGameWindow : IDisposable
     /// <summary>Gets the input state this window's message pump feeds.</summary>
     InputState Input { get; }
 
+    /// <summary>Gets the gyroscope look motion accumulated this frame, in radians (yaw, pitch), and clears it. Android only; other platforms return zero.</summary>
+    (float Yaw, float Pitch) TakeGyroMotion() => (0f, 0f);
+
     /// <summary>Makes the window visible.</summary>
     void Show();
 

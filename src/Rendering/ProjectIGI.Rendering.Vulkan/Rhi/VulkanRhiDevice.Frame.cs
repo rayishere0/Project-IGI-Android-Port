@@ -24,6 +24,10 @@ internal sealed unsafe partial class VulkanRhiDevice
     private VulkanRhiTexture[] _offscreen = [];
     private Semaphore[] _acquired = [];
 
+    // True after the native window was destroyed (app backgrounded) until a new surface is
+    // bound. While true the device presents nothing and the host idles the loop.
+    private bool _surfaceLost;
+
     // One per SWAPCHAIN IMAGE, not per frame slot. A present waits on its semaphore, and the presentation
     // engine gives it back only when that image is acquired again -- which, with more images than frame
     // slots, is not before the slot comes round. Per slot, a frame signalled a semaphore the previous
@@ -51,7 +55,17 @@ internal sealed unsafe partial class VulkanRhiDevice
         ThrowIfDisposed();
 
         _swapchain = swapchain;
+        _surfaceLost = false;
         CreateFrameSync();
+    }
+
+    /// <inheritdoc/>
+    public bool HasSurface => !_surfaceLost && _swapchain is not null;
+
+    /// <inheritdoc/>
+    public void NotifySurfaceLost()
+    {
+        _surfaceLost = true;
     }
 
     /// <inheritdoc/>
@@ -140,8 +154,11 @@ internal sealed unsafe partial class VulkanRhiDevice
         RenderPasses.BeginFrame(_frameSlot);
 
         Result acquired = swapchain.AcquireNextImage(_acquired[_frameSlot], out _imageIndex);
-        if (acquired is Result.ErrorOutOfDateKhr)
+        if (acquired is Result.ErrorOutOfDateKhr or Result.ErrorSurfaceLostKhr)
         {
+            // A destroyed Android surface reports SurfaceLost, not OutOfDate. Treat it the
+            // same: the swapchain must be rebuilt (or the surface rebound) before the next
+            // frame, and this frame is skipped rather than throwing.
             NeedsReconfigure = true;
             return false;
         }
@@ -297,8 +314,11 @@ internal sealed unsafe partial class VulkanRhiDevice
         _inFrame = false;
         _frameSlot = (_frameSlot + 1) % _inFlight.Length;
 
-        if (presented is Result.ErrorOutOfDateKhr or Result.SuboptimalKhr)
+        if (presented is Result.ErrorOutOfDateKhr or Result.SuboptimalKhr or Result.ErrorSurfaceLostKhr)
         {
+            // SurfaceLost (destroyed Android surface) is the same as OutOfDate here: the
+            // swapchain must be rebuilt before the next frame, and this frame is skipped
+            // rather than throwing.
             NeedsReconfigure = true;
             return false;
         }
@@ -429,6 +449,7 @@ internal sealed unsafe partial class VulkanRhiDevice
         // The device is idle, so none of the old ones is still held.
         CreatePresentSemaphores(swapchain.Images.Length);
         NeedsReconfigure = false;
+        _surfaceLost = false;
     }
 
     /// <summary>Gets whether the swapchain has to be rebuilt before the next frame.</summary>
@@ -499,6 +520,20 @@ internal sealed unsafe partial class VulkanRhiDevice
     private void CreateFrameSync()
     {
         const int Frames = 2;
+
+        // A re-attach (surface rebind) replaces the sync objects: destroy the old ones first,
+        // or every rebind leaks a pair of semaphores and a fence. The device is idle here
+        // (AttachSwapchain is only called at creation or after a DeviceWaitIdle rebind), so
+        // nothing is still waiting on them.
+        foreach (Semaphore old in _acquired)
+        {
+            _vk.DestroySemaphore(_device.Device, old, null);
+        }
+
+        foreach (Fence old in _inFlight)
+        {
+            _vk.DestroyFence(_device.Device, old, null);
+        }
 
         _acquired = new Semaphore[Frames];
         _inFlight = new Fence[Frames];

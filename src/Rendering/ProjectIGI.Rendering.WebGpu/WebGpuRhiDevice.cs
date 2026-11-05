@@ -25,8 +25,12 @@ public sealed unsafe partial class WebGpuRhiDevice : IRhiDevice
     private readonly WebGpuContext _context;
     private readonly bool _ownsContext;
     private readonly List<string> _widened = [];
-    private readonly WebGpuSurface? _surface;
-    private readonly WebGpuSurfaceSupport _support;
+    private WebGpuSurface? _surface;
+    private WebGpuSurfaceSupport _support;
+
+    // True after the native window was destroyed (app backgrounded) until a new surface is
+    // bound. While true the device presents nothing and the host idles the loop.
+    private bool _surfaceLost;
     private readonly IWorkScheduler _finishing;
     private WebGpuPushRing? _pushes;
 
@@ -110,6 +114,46 @@ public sealed unsafe partial class WebGpuRhiDevice : IRhiDevice
             Wgpu.wgpuInstanceRelease(instance);
             throw;
         }
+    }
+
+    /// <inheritdoc/>
+    public bool HasSurface => !_surfaceLost && _surface is not null;
+
+    /// <inheritdoc/>
+    public void NotifySurfaceLost()
+    {
+        _surfaceLost = true;
+    }
+
+    /// <summary>
+    /// Rebinds the presentation surface to a new window (after the old one was destroyed, e.g.
+    /// the app was backgrounded and its surface went away), keeping the instance, adapter,
+    /// device and all other GPU state alive so the game resumes in place.
+    /// </summary>
+    /// <param name="handles">The new window's native handles.</param>
+    /// <param name="width">The new surface width in pixels.</param>
+    /// <param name="height">The new surface height in pixels.</param>
+    /// <param name="vsync">Whether to wait for the display.</param>
+    /// <remarks>
+    /// The old surface is disposed before the new one is created: it is unusable the moment its
+    /// window is destroyed. The surface capabilities are re-queried from the new surface, since
+    /// the format the adapter prefers can differ per window. If any step fails, the caller
+    /// should fall back to a full engine restart rather than presenting through a half-rebuilt
+    /// surface.
+    /// </remarks>
+    public void RebindSurface(in WebGpuWindowHandles handles, int width, int height, bool vsync = true)
+    {
+        ThrowIfDisposed();
+
+        _surface?.Dispose();
+        _surface = null;
+
+        WebGpuSurface surface = WebGpuSurface.Create(_context.Instance, handles, "openigi");
+        _surface = surface;
+        _support = surface.Describe(_context.Adapter);
+        _surfaceLost = false;
+
+        ConfigureSurface(width, height, vsync);
     }
 
     /// <inheritdoc/>

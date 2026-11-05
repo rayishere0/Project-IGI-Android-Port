@@ -34,6 +34,9 @@ public static class AndroidHost
     private static WebGpuRhiDevice? _webGpuRhi;
     private static LogRouter? _logger;
 
+    // Which backend is presenting, so a surface rebind (tab-out / rotate) calls the right one.
+    private static RendererBackend _activeBackend = RendererBackend.Vulkan;
+
     public delegate int RunCallback(nint nativeWindow, int width, int height, nint dataDirPtr, nint optionsPtr);
     public delegate void TouchCallback(int action, int pointerId, float x, float y);
     public delegate void KeyCallback(int keyCode, int down);
@@ -223,6 +226,16 @@ public static class AndroidHost
                 captureFrames: options.ScreenshotPath is not null,
                 logger: _logger);
 
+            _activeBackend = chosenBackend;
+
+            // The window delivers a new native window (after the old one was destroyed) on the
+            // game thread, where the RHI rebind must run. The callback is set here, at creation,
+            // so it is in place before any surface event can arrive.
+            if (_window is { } window)
+            {
+                window.SurfaceRecreated = RebindSurface;
+            }
+
             // The pipeline GraphicsDevice configures the surface itself (and on resize) through
             // IRhiDevice.ConfigureSurface; there is no manual surface step here.
 
@@ -325,12 +338,100 @@ public static class AndroidHost
         _window?.EnqueueKey(keyCode, down != 0);
     }
 
+    [UnmanagedCallersOnly(EntryPoint = "OnGyro")]
+    public static void OnGyro(float yawRadians, float pitchRadians)
+    {
+        _window?.EnqueueGyro(yawRadians, pitchRadians);
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "OnText")]
+    public static void OnText(IntPtr textPtr)
+    {
+        if (textPtr == IntPtr.Zero)
+        {
+            return;
+        }
+
+        string? text = Marshal.PtrToStringUTF8(textPtr);
+        if (!string.IsNullOrEmpty(text))
+        {
+            _window?.EnqueueText(text);
+        }
+    }
+
+    /// <summary>Whether the shell currently has a text field focused (for the Android soft keyboard).</summary>
+    [UnmanagedCallersOnly(EntryPoint = "IsTextFieldFocused")]
+    public static int IsTextFieldFocused()
+    {
+        return _gameHost is { } host && host.IsTextFieldFocused ? 1 : 0;
+    }
+
     [UnmanagedCallersOnly(EntryPoint = "OnResize")]
     public static void OnResize(int width, int height)
     {
         int landscapeWidth = Math.Max(width, height);
         int landscapeHeight = Math.Min(width, height);
         _window?.EnqueueResize(landscapeWidth, landscapeHeight);
+    }
+
+    /// <summary>The native window was destroyed (app backgrounded). Marks the surface lost so the loop idles instead of presenting into it.</summary>
+    [UnmanagedCallersOnly(EntryPoint = "OnSurfaceLost")]
+    public static void OnSurfaceLost()
+    {
+        if (_activeBackend == RendererBackend.WebGpu)
+        {
+            _webGpuRhi?.NotifySurfaceLost();
+        }
+        else
+        {
+            _vulkanRhi?.Device.NotifySurfaceLost();
+        }
+
+        _logger?.Information("AndroidHost", "Surface lost (app backgrounded); loop will idle until a new surface arrives.");
+    }
+
+    /// <summary>A new native window arrived after the old one was destroyed. Queued for the game thread, which performs the rebind.</summary>
+    [UnmanagedCallersOnly(EntryPoint = "OnSurfaceRecreated")]
+    public static void OnSurfaceRecreated(nint nativeWindow, int width, int height)
+    {
+        int landscapeWidth = Math.Max(width, height);
+        int landscapeHeight = Math.Min(width, height);
+        _window?.EnqueueSurfaceRecreated(nativeWindow, landscapeWidth, landscapeHeight);
+    }
+
+    /// <summary>
+    /// Rebinds the presentation surface to a new native window, keeping the device and the mission
+    /// alive so the player returns to the pause menu in the mission instead of the main menu.
+    /// Runs on the game thread (invoked from PumpEvents).
+    /// </summary>
+    /// <remarks>
+    /// If the rebind fails, the surface stays lost and the loop keeps idling; the player can still
+    /// quit from the (frozen) pause menu, and a fresh start recovers. It never throws into the
+    /// frame loop, because a failed rebind must not turn a backgrounding into a crash.
+    /// </remarks>
+    private static void RebindSurface(nint nativeWindow, int width, int height)
+    {
+        try
+        {
+            if (_activeBackend == RendererBackend.WebGpu && _webGpuRhi is { } webGpu)
+            {
+                webGpu.RebindSurface(
+                    new WebGpuWindowHandles(WebGpuWindowSystem.Android, nint.Zero, nativeWindow),
+                    width,
+                    height,
+                    vsync: true);
+                _logger?.Information("AndroidHost", "WebGPU surface rebound to the new window; resuming in place.");
+            }
+            else if (_vulkanRhi is { } vulkan)
+            {
+                vulkan.RebindSurface(nativeWindow, width, height, vsync: true);
+                _logger?.Information("AndroidHost", "Vulkan surface rebound to the new window; resuming in place.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.Error("AndroidHost", "Surface rebind failed; the loop will keep idling and a restart recovers.", ex);
+        }
     }
 
     [UnmanagedCallersOnly(EntryPoint = "Stop")]

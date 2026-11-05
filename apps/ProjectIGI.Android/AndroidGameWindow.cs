@@ -6,7 +6,7 @@ using ProjectIGI.Rendering;
 namespace ProjectIGI.Android;
 
 internal readonly record struct AndroidInputEvent(
-    int Kind, // 0 = Touch, 1 = Key, 2 = Resize
+    int Kind, // 0 = Touch, 1 = Key, 2 = Resize, 3 = Gyro
     int Action, // For Touch: 0=Down, 1=Up, 2=Move, 3=Cancel. For Key: 0=Up, 1=Down
     int IdOrKey,
     float X,
@@ -15,10 +15,18 @@ internal readonly record struct AndroidInputEvent(
 public sealed class AndroidGameWindow : IGameWindow
 {
     private readonly ConcurrentQueue<AndroidInputEvent> _eventQueue = new();
+    private readonly ConcurrentQueue<string> _textQueue = new();
+    // A new native window after the old one was destroyed (tab-out / rotate). Drained on the
+    // game thread by PumpEvents, which invokes SurfaceRecreated so the host can rebind the
+    // presentation surface to it.
+    private readonly ConcurrentQueue<(nint NativeWindow, int Width, int Height)> _surfaceQueue = new();
     private string _title = "Project I.G.I.";
     private int _width;
     private int _height;
     private bool _disposed;
+    // Gyroscope look motion accumulated this frame, in radians (yaw, pitch).
+    private float _gyroYaw;
+    private float _gyroPitch;
 
     public AndroidGameWindow(int initialWidth, int initialHeight)
     {
@@ -28,6 +36,12 @@ public sealed class AndroidGameWindow : IGameWindow
 
     public event EventHandler<WindowResizedEventArgs>? Resized;
     public event EventHandler? CloseRequested;
+
+    /// <summary>
+    /// Invoked on the game thread when a new native window arrives after the old one was
+    /// destroyed (tab-out / rotate). The host rebinds the presentation surface to it.
+    /// </summary>
+    public Action<nint, int, int>? SurfaceRecreated { get; set; }
 
     public string Title
     {
@@ -116,6 +130,14 @@ public sealed class AndroidGameWindow : IGameWindow
 
         Input.BeginFrame();
 
+        // A new native window after the old one was destroyed (tab-out / rotate): rebind the
+        // presentation surface to it on this (game) thread, since RHI calls must run on the
+        // thread that created the device.
+        while (_surfaceQueue.TryDequeue(out (nint NativeWindow, int Width, int Height) surface))
+        {
+            SurfaceRecreated?.Invoke(surface.NativeWindow, surface.Width, surface.Height);
+        }
+
         while (_eventQueue.TryDequeue(out AndroidInputEvent ev))
         {
             switch (ev.Kind)
@@ -129,8 +151,31 @@ public sealed class AndroidGameWindow : IGameWindow
                 case 2: // Resize
                     Resize((int)ev.X, (int)ev.Y);
                     break;
+                case 3: // Gyro (angle deltas in radians: X = yaw, Y = pitch)
+                    _gyroYaw += ev.X;
+                    _gyroPitch += ev.Y;
+                    break;
             }
         }
+
+        // Typed text from the Android soft keyboard (hidden EditText): feed the
+        // platform's decoded-character queue, which the shell's focused TextBox drains.
+        while (_textQueue.TryDequeue(out string? text))
+        {
+            foreach (char c in text)
+            {
+                Input.Keyboard.EnqueueCharacter(c);
+            }
+        }
+    }
+
+    /// <summary>Gets the gyroscope look motion accumulated this frame, in radians (yaw, pitch), and clears it.</summary>
+    public (float Yaw, float Pitch) TakeGyroMotion()
+    {
+        (float Yaw, float Pitch) motion = (_gyroYaw, _gyroPitch);
+        _gyroYaw = 0f;
+        _gyroPitch = 0f;
+        return motion;
     }
 
     private void ApplyTouch(int action, int pointerId, float x, float y)
@@ -158,6 +203,10 @@ public sealed class AndroidGameWindow : IGameWindow
         {
             Input.Keyboard.SetKey(KeyCode.Escape, down);
         }
+        else if (keyCode == 67) // KEYCODE_DEL: the soft keyboard's delete key
+        {
+            Input.Keyboard.SetKey(KeyCode.Backspace, down);
+        }
     }
 
     public void EnqueueTouch(int action, int pointerId, float x, float y)
@@ -170,9 +219,25 @@ public sealed class AndroidGameWindow : IGameWindow
         _eventQueue.Enqueue(new AndroidInputEvent(1, down ? 1 : 0, keyCode, 0f, 0f));
     }
 
+    public void EnqueueGyro(float yawRadians, float pitchRadians)
+    {
+        _eventQueue.Enqueue(new AndroidInputEvent(3, 0, 0, yawRadians, pitchRadians));
+    }
+
+    public void EnqueueText(string text)
+    {
+        _textQueue.Enqueue(text);
+    }
+
     public void EnqueueResize(int width, int height)
     {
         _eventQueue.Enqueue(new AndroidInputEvent(2, 0, 0, width, height));
+    }
+
+    /// <summary>Queues a new native window (after the old one was destroyed) for PumpEvents.</summary>
+    public void EnqueueSurfaceRecreated(nint nativeWindow, int width, int height)
+    {
+        _surfaceQueue.Enqueue((nativeWindow, width, height));
     }
 
     public void Close()

@@ -180,7 +180,13 @@ public sealed class Igi1HumanCamera
         }
 
         _yaw += LookSettings.YawDelta(mouseDeltaX);
-        _pitch = Math.Clamp(_pitch + LookSettings.PitchDelta(mouseDeltaY), -PitchLimit, PitchLimit);
+        // The orbit's geometry flips the sense of pitch: raising the camera above the
+        // look point pitches the view down, so the same drag that looks up in
+        // first-person looked down here. Negate the pitch delta (not the raw delta)
+        // so the profile's InvertMouse still inverts relative to the corrected baseline.
+        // This fixes the ladder / computer interaction view and the death orbit, which
+        // share this Control, for both mouse and touch.
+        _pitch = Math.Clamp(_pitch - LookSettings.PitchDelta(mouseDeltaY), -PitchLimit, PitchLimit);
         Present(_presentedAlpha);
     }
 
