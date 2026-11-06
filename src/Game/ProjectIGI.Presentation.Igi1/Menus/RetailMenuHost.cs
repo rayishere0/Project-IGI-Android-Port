@@ -28,9 +28,6 @@ public sealed class RetailMenuHost : IRetailMenuPresenter
     private readonly SoundSystem? _sounds;
     private MenuRenderer? _renderer;
 
-    // TEMPORARY DIAGNOSTIC (black-screen investigation): last time the menu-draw counts were logged.
-    private DateTime _lastMenuDrawDiag = DateTime.MinValue;
-
     /// <summary>Initializes a new instance of the <see cref="RetailMenuHost"/> class.</summary>
     /// <param name="request">The menu's files, text, input, batch, scale and sounds, and where leaving goes.</param>
     /// <exception cref="ArgumentNullException">A required part of the request is <see langword="null"/>.</exception>
@@ -149,21 +146,6 @@ public sealed class RetailMenuHost : IRetailMenuPresenter
     public void DrawScreen(MenuScreenTask screen)
     {
         _renderer?.Draw(_batch, screen, _screenWidth(), _screenHeight());
-
-        // TEMPORARY DIAGNOSTIC (black-screen investigation): report what the menu's batch
-        // actually submitted, once a second. QuadCount/DrawCallCount are the last Begin/End
-        // pair's counts, read here before DrawPointer's pair overwrites them. Quads == 0 means
-        // the menu drew nothing (its sprites did not resolve); quads > 0 with a black screen
-        // means the draws happened but are invisible downstream. Remove after diagnosis.
-        if (_renderer is not null)
-        {
-            DateTime now = DateTime.UtcNow;
-            if (now - _lastMenuDrawDiag >= TimeSpan.FromSeconds(1))
-            {
-                _lastMenuDrawDiag = now;
-                _logger.Information(LogCategory, $"[Diag] Menu draw: background='{screen.Background}' quads={_batch.QuadCount} drawCalls={_batch.DrawCallCount}");
-            }
-        }
     }
 
     /// <inheritdoc/>
