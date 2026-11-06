@@ -1,9 +1,7 @@
 package com.projectigi.app;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.ContentValues;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
@@ -715,55 +713,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
         // Start game process immediately so renderer and engine loop do not freeze or wait!
         launchGameNow();
-
-        // Display non-blocking logcat prompt overlay
-        showLogcatPromptOverlay();
-    }
-
-    private void showLogcatPromptOverlay() {
-        if (isFinishing() || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && isDestroyed())) {
-            return;
-        }
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert);
-
-        TextView titleView = new TextView(this);
-        titleView.setText("DIAGNOSTIC LOGGING");
-        titleView.setTextColor(Color.rgb(57, 227, 101)); // #39e365
-        titleView.setTextSize(16);
-        titleView.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        titleView.setPadding(40, 30, 40, 10);
-        builder.setCustomTitle(titleView);
-
-        TextView messageView = new TextView(this);
-        messageView.setText("Do you want to record active runtime logs during this session and save 'projectigi_logs.txt' into your Downloads folder?");
-        messageView.setTextColor(Color.rgb(200, 230, 205));
-        messageView.setTextSize(14);
-        messageView.setTypeface(Typeface.MONOSPACE);
-        messageView.setPadding(40, 10, 40, 20);
-        builder.setView(messageView);
-
-        builder.setPositiveButton("YES", (dialog, which) -> {
-            dialog.dismiss();
-            exportLogcatToDownloads();
-        });
-
-        builder.setNegativeButton("NO", (dialog, which) -> dialog.dismiss());
-
-        AlertDialog dialog = builder.create();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.rgb(10, 24, 14)));
-        }
-        dialog.show();
-
-        if (dialog.getButton(DialogInterface.BUTTON_POSITIVE) != null) {
-            dialog.getButton(DialogInterface.BUTTON_POSITIVE).setTextColor(Color.rgb(57, 227, 101));
-            dialog.getButton(DialogInterface.BUTTON_POSITIVE).setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        }
-        if (dialog.getButton(DialogInterface.BUTTON_NEGATIVE) != null) {
-            dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setTextColor(Color.rgb(180, 190, 180));
-            dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setTypeface(Typeface.MONOSPACE);
-        }
     }
 
     private void launchGameNow() {
