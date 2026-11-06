@@ -1,7 +1,6 @@
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Game.Hosting;
 using ProjectIGI.Core.Configuration;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.Igi1.Weapons;
 using ProjectIGI.Game.Weapons;
@@ -220,11 +219,11 @@ public sealed class Igi1ImpactEffects(MissionWorld mission, IImpactEffectsHost h
     /// Diagnosis, and a capture handle: a headless run can put a dust puff, a spray of chips or a wound exactly where the
     /// crosshair points and photograph it, which firing a weapon on a synthetic clock cannot do reproducibly.
     /// </remarks>
-    public void Register(ConsoleSystem console, Func<Camera3D> eye, IProjectIGILogger logger)
+    public void Register(ConsoleSystem console, Func<Camera3D> eye)
     {
         ArgumentNullException.ThrowIfNull(console);
         ArgumentNullException.ThrowIfNull(eye);
-        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull();
         _eye = eye;
         console.Commands.Add(
             "impact_test",
@@ -234,7 +233,6 @@ public sealed class Igi1ImpactEffects(MissionWorld mission, IImpactEffectsHost h
                 if (!TryAimedSurface(out WorldRayHit hit, out Vector3f look))
                 {
                     context.Warn("Nothing under the crosshair, or no level is loaded.");
-                    logger.Warning("Impact", "impact_test: nothing under the crosshair.");
                     return;
                 }
 
@@ -243,14 +241,12 @@ public sealed class Igi1ImpactEffects(MissionWorld mission, IImpactEffectsHost h
                     || material is null)
                 {
                     context.Warn($"Material row {hit.Material} is not in the table.");
-                    logger.Warning("Impact", $"impact_test: material row {hit.Material} is not in the table.");
                     return;
                 }
 
                 if (!material.RecordsImpacts)
                 {
                     context.Print($"{material.Name} records no impact at all, so nothing is drawn.");
-                    logger.Information("Impact", $"impact_test: {material.Name} records no impact.");
                     return;
                 }
 
@@ -266,7 +262,6 @@ public sealed class Igi1ImpactEffects(MissionWorld mission, IImpactEffectsHost h
                     $"{material.Name} at {where}: {Runtime.PuffCount} dust quad(s), "
                         + $"{Runtime.FragmentCount} chip(s) of {material.Entry.Model}.";
                 context.Print(report);
-                logger.Information("Impact", report);
             });
 
         console.Commands.Add(
@@ -299,7 +294,6 @@ public sealed class Igi1ImpactEffects(MissionWorld mission, IImpactEffectsHost h
                     if (!TryAimedSurface(out WorldRayHit hit, out look))
                     {
                         context.Warn("Nothing under the crosshair, or no level is loaded.");
-                        logger.Warning("Impact", "blood_test: nothing under the crosshair.");
                         return;
                     }
 
@@ -330,7 +324,6 @@ public sealed class Igi1ImpactEffects(MissionWorld mission, IImpactEffectsHost h
                         + $"{mission.Player?.Marks?.TotalAdded ?? 0} mark(s) recorded; {backstop}."
                     : "Blood is switched off, in the game options or by r_impact_effects.";
                 context.Print(report);
-                logger.Information("Impact", report);
             });
     }
 

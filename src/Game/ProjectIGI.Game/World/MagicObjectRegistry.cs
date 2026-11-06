@@ -22,7 +22,6 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public sealed class MagicObjectRegistry
 {
-    private const string LogCategory = "World";
 
     /// <summary>The native the script calls to publish a definition.</summary>
     public const string DefineNative = "DefineMagicObj";
@@ -38,11 +37,10 @@ public sealed class MagicObjectRegistry
 
     private readonly Dictionary<string, MagicObjectDefinition> _byName = new(StringComparer.OrdinalIgnoreCase);
     private readonly Config.TaskTypeConstants _taskTypes = new();
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="MagicObjectRegistry"/> class.</summary>
     /// <param name="logger">The logger for load diagnostics; defaults to a sink that discards them.</param>
-    public MagicObjectRegistry(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public MagicObjectRegistry() { }
 
     /// <summary>Gets the definitions, keyed by attachment name.</summary>
     public IReadOnlyDictionary<string, MagicObjectDefinition> Definitions => _byName;
@@ -85,7 +83,6 @@ public sealed class MagicObjectRegistry
 
         if (!resources.TryLoad(ScriptResource, out ReadOnlyMemory<byte> bytes))
         {
-            _logger.Warning(LogCategory, $"No magic-object script at '{ScriptResource}'; models attach nothing.");
             return 0;
         }
 
@@ -109,7 +106,6 @@ public sealed class MagicObjectRegistry
                 $"{ScriptResource} faulted with {error}: {interpreter.ErrorMessage}");
         }
 
-        _logger.Information(LogCategory, $"Registered {Count} magic object(s).");
         return Count;
     }
 

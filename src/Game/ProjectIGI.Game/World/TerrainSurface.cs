@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Formats.World;
@@ -27,7 +26,6 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public sealed class TerrainSurface
 {
-    private const string LogCategory = "Terrain";
 
     /// <summary>The task type that declares a tile layer.</summary>
     public const string TextureModifierType = "TextureModifier";
@@ -87,12 +85,11 @@ public sealed class TerrainSurface
     /// <param name="logger">Where to report modifiers or discard volumes that do not resolve.</param>
     /// <returns>The surface.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public static TerrainSurface Build(TerrainData terrain, GameTask levelRoot, IProjectIGILogger? logger = null)
+    public static TerrainSurface Build(TerrainData terrain, GameTask levelRoot)
     {
         ArgumentNullException.ThrowIfNull(terrain);
         ArgumentNullException.ThrowIfNull(levelRoot);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         List<TerrainTileLayer> layers = [];
         int skippedModifiers = 0;
 
@@ -141,17 +138,6 @@ public sealed class TerrainSurface
         TerrainHeightBindings heights = TerrainHeightBindings.Bind(terrain, levelRoot);
         TerrainLightBindings lights = TerrainLightBindings.Bind(terrain, levelRoot);
 
-        log.Information(
-            LogCategory,
-            $"Surface: {layers.Count} tile layer(s)"
-                + (skippedModifiers > 0 ? $", {skippedModifiers} modifier(s) unresolved" : string.Empty)
-                + $", {discards.Length} terrain discard(s)"
-                + (discardBinding.Skipped > 0 ? $", {discardBinding.Skipped} discard(s) unresolved" : string.Empty)
-                + $", {heights.Entries.Count} heightmap binding(s)"
-                + (heights.Skipped > 0 ? $", {heights.Skipped} heightmap(s) unresolved" : string.Empty)
-                + $", {lights.Entries.Count} lightmap binding(s)"
-                + (lights.Skipped > 0 ? $", {lights.Skipped} lightmap(s) unresolved" : string.Empty)
-                + $", {terrain.Materials.Count} material(s), {terrain.TileMaps.Count} tile map(s).");
 
         return new TerrainSurface(terrain, [.. layers], discards, heights, lights);
     }

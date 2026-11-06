@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Rendering.Rhi;
 
 namespace ProjectIGI.Rendering.Pipeline.RayTracing;
@@ -35,7 +34,6 @@ internal sealed class HitRecordAllocator : IDisposable
     private const int RecordSize = 32;
 
     private readonly IRhiDevice _device;
-    private readonly IProjectIGILogger _logger;
 
     // The material records, one per geometry of every built structure, in the layout the ray shader
     // reads them through the buffer's shader handle. Append-only: a structure rebuilt over a larger range set is
@@ -57,10 +55,9 @@ internal sealed class HitRecordAllocator : IDisposable
     /// <summary>Initialises a new instance of the <see cref="HitRecordAllocator"/> class.</summary>
     /// <param name="device">The device the records live on.</param>
     /// <param name="logger">Where running out of records is said.</param>
-    public HitRecordAllocator(IRhiDevice device, IProjectIGILogger logger)
+    public HitRecordAllocator(IRhiDevice device)
     {
         _device = device;
-        _logger = logger;
 
         // Host visible and written directly. The records are tiny, they change only when a structure is
         // built, and the alternative -- staging into device-local memory -- would need a transfer
@@ -106,9 +103,6 @@ internal sealed class HitRecordAllocator : IDisposable
             if (!_recordOverflow)
             {
                 _recordOverflow = true;
-                _logger.Warning(
-                    "RayTracing",
-                    $"Material records exhausted at {MaxRecords}; meshes admitted after this point are left out of the traced world.");
             }
 
             return -1;

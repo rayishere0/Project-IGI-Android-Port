@@ -1,6 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
 using ProjectIGI.Core.Content;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Titles;
 using ProjectIGI.Engine.Events;
 using ProjectIGI.Engine.Resources;
@@ -15,7 +14,6 @@ namespace ProjectIGI.Modding;
 internal sealed class ModContentModule(InstalledMod mod, GameTitle title) : IContentModule
 {
     /// <summary>The category the mods' diagnostics are logged under.</summary>
-    public const string LogCategory = "Mods";
 
     /// <summary>Gets what the mod registers, in the order it said it.</summary>
     public List<Action<ContentRegistrationContext>> Registrations { get; } = [];
@@ -67,7 +65,6 @@ internal sealed class ModContentModule(InstalledMod mod, GameTitle title) : ICon
 
         public ResourceRegistry Resources => load.Resources;
 
-        public IProjectIGILogger Logger => load.Logger;
 
         public bool TryGetDataRoot(GameTitle other, [NotNullWhen(true)] out string? root)
         {

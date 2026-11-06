@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Flow;
 using ProjectIGI.Engine.Tasks;
@@ -14,7 +13,6 @@ namespace ProjectIGI.Game.Hosting;
 public interface IBlastEffectsHost
 {
     /// <summary>Gets the log.</summary>
-    IProjectIGILogger Logger { get; }
 
     /// <summary>Gets the game's loop, whose variables an authored blast's expression writes.</summary>
     GameLoop Game { get; }

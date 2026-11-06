@@ -1,5 +1,4 @@
 using ProjectIGI.Core.Configuration;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
 using ProjectIGI.Host.Services;
@@ -195,10 +194,8 @@ public sealed partial class GameHost
         }
         else
         {
-            _logger.Warning("Renderer", $"Could not stand the player back at {pose.Position}; starting where the mission starts.");
             return;
         }
 
-        _logger.Information("Renderer", FormattableString.Invariant($"Resumed {RendererSwitchService.Describe(_options.Resume)}; the sun is at hour {_timeOfDay.DayNight.TimeHours:F2}."));
     }
 }

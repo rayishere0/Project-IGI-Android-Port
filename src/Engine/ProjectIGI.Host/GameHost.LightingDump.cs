@@ -1,5 +1,4 @@
 using System.Text.Json;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Core.Threading;
@@ -105,7 +104,6 @@ public sealed partial class GameHost
         json.WriteEndArray();
         json.WriteEndObject();
 
-        _logger.Information("Desktop", $"Wrote the frame's lighting ({_gi.LightFixtures.Count} lamp(s)) to {path}.");
     }
 
     private static void WriteVector(Utf8JsonWriter json, string name, Vector3f value)
@@ -142,8 +140,6 @@ public sealed partial class GameHost
             }
         }
 
-        _logger.Information(
-            "Lightmap", $"Enumerated {targets.Count} target(s); {covered}/{total} texels covered.");
 
         Vector3f sunColour = _timeOfDay.Sun?.Colour ?? new Vector3f(1f, 1f, 1f);
         Vector3f skyColour = _timeOfDay.Sun?.Ambient ?? new Vector3f(0.3f, 0.3f, 0.3f);
@@ -154,12 +150,7 @@ public sealed partial class GameHost
         // so this verifies the bounce fills and brightens rather than the colour it carries.
         LightmapTriangle[] triangles = LightmapBaker.BuildTriangles(scene, targets, _resources);
         int coloured = triangles.Count(t => MathF.Abs(t.Albedo.X - 0.5f) > 0.02f || MathF.Abs(t.Albedo.Y - 0.5f) > 0.02f || MathF.Abs(t.Albedo.Z - 0.5f) > 0.02f);
-        _logger.Information(
-            "Lightmap",
-            FormattableString.Invariant(
-                $"Albedo: {coloured}/{triangles.Length} triangles got a resolved colour; samples ({triangles[0].Albedo.X:F2},{triangles[0].Albedo.Y:F2},{triangles[0].Albedo.Z:F2}) ({triangles[triangles.Length / 2].Albedo.X:F2},{triangles[triangles.Length / 2].Albedo.Y:F2},{triangles[triangles.Length / 2].Albedo.Z:F2})."));
         LightmapBvh bvh = LightmapBvh.Build(triangles);
-        _logger.Information("Lightmap", $"Built a BVH over {triangles.Length} triangle(s); gathering bounces.");
         Stepping.Drain(LightmapBaker.BakeBounces(targets, triangles, bvh, skyColour, 4, 64, _work));
 
         // A numerical spot-check on the largest page: how many texels it covered, and a few of them with
@@ -177,10 +168,6 @@ public sealed partial class GameHost
             }
 
             Vector3d origin = scene.Placements[sample.PlacementIndex].Position;
-            _logger.Information(
-                "Lightmap",
-                FormattableString.Invariant(
-                    $"Largest page p{sample.PlacementIndex} {sample.Width}x{sample.Height}: {sampleCovered} covered, placement at ({origin.X:F1},{origin.Y:F1},{origin.Z:F1})."));
 
             int shown = 0;
             for (int i = 0; i < sample.Texels.Length && shown < 4; i++)
@@ -192,10 +179,6 @@ public sealed partial class GameHost
 
                 LightmapTexel t = sample.Texels[i];
                 Vector3f rad = sample.Radiance[i];
-                _logger.Information(
-                    "Lightmap",
-                    FormattableString.Invariant(
-                        $"  texel {i}: pos ({t.WorldPosition.X:F1},{t.WorldPosition.Y:F1},{t.WorldPosition.Z:F1}) n ({t.Normal.X:F2},{t.Normal.Y:F2},{t.Normal.Z:F2}) rad ({rad.X:F2},{rad.Y:F2},{rad.Z:F2})"));
                 shown++;
             }
         }
@@ -219,6 +202,5 @@ public sealed partial class GameHost
             dumped++;
         }
 
-        _logger.Information("Lightmap", $"Dumped {dumped} page(s) to {outputDirectory}.");
     }
 }

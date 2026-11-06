@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -32,10 +31,8 @@ public sealed partial class WorldRenderer : IWorldPresenter
     /// value here that disagrees with the shaders would preserve the wrong quantity and thin the fence
     /// anyway. Change both together.
     /// </remarks>
-    internal const string LogCategory = "World";
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly WorldTextureCache _textures;
     private readonly WorldLightmapPages _lightmapPages;
     private readonly WorldPlacementTransforms _transforms = new();
@@ -84,12 +81,7 @@ public sealed partial class WorldRenderer : IWorldPresenter
     /// bytes in Project I.G.I. and 52 in the sequel, and the stride decides where the pixels start.
     /// It is a parameter rather than a default so that a title cannot forget to say.
     /// </remarks>
-    public WorldRenderer(
-        IGraphicsDevice device,
-        ResourceRegistry resources,
-        AssetFormatProfile formats,
-        IProjectIGILogger? logger = null,
-        BlendMode additiveFaceGroups = BlendMode.Additive)
+    public WorldRenderer(IGraphicsDevice device, ResourceRegistry resources, AssetFormatProfile formats, BlendMode additiveFaceGroups = BlendMode.Additive)
     {
         _additiveFaceGroups = additiveFaceGroups;
         ArgumentNullException.ThrowIfNull(device);
@@ -97,10 +89,9 @@ public sealed partial class WorldRenderer : IWorldPresenter
         ArgumentNullException.ThrowIfNull(formats);
 
         _device = device;
-        _logger = logger ?? NullLogger.Instance;
-        _textures = new WorldTextureCache(device, resources, _logger);
-        _lightmapPages = new WorldLightmapPages(device, resources, formats, _logger);
-        _subsets = new WorldSubsetResolver(device, _logger, _transforms, _textures, _lightmapPages);
+        _textures = new WorldTextureCache(device, resources);
+        _lightmapPages = new WorldLightmapPages(device, resources, formats);
+        _subsets = new WorldSubsetResolver(device, _transforms, _textures, _lightmapPages);
         _frameState = new WorldFrameState(_transforms, _subsets, _occlusionSettle);
     }
 
@@ -880,11 +871,6 @@ public sealed partial class WorldRenderer : IWorldPresenter
         // the device rejects it.
         _subsets.ForgetResolved();
 
-        _logger.Information(
-            LogCategory,
-            baked is null
-                ? "Restored the shipped object lightmaps."
-                : $"Applied a path-traced lightmap bake over {_lightmapPages.BakedEntryCount} object(s).");
     }
 
     /// <summary>Returns a rotor's bound across every phase and aerodynamic-tilt sample.</summary>

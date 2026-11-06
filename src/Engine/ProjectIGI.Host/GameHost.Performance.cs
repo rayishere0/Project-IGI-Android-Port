@@ -1,5 +1,4 @@
 using ProjectIGI.Core.Configuration.Presets;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Rendering;
 
 namespace ProjectIGI.Host;
@@ -28,10 +27,6 @@ public sealed partial class GameHost
                 // here is discarded and the benchmark's allocation report -- the one number that says
                 // whether a stutter is the collector rather than the GPU -- was written to nothing. The
                 // camera log had the same hole for the same reason.
-                _logger.Warning(
-                    "Benchmark",
-                    FormattableString.Invariant(
-                        $"Managed alloc over {measured} measured frames: {allocated / (1024.0 * 1024.0):0.0} MB, {allocated / (double)measured / 1024.0:0.0} KB/frame; gc {GC.CollectionCount(0) - _benchmarkGcStart.Item1}/{GC.CollectionCount(1) - _benchmarkGcStart.Item2}/{GC.CollectionCount(2) - _benchmarkGcStart.Item3}."));
             }
             RenderPerformanceSnapshot snapshot = new(
                 GraphicsPresetRegistry.Default.Current.ToString(),
@@ -57,7 +52,6 @@ public sealed partial class GameHost
 
             string json = System.Text.Json.JsonSerializer.Serialize(snapshot, RenderPerformanceJsonContext.Default.RenderPerformanceSnapshot);
             File.WriteAllText(benchmarkPath, json);
-            _logger.Information("Perf", $"Wrote benchmark snapshot to {Path.GetFullPath(benchmarkPath)}.");
         }
     }
 
@@ -73,7 +67,6 @@ public sealed partial class GameHost
 
             if (finalTimings.Count == 0)
             {
-                _logger.Information("Perf", "No stage timings were collected; the run was too short to resolve a query.");
             }
             else
             {
@@ -83,7 +76,6 @@ public sealed partial class GameHost
                 {
                     if (!timing.Active)
                     {
-                        _logger.Information("Perf", $"{timing.Stage,-28} off");
                         continue;
                     }
 
@@ -95,18 +87,10 @@ public sealed partial class GameHost
                         ? FormattableString.Invariant($"  budget {allowance:0.0} ms{(exceeded ? "  OVER" : string.Empty)}")
                         : "  (unbudgeted)";
 
-                    _logger.Information(
-                        "Perf",
-                        FormattableString.Invariant(
-                            $"{timing.Stage,-28} avg {timing.Milliseconds,6:0.000} ms  p95 {timing.P95Milliseconds,6:0.000} ms  peak {timing.PeakMilliseconds,6:0.000} ms{against}"));
                 }
 
                 foreach (RenderPassTiming pass in _device.PassTimings())
                 {
-                    _logger.Information(
-                        "Perf",
-                        FormattableString.Invariant(
-                            $"  pass {pass.Label,-32} avg {pass.Milliseconds,6:0.000} ms  peak {pass.PeakMilliseconds,7:0.000} ms  ran {pass.FramesRun} frame(s)  [{pass.Stage}]"));
                 }
 
                 // The 1% low, taken apart: what each pass cost in the slowest frames, beside its overall average.
@@ -119,25 +103,14 @@ public sealed partial class GameHost
                         overall[pass.Label] = pass.Milliseconds;
                     }
 
-                    _logger.Information(
-                        "Perf",
-                        FormattableString.Invariant($"Slowest 1% ({worstFrames} frame(s)): summed GPU avg {worstAverage:0.000} ms."));
 
                     foreach (RenderPassTiming pass in worst)
                     {
                         double usual = overall.GetValueOrDefault(pass.Label);
-                        _logger.Information(
-                            "Perf",
-                            FormattableString.Invariant(
-                                $"  worst {pass.Label,-32} {pass.Milliseconds,7:0.000} ms  (usually {usual,6:0.000}, {pass.Milliseconds - usual,+7:0.000})  ran in {pass.FramesRun}/{worstFrames}"));
                     }
                 }
 
                 GpuFrameTiming gpu = _device.GpuTiming();
-                _logger.Information(
-                    "Perf",
-                    FormattableString.Invariant(
-                        $"GPU total avg {gpu.Milliseconds:0.000} ms  p95 {gpu.P95Milliseconds:0.000} ms  peak {gpu.PeakMilliseconds:0.000} ms of the {RenderBudget.FrameMilliseconds:0.00} ms a 60 Hz frame has; {over} stage(s) over budget."));
             }
         }
     }

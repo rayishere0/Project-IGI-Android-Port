@@ -24,7 +24,6 @@ namespace ProjectIGI.Game.Weapons;
 /// </remarks>
 public sealed class AmmoTypeRegistry
 {
-    private const string LogCategory = "Weapons";
 
     /// <summary>The native each ammunition script calls.</summary>
     public const string DefineNative = "DefineAmmoType";
@@ -45,11 +44,10 @@ public sealed class AmmoTypeRegistry
     private readonly List<AmmoType> _types = [];
     private readonly Dictionary<int, AmmoType> _byId = [];
     private readonly Dictionary<int, AmmoType> _byCalibre = [];
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="AmmoTypeRegistry"/> class.</summary>
     /// <param name="logger">The logger for load diagnostics; defaults to a sink that discards them.</param>
-    public AmmoTypeRegistry(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public AmmoTypeRegistry() { }
 
     /// <summary>Gets the ammunition types, in load order.</summary>
     public IReadOnlyList<AmmoType> Types => _types;
@@ -118,7 +116,6 @@ public sealed class AmmoTypeRegistry
             }
         }
 
-        _logger.Information(LogCategory, $"Registered {_types.Count} ammunition type(s).");
         return _types.Count;
     }
 

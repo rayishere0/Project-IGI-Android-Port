@@ -1,6 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
 using ProjectIGI.Core.Content;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Titles;
 using ProjectIGI.Engine.Events;
 using ProjectIGI.Engine.Resources;
@@ -34,7 +33,6 @@ public interface IModContext
     ResourceRegistry Resources { get; }
 
     /// <summary>Gets where diagnostics go.</summary>
-    IProjectIGILogger Logger { get; }
 
     /// <summary>Finds where a game is installed.</summary>
     /// <param name="title">The game.</param>

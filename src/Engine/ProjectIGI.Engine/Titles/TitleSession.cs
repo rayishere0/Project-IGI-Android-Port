@@ -21,7 +21,6 @@ namespace ProjectIGI.Engine.Titles;
 /// </remarks>
 public sealed class TitleSession
 {
-    private const string LogCategory = "Title";
 
     private readonly ServiceCatalog _services;
 
@@ -56,21 +55,13 @@ public sealed class TitleSession
     /// original's own ordering, and it is what lets one module's table be built by running a script that
     /// calls a native another module declared.
     /// </remarks>
-    public static TitleSession Start(
-        IReadOnlyList<IContentModule> modules,
-        GameLoop loop,
-        VirtualFileSystem fileSystem,
-        ResourceRegistry resources,
-        IProjectIGILogger? logger = null,
-        bool loadTables = true,
-        IServiceCatalog? inherited = null)
+    public static TitleSession Start(IReadOnlyList<IContentModule> modules, GameLoop loop, VirtualFileSystem fileSystem, ResourceRegistry resources, bool loadTables = true, IServiceCatalog? inherited = null)
     {
         ArgumentNullException.ThrowIfNull(modules);
         ArgumentNullException.ThrowIfNull(loop);
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentNullException.ThrowIfNull(resources);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         TitleSession session = new(
             modules,
             inherited is ServiceCatalog seed ? new ServiceCatalog(seed) : new ServiceCatalog());
@@ -105,17 +96,12 @@ public sealed class TitleSession
     /// against the registries, and load the tables afterwards — which is what the desktop host does,
     /// because its mission scan has to run first.
     /// </remarks>
-    public void LoadTables(
-        GameLoop loop,
-        VirtualFileSystem fileSystem,
-        ResourceRegistry resources,
-        IProjectIGILogger? logger = null)
+    public void LoadTables(GameLoop loop, VirtualFileSystem fileSystem, ResourceRegistry resources)
     {
         ArgumentNullException.ThrowIfNull(loop);
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentNullException.ThrowIfNull(resources);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         ContentLoadContext load = new(fileSystem, resources, loop.Natives, loop.Tasks, _services, log);
 
         foreach (IContentModule module in Modules)
@@ -129,7 +115,6 @@ public sealed class TitleSession
                 // One table failing is not the same as the title failing. The original carries on with
                 // an empty table and shows the consequences in play; refusing to start would turn a
                 // missing optional file into a game that will not run at all.
-                log.Warning(LogCategory, $"The {module.Name} module's tables did not load: {ex.Message}");
             }
         }
     }

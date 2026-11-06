@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 
 namespace ProjectIGI.Audio;
 
@@ -14,5 +13,5 @@ public sealed class NullAudioDeviceFactory : IAudioDeviceFactory
     public static readonly NullAudioDeviceFactory Instance = new();
 
     /// <inheritdoc/>
-    public IAudioDevice Open(AudioDeviceOptions options, IProjectIGILogger logger) => new NullAudioDevice();
+    public IAudioDevice Open(AudioDeviceOptions options) => new NullAudioDevice();
 }

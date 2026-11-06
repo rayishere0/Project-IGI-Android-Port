@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Audio;
@@ -29,7 +28,6 @@ public sealed partial class GameHost
     {
         if (!_missions.TryGet(id, out MissionDescriptor? chosen))
         {
-            _logger.Warning("Mission", $"Asked to start mission {id}, which is not registered.");
             return;
         }
 
@@ -43,7 +41,6 @@ public sealed partial class GameHost
 
         ReleasePlayedMission();
 
-        _logger.Information("Mission", $"Starting {chosen}.");
         LevelTask levelRoot = (LevelTask)_loop.Tasks.New(_loop.Tasks.Root, _loop.Types.Get(EngineTaskTypes.Level));
         _session.Begin(chosen, levelRoot);
 
@@ -55,8 +52,8 @@ public sealed partial class GameHost
         // The marker belongs to a task in the level being torn down; carrying its fade into the next
         // one would project a dead anchor for a frame.
         _interactionPrompt.Reset();
-        LevelLoader levelLoader = new(levelRoot, _loop.TaskCommands, _loop.Natives, _resources, _logger);
-        TerrainLoader terrainLoader = new(_resources, _loop.Natives, _logger);
+        LevelLoader levelLoader = new(levelRoot, _loop.TaskCommands, _loop.Natives, _resources);
+        TerrainLoader terrainLoader = new(_resources, _loop.Natives);
 
         // The bank is rebuilt per mission, so the mission's own sounds mount into one holding only the
         // menu's. MISSION: has already been re-pointed by the loader below, in the same step order the
@@ -73,16 +70,14 @@ public sealed partial class GameHost
         // The title's format profile, without which every pack is read as the first game's and a title
         // shipping a later mesh version has every model in it refused on the way in -- the pack still
         // opens, still reports a name, and holds nothing.
-        MissionLoader missionLoader = new(
-            _missions, _resourceFileSystem, _resources, levelLoader, _logger, terrainLoader, _audioOut.Bank,
-            _titleRuntime.Formats);
+        MissionLoader missionLoader = new(_missions, _resourceFileSystem, _resources, levelLoader, terrainLoader, _audioOut.Bank, _titleRuntime.Formats);
         LoadedMission loaded = missionLoader.Load(id);
 
         // Evaluate the level's ConditionalContainer conditions against the initial playable state, so the
         // scene, spawn and soldier walks below skip the subtrees the original leaves unregistered (the
         // intro/outro cut-scene props and actors). Runs after the tree is built and its variables exported,
         // and before anything walks it.
-        new ConditionalContainerGate(_loop.Variables, _logger).Prepare(levelRoot);
+        new ConditionalContainerGate(_loop.Variables).Prepare(levelRoot);
 
         BringMissionUp(loaded, levelRoot, id, promoted: false);
     }
@@ -126,10 +121,6 @@ public sealed partial class GameHost
             : SceneFog.None);
         if (air is { } reported)
         {
-            _logger.Information(
-                "Mission",
-                $"The level's air: fog {reported.FogColour} at {reported.FogDensity:G4} per metre, "
-                    + $"ambient {reported.Ambient}.");
         }
 
         // How the level drives the dynamic renderer, for a title whose sun is a lighting direction
@@ -138,10 +129,6 @@ public sealed partial class GameHost
         _deferredLighting = _presentation.ReadDeferredLighting(levelRoot);
         if (_deferredLighting is { } lit)
         {
-            _logger.Information(
-                "Mission",
-                $"The level's own light: ambient {lit.Ambient}, nightfall {lit.Nightfall:F2} "
-                    + "(its sun is authored, so the day/night sweep is off).");
         }
 
         ObjectShading shading = _presentation.ReadObjectShading(levelRoot) ?? ObjectShading.Default;
@@ -158,11 +145,6 @@ public sealed partial class GameHost
         _device.SetSceneSun(shading.Sun?.Ambient ?? Vector3f.Zero, shading.Sun?.Colour ?? Vector3f.Zero);
         if (shading.Sun is { } fixedFunctionSun)
         {
-            _logger.Information(
-                "Light",
-                $"Objects without a bake are lit by the level's sun: ambient {fixedFunctionSun.Ambient}, "
-                    + $"colour {fixedFunctionSun.Colour}, towards {fixedFunctionSun.Direction}; "
-                    + FormattableString.Invariant($"bakes are multiplied by {shading.LightmapGain:G2}."));
         }
     }
 
@@ -324,7 +306,7 @@ public sealed partial class GameHost
                 _effects.Load(loaded, _presentation.Presenters, _resources, _fileSystem);
 
                 _hud?.Dispose();
-                _hud = _presentation.Presenters.Create<HudPresentationRequest, IHudPresenter>(new HudPresentationRequest(_device, _logger));
+                _hud = _presentation.Presenters.Create<HudPresentationRequest, IHudPresenter>(new HudPresentationRequest(_device));
                 if (_hud is not null && !_hud.Load(_fileSystem))
                 {
                     _hud.Dispose();
@@ -332,7 +314,7 @@ public sealed partial class GameHost
                 }
 
                 _remasteredHud?.Dispose();
-                _remasteredHud = _presentation.Presenters.Create<HudPresentationRequest, IRemasteredHudPresenter>(new HudPresentationRequest(_device, _logger));
+                _remasteredHud = _presentation.Presenters.Create<HudPresentationRequest, IRemasteredHudPresenter>(new HudPresentationRequest(_device));
                 if (_remasteredHud is not null && !_remasteredHud.Load())
                 {
                     _remasteredHud.Dispose();
@@ -340,7 +322,7 @@ public sealed partial class GameHost
                 }
 
                 _debugOverlay?.Dispose();
-                _debugOverlay = new DebugOverlayRenderer(_device, _logger);
+                _debugOverlay = new DebugOverlayRenderer(_device);
                 if (!_debugOverlay.Load())
                 {
                     _debugOverlay.Dispose();
@@ -395,29 +377,15 @@ public sealed partial class GameHost
 
                 // After a switch of renderer, back where the view was before it.
                 ResumePose();
-                _logger.Information(
-                    "Player",
-                    _playerMode
-                        ? $"Standing at {candidate.Position}; F1 for the free camera."
-                        : $"Free camera; F1 to stand at {candidate.Position}.");
 
                 // The eye, spelled the way the capture flags take it. Walking and flying are supposed to
                 // draw the same picture from the same place, and the only way to check that is to put the
                 // free camera exactly where the walking eye is -- which needs the eye, not the feet the
                 // line above reports, and needs it before a capture run can be scripted around it.
                 Camera3D spawnEye = candidate.Camera;
-                _logger.Information(
-                    "Player",
-                    FormattableString.Invariant(
-                        $"Eye at -campos {spawnEye.Position.X:F3},{spawnEye.Position.Y:F3},{spawnEye.Position.Z:F3} ")
-                        + FormattableString.Invariant(
-                            $"-yaw {candidate.Body.Yaw:F4} -pitch {candidate.Body.Pitch:F4}"));
             }
             else
             {
-                _logger.Warning(
-                    "Player",
-                    "Nothing to stand on at the level's spawn, so this mission opens in the free camera.");
             }
         }
 
@@ -457,7 +425,6 @@ public sealed partial class GameHost
 
         if (!_missions.TryGet(preview.MissionId, out MissionDescriptor? chosen))
         {
-            _logger.Warning("Mission", $"Asked to promote mission {preview.MissionId}, which is not registered.");
             return false;
         }
 
@@ -511,10 +478,6 @@ public sealed partial class GameHost
 
         BringMissionUp(preview.Mission, preview.LevelRoot, preview.MissionId, promoted: true);
 
-        _logger.Information(
-            "Mission",
-            $"Promoted the backdrop for mission {preview.MissionId} in {clock.Elapsed.TotalMilliseconds:F1} ms "
-                + "on the render thread.");
         return true;
     }
 
@@ -675,7 +638,7 @@ public sealed partial class GameHost
     }
 
     /// <summary>The three things the small world-effect presenters are built from.</summary>
-    private EffectsPresentationRequest EffectsRequest() => new(_device, _resources, _logger);
+    private EffectsPresentationRequest EffectsRequest() => new(_device, _resources);
 
     /// <summary>The four things every first-person and projectile presenter is built from.</summary>
     /// <remarks>
@@ -683,7 +646,7 @@ public sealed partial class GameHost
     /// until a mission has loaded, so it cannot be cached beside the provider.
     /// </remarks>
     private ViewModelPresentationRequest ViewModelRequest() =>
-        new(_device, _resources, _mission.MagicObjects, _logger, _work);
+        new(_device, _resources, _mission.MagicObjects, _work);
 
     /// <summary>The mission's side of one pass of the loop: the world, the player and the level's state, ticked.</summary>
     /// <param name="state">The frame loop's state.</param>

@@ -1,5 +1,4 @@
 using ProjectIGI.Core.Configuration.Presets;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -71,8 +70,7 @@ internal interface IDebugOverlaysHost
 /// <param name="options">The command line, which says whether this is a benchmark.</param>
 /// <param name="logger">The log the world's first report goes to.</param>
 /// <param name="host">What the overlays read of the host.</param>
-internal sealed class DebugOverlays(
-    IGraphicsDevice device, IGameWindow window, HostOptions options, IProjectIGILogger logger, IDebugOverlaysHost host) : IHostService
+internal sealed class DebugOverlays(IGraphicsDevice device, IGameWindow window, HostOptions options, IDebugOverlaysHost host) : IHostService
 {
     // The performance overlay's managed-allocation sampler. The GPU stage timers see none of this: a frame
     // that allocates megabytes churns Gen0 and, on the large-object heap, triggers the Gen2 collections that
@@ -367,7 +365,6 @@ internal sealed class DebugOverlays(
             state.ReportedWorld = true;
             List<string> world = [];
             worldPresenter.Describe(world);
-            logger.Information("World", $"{string.Join("; ", world)}, from {camera.Position}.");
 
             if (host.Terrain is { } terrainPresenter)
             {
@@ -375,7 +372,6 @@ internal sealed class DebugOverlays(
                 // streamed octree is not what is worth reporting about a grid of tiles.
                 List<string> terrain = [];
                 terrainPresenter.Describe(terrain);
-                logger.Information("Terrain", string.Join("; ", terrain));
             }
         }
     }

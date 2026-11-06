@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -38,7 +37,9 @@ namespace ProjectIGI.Presentation.Igi1;
 /// </para>
 /// </remarks>
 public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
+
 {
+
     internal const string LogCategory = "Soldier";
 
     private readonly IGraphicsDevice _device;
@@ -47,7 +48,6 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
     private readonly List<MeshDrawRange> _outlineRanges = [];
     private readonly Dictionary<object, BinocularMarkerColor> _markedOthers = [];
     private readonly ResourceRegistry _resources;
-    private readonly IProjectIGILogger _logger;
     private TexTextureCache? _textureCache;
     private readonly List<SoldierGroup> _groups = [];
 
@@ -154,26 +154,20 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
     /// title's own project.
     /// </param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public SoldierRenderer(
-        IGraphicsDevice device,
-        ResourceRegistry resources,
-        IProjectIGILogger? logger = null,
-        MagicObjectRegistry? magic = null,
-        Func<IHeldWeaponPresenter>? heldWeapons = null)
+    public SoldierRenderer(IGraphicsDevice device, ResourceRegistry resources, MagicObjectRegistry? magic = null, Func<IHeldWeaponPresenter>? heldWeapons = null)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(resources);
 
         _device = device;
         _resources = resources;
-        _logger = logger ?? NullLogger.Instance;
-        _sim = new SoldierSimulation(_logger);
-        _meshes = new SoldierMeshBuilder(_device, _logger, magic, heldWeapons);
-        _frames = new SoldierFrameInterpolator(_groups, _sim, _logger);
-        _hits = new SoldierHitTesting(_groups, _sim, _frames, _logger);
-        _armoury = new SoldierArmoury(_groups, _sim, _meshes, _logger);
-        _drawer = new SoldierWeaponDrawer(_groups, _device, _armoury, _frames, () => Textures, _logger);
-        _playerBody = new PlayerBodyRenderer(this, _device, _sim, _logger);
+        _sim = new SoldierSimulation();
+        _meshes = new SoldierMeshBuilder(_device, magic, heldWeapons);
+        _frames = new SoldierFrameInterpolator(_groups, _sim);
+        _hits = new SoldierHitTesting(_groups, _sim, _frames);
+        _armoury = new SoldierArmoury(_groups, _sim, _meshes);
+        _drawer = new SoldierWeaponDrawer(_groups, _device, _armoury, _frames, () => Textures);
+        _playerBody = new PlayerBodyRenderer(this, _device, _sim);
         _sim.SpawnedBody = (generator, roster, fresh, dead) =>
         {
             SoldierGroup group = _groups.First(candidate => ReferenceEquals(candidate.Roster, roster));
@@ -184,7 +178,6 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
             }
             catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException or InvalidOperationException)
             {
-                _logger.Warning(LogCategory, $"{generator.Name} could not upload its cloned Human: {ex.Message}");
                 return false;
             }
 
@@ -424,9 +417,6 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
 
             if (!mission.TryGetAnimationSet(soldier.BoneHierarchy, out BoneAnimationSet? set) || set is null)
             {
-                _logger.Warning(
-                    LogCategory,
-                    $"'{soldier.Name}' declares skeleton {soldier.BoneHierarchy}, which no pack loaded a set for.");
                 continue;
             }
 
@@ -434,7 +424,6 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
             if (soldier.StandAnimation >= 0 && !view.DeclaredStandAnimationFound)
             {
                 // The original's own wording (0x456E50).
-                _logger.Warning(LogCategory, $"Animation #{soldier.StandAnimation} not found");
             }
 
             (string, int, int) key = (soldier.Model, soldier.BoneHierarchy, view.StandAnimation);
@@ -482,9 +471,6 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
             Count++;
         }
 
-        _logger.Information(
-            LogCategory,
-            $"{Count} soldier(s) over {_groups.Count} distinct (model, skeleton, animation) triple(s).");
 
         // The first player round must not pay for parsing every candidate's collision mesh, and the
         // first lethal round must not pay for measuring the animation corpus and preparing a ragdoll
@@ -952,5 +938,5 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
             image.Height);
 
     // The textures the models name, loaded on first use.
-    internal TexTextureCache Textures => _textureCache ??= new(_device, _resources, _logger, LogCategory) { Loaded = AttachDetail };
+    internal TexTextureCache Textures => _textureCache ??= new(_device, _resources, LogCategory) { Loaded = AttachDetail };
 }

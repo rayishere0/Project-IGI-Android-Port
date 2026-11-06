@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Flow;
 using ProjectIGI.Game.Player;
@@ -11,7 +10,6 @@ namespace ProjectIGI.Game.Hosting;
 public interface IPlayerHarmHost
 {
     /// <summary>Gets the log.</summary>
-    IProjectIGILogger Logger { get; }
 
     /// <summary>Gets the game's loop, whose clock the player's grunts are gated on.</summary>
     GameLoop Game { get; }

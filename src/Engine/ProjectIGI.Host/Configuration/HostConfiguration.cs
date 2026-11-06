@@ -1,5 +1,4 @@
 using ProjectIGI.Core.Configuration;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Vfs;
 using ProjectIGI.Game.Config;
 using ProjectIGI.Scripting.Qvm;
@@ -36,23 +35,20 @@ internal static class HostConfiguration
     /// retail file, then defaults. The second of those is only ever read — the next save moves it out to
     /// the per-user location, so profiles made before this moved survive rather than appearing lost.
     /// </remarks>
-    public static GameConfig Load(VirtualFileSystem fileSystem, IProjectIGILogger logger)
+    public static GameConfig Load(VirtualFileSystem fileSystem)
     {
-        GameConfig config = Read(fileSystem, logger);
+        GameConfig config = Read(fileSystem);
 
         // Whichever file it came from: a new player's profiles are the retail file's, and those carry the
         // original's arrow keys. See GameConfig.MigrateControls.
         if (config.MigrateControls())
         {
-            logger.Information(
-                "Config",
-                "Profiles still on the original controls were moved to WASD with the mouse not inverted.");
         }
 
         return config;
     }
 
-    private static GameConfig Read(VirtualFileSystem fileSystem, IProjectIGILogger logger)
+    private static GameConfig Read(VirtualFileSystem fileSystem)
     {
         string userPath = SettingsPaths.GetFilePath(FileName);
 
@@ -60,11 +56,10 @@ internal static class HostConfiguration
         {
             try
             {
-                return ConfigScript.Load(File.ReadAllBytes(userPath), logger, userPath);
+                return ConfigScript.Load(File.ReadAllBytes(userPath), userPath);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or QvmFormatException)
             {
-                logger.Warning("Config", $"Could not read {userPath}: {ex.Message}");
             }
         }
 
@@ -80,32 +75,26 @@ internal static class HostConfiguration
 
             try
             {
-                GameConfig loaded = ConfigScript.Load(fileSystem.ReadAllBytes(path), logger, path);
+                GameConfig loaded = ConfigScript.Load(fileSystem.ReadAllBytes(path), path);
 
                 if (path == ConfigScript.ProjectIGIPath)
                 {
-                    logger.Information(
-                        "Config",
-                        $"Read {loaded.Profiles.Count} profile(s) from the installation; they move to "
-                            + $"{userPath} on the next save.");
                 }
 
                 return loaded;
             }
             catch (Exception ex) when (ex is IOException or QvmFormatException)
             {
-                logger.Warning("Config", $"Could not read {path}: {ex.Message}");
             }
         }
 
-        logger.Information("Config", "No configuration found; starting from the defaults.");
         return GameConfig.CreateDefault();
     }
 
     /// <summary>Writes the configuration to the player's own file.</summary>
     /// <param name="configuration">The configuration to persist.</param>
     /// <param name="logger">The log the save is reported to.</param>
-    public static void Save(GameConfig configuration, IProjectIGILogger logger)
+    public static void Save(GameConfig configuration)
     {
         string path = SettingsPaths.GetFilePath(FileName);
 
@@ -119,11 +108,9 @@ internal static class HostConfiguration
             }
 
             File.WriteAllBytes(path, ConfigScriptWriter.Write(configuration));
-            logger.Information("Config", $"Saved {configuration.Profiles.Count} profile(s) to {path}.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            logger.Warning("Config", $"Could not save the configuration: {ex.Message}");
         }
     }
 }

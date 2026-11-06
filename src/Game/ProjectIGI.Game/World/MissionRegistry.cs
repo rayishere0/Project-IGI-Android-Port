@@ -30,7 +30,6 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public sealed class MissionRegistry : IMissionCatalogue<MissionDescriptor>
 {
-    private const string LogCategory = "Mission";
 
     /// <summary>The native each <c>mission.qvm</c> calls to publish its descriptor.</summary>
     public const string DefineMissionNative = "DefineMission";
@@ -46,11 +45,10 @@ public sealed class MissionRegistry : IMissionCatalogue<MissionDescriptor>
 
     private readonly List<MissionDescriptor> _missions = [];
     private readonly Dictionary<int, MissionDescriptor> _byId = [];
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="MissionRegistry"/> class.</summary>
     /// <param name="logger">The logger for scan diagnostics; defaults to a sink that discards them.</param>
-    public MissionRegistry(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public MissionRegistry() { }
 
     /// <summary>Gets the descriptors, in the order they were defined.</summary>
     public IReadOnlyList<MissionDescriptor> Missions => _missions;
@@ -173,10 +171,8 @@ public sealed class MissionRegistry : IMissionCatalogue<MissionDescriptor>
 
         Clear();
 
-        int scripts = ScriptTableLoader.WalkAndRun(
-            fileSystem, resources, natives, MissionRoot, MissionScriptName, _logger);
+        int scripts = ScriptTableLoader.WalkAndRun(fileSystem, resources, natives, MissionRoot, MissionScriptName);
 
-        _logger.Information(LogCategory, $"Registered {Count} mission(s) from {scripts} script(s).");
         return Count;
     }
 

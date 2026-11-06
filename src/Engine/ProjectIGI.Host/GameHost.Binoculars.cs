@@ -40,7 +40,7 @@ public sealed partial class GameHost
             if (!_binocularHudTried)
             {
                 _binocularHudTried = true;
-                RemasteredBinoculars hud = new(_device, _logger);
+                RemasteredBinoculars hud = new(_device);
                 _binocularHud = hud.Load() ? hud : null;
             }
 

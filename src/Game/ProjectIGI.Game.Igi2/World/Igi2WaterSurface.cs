@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Game.World;
@@ -80,7 +79,6 @@ public readonly record struct Igi2WaterSheet(
 public sealed class Igi2WaterSurface
 {
     /// <summary>The category load diagnostics are logged under.</summary>
-    public const string LogCategory = "igi2.water";
 
     /// <summary>The most wave layers the original ever reads from a sheet.</summary>
     /// <remarks><c>Water_SetVertexFunctionParameters</c> breaks out of its walk at four.</remarks>
@@ -103,11 +101,10 @@ public sealed class Igi2WaterSurface
     /// <param name="logger">Where load diagnostics go.</param>
     /// <returns>The water, which may be empty.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="levelRoot"/> is <see langword="null"/>.</exception>
-    public static Igi2WaterSurface Build(GameTask levelRoot, IProjectIGILogger? logger = null)
+    public static Igi2WaterSurface Build(GameTask levelRoot)
     {
         ArgumentNullException.ThrowIfNull(levelRoot);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         List<Igi2WaterSheet> sheets = [];
 
         foreach (GameTask task in levelRoot.Descendants())
@@ -146,7 +143,6 @@ public sealed class Igi2WaterSurface
                 water.MaxReflectionAngle));
         }
 
-        log.Information(LogCategory, $"Water: {sheets.Count} sheet(s).");
         return new Igi2WaterSurface(sheets);
     }
 

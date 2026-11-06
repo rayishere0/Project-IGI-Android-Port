@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text.Json;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 
 namespace ProjectIGI.Rendering;
@@ -22,7 +21,6 @@ namespace ProjectIGI.Rendering;
 /// </remarks>
 public sealed class FogPresets
 {
-    private const string LogCategory = "Fog";
 
     private readonly Dictionary<int, FogPresetEntry> _missions = [];
     private readonly Dictionary<int, LocalFogVolume[]> _volumes = [];
@@ -41,13 +39,11 @@ public sealed class FogPresets
     /// A broken preset file never stops the game: the levels fall back to their own authored fog,
     /// which is the behaviour before this file existed.
     /// </remarks>
-    public static FogPresets Load(string path, IProjectIGILogger? logger = null)
+    public static FogPresets Load(string path)
     {
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         if (!File.Exists(path))
         {
-            log.Information(LogCategory, $"No fog presets at {path}; levels derive their fog from their own sky.");
             return Empty;
         }
 
@@ -86,15 +82,11 @@ public sealed class FogPresets
                 }
             }
 
-            log.Information(
-                LogCategory,
-                $"Fog presets: {presets._missions.Count} mission(s), {presets._volumes.Values.Sum(v => v.Length)} volume(s).");
 
             return presets;
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
-            log.Warning(LogCategory, $"Could not read {path}: {ex.Message}. Levels derive their fog from their own sky.");
             return Empty;
         }
     }

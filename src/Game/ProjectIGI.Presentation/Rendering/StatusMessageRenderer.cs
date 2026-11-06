@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Game.Weapons;
 using ProjectIGI.Game.World;
@@ -41,7 +40,6 @@ namespace ProjectIGI.Presentation.Rendering;
 /// </remarks>
 public sealed class StatusMessageRenderer : IDisposable
 {
-    private const string LogCategory = "Messages";
 
     /// <summary>How long a feed item spends easing into place, matching the original's panel open.</summary>
     private const float OpenTicks = 9f;
@@ -50,7 +48,6 @@ public sealed class StatusMessageRenderer : IDisposable
     private const int ExitFrames = 12;
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly Dictionary<FeedKey, RetiringMessage> _retiring = [];
     private List<FeedItem> _previousFeed = [];
     private UiFont? _body;
@@ -61,12 +58,10 @@ public sealed class StatusMessageRenderer : IDisposable
     /// <param name="device">The device the font atlases are uploaded to.</param>
     /// <param name="logger">Where to report a missing font.</param>
     /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
-    public StatusMessageRenderer(IGraphicsDevice device, IProjectIGILogger logger)
+    public StatusMessageRenderer(IGraphicsDevice device)
     {
         ArgumentNullException.ThrowIfNull(device);
-        ArgumentNullException.ThrowIfNull(logger);
         _device = device;
-        _logger = logger;
     }
 
     /// <summary>Gets a value indicating whether the renderer has its faces and can draw.</summary>
@@ -80,7 +75,6 @@ public sealed class StatusMessageRenderer : IDisposable
 
         if (!UiFontLibrary.TypographyAvailable)
         {
-            _logger.Warning(LogCategory, $"No interface font at {UiFontLibrary.FontsDirectory}; messages cannot draw.");
             return false;
         }
 
@@ -95,7 +89,6 @@ public sealed class StatusMessageRenderer : IDisposable
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException)
         {
-            _logger.Warning(LogCategory, $"Could not build the message fonts: {ex.Message}");
             return false;
         }
     }

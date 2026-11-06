@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Game.Ai;
@@ -305,10 +304,6 @@ internal sealed class SoldierNoiseBroadcaster(SoldierContext context)
         }
 
         _lastNoiseLogTick = _context.TickCount;
-        _context.Logger.Information(
-            SoldierContext.LogCategory + ".Flow",
-            FormattableString.Invariant(
-                $"noise {kind} heard by {heard} soldier(s) (radius {radiusUnits / 4096.0:0.0} m)"));
     }
 
     // The engine's broadcast (0x450CE0): the event to every human on the list, each taking it in its own handler. A near

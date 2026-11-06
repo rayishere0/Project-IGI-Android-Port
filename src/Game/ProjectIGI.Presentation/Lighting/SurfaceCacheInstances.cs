@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
 
@@ -30,7 +29,6 @@ namespace ProjectIGI.Presentation.Lighting;
 /// </remarks>
 public sealed class SurfaceCacheInstances
 {
-    private const string LogCategory = "SurfaceCache";
 
     private SurfaceCacheInstances(SurfaceCacheLayout layout, Placed[] instances, int[] cardForPage)
     {
@@ -64,17 +62,11 @@ public sealed class SurfaceCacheInstances
     /// <param name="logger">Where to report what was allocated.</param>
     /// <returns>The instance layout, or <see langword="null"/> when nothing has cards.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public static SurfaceCacheInstances? Build(
-        SurfaceCacheCapture.Result capture,
-        IReadOnlyList<WorldPlacement> placements,
-        Func<WorldPlacement, int> modelOf,
-        int maximumSize = 8192,
-        IProjectIGILogger? logger = null)
+    public static SurfaceCacheInstances? Build(SurfaceCacheCapture.Result capture, IReadOnlyList<WorldPlacement> placements, Func<WorldPlacement, int> modelOf, int maximumSize = 8192)
     {
         ArgumentNullException.ThrowIfNull(placements);
         ArgumentNullException.ThrowIfNull(modelOf);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         // Which captured cards belong to each model, gathered once. The capture stores the owner per
         // card, so without this every placement would rescan the whole card list.
@@ -119,16 +111,11 @@ public sealed class SurfaceCacheInstances
 
         if (pages.Count == 0)
         {
-            log.Information(LogCategory, "No placement has cards; there is nothing to light.");
             return null;
         }
 
         SurfaceCacheLayout layout = SurfaceCacheLayout.Pack(pages, maximumSize, log);
 
-        log.Information(
-            LogCategory,
-            $"Surface cache lighting: {instances.Count} placement(s), {pages.Count} page(s) in a "
-            + $"{layout.Width}x{layout.Height} atlas.");
 
         return new SurfaceCacheInstances(layout, [.. instances], [.. cardForPage]);
     }

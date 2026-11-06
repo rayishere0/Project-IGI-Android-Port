@@ -1,6 +1,5 @@
 using ProjectIGI.Core.Configuration;
 using ProjectIGI.Core.Configuration.Presets;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
@@ -80,8 +79,7 @@ public sealed partial class GameHost
         _titleArms = null;
         _standingGameplay = null;
         TitlePlayerRequest request = new(
-            new WorldBuildRequest(
-                loaded, levelRoot, _resources, _mission.MagicObjects, _logger, _mission.VehiclePhysics, _title.Services),
+            new WorldBuildRequest(loaded, levelRoot, _resources, _mission.MagicObjects, _mission.VehiclePhysics, _title.Services),
             new WorldBuildResult(scene, 0, 0, _mission.Ground, _mission.Spins, _mission.Solids),
             _title.Services,
             (AiDifficulty)Math.Clamp(_mission.PlayerDifficulty, 0, 2),
@@ -102,7 +100,6 @@ public sealed partial class GameHost
             _standingGameplay = _gameplay;
             if (player is null)
             {
-                _logger.Warning("Player", "The level places no player for the title to stand.");
             }
         }
 
@@ -113,7 +110,7 @@ public sealed partial class GameHost
         }
 
         _titleFeatures = new TitlePlayerFeatures(player);
-        _titleHud = _presentation.Presenters.Create<HudPresentationRequest, ITitleHudPresenter>(new HudPresentationRequest(_device, _logger));
+        _titleHud = _presentation.Presenters.Create<HudPresentationRequest, ITitleHudPresenter>(new HudPresentationRequest(_device));
         _titleHud?.Load(_resources.FileSystem);
         _titleTickMilliseconds = 0;
         _titleTickMaximumMilliseconds = 0;
@@ -153,11 +150,6 @@ public sealed partial class GameHost
         _playerMode = !_options.StartFlying;
 
         Vector3d eye = player.EyePosition;
-        _logger.Information(
-            "Player",
-            FormattableString.Invariant($"The title's player stands at {player.Position}; eye at -campos ")
-                + FormattableString.Invariant(
-                    $"{eye.X / TitleUnitsPerMetre:F3},{eye.Y / TitleUnitsPerMetre:F3},{eye.Z / TitleUnitsPerMetre:F3}."));
     }
 
     /// <summary>Gathers a frame's input for the title's player: the mouse adds up and presses are kept until a tick.</summary>
@@ -363,7 +355,6 @@ public sealed partial class GameHost
                 context.Print(gates);
                 context.Print(FormattableString.Invariant(
                     $"blend={_titlePresentationBlend:F4}, pendingMouse=({_titleMouseX:F3},{_titleMouseY:F3}), ticks={_loop.Clock.TickCount}, renders={_loop.Clock.FrameCount}, titleTickMs mean={_titleTickMilliseconds / Math.Max(1, _titleMeasuredTicks):F3} max={_titleTickMaximumMilliseconds:F3} samples={_titleMeasuredTicks}"));
-                _pacing.Report("title_presentation");
             });
 
         console.Commands.Add(
@@ -511,7 +502,6 @@ public sealed partial class GameHost
             if (!placement.TryPlace(_camera.Position * TitleUnitsPerMetre, _camera.Yaw))
             {
                 _playerMode = false;
-                _logger.Warning("Player", "Cannot stand here; staying with the free camera.");
             }
             else
             {
@@ -526,6 +516,5 @@ public sealed partial class GameHost
         _titleExtraPressed = 0;
         _titleFeatures?.Look?.ResetLook();
 
-        _logger.Information("Player", _playerMode ? "Walking." : "Flying.");
     }
 }

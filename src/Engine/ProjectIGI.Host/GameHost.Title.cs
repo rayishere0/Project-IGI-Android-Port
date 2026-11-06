@@ -54,7 +54,6 @@ namespace ProjectIGI.Host;
 public sealed partial class GameHost
 {
     /// <summary>The category title diagnostics are logged under.</summary>
-    private const string TitleLogCategory = "Title";
 
     /// <summary>Gets the title the session is running now.</summary>
     public GameTitle ActiveTitle => _titleRuntime.Title;
@@ -91,9 +90,6 @@ public sealed partial class GameHost
 
             if (!_titles.TryResolve(candidate, out TitleBinding? binding) || !binding.IsInstalled)
             {
-                _logger.Warning(
-                    TitleLogCategory,
-                    $"{candidate.DisplayName} is not installed where this build looks for it, so it cannot be run.");
                 return false;
             }
 
@@ -101,7 +97,6 @@ public sealed partial class GameHost
             return true;
         }
 
-        _logger.Warning(TitleLogCategory, $"'{titleId}' is not a game this build runs.");
         return false;
     }
 
@@ -150,12 +145,10 @@ public sealed partial class GameHost
 
         if (!_titles.TryResolve(target, out TitleBinding? binding))
         {
-            _logger.Warning(TitleLogCategory, $"'{target.Id}' resolved to nothing between the request and the switch.");
             return false;
         }
 
         var clock = System.Diagnostics.Stopwatch.StartNew();
-        _logger.Information(TitleLogCategory, $"Switching to {target.DisplayName}.");
 
         // The level first, because it holds the largest things and two of them are worker threads still
         // tracing it. Everything below replaces what the level was built out of, so releasing it after
@@ -200,10 +193,6 @@ public sealed partial class GameHost
 
         RebuildPreviewContext();
 
-        _logger.Information(
-            TitleLogCategory,
-            $"{target.DisplayName} is up in {clock.Elapsed.TotalMilliseconds:F0} ms: "
-                + $"{_missions.Count} mission(s).");
         return true;
     }
 
@@ -223,7 +212,7 @@ public sealed partial class GameHost
         // own registry on a worker and that registry becomes the game's if the preview is promoted.
         _sessionArchives.Clear();
         _resourceFileSystem = _fileSystem;
-        _resources = new ResourceRegistry(_resourceFileSystem, _logger);
+        _resources = new ResourceRegistry(_resourceFileSystem);
 
         // The content layers: the player's load order of packs and the game folder's own overrides
         // folder, each a tree mirroring the installation. Anything in one replaces the asset that lives at
@@ -238,9 +227,7 @@ public sealed partial class GameHost
                 ? localDevice.RootDirectory
                 : null;
 
-        _overrides = new ResourceOverrides(
-            ContentLayers.Resolve(_titleRuntime.Title.Id, dataRoot, _options, _logger, _titleRuntime.ContentFolders),
-            _logger)
+        _overrides = new ResourceOverrides(ContentLayers.Resolve(_titleRuntime.Title.Id, dataRoot, _options, _titleRuntime.ContentFolders))
         {
             // Carried across a title switch: F8 is the player's, not the title's.
             Bypassed = !_overridesApplied,
@@ -281,12 +268,7 @@ public sealed partial class GameHost
         // that the title's own editor emits no declaration for it, and the two games disagree by one
         // name. A loop carrying the wrong set refuses every level of the other game.
         GameLoop outgoing = _loop;
-        _loop = new GameLoop(
-            time: _timeSource,
-            host: _flowHost,
-            renderer: _scheduler,
-            logger: _logger,
-            structuralTypes: _titleRuntime.Layout.StructuralTaskTypes);
+        _loop = new GameLoop(time: _timeSource, host: _flowHost, renderer: _scheduler, structuralTypes: _titleRuntime.Layout.StructuralTaskTypes);
 
         if (outgoing is not null)
         {
@@ -296,7 +278,7 @@ public sealed partial class GameHost
         // A build that offers only the opening of the campaign cuts the catalogue itself, so every route
         // into a mission -- the lists, a save slot, the command line, a finished mission's successor --
         // meets the same limit without knowing there is one.
-        IMissionCatalogue<MissionDescriptor> titleMissions = _missionCatalogue(_logger);
+        IMissionCatalogue<MissionDescriptor> titleMissions = _missionCatalogue();
 
         // A mod's campaigns are listed apart from the game's, so their missions are kept out of its progression.
         _sideCampaigns = _titleRuntime.Campaigns.Count > 0 ? new SideCampaignMissionCatalogue(titleMissions, _titleRuntime.Campaigns) : null;
@@ -316,10 +298,9 @@ public sealed partial class GameHost
         // Every session can find the other games' installations, for content that reads one game's data in another.
         ServiceCatalog hostServices = new();
         hostServices.Provide<ITitleDataLocator>(new InstalledTitles(_titles));
-        hostServices.Provide<ITitleAudioMixer>(new GuestAudioMixer(_audioOut, _logger));
+        hostServices.Provide<ITitleAudioMixer>(new GuestAudioMixer(_audioOut));
         hostServices.Provide(new PlayedMods(_titleRuntime.Mods));
-        _title = TitleSession.Start(
-            _titleRuntime.Modules, _loop, _fileSystem, _resources, _logger, loadTables: false, inherited: hostServices);
+        _title = TitleSession.Start(_titleRuntime.Modules, _loop, _fileSystem, _resources, loadTables: false, inherited: hostServices);
         LoadModPostPasses();
 
         _mission.AdoptTitleServices(_title.Services);
@@ -327,14 +308,11 @@ public sealed partial class GameHost
         try
         {
             _missions.Scan(_fileSystem, _resources, _loop.Natives);
-            _title.LoadTables(_loop, _fileSystem, _resources, _logger);
+            _title.LoadTables(_loop, _fileSystem, _resources);
             _menuMissions = _missions;
 
             if (limitedMissions is not null)
             {
-                _logger.Information(
-                    "Mission",
-                    $"This build offers the first {limitedMissions.Limit} mission(s) of the campaign; {limitedMissions.Count} are available.");
 
                 // The profiles were read before the scan, and one from the full game can be further along
                 // than this build goes.
@@ -346,7 +324,6 @@ public sealed partial class GameHost
         }
         catch (EngineFatalException ex)
         {
-            _logger.Warning("Mission", $"The mission scan failed, so no missions are selectable: {ex.Message}");
         }
 
         RebuildPreviewContext();
@@ -563,7 +540,6 @@ public sealed partial class GameHost
         }
         catch (TextureFormatException error)
         {
-            _logger.Warning("Overrides", $"The ground atlas did not decode: {error.Message}");
             return false;
         }
     }

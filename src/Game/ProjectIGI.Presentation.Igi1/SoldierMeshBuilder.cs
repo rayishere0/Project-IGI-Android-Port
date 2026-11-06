@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Formats.Animation;
 using ProjectIGI.Formats.World;
@@ -18,14 +17,9 @@ namespace ProjectIGI.Presentation.Igi1;
 /// <param name="logger">Where a model that does not resolve or upload is reported.</param>
 /// <param name="magic">The retail multipart-object table a held weapon's presentation needs, or <see langword="null"/>.</param>
 /// <param name="heldWeapons">Makes a held weapon's presentation, or <see langword="null"/> for weapons drawn rigid.</param>
-internal sealed class SoldierMeshBuilder(
-    IGraphicsDevice device,
-    IProjectIGILogger logger,
-    MagicObjectRegistry? magic,
-    Func<IHeldWeaponPresenter>? heldWeapons)
+internal sealed class SoldierMeshBuilder(IGraphicsDevice device, MagicObjectRegistry? magic, Func<IHeldWeaponPresenter>? heldWeapons)
 {
     private readonly IGraphicsDevice _device = device;
-    private readonly IProjectIGILogger _logger = logger;
     private readonly MagicObjectRegistry? _magic = magic;
     private readonly Func<IHeldWeaponPresenter>? _heldWeapons = heldWeapons;
 
@@ -36,20 +30,17 @@ internal sealed class SoldierMeshBuilder(
     {
         if (!mission.TryGetModel(modelName, out MefModel? model) || model is null)
         {
-            _logger.Warning(SoldierRenderer.LogCategory, $"'{posed.Soldier.Name}' names model '{modelName}', which no pack holds.");
             return null;
         }
 
         if (!MefSkinner.IsSkinned(model))
         {
-            _logger.Warning(SoldierRenderer.LogCategory, $"'{modelName}' is {model.Format}, not a skinned model.");
             return null;
         }
 
         MeshGeometry? geometry = MefMeshBuilder.Build(model, 1f);
         if (geometry is null)
         {
-            _logger.Warning(SoldierRenderer.LogCategory, $"'{modelName}' has nothing to draw.");
             return null;
         }
 
@@ -62,7 +53,6 @@ internal sealed class SoldierMeshBuilder(
         }
         catch (ArgumentException ex)
         {
-            _logger.Warning(SoldierRenderer.LogCategory, $"'{modelName}' could not be posed: {ex.Message}");
             return null;
         }
 
@@ -83,7 +73,6 @@ internal sealed class SoldierMeshBuilder(
         }
         catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException)
         {
-            _logger.Warning(SoldierRenderer.LogCategory, $"'{modelName}' did not upload: {ex.Message}");
             return null;
         }
 
@@ -150,14 +139,12 @@ internal sealed class SoldierMeshBuilder(
 
         if (!mission.TryGetModel(modelName, out MefModel? model) || model is null)
         {
-            _logger.Warning(SoldierRenderer.LogCategory, $"Weapon model '{modelName}' is in no pack this mission opened.");
             return null;
         }
 
         MeshGeometry? geometry = MefMeshBuilder.Build(model, (float)(1.0 / WorldScene.UnitsPerMetre));
         if (geometry is null)
         {
-            _logger.Warning(SoldierRenderer.LogCategory, $"Weapon model '{modelName}' has nothing to draw.");
             return null;
         }
 
@@ -168,7 +155,6 @@ internal sealed class SoldierMeshBuilder(
         }
         catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException or InvalidOperationException)
         {
-            _logger.Warning(SoldierRenderer.LogCategory, $"Weapon model '{modelName}' did not upload: {ex.Message}");
             return null;
         }
 

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Formats.Animation;
 using ProjectIGI.Formats.World;
@@ -20,16 +19,11 @@ namespace ProjectIGI.Presentation.Igi1;
 /// <param name="sim">The soldiers' simulation, which grounds their feet.</param>
 /// <param name="frames">What says whether this frame is drawn between ticks.</param>
 /// <param name="logger">Where an unusable collision mesh is reported.</param>
-internal sealed class SoldierHitTesting(
-    List<SoldierGroup> groups,
-    SoldierSimulation sim,
-    SoldierFrameInterpolator frames,
-    IProjectIGILogger logger)
+internal sealed class SoldierHitTesting(List<SoldierGroup> groups, SoldierSimulation sim, SoldierFrameInterpolator frames)
 {
     private readonly List<SoldierGroup> _groups = groups;
     private readonly SoldierSimulation _sim = sim;
     private readonly SoldierFrameInterpolator _frames = frames;
-    private readonly IProjectIGILogger _logger = logger;
 
     /// <summary>Primes immutable hit-test and corpse-rig data before the first round can arrive.</summary>
     /// <remarks>
@@ -53,7 +47,6 @@ internal sealed class SoldierHitTesting(
             }
             catch (PackFormatException ex)
             {
-                _logger.Warning(SoldierRenderer.LogCategory, $"A soldier collision mesh was not usable: {ex.Message}");
             }
 
             if (!GameplayCVars.Ragdoll.Value || group.Body.Model is null || group.Soldiers.Count == 0)
@@ -67,9 +60,6 @@ internal sealed class SoldierHitTesting(
             }
         }
 
-        _logger.Information(
-            SoldierRenderer.LogCategory,
-            $"Prepared {collisionMeshes} soldier collision mesh(es) and {ragdollRigs} corpse rig(s) before play.");
     }
 
     /// <summary>Finds the nearest soldier a ray from the eye meets, for the developer pick.</summary>

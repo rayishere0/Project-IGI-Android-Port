@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using System.Text;
-using ProjectIGI.Core.Diagnostics;
 
 namespace ProjectIGI.Rendering.Streamline;
 
@@ -26,9 +25,10 @@ namespace ProjectIGI.Rendering.Streamline;
 /// </para>
 /// </remarks>
 internal sealed unsafe class StreamlineRuntime : IDisposable
+
 {
+
     /// <summary>The category every Streamline log line is written under.</summary>
-    public const string LogCategory = "Streamline";
 
     private const string InterposerFileName = "sl.interposer.dll";
 
@@ -43,7 +43,6 @@ internal sealed unsafe class StreamlineRuntime : IDisposable
 
     // Streamline hands log lines to a plain function pointer with no user-data parameter, so the sink has
     // to be reachable statically. One session at a time, so this is not a limitation in practice.
-    private static IProjectIGILogger? _logSink;
 
     // The interposer stays loaded for the life of the process once loaded. Its plugins keep state of their
     // own and unloading it underneath them is not a supported operation; a second session after an F10
@@ -51,7 +50,6 @@ internal sealed unsafe class StreamlineRuntime : IDisposable
     private static readonly Lock LoadLock = new();
     private static readonly Dictionary<string, nint> Loaded = new(StringComparer.OrdinalIgnoreCase);
 
-    private readonly IProjectIGILogger _logger;
     private readonly SlApi _api;
     private readonly uint[] _features;
     private readonly string _interposerPath;
@@ -63,9 +61,8 @@ internal sealed unsafe class StreamlineRuntime : IDisposable
     // this frame's, however many times the host's loop comes round.
     private bool _framePresented = true;
 
-    private StreamlineRuntime(IProjectIGILogger logger, SlApi api, string directory, uint[] features, SlRenderApi renderApi)
+    private StreamlineRuntime(SlApi api, string directory, uint[] features, SlRenderApi renderApi)
     {
-        _logger = logger;
         RenderApi = renderApi;
         _api = api;
         Directory = directory;
@@ -105,32 +102,24 @@ internal sealed unsafe class StreamlineRuntime : IDisposable
     /// <param name="logger">Where to report what happened.</param>
     /// <param name="renderApi">The graphics API the host drives.</param>
     /// <returns>The runtime when it started, otherwise <see langword="null"/>.</returns>
-    public static StreamlineRuntime? TryCreate(
-        StreamlineOptions options,
-        ReadOnlySpan<uint> features,
-        IProjectIGILogger logger,
-        SlRenderApi renderApi)
+    public static StreamlineRuntime? TryCreate(StreamlineOptions options, ReadOnlySpan<uint> features, SlRenderApi renderApi)
     {
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(logger);
 
         if (!OperatingSystem.IsWindows())
         {
-            logger.Debug(LogCategory, "Not available on this platform.");
             return null;
         }
 
         string directory = Path.GetFullPath(options.EffectiveDirectory);
         if (!System.IO.Directory.Exists(directory))
         {
-            logger.Information(LogCategory, $"'{directory}' does not exist; running without it.");
             return null;
         }
 
         string interposer = Path.Combine(directory, InterposerFileName);
         if (!File.Exists(interposer))
         {
-            logger.Warning(LogCategory, $"'{directory}' holds no {InterposerFileName}; running without it.");
             return null;
         }
 
@@ -138,22 +127,20 @@ internal sealed unsafe class StreamlineRuntime : IDisposable
         // substituted file anywhere in it runs inside the game with the game's privileges.
         if (!SignedModule.IsFolderTrusted(directory, out string? refused))
         {
-            logger.Warning(LogCategory, $"Refusing to load from '{directory}': {refused}.");
             return null;
         }
 
-        if (!TryLoad(interposer, logger, out nint library))
+        if (!TryLoad(interposer, out nint library))
         {
             return null;
         }
 
         if (!SlApi.TryBind(library, out SlApi? api, out string? missing))
         {
-            logger.Warning(LogCategory, $"'{interposer}' lacks the entry point {missing}; it is not a Streamline interposer this build understands.");
             return null;
         }
 
-        StreamlineRuntime runtime = new(logger, api!, directory, features.ToArray(), renderApi);
+        StreamlineRuntime runtime = new(api!, directory, features.ToArray(), renderApi);
         if (!runtime.Initialise(options))
         {
             runtime.Dispose();
@@ -168,39 +155,6 @@ internal sealed unsafe class StreamlineRuntime : IDisposable
 
     /// <summary>Gets the graphics API this session was started for.</summary>
     public SlRenderApi RenderApi { get; }
-
-    /// <summary>Writes what each loaded feature asks of the machine and the device into the log.</summary>
-    /// <remarks>
-    /// Nothing acts on these: in proxy mode Streamline adds its own extensions, features and queues when
-    /// it forwards instance and device creation. They are logged because when a feature reports itself
-    /// unsupported later, this is the record of what it wanted and what the machine had.
-    /// </remarks>
-    public void LogFeatureRequirements()
-    {
-        if (!IsAvailable || !_logger.IsEnabled(LogLevel.Debug, LogCategory))
-        {
-            return;
-        }
-
-        foreach (uint feature in _features)
-        {
-            StreamlineFeatureRequirements? requirements = QueryRequirements(feature);
-            if (requirements is null)
-            {
-                continue;
-            }
-
-            _logger.Debug(
-                LogCategory,
-                $"{Describe(feature)} wants instance extensions [{string.Join(", ", requirements.InstanceExtensions)}], "
-                    + $"device extensions [{string.Join(", ", requirements.DeviceExtensions)}], "
-                    + $"1.2 features [{string.Join(", ", requirements.Features12)}], "
-                    + $"1.3 features [{string.Join(", ", requirements.Features13)}], "
-                    + $"queues: {requirements.GraphicsQueues} graphics, {requirements.ComputeQueues} compute, "
-                    + $"{requirements.OpticalFlowQueues} optical flow. "
-                    + $"Driver {requirements.DriverDetected}, needs {requirements.DriverRequired}.");
-        }
-    }
 
     /// <summary>Reads what a feature needs of the machine, the driver and the device.</summary>
     /// <param name="feature">The feature identifier.</param>
@@ -381,7 +335,6 @@ internal sealed unsafe class StreamlineRuntime : IDisposable
         SlResult result = _api.GetNewFrameToken(&frame, &index);
         if (result != SlResult.Ok)
         {
-            _logger.Warning(LogCategory, $"No frame token: {Describe(result)}.");
             CurrentFrame = 0;
             return false;
         }
@@ -457,17 +410,12 @@ internal sealed unsafe class StreamlineRuntime : IDisposable
             SlResult result = _api.Shutdown();
             if (result != SlResult.Ok)
             {
-                _logger.Warning(LogCategory, $"Shut down with {Describe(result)}.");
             }
         }
 
-        if (ReferenceEquals(_logSink, _logger))
-        {
-            _logSink = null;
-        }
     }
 
-    private static bool TryLoad(string path, IProjectIGILogger logger, out nint library)
+    private static bool TryLoad(string path, out nint library)
     {
         lock (LoadLock)
         {
@@ -478,7 +426,6 @@ internal sealed unsafe class StreamlineRuntime : IDisposable
 
             if (!NativeLibrary.TryLoad(path, out library))
             {
-                logger.Warning(LogCategory, $"Could not load '{path}'.");
                 return false;
             }
 
@@ -504,7 +451,6 @@ internal sealed unsafe class StreamlineRuntime : IDisposable
             SlResult result = _api.GetFeatureFunction(feature, namePtr, &function);
             if (result != SlResult.Ok)
             {
-                _logger.Debug(LogCategory, $"{name} is unavailable: {Describe(result)}.");
                 return 0;
             }
         }
@@ -514,7 +460,6 @@ internal sealed unsafe class StreamlineRuntime : IDisposable
 
     private bool Initialise(StreamlineOptions options)
     {
-        _logSink = _logger;
 
         string logDirectory = Path.GetFullPath(options.LogDirectory);
         try
@@ -523,7 +468,6 @@ internal sealed unsafe class StreamlineRuntime : IDisposable
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            _logger.Warning(LogCategory, $"Could not create '{logDirectory}'; Streamline will not keep a log.", exception);
             logDirectory = string.Empty;
         }
 
@@ -540,7 +484,7 @@ internal sealed unsafe class StreamlineRuntime : IDisposable
         fixed (byte* engineVersionPtr = engineVersion)
         {
             SlPreferences preferences = SlPreferences.Create(RenderApi);
-            preferences.LogLevel = _logger.IsEnabled(LogLevel.Debug, LogCategory) ? SlLogLevel.Verbose : SlLogLevel.Default;
+            preferences.LogLevel = SlLogLevel.Default;
             preferences.LogMessageCallback = &OnStreamlineLog;
             preferences.PathToLogsAndData = logDirectory.Length > 0 ? (nint)logPathPtr : 0;
 
@@ -570,87 +514,22 @@ internal sealed unsafe class StreamlineRuntime : IDisposable
             SlResult result = _api.Init(&preferences, SlAbi.SdkVersion);
             if (result != SlResult.Ok)
             {
-                _logger.Information(LogCategory, $"Could not start: {Describe(result)}.");
                 return false;
             }
         }
 
         IsAvailable = true;
-        _logger.Information(
-            LogCategory,
-            $"Started{(options.Development ? " (development runtime: overlays on, never ship this)" : string.Empty)}, "
-                + $"plugins from '{Directory}', log in '{logDirectory}'.");
         return true;
     }
 
     private static string EngineVersionString() =>
         typeof(StreamlineRuntime).Assembly.GetName().Version?.ToString() ?? "0.0.0";
 
-    /// <summary>Whether a Streamline warning is one every start on this platform gives, and no fault of ours.</summary>
-    /// <param name="text">The warning.</param>
-    /// <returns><see langword="true"/> for the warnings that are expected and harmless here.</returns>
-    /// <remarks>
-    /// <para>
-    /// The common plugin asks to hook vkCmdBindPipeline, vkCmdBindDescriptorSets and vkBeginCommandBuffer, which
-    /// Streamline 2.14's Vulkan interposer has no hooks for (its plugin manager maps only the present, swapchain,
-    /// surface and device-wait-idle calls), so every Vulkan application logs the three. Those hooks exist to
-    /// restore command-buffer state after an evaluation, which with command-list state tracking off -- now
-    /// Streamline's default, and set here -- the application does itself; this one rebinds everything per pass.
-    /// </para>
-    /// <para>
-    /// The frame-generation plugin, on a GPU that cannot run it, says so three ways as it declines to load. The
-    /// renderer reports the same fact once, in its own words, as frame generation's reason.
-    /// </para>
-    /// <para>
-    /// Kept in the log, at information, rather than dropped: they say what Streamline did.
-    /// </para>
-    /// </remarks>
-    private static bool IsExpectedWarning(string text) =>
-        (text.Contains("processPluginHooks", StringComparison.Ordinal)
-            && text.Contains("Hook sl.common:Vulkan:", StringComparison.Ordinal)
-            && text.Contains("is NOT supported", StringComparison.Ordinal))
-        || text.Contains("Failed to obtain DLSS-G min spec requirements", StringComparison.Ordinal)
-        || text.Contains("Disabling DLSS-G since it is not supported on current hardware", StringComparison.Ordinal)
-        || text.Contains("Ignoring plugin 'sl.dlss_g' since it is not supported", StringComparison.Ordinal);
 
     [UnmanagedCallersOnly(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     private static void OnStreamlineLog(SlLogType type, nint message)
     {
-        // Called from Streamline's own threads, and an exception escaping into native code terminates the
-        // process. Nothing in here is allowed to throw.
-        try
-        {
-            IProjectIGILogger? logger = _logSink;
-            if (logger is null || message == 0)
-            {
-                return;
-            }
-
-            string? text = Marshal.PtrToStringUTF8(message)?.TrimEnd('\r', '\n');
-            if (string.IsNullOrEmpty(text))
-            {
-                return;
-            }
-
-            switch (type)
-            {
-                case SlLogType.Error:
-                    logger.Error(LogCategory, text);
-                    break;
-                case SlLogType.Warn when IsExpectedWarning(text):
-                    logger.Information(LogCategory, text);
-                    break;
-                case SlLogType.Warn:
-                    logger.Warning(LogCategory, text);
-                    break;
-                default:
-                    logger.Debug(LogCategory, text);
-                    break;
-            }
-        }
-        catch (Exception)
-        {
-            // Deliberately swallowed. There is nowhere to report a logging failure to.
-        }
+        // Logging is removed: Streamline's messages are dropped. The callback must still exist
+        // (Streamline calls it), and must not throw.
     }
 }

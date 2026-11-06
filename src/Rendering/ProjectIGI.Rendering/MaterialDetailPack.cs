@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Threading;
 
@@ -36,11 +35,9 @@ namespace ProjectIGI.Rendering;
 /// </remarks>
 public sealed class MaterialDetailPack : IDisposable
 {
-    private const string LogCategory = "Material";
 
     private readonly IGraphicsDevice _device;
     private readonly IWorkScheduler _work;
-    private readonly IProjectIGILogger _logger;
 
     // Detail PNGs read and decoded ahead of the render thread by Prewarm. A name maps to its pixels, or
     // to null when the pack has no map for it -- which is an answer worth remembering, because a level
@@ -82,18 +79,13 @@ public sealed class MaterialDetailPack : IDisposable
     /// PNGs to be the source of, and nothing to keep in step with the textures it describes. What remains
     /// here is the derivation this process does for itself, for the surfaces nothing has built a map for.
     /// </remarks>
-    public MaterialDetailPack(
-        IGraphicsDevice device,
-        IWorkScheduler work,
-        IProjectIGILogger? logger = null,
-        string? cacheDirectory = null)
+    public MaterialDetailPack(IGraphicsDevice device, IWorkScheduler work, string? cacheDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(work);
 
         _device = device;
         _work = work;
-        _logger = logger ?? NullLogger.Instance;
 
         if (!string.IsNullOrWhiteSpace(cacheDirectory))
         {
@@ -385,7 +377,6 @@ public sealed class MaterialDetailPack : IDisposable
         }
         catch (Exception error) when (error is ArgumentException or GraphicsDeviceException)
         {
-            _logger.Warning(LogCategory, $"Could not derive a detail map for {diffuse}: {error.Message}");
         }
     }
 
@@ -424,7 +415,6 @@ public sealed class MaterialDetailPack : IDisposable
         }
         catch (Exception error) when (error is ArgumentException or GraphicsDeviceException or NotSupportedException)
         {
-            _logger.Warning(LogCategory, $"Could not attach a compressed detail map to {diffuse}: {error.Message}");
         }
     }
 
@@ -451,7 +441,6 @@ public sealed class MaterialDetailPack : IDisposable
 
             if (item.Error is not null)
             {
-                _logger.Warning(LogCategory, $"Could not derive a detail map for '{item.Name}': {item.Error}");
                 Remember(item.Name, TextureHandle.None);
                 continue;
             }
@@ -471,7 +460,6 @@ public sealed class MaterialDetailPack : IDisposable
             }
             catch (Exception error) when (error is ArgumentException or GraphicsDeviceException)
             {
-                _logger.Warning(LogCategory, $"Derived detail map for '{item.Name}' did not upload: {error.Message}");
             }
 
             Remember(item.Name, map);
@@ -672,7 +660,6 @@ public sealed class MaterialDetailPack : IDisposable
         {
             if (_missing.Add(name))
             {
-                _logger.Debug(LogCategory, $"No detail map for '{name}'.");
             }
 
             return TextureHandle.None;
@@ -680,7 +667,6 @@ public sealed class MaterialDetailPack : IDisposable
 
         if (read.Error is not null)
         {
-            _logger.Warning(LogCategory, $"Detail map for '{name}' did not load: {read.Error}");
             return TextureHandle.None;
         }
 
@@ -707,7 +693,6 @@ public sealed class MaterialDetailPack : IDisposable
         }
         catch (GraphicsDeviceException error)
         {
-            _logger.Warning(LogCategory, $"Detail map for '{name}' did not load: {error.Message}");
             return TextureHandle.None;
         }
     }

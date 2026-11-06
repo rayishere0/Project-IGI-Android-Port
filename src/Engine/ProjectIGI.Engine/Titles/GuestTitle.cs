@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Configuration;
 using ProjectIGI.Engine.Flow;
 using ProjectIGI.Engine.Resources;
@@ -57,11 +56,10 @@ public sealed class GuestTitle
     /// <param name="language">The language folder its text is read from, for example <c>english</c>.</param>
     /// <returns>The guest, its tables loaded.</returns>
     /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
-    public static GuestTitle Start(IGameTitleRuntime runtime, string dataRoot, IProjectIGILogger? logger = null, string language = "english")
+    public static GuestTitle Start(IGameTitleRuntime runtime, string dataRoot, string language = "english")
     {
         ArgumentNullException.ThrowIfNull(runtime);
         ArgumentException.ThrowIfNullOrEmpty(dataRoot);
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         VirtualFileSystem fileSystem = new(log);
         fileSystem.RegisterDevice(new LocalFileDevice(dataRoot));
@@ -78,7 +76,7 @@ public sealed class GuestTitle
             }
         }
 
-        GameLoop loop = new(new ManualTimeSource(), logger: log, structuralTypes: runtime.Layout.StructuralTaskTypes);
+        GameLoop loop = new(new ManualTimeSource(), structuralTypes: runtime.Layout.StructuralTaskTypes);
         TitleSession session = TitleSession.Start(runtime.Modules, loop, fileSystem, resources, log);
         return new GuestTitle(runtime, loop, fileSystem, resources, session);
     }

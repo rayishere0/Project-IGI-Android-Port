@@ -33,7 +33,7 @@ public sealed partial class Igi2HudRenderer : ITouchHudSource
 
     private RemasteredHud CreateRemastered()
     {
-        RemasteredHud hud = new(_device, _logger);
+        RemasteredHud hud = new(_device);
         hud.Load();
         return hud;
     }

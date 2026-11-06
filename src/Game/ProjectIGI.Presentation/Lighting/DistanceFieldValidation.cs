@@ -1,5 +1,4 @@
 using System.Globalization;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
 using ProjectIGI.Rendering;
@@ -31,7 +30,6 @@ namespace ProjectIGI.Presentation.Lighting;
 /// </remarks>
 public static class DistanceFieldValidation
 {
-    private const string LogCategory = "DistanceField";
 
     /// <summary>What the comparison found.</summary>
     /// <param name="Samples">How many points were compared.</param>
@@ -69,8 +67,7 @@ public static class DistanceFieldValidation
     /// reported every clipmap as entirely unwritten, and that false negative cost two stages.
     /// </para>
     /// </remarks>
-    private static byte[] Read(
-        IGraphicsDevice device, GlobalDistanceField clipmaps, int level, IProjectIGILogger log)
+    private static byte[] Read(IGraphicsDevice device, GlobalDistanceField clipmaps, int level)
     {
         GlobalDistanceFieldSettings settings = clipmaps.Settings;
         int count = settings.VoxelsPerLevel;
@@ -107,7 +104,6 @@ public static class DistanceFieldValidation
         }
         catch (GraphicsDeviceException error)
         {
-            log.Error(LogCategory, $"The clipmap read-back failed: {error.Message}");
             return [];
         }
         finally
@@ -133,18 +129,12 @@ public static class DistanceFieldValidation
     /// exactly the kind a sample would miss.
     /// </remarks>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public static Report Compare(
-        IGraphicsDevice device,
-        GlobalDistanceField clipmaps,
-        SceneDistanceField scene,
-        int level = 0,
-        IProjectIGILogger? logger = null)
+    public static Report Compare(IGraphicsDevice device, GlobalDistanceField clipmaps, SceneDistanceField scene, int level = 0)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(clipmaps);
         ArgumentNullException.ThrowIfNull(scene);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         GlobalDistanceFieldSettings settings = clipmaps.Settings;
         level = Math.Clamp(level, 0, settings.Levels - 1);
 
@@ -155,7 +145,6 @@ public static class DistanceFieldValidation
 
         if (volume.Length == 0)
         {
-            log.Error(LogCategory, "The clipmap could not be read back; nothing was compared.");
             return default;
         }
 
@@ -174,9 +163,6 @@ public static class DistanceFieldValidation
             rawTotal += raw;
         }
 
-        log.Information(
-            LogCategory,
-            $"Clipmap level {level} raw bytes: min {rawMin}, max {rawMax}, mean {rawTotal / (double)perLevel:0.#}.");
 
         Vector3d origin = clipmaps.Origins[level];
         float voxel = settings.VoxelSizeOf(level);
@@ -272,25 +258,14 @@ public static class DistanceFieldValidation
         foreach (double up in new[] { 0.0, 1000.0, 10000.0, 100000.0 })
         {
             Vector3d sky = new(origin.X + (voxel * resolution * 0.5), origin.Y + (voxel * resolution * 0.5), origin.Z + up);
-            log.Information(
-                LogCategory,
-                $"  exact field {up:0} above the clipmap: {scene.Sample(sky):0.##} -- {scene.Explain(sky)}.");
         }
 
         // How much of the region each side calls solid, over EVERY voxel rather than the unsaturated
         // few the comparison keeps. Agreement on a subset says nothing if both are inside everywhere,
         // and a level with open ground plainly is not.
-        log.Information(
-            LogCategory,
-            $"Occupancy over {points} voxel(s): the clipmap calls {builtInside * 100.0 / Math.Max(points, 1):0.#}% "
-            + $"solid, the exact field {exactInside * 100.0 / Math.Max(points, 1):0.#}%.");
 
         if (worstOver > 0f)
         {
-            log.Information(
-                LogCategory,
-                $"  worst overstatement at ({worstOverAt.X:0.#}, {worstOverAt.Y:0.#}, {worstOverAt.Z:0.#}): "
-                + $"clipmap {worstOverBuilt:0.##} m, exact {worstOverExact:0.##} m -- {scene.Explain(worstOverAt)}.");
         }
 
         Report report = new(
@@ -298,11 +273,9 @@ public static class DistanceFieldValidation
 
         if (report.Passed)
         {
-            log.Information(LogCategory, $"Clipmap level {level} agrees with the exact field: {report}.");
         }
         else
         {
-            log.Error(LogCategory, $"Clipmap level {level} does NOT agree with the exact field: {report}.");
         }
 
         return report;

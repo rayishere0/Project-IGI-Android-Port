@@ -1,7 +1,6 @@
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Game.Igi1.World;
 using ProjectIGI.Game.Player;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Presentation.Hud.Remastered;
 using ProjectIGI.Presentation.Igi1.Hud;
 using ProjectIGI.Presentation.Igi1.World;
@@ -270,7 +269,7 @@ internal sealed class Igi1HudOverlay(IGraphicsDevice device, Igi1Gameplay gamepl
 
     private RemasteredHud CreateRemastered()
     {
-        RemasteredHud hud = new(_device, NullLogger.Instance);
+        RemasteredHud hud = new(_device);
         hud.Load();
         return hud;
     }

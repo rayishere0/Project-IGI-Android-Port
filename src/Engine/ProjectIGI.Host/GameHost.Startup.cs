@@ -1,5 +1,4 @@
 using ProjectIGI.Core.Configuration;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Engine.Flow;
 using ProjectIGI.Engine.Time;
@@ -27,11 +26,6 @@ public sealed partial class GameHost
     /// <summary>Shows the log in the console, registers the commands, reads the settings and binds the default keys.</summary>
     private void SetUpConsole(FrameLoopState state)
     {
-        if (_logger is LogRouter router)
-        {
-            state.Console.AttachLog(router);
-        }
-
         state.Console.QuitRequested += (_, _) => state.Running = false;
 
         // The console reaches the system clipboard through the window, which is what owns the handle,
@@ -49,11 +43,10 @@ public sealed partial class GameHost
         _timeOfDay.RegisterCommands(state.Console.System);
         _flashlight.RegisterCommands(state.Console.System);
         RegisterTitlePlayerCommands(state.Console.System);
-        _hosted.Impacts.Register(state.Console.System, () => _inspectorEye, _logger);
+        _hosted.Impacts.Register(state.Console.System, () => _inspectorEye);
         RegisterCameraCommands(state.Console.System);
         RegisterRendererSwitchCommand(state.Console.System);
         _contentLayers.Register(state.Console.System);
-        _memory.Register(state.Console.System);
 
         state.Console.Start(
             _fileSystem,
@@ -116,7 +109,7 @@ public sealed partial class GameHost
         _device.SetStageTiming(FrameCVars.PerformanceLog.Value);
         WhenChanged(FrameCVars.PerformanceLog, () => _device.SetStageTiming(FrameCVars.PerformanceLog.Value));
 
-        _flowHost = new HostFlowHost(_logger);
+        _flowHost = new HostFlowHost();
     }
 
     /// <summary>Builds the scheduler, the clock the loop runs on, and the lighting services with their caches.</summary>
@@ -124,7 +117,7 @@ public sealed partial class GameHost
     {
         // The flow state machine owns the frame, and the menu is a task beneath it — so the frame walk
         // updates and renders the menu rather than this loop doing either by hand.
-        _scheduler = new(_device, _pacing);
+        _scheduler = new(_device);
 
         // -lockstep replaces the wall clock with a synthetic one advanced a fixed amount per loop pass,
         // so how long a frame took to draw stops deciding how many ticks it covered. Without it a capture
@@ -143,28 +136,19 @@ public sealed partial class GameHost
         // Baked global illumination: a mission's probe field is loaded from the shipped cache (Assets/gi)
         // when present, else traced and written to the per-user cache so the next load is fast. This is what
         // turns a level load from a few-seconds lighting trace into an instant read -- see GiBakeCache.
-        GiBakeCache probeCache = GiBakeCache.Create(
-            Path.Combine(AppContext.BaseDirectory, "Assets", "gi"),
-            Path.Combine(SettingsPaths.GetUserDirectory(), "cache", "gi"),
-            _logger);
+        GiBakeCache probeCache = GiBakeCache.Create(Path.Combine(AppContext.BaseDirectory, "Assets", "gi"), Path.Combine(SettingsPaths.GetUserDirectory(), "cache", "gi"));
 
         // The level's distance fields, cached the same way and for a sharper reason. This is the one bake
         // the real-time lighting model WAITS on -- until it lands the frame renders from the artists'
         // lightmaps and then visibly crosses over -- and it is the most cacheable thing in the renderer,
         // depending on nothing but the level's static geometry and one integer. See DistanceFieldCache.
-        _sdfCache = DistanceFieldCache.Create(
-            Path.Combine(AppContext.BaseDirectory, "Assets", "sdf"),
-            Path.Combine(SettingsPaths.GetUserDirectory(), "cache", "sdf"),
-            _logger);
-        _gi = new GlobalIllumination(_device, _logger, _work, _options.Lockstep, new GlobalIlluminationHost(this));
+        _sdfCache = DistanceFieldCache.Create(Path.Combine(AppContext.BaseDirectory, "Assets", "sdf"), Path.Combine(SettingsPaths.GetUserDirectory(), "cache", "sdf"));
+        _gi = new GlobalIllumination(_device, _work, _options.Lockstep, new GlobalIlluminationHost(this));
 
         // The path-traced object lightmaps, cached the same way: baked once, read instantly after. The
         // shipped bakes live beside the probe fields; freshly-baked ones write to the per-user cache.
-        LightmapBakeCache lightmapCache = LightmapBakeCache.Create(
-            Path.Combine(AppContext.BaseDirectory, "Assets", "gi"),
-            Path.Combine(SettingsPaths.GetUserDirectory(), "cache", "gi"),
-            _logger);
-        _baked = new BakedLighting(_device, _logger, _work, _options.Lockstep, probeCache, lightmapCache);
+        LightmapBakeCache lightmapCache = LightmapBakeCache.Create(Path.Combine(AppContext.BaseDirectory, "Assets", "gi"), Path.Combine(SettingsPaths.GetUserDirectory(), "cache", "gi"));
+        _baked = new BakedLighting(_device, _work, _options.Lockstep, probeCache, lightmapCache);
 
         // The mission state native, held because a switch has to re-register it into the loop it builds.
         _missionState = new GameMissionState();
@@ -254,24 +238,18 @@ public sealed partial class GameHost
         _shadowPass = null;
 
         // Authored atmosphere. Levels with no entry fall back to what their own FlatSky task asks for.
-        state.FogPresets = FogPresets.Load(
-            Path.Combine(AppContext.BaseDirectory, "Assets", "fog-presets.json"),
-            _logger);
+        state.FogPresets = FogPresets.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "fog-presets.json"));
     }
 
     /// <summary>Loads what every level draws with: the fog presets, the materials, the lamp manifest and the detail maps.</summary>
     private void LoadSharedRenderData(FrameLoopState state)
     {
-        _materials = MaterialLibrary.Load(
-            Path.Combine(AppContext.BaseDirectory, "Assets", "materials.json"),
-            _logger);
+        _materials = MaterialLibrary.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "materials.json"));
 
         // The lamps somebody has named by hand. One list for the whole game -- a model is a global
         // asset and binds the same textures in every mission it appears in -- so this is read once for
         // the session rather than per level.
-        _lampManifest = LampManifest.Load(
-            Path.Combine(AppContext.BaseDirectory, "Assets", "lamps.json"),
-            _logger);
+        _lampManifest = LampManifest.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "lamps.json"));
 
         // The derived surface detail this game never shipped -- normals, roughness, metal. Built by
         // derived here for anything no replacement carries a map for; an installation that has never run a tool
@@ -285,11 +263,7 @@ public sealed partial class GameHost
         // still gets the maps -- from their OWN installation's art, which is the only place this
         // repository can get it from. Under %APPDATA% rather than in the checkout because it is derived
         // per-user data, and because the game's art with a filter over it is not ours to redistribute.
-        _detailMaps = new(
-            _device,
-            _work,
-            _logger,
-            Path.Combine(SettingsPaths.GetUserDirectory(), "cache", "detail"));
+        _detailMaps = new(_device, _work, Path.Combine(SettingsPaths.GetUserDirectory(), "cache", "detail"));
 
         // Set HERE as well as on the frame, and the difference only shows on the path a capture takes.
         // The loop assigns this every pass so that turning r_material_detail up mid-session starts
@@ -405,11 +379,10 @@ public sealed partial class GameHost
                         {
                             state.Running = false;
                         }
-                    },
-                    _logger));
+                    }
+                    ));
             if (_retailMenus is null)
             {
-                _logger.Warning("Menu", "This title draws no retail menus; the menu script is not started.");
             }
         };
     }
@@ -466,11 +439,9 @@ public sealed partial class GameHost
         }
         else
         {
-            _menuCameras = MenuCameraLibrary.Load(
-                Path.Combine(AppContext.BaseDirectory, "Assets", "menu-cameras.json"), _logger);
-            state.MissionWarmer = new MissionWarmer(_gamePath, _missions, _logger, _work);
-            state.PreviewLoader = new MissionPreviewLoader(
-                _gamePath, _missions, _mission.MagicObjects, _baked.ProbeCache, _menuCameras, _previewContext, _logger, _work);
+            _menuCameras = MenuCameraLibrary.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "menu-cameras.json"));
+            state.MissionWarmer = new MissionWarmer(_gamePath, _missions, _work);
+            state.PreviewLoader = new MissionPreviewLoader(_gamePath, _missions, _mission.MagicObjects, _baked.ProbeCache, _menuCameras, _previewContext, _work);
 
             // The design's four faces — Barlow, Barlow Condensed in two weights, JetBrains Mono — the same
             // set the launcher draws with, uploaded once and shared by every page of the shell.
@@ -671,7 +642,7 @@ public sealed partial class GameHost
                 saveProfiles: () =>
                 {
                     RestoreTitleInputBindings();
-                    HostConfiguration.Save(_configuration, _logger);
+                    HostConfiguration.Save(_configuration);
                 },
                 captureThumbnail: (out captureWidth, out captureHeight) =>
                 {
@@ -720,7 +691,6 @@ public sealed partial class GameHost
             // -screen: it opens straight on a section so a capture does not need someone to click there.
             if (_options.ShellTab is { Length: > 0 } openOn && !state.Shell.OpenOn(openOn))
             {
-                _logger.Warning("Menu", $"-shelltab '{openOn}' is not a section; opening on the main menu.");
             }
 
             if (_options.StartMission > 0)
@@ -780,17 +750,9 @@ public sealed partial class GameHost
         state.PassStartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
         state.FramePerformance = new();
 
-        _logger.Information(
-            "Render",
-            FormattableString.Invariant(
-                $"Camera effects: r_motion_blur {PostCVars.MotionBlur.Value:0.###}, r_hdr {FrameCVars.OffscreenScene.Value}, r_deferred {LightingCVars.Deferred.Value}, r_taa {ReconstructionCVars.TemporalFeedback.Value:0.###}, r_smooth {FrameCVars.SmoothPresentation.Value}, r_scale {ReconstructionCVars.RenderScale.Value:0.###}."));
 
         _window.CloseRequested += (_, _) => state.Running = false;
         _window.Show();
-        _logger.Information(
-            "Desktop",
-            $"{_platform.Name} up on {_device.Capabilities.Renderer}; the window is on screen "
-            + $"{SinceProcessStart():0} ms after the process started.");
     }
 
     /// <summary>Runs the tools that build something and quit: <c>-poidump</c> and <c>-bakeall</c>.</summary>
@@ -810,7 +772,6 @@ public sealed partial class GameHost
         if (_options.BakeAll)
         {
             IReadOnlyList<MissionDescriptor> toBake = _missions.Missions;
-            _logger.Information("Bake", $"Baking global illumination for {toBake.Count} mission(s).");
             int baked = 0;
             foreach (MissionDescriptor descriptor in toBake)
             {
@@ -819,14 +780,9 @@ public sealed partial class GameHost
                     break;
                 }
 
-                _logger.Information("Bake", $"[{++baked}/{toBake.Count}] mission {descriptor.Id} '{strings.Get(descriptor.Name)}'.");
                 StartMission(descriptor.Id);
             }
 
-            _logger.Information(
-                "Bake",
-                $"Baked {baked} mission(s). To ship them, copy the .giv files from "
-                    + $"{Path.Combine(SettingsPaths.GetUserDirectory(), "cache", "gi")} into apps/ProjectIGI.Composition/Assets/gi.");
             state.Running = false;
         }
     }
@@ -839,7 +795,7 @@ public sealed partial class GameHost
         // as a stage that silently did nothing. Gated so a device with the feature off pays nothing.
         if (RayTracingCVars.DistanceFields.Value && _device.Capabilities.SupportsCompute)
         {
-            GlobalDistanceField.ValidateShader(_device, _logger);
+            GlobalDistanceField.ValidateShader(_device);
         }
 
         // Reused every frame rather than reallocated; the fit writes into it in place.
@@ -880,7 +836,6 @@ public sealed partial class GameHost
             }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException)
             {
-                _logger.Warning("Saves", $"The save slots in '{misnamed}' could not be moved to '{saves}': {error.Message}");
                 return misnamed;
             }
         }

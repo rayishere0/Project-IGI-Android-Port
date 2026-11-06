@@ -1,5 +1,4 @@
 using System.Globalization;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Engine.World;
@@ -17,17 +16,7 @@ internal static class WorldSceneDiagnostics
     /// the authored-to-runtime comparison. The model id is the pack instance id, not a friendly catalog
     /// name: that is the identity the retail loader uses when it adds the object.
     /// </summary>
-    internal static void LogPlacementVerification(
-        IProjectIGILogger log,
-        LoadedMission mission,
-        DeclaredTask task,
-        string modelId,
-        Vector3d runtimePositionMetres,
-        Matrix3f runtimeOrientation,
-        int modelSlot,
-        bool isTrain,
-        bool isCharacter,
-        bool isCameraLens)
+    internal static void LogPlacementVerification(LoadedMission mission, DeclaredTask task, string modelId, Vector3d runtimePositionMetres, Matrix3f runtimeOrientation, int modelSlot, bool isTrain, bool isCharacter, bool isCameraLens)
     {
         string type = task.Type.Name;
         string name = task.Name;
@@ -52,21 +41,9 @@ internal static class WorldSceneDiagnostics
                     ? "EXPECTED_TERRAIN_GROUNDING"
                     : positionMatch && orientationMatch ? "PASS" : "MISMATCH";
 
-        log.Information(
-            WorldScene.LogCategory + ".Loader",
-            $"Object Loaded: ModelID={modelId}, Type={type}, Name={name}, "
-                + $"Pos={positionText}, Ori={orientationText}, Tex={modelId}, Model={modelId}, "
-                + $"Source={source}, PositionMatch={positionMatch}, OrientationMatch={orientationMatch}, "
-                + $"Verification={verification}");
 
         if (verification == "MISMATCH")
         {
-            log.Error(
-                WorldScene.LogCategory + ".Loader",
-                $"Object verification failed: ModelID={modelId}, Type={type}, Name={name}, "
-                    + $"Source={source}, authoredPos={FormatPosition(authoredPositionMetres * WorldScene.UnitsPerMetre)}, "
-                    + $"runtimePos={positionText}, authoredOri={FormatOrientation(authoredOrientation)}, "
-                    + $"runtimeOri={orientationText}");
         }
     }
 
@@ -74,24 +51,11 @@ internal static class WorldSceneDiagnostics
     /// Emits the loader record for a placement the scene derived rather than read from a task's own
     /// position: a spline segment or a model attachment.
     /// </summary>
-    internal static void LogDerivedPlacement(
-        IProjectIGILogger log,
-        LoadedMission mission,
-        DeclaredTask? owner,
-        string modelId,
-        Vector3d positionMetres,
-        Matrix3f orientation,
-        string sourceKind)
+    internal static void LogDerivedPlacement(LoadedMission mission, DeclaredTask? owner, string modelId, Vector3d positionMetres, Matrix3f orientation, string sourceKind)
     {
         string type = owner?.Type.Name ?? "Derived";
         string name = owner?.Name ?? string.Empty;
         string source = $"LOCAL:{mission.Descriptor.MissionDirectory}/objects.qvm";
-        log.Information(
-            WorldScene.LogCategory + ".Loader",
-            $"Object Loaded: ModelID={modelId}, Type={type}, Name={name}, "
-                + $"Pos={FormatPosition(positionMetres * WorldScene.UnitsPerMetre)}, Ori={FormatOrientation(orientation)}, "
-                + $"Tex={modelId}, Model={modelId}, Source={source}, PositionMatch=True, "
-                + $"OrientationMatch=True, Verification=DERIVED_{sourceKind}");
     }
 
     private static string FormatPosition(Vector3d position) =>

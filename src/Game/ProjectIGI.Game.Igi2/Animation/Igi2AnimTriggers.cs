@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Game.Igi2.Scripting;
@@ -95,7 +94,6 @@ public sealed class Igi2AnimTriggers
     /// <summary>The native the script defines each type with.</summary>
     public const string DefineNative = "DefineAnimTrigger";
 
-    private const string LogCategory = "AnimTrigger";
 
     /// <summary>The task types the script names, as constant and type name.</summary>
     private static readonly (string Constant, string Type)[] TaskTypes =
@@ -108,11 +106,10 @@ public sealed class Igi2AnimTriggers
 
     private readonly List<Igi2AnimTriggerType> _types = [];
     private readonly Dictionary<string, int> _typeIds = new(StringComparer.Ordinal);
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="Igi2AnimTriggers"/> class.</summary>
     /// <param name="logger">Where the load reports.</param>
-    public Igi2AnimTriggers(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public Igi2AnimTriggers() { }
 
     /// <summary>Gets the types, in the order they were defined.</summary>
     public IReadOnlyList<Igi2AnimTriggerType> Types => _types;
@@ -147,7 +144,6 @@ public sealed class Igi2AnimTriggers
     {
         _types.Clear();
         Igi2SessionScript.Run(resources, natives, Script);
-        _logger.Information(LogCategory, $"{_types.Count} anim trigger types read.");
     }
 
     /// <summary>Finds the type a clip's trigger fires, the first defined with its id.</summary>

@@ -1,5 +1,4 @@
 using ProjectIGI.Core.Configuration.Presets;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Presentation;
@@ -29,7 +28,6 @@ namespace ProjectIGI.Presentation.Igi2.World;
 public sealed class Igi2SkyPresenter : ISkyPresenter
 {
     /// <summary>The category load diagnostics are logged under.</summary>
-    public const string LogCategory = "igi2.sky";
 
     /// <summary>
     /// How many engine units one unit of the space this presenter draws in is worth.
@@ -45,7 +43,6 @@ public sealed class Igi2SkyPresenter : ISkyPresenter
     public const float UnitsPerPosition = (float)Game.World.WorldScene.UnitsPerMetre;
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly Layer[] _layers;
     private readonly Vertex3D[] _grid = new Vertex3D[SkyCloudPlane.VertexCount];
     private readonly ushort[] _gridIndices;
@@ -66,17 +63,12 @@ public sealed class Igi2SkyPresenter : ISkyPresenter
     /// turns one of those into a handle. A layer whose texture is missing draws untextured rather than
     /// not at all, which is what the original does with a failed <c>Texture_Load</c>.
     /// </remarks>
-    public Igi2SkyPresenter(
-        IGraphicsDevice device,
-        FlatSkyTask sky,
-        Func<string, TextureHandle>? textures = null,
-        IProjectIGILogger? logger = null)
+    public Igi2SkyPresenter(IGraphicsDevice device, FlatSkyTask sky, Func<string, TextureHandle>? textures = null)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(sky);
 
         _device = device;
-        _logger = logger ?? NullLogger.Instance;
         Sky = sky;
 
         (Vector3f[] positions, Bgra32[] colours) = Igi2SkyDome.Build(
@@ -104,10 +96,6 @@ public sealed class Igi2SkyPresenter : ISkyPresenter
         _gridIndices = SkyCloudPlane.BuildIndices();
         _layers = [.. CollectLayers(sky, textures)];
 
-        _logger.Information(
-            LogCategory,
-            $"Sky: a dome of {vertices.Length} vertices over {sky.DomeAngle:0.#} degrees, "
-                + $"{_layers.Length} cloud layer(s) at {sky.LayerHeight} m, fading by {sky.Distance} m.");
     }
 
     /// <summary>Gets the level's sky.</summary>
@@ -316,7 +304,6 @@ public sealed class Igi2SkyPresenter : ISkyPresenter
         }
         catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException)
         {
-            _logger.Warning(LogCategory, $"The cloud grid did not upload: {ex.Message}");
             return;
         }
 

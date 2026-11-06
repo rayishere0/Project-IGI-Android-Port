@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Rendering.Pipeline.Compute;
 using ProjectIGI.Rendering.Rhi;
 
@@ -17,14 +16,12 @@ internal sealed class ModPostChain : IDisposable
     private const RhiTextureFormat Format = RhiTextureFormat.Rgba16Float;
     private const int BlockFloats = 28;
     private const int ValueCount = 16;
-    private const string LogCategory = "Rendering";
 
     private static readonly string[] Contract = ["uSource", "uSourceSampler", "uDepth", "uTarget", "p"];
 
     private readonly IRhiDevice _device;
     private readonly int _framesInFlight;
     private readonly RetiredResources _retired;
-    private readonly IProjectIGILogger _logger;
     private readonly IRhiSampler _sampler;
     private readonly string _label;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
@@ -42,13 +39,12 @@ internal sealed class ModPostChain : IDisposable
     /// <param name="retired">Where an image outgrown by a resize goes until the frames reading it are done.</param>
     /// <param name="logger">Where a refused pass is reported.</param>
     /// <param name="label">What its images and passes are labelled.</param>
-    public ModPostChain(IRhiDevice device, int framesInFlight, RetiredResources retired, IProjectIGILogger logger, string label = "mods")
+    public ModPostChain(IRhiDevice device, int framesInFlight, RetiredResources retired, string label = "mods")
     {
         _label = label;
         _device = device;
         _framesInFlight = framesInFlight;
         _retired = retired;
-        _logger = logger;
         _sampler = device.CreateSampler(new RhiSamplerDescriptor(Label: label));
     }
 
@@ -71,7 +67,6 @@ internal sealed class ModPostChain : IDisposable
                 stage = new ComputePass(_device, module.Module, $"mod.{module.Name}");
                 if (Contract.FirstOrDefault(name => !stage.Declares(name)) is { } missing)
                 {
-                    _logger.Warning(LogCategory, $"The mod pass '{module.Name}' does not bind '{missing}', which the contract names; it is left out.");
                     stage.Dispose();
                     continue;
                 }
@@ -81,7 +76,6 @@ internal sealed class ModPostChain : IDisposable
             catch (Exception error) when (error is InvalidOperationException or ArgumentException or NotSupportedException)
             {
                 stage?.Dispose();
-                _logger.Warning(LogCategory, $"The mod pass '{module.Name}' cannot be built and is left out: {error.Message}");
             }
         }
     }

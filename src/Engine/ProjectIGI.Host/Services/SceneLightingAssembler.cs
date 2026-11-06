@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
@@ -18,15 +17,9 @@ namespace ProjectIGI.Host.Services;
 /// <param name="host">The level, its sky and its probe field.</param>
 /// <param name="fields">The level's distance field.</param>
 /// <param name="cards">The lit surface cache.</param>
-internal sealed class SceneLightingAssembler(
-    IGraphicsDevice device,
-    IProjectIGILogger logger,
-    IGlobalIlluminationHost host,
-    DistanceFieldResidency fields,
-    SurfaceCacheResidency cards)
+internal sealed class SceneLightingAssembler(IGraphicsDevice device, IGlobalIlluminationHost host, DistanceFieldResidency fields, SurfaceCacheResidency cards)
 {
     private readonly IGraphicsDevice _device = device;
-    private readonly IProjectIGILogger _logger = logger;
     private readonly IGlobalIlluminationHost _host = host;
     private readonly DistanceFieldResidency _fields = fields;
     private readonly SurfaceCacheResidency _cards = cards;
@@ -500,7 +493,7 @@ internal sealed class SceneLightingAssembler(
                 // a check that only ever looked at level 0 -- and it shadows everything.
                 for (int level = 0; level < liveField.Settings.Levels; level++)
                 {
-                    DistanceFieldValidation.Compare(_device, liveField, exact, level, _logger);
+                    DistanceFieldValidation.Compare(_device, liveField, exact, level);
                 }
             }
 
@@ -644,8 +637,7 @@ internal sealed class SceneLightingAssembler(
                 if (wantDump && SurfaceCacheCVars.SurfaceCacheDump.Value is { Length: > 0 } shadowInto)
                 {
                     state.CardLightingDumped = true;
-                    SurfaceCacheDebugDumps.CardLighting(
-                        _device, bounceCards, shadowInto, _logger, SurfaceCacheCVars.SurfaceCacheProbe.Value);
+                    SurfaceCacheDebugDumps.CardLighting(_device, bounceCards, shadowInto, SurfaceCacheCVars.SurfaceCacheProbe.Value);
                 }
             }
 

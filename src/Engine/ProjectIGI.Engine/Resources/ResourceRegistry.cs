@@ -27,7 +27,6 @@ namespace ProjectIGI.Engine.Resources;
 /// </remarks>
 public sealed class ResourceRegistry
 {
-    private const string LogCategory = "Resources";
 
     private readonly Dictionary<string, ResourceEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ReadOnlyMemory<byte>> _shipped = new(StringComparer.OrdinalIgnoreCase);
@@ -35,18 +34,16 @@ public sealed class ResourceRegistry
     private readonly Dictionary<string, string> _stamps = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _lastReapplied = [];
     private readonly VirtualFileSystem _fileSystem;
-    private readonly IProjectIGILogger _logger;
     private ResourceOverrides? _overrides;
 
     /// <summary>Initializes a new instance of the <see cref="ResourceRegistry"/> class.</summary>
     /// <param name="fileSystem">The virtual file system used when a name is not registered.</param>
     /// <param name="logger">The logger for load diagnostics; defaults to a sink that discards them.</param>
     /// <exception cref="ArgumentNullException"><paramref name="fileSystem"/> is <see langword="null"/>.</exception>
-    public ResourceRegistry(VirtualFileSystem fileSystem, IProjectIGILogger? logger = null)
+    public ResourceRegistry(VirtualFileSystem fileSystem)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
         _fileSystem = fileSystem;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Gets or sets the loose files that stand in for the game's own assets.</summary>
@@ -212,7 +209,6 @@ public sealed class ResourceRegistry
                 bytes = VirtualFileSystem.ReadToEnd(stream);
             }
 
-            _logger.Debug(LogCategory, $"Loaded '{candidate}' from disk ({bytes.Length} bytes).");
             data = Register(candidate, bytes).Data;
             return true;
         }
@@ -264,7 +260,6 @@ public sealed class ResourceRegistry
             _entries.Remove(child);
         }
 
-        _logger.Debug(LogCategory, $"Freed '{key}' and {children.Count} exploded entries.");
         return true;
     }
 
@@ -293,7 +288,6 @@ public sealed class ResourceRegistry
             Add(item.Name, ToResourceKind(item.Kind), Substitute(key, item.Name, item.Data), key, replaceExisting);
         }
 
-        _logger.Debug(LogCategory, $"Registered archive '{key}' with {archive.Entries.Count} entries.");
         return entry;
     }
 
@@ -315,7 +309,6 @@ public sealed class ResourceRegistry
             Add(item.Name, ResourceKind.Body, Substitute(key, item.Name, item.Data), key, replaceExisting);
         }
 
-        _logger.Debug(LogCategory, $"Registered flat archive '{key}' with {archive.Entries.Count} entries.");
         return entry;
     }
 
@@ -370,7 +363,6 @@ public sealed class ResourceRegistry
         }
 
         MarkOverridden(key, stamp);
-        _logger.Debug(LogCategory, $"'{key}' is overridden by '{candidate}'.");
         return replacement;
     }
 
@@ -496,7 +488,6 @@ public sealed class ResourceRegistry
         {
             // The original's hash table refuses a duplicate rather than replacing it; a mount that
             // shadows an existing name is worth seeing, but it must not change which bytes win.
-            _logger.Warning(LogCategory, $"Resource '{name}' is already registered; keeping the first registration.");
             return _entries[name];
         }
 

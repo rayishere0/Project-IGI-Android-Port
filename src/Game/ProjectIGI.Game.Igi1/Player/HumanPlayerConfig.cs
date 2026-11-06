@@ -19,7 +19,6 @@ namespace ProjectIGI.Game.Igi1.Player;
 /// </remarks>
 public sealed class HumanPlayerConfig
 {
-    private const string LogCategory = "Player";
 
     /// <summary>The script that carries the data.</summary>
     public const string ScriptResource = "LOCAL:humanplayer/humanplayer.qvm";
@@ -46,11 +45,10 @@ public sealed class HumanPlayerConfig
     private readonly List<HumanPlayerWeaponCategory> _categories = [];
     private readonly Dictionary<int, int> _ammoLimits = [];
     private readonly Dictionary<string, int> _placeholderIds = new(StringComparer.Ordinal);
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="HumanPlayerConfig"/> class.</summary>
     /// <param name="logger">The logger for load diagnostics; defaults to a sink that discards them.</param>
-    public HumanPlayerConfig(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public HumanPlayerConfig() { }
 
     /// <summary>Gets the general parameters, once the script has run.</summary>
     public HumanPlayerParameters? Parameters { get; private set; }
@@ -127,10 +125,6 @@ public sealed class HumanPlayerConfig
                 $"{ScriptResource} faulted with {error}: {interpreter.ErrorMessage}");
         }
 
-        _logger.Information(
-            LogCategory,
-            $"Player parameters loaded: {_weaponCycle.Count} weapon(s) in the cycle, "
-                + $"{_categories.Count} categor(ies), {_ammoLimits.Count} ammo limit(s).");
     }
 
     /// <summary>
@@ -166,10 +160,6 @@ public sealed class HumanPlayerConfig
 
         if (_placeholderIds.Count > 0)
         {
-            _logger.Warning(
-                LogCategory,
-                $"{_placeholderIds.Count} weapon/ammo id(s) had no registered value and were numbered "
-                    + "by symbol order; the weapon system owns the real ones.");
         }
     }
 

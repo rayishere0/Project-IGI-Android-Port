@@ -13,7 +13,6 @@ namespace ProjectIGI.Presentation.Igi2.World;
 public sealed class Igi2SpriteResources : IDisposable
 {
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly Dictionary<string, IresEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IresEntry> _paths = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, SpriteResource?> _sprites = new(StringComparer.OrdinalIgnoreCase);
@@ -23,10 +22,9 @@ public sealed class Igi2SpriteResources : IDisposable
     /// <param name="device">The upload device.</param>
     /// <param name="files">The title's installed data.</param>
     /// <param name="logger">Where invalid assets are reported.</param>
-    public Igi2SpriteResources(IGraphicsDevice device, VirtualFileSystem files, IProjectIGILogger logger)
+    public Igi2SpriteResources(IGraphicsDevice device, VirtualFileSystem files)
     {
         _device = device;
-        _logger = logger;
         // statusscreen.c StatusScreen_CreateHandler; scamera.c SCamera_Open; fontmanager.c FontManager_Open.
         string[] archives = ["LOCAL:screens/game/status/status.res", "LOCAL:common/sprites/sprites.res", "LOCAL:common/fonts/fonts_med.res", "LOCAL:weapons/weapons.res", "LOCAL:computer/computer.res", "LOCAL:common/textures/textures.res"];
         foreach (string path in archives)
@@ -58,7 +56,6 @@ public sealed class Igi2SpriteResources : IDisposable
             try { sprite = SpriteResource.Upload(_device, SpriteLoader.Load(entry.Data, entry.Name)); }
             catch (Exception ex) when (ex is InvalidDataException or NotSupportedException or EngineFatalException)
             {
-                _logger.Warning("igi2.hud", $"Could not load {name}: {ex.Message}");
             }
         }
         _sprites[key] = sprite;
@@ -85,7 +82,6 @@ public sealed class Igi2SpriteResources : IDisposable
             }
             catch (Exception ex) when (ex is InvalidDataException or NotSupportedException or EngineFatalException)
             {
-                _logger.Warning("igi2.hud", $"Could not load {name}: {ex.Message}");
             }
         }
         _textures[name] = texture;

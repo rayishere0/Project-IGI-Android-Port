@@ -1,5 +1,4 @@
 using ProjectIGI.Formats;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
@@ -60,22 +59,22 @@ public sealed class Igi2PresentationProvider : ITitlePresentationProvider
 
             // The remastered computer is both games' own: the shared display, fed whichever mission's objectives there are.
             .Add<MapComputerPresentationRequest, ITacticalComputerPresenter>(static (in MapComputerPresentationRequest request) =>
-                new TacticalComputerRenderer(request.Device, request.Resources, request.Logger, request.ResolveText));
+                new TacticalComputerRenderer(request.Device, request.Resources, request.ResolveText));
 
     /// <inheritdoc/>
     public PresenterRegistry Presenters { get; }
 
     /// <inheritdoc/>
-    private ITitleHudPresenter? CreateTitleHud(in HudPresentationRequest request) => new ProjectIGI.Presentation.Igi2.Hud.Igi2HudRenderer(request.Device, request.Logger);
+    private ITitleHudPresenter? CreateTitleHud(in HudPresentationRequest request) => new ProjectIGI.Presentation.Igi2.Hud.Igi2HudRenderer(request.Device);
 
     /// <inheritdoc/>
     /// <remarks>The arms and the weapon in them, posed by the player's view; see <see cref="Igi2ViewModelRenderer"/>.</remarks>
     private ITitleViewModelPresenter? CreateTitleViewModel(in ViewModelPresentationRequest request) =>
-        new Igi2ViewModelRenderer(request.Device, request.Resources, request.Logger, request.Work);
+        new Igi2ViewModelRenderer(request.Device, request.Resources, request.Work);
 
     /// <inheritdoc/>
     private IWorldPresenter CreateWorld(in WorldPresentationRequest request) =>
-        new WorldRenderer(request.Device, request.Resources, AssetFormatProfile.Igi2, request.Logger);
+        new WorldRenderer(request.Device, request.Resources, AssetFormatProfile.Igi2);
 
     /// <inheritdoc/>
     /// <remarks>
@@ -101,10 +100,10 @@ public sealed class Igi2PresentationProvider : ITitlePresentationProvider
             return null;
         }
 
-        Igi2TextureLoader textures = new(request.Device, request.Resources, request.Logger);
+        Igi2TextureLoader textures = new(request.Device, request.Resources);
         // The dome turns to its Dirlight, the one the level makes (SkyDome_ptDirlight).
         Igi2DirlightTask? sun = request.LevelRoot.Descendants().OfType<Igi2DirlightTask>().FirstOrDefault();
-        return new Igi2SkyPresenter(request.Device, sky, textures.Resolve, request.Logger)
+        return new Igi2SkyPresenter(request.Device, sky, textures.Resolve)
         {
             TowardsSun = sun is null ? null : () => sun.Direction,
         };
@@ -261,21 +260,20 @@ public sealed class Igi2PresentationProvider : ITitlePresentationProvider
         ArgumentNullException.ThrowIfNull(request.LevelRoot);
         ArgumentNullException.ThrowIfNull(request.Resources);
 
-        Igi2TerrainSurface surface = Igi2TerrainSurface.Build(
-            request.LevelRoot, request.Resources, request.Logger);
+        Igi2TerrainSurface surface = Igi2TerrainSurface.Build(request.LevelRoot, request.Resources);
         if (surface.IsEmpty)
         {
             return null;
         }
 
-        Igi2TextureLoader textures = new(request.Device, request.Resources, request.Logger);
+        Igi2TextureLoader textures = new(request.Device, request.Resources);
 
         // The level's own Terrain task carries Detail and Adaption, which are what the original's split
         // test is scaled by. A level that declares them gets the quadtree; one that does not gets every
         // tile at full detail, which is the same ground and 70 times the triangles.
         return Igi2TerrainLodSettings.Read(request.LevelRoot) is { } settings
-            ? new Igi2TerrainPresenter(request.Device, surface, settings, textures.Resolve, request.Logger)
-            : new Igi2TerrainPresenter(request.Device, surface, textures.Resolve, request.Logger);
+            ? new Igi2TerrainPresenter(request.Device, surface, settings, textures.Resolve)
+            : new Igi2TerrainPresenter(request.Device, surface, textures.Resolve);
     }
 
     /// <inheritdoc/>
@@ -318,7 +316,7 @@ public sealed class Igi2PresentationProvider : ITitlePresentationProvider
             resources.Register(Archive, request.Resources.FileSystem.ReadAllBytes(Archive));
         }
 
-        TextureHandle texture = new Igi2TextureLoader(request.Device, resources, request.Logger)
+        TextureHandle texture = new Igi2TextureLoader(request.Device, resources)
             .Resolve(task.IsRain ? $"LOCAL:common/textures/{Igi2RainEffectTask.RainTexture}" : $"LOCAL:common/textures/{Igi2RainEffectTask.SnowTexture}");
 
         IgiRandom random = IgiRandom.Seeded();
@@ -348,13 +346,13 @@ public sealed class Igi2PresentationProvider : ITitlePresentationProvider
         ArgumentNullException.ThrowIfNull(request.Resources);
         ArgumentNullException.ThrowIfNull(request.Models);
 
-        Igi2Forest forest = Igi2Forest.Build(request.LevelRoot, request.Resources, request.Logger);
+        Igi2Forest forest = Igi2Forest.Build(request.LevelRoot, request.Resources);
         if (forest.IsEmpty)
         {
             return null;
         }
 
-        Igi2TextureLoader textures = new(request.Device, request.Resources, request.Logger);
+        Igi2TextureLoader textures = new(request.Device, request.Resources);
         Func<string, int, string?> materials = request.MaterialTextures;
 
         // ForestRender_isAlphaBlend is the graphics options' high-quality forests (Config_SetGameToCurrentPerformanceLevel).
@@ -392,7 +390,7 @@ public sealed class Igi2PresentationProvider : ITitlePresentationProvider
         ArgumentNullException.ThrowIfNull(request.LevelRoot);
         ArgumentNullException.ThrowIfNull(request.Resources);
 
-        Igi2WaterSurface surface = Igi2WaterSurface.Build(request.LevelRoot, request.Logger);
+        Igi2WaterSurface surface = Igi2WaterSurface.Build(request.LevelRoot);
         if (surface.IsEmpty)
         {
             return null;
@@ -406,11 +404,10 @@ public sealed class Igi2PresentationProvider : ITitlePresentationProvider
 
         IGraphicsDevice device = request.Device;
         ResourceRegistry resources = request.Resources;
-        IProjectIGILogger logger = request.Logger;
 
         // How shallow the water is reads the ground under it (Water_VertexFunction); the light is the level's sun
         // and the objects' ambient, as WaterRender_Draw hands them to the shader.
-        Igi2TerrainSurface ground = Igi2TerrainSurface.Build(request.LevelRoot, resources, logger);
+        Igi2TerrainSurface ground = Igi2TerrainSurface.Build(request.LevelRoot, resources);
         Vector3f ambient = Igi2SceneAtmosphere.TryRead(request.LevelRoot, out Igi2SceneAtmosphere air) ? air.ObjectAmbient : Vector3f.Zero;
         Igi2WaterLight light = Igi2FixedFunctionSun.TryRead(request.LevelRoot, out Igi2FixedFunctionSun sun)
             ? new Igi2WaterLight(sun.Direction, sun.Colour, ambient)
@@ -419,7 +416,7 @@ public sealed class Igi2PresentationProvider : ITitlePresentationProvider
         return new Igi2WaterPresenter(
             device,
             surface,
-            sheet => LoadCubes(device, resources, tasks, sheet, logger),
+            sheet => LoadCubes(device, resources, tasks, sheet),
             logger,
             taskId => tasks.TryGetValue(taskId, out WaterTask? water) ? water.EnvmapSlot : 0,
             ground.WaterGroundAt,
@@ -427,12 +424,7 @@ public sealed class Igi2PresentationProvider : ITitlePresentationProvider
     }
 
     /// <summary>Loads one sheet's baked reflections, one a slot of its resource list (<c>Water_LoadEnvmapData</c>).</summary>
-    private static List<TextureHandle> LoadCubes(
-        IGraphicsDevice device,
-        ResourceRegistry resources,
-        Dictionary<int, WaterTask> tasks,
-        Igi2WaterSheet sheet,
-        IProjectIGILogger logger)
+    private static List<TextureHandle> LoadCubes(IGraphicsDevice device, ResourceRegistry resources, Dictionary<int, WaterTask> tasks, Igi2WaterSheet sheet)
     {
         if (sheet.EnvmapIndices.Count == 0 || !tasks.TryGetValue(sheet.TaskId, out WaterTask? water))
         {
@@ -452,7 +444,6 @@ public sealed class Igi2PresentationProvider : ITitlePresentationProvider
         }
         catch (InvalidDataException ex)
         {
-            logger.Warning(Igi2WaterPresenter.LogCategory, $"Water {sheet.TaskId}'s reflections did not load: {ex.Message}");
             return [];
         }
 
@@ -465,9 +456,6 @@ public sealed class Igi2PresentationProvider : ITitlePresentationProvider
             }
             catch (Exception ex) when (ex is InvalidDataException or ArgumentException or GraphicsDeviceException)
             {
-                logger.Warning(
-                    Igi2WaterPresenter.LogCategory,
-                    $"Water {sheet.TaskId}'s reflection {index} did not load: {ex.Message}");
                 cubes.Add(TextureHandle.None);
             }
         }

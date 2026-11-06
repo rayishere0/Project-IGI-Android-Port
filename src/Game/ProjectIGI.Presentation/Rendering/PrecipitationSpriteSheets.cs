@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Rendering;
 
@@ -14,7 +13,6 @@ namespace ProjectIGI.Presentation.Rendering;
 /// </remarks>
 internal static class PrecipitationSpriteSheets
 {
-    private const string LogCategory = "Storm";
 
     /// <summary>Stacks the two streak strips into the one sheet the drops are drawn from.</summary>
     /// <remarks>
@@ -48,10 +46,10 @@ internal static class PrecipitationSpriteSheets
     /// </remarks>
     /// <param name="logger">Told about a sheet that could not be read; the fallback is drawn instead.</param>
     /// <returns>The sheet, and the v the defocused strip starts at.</returns>
-    internal static (Bgra32[] Pixels, int Width, int Height, float SplitV) BuildDropSheet(IProjectIGILogger? logger = null)
+    internal static (Bgra32[] Pixels, int Width, int Height, float SplitV) BuildDropSheet()
     {
-        if (TryLoadMask(StormRenderer.FocusedSheetAsset, logger, out Bgra32[] focused, out int focusedWidth, out int focusedHeight)
-            && TryLoadMask(StormRenderer.DefocusedSheetAsset, logger, out Bgra32[] soft, out int softWidth, out int softHeight))
+        if (TryLoadMask(StormRenderer.FocusedSheetAsset, out Bgra32[] focused, out int focusedWidth, out int focusedHeight)
+            && TryLoadMask(StormRenderer.DefocusedSheetAsset, out Bgra32[] soft, out int softWidth, out int softHeight))
         {
             int width = Math.Max(focusedWidth, softWidth);
             int height = focusedHeight + softHeight;
@@ -65,12 +63,7 @@ internal static class PrecipitationSpriteSheets
     }
 
     /// <summary>Reads a greyscale mask and turns it into a white sprite whose alpha is the shape.</summary>
-    private static bool TryLoadMask(
-        string asset,
-        IProjectIGILogger? logger,
-        out Bgra32[] pixels,
-        out int width,
-        out int height)
+    private static bool TryLoadMask(string asset, out Bgra32[] pixels, out int width, out int height)
     {
         pixels = [];
         width = 0;
@@ -100,9 +93,6 @@ internal static class PrecipitationSpriteSheets
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
         {
-            logger?.Warning(
-                LogCategory,
-                FormattableString.Invariant($"Storm sheet '{asset}' could not be read ({ex.Message}); drawing generated streaks."));
             return false;
         }
     }
@@ -290,9 +280,9 @@ internal static class PrecipitationSpriteSheets
     /// <summary>Unpacks the three channel-packed splash animations and adds the small splashes' blob.</summary>
     /// <param name="logger">Told about a sheet that could not be read; the stand-in is drawn instead.</param>
     /// <returns>The sheet, four cells across by <see cref="StormRenderer.SplashRows"/> down.</returns>
-    internal static (Bgra32[] Pixels, int Width, int Height) BuildSplashSheet(IProjectIGILogger? logger = null)
+    internal static (Bgra32[] Pixels, int Width, int Height) BuildSplashSheet()
     {
-        if (TryLoadSheetPixels(StormRenderer.SplashSheetAsset, logger, out Bgra32[] source, out int sourceWidth, out int sourceHeight)
+        if (TryLoadSheetPixels(StormRenderer.SplashSheetAsset, out Bgra32[] source, out int sourceWidth, out int sourceHeight)
             && sourceWidth % StormRenderer.SplashColumns == 0
             && sourceHeight % StormRenderer.SplashFrameRows == 0)
         {
@@ -322,18 +312,12 @@ internal static class PrecipitationSpriteSheets
                 }
             }
 
-            FillBlobStrip(sheet, width, cell, logger);
+            FillBlobStrip(sheet, width, cell);
             return (sheet, width, height);
         }
 
         // No image: the stand-in, drawn at the same layout so every index still addresses what it means.
-        return LoadSheet(
-            string.Empty,
-            logger,
-            128,
-            StormRenderer.SplashColumns,
-            StormRenderer.SplashRows,
-            static (u, v, column, row) =>
+        return LoadSheet(string.Empty, 128, StormRenderer.SplashColumns, StormRenderer.SplashRows, static (u, v, column, row) =>
             {
                 if (row >= StormRenderer.SplashBlobRow)
                 {
@@ -354,11 +338,11 @@ internal static class PrecipitationSpriteSheets
     /// Repeated across all four columns so that the blob strip is addressed by the same column
     /// arithmetic as every other, and a droplet that picks a column other than zero still lands on it.
     /// </remarks>
-    private static void FillBlobStrip(Bgra32[] sheet, int width, int cell, IProjectIGILogger? logger)
+    private static void FillBlobStrip(Bgra32[] sheet, int width, int cell)
     {
         int top = StormRenderer.SplashBlobRow * cell;
 
-        if (!TryLoadMask(StormRenderer.DropletSheetAsset, logger, out Bgra32[] blob, out int blobWidth, out int blobHeight)
+        if (!TryLoadMask(StormRenderer.DropletSheetAsset, out Bgra32[] blob, out int blobWidth, out int blobHeight)
             || blobWidth <= 0
             || blobHeight <= 0)
         {
@@ -394,12 +378,7 @@ internal static class PrecipitationSpriteSheets
     /// sheet whose shape is one greyscale mask and wrong for the splash sheet, whose three channels are
     /// three different animations.
     /// </remarks>
-    private static bool TryLoadSheetPixels(
-        string asset,
-        IProjectIGILogger? logger,
-        out Bgra32[] pixels,
-        out int width,
-        out int height)
+    private static bool TryLoadSheetPixels(string asset, out Bgra32[] pixels, out int width, out int height)
     {
         pixels = [];
         width = 0;
@@ -422,9 +401,6 @@ internal static class PrecipitationSpriteSheets
         }
         catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException)
         {
-            logger?.Warning(
-                LogCategory,
-                FormattableString.Invariant($"Storm sheet '{asset}' could not be read ({error.Message}); drawing generated splashes."));
             return false;
         }
     }
@@ -432,14 +408,8 @@ internal static class PrecipitationSpriteSheets
     /// <summary>Reads the far sheets' cloud, or draws its stand-in.</summary>
     /// <param name="logger">Told when the file could not be read.</param>
     /// <returns>The sheet.</returns>
-    internal static (Bgra32[] Pixels, int Width, int Height) BuildCurtainSheet(IProjectIGILogger? logger) =>
-        LoadSheet(
-            StormRenderer.CurtainSheetAsset,
-            logger,
-            256,
-            1,
-            1,
-            static (u, v, _, _) =>
+    internal static (Bgra32[] Pixels, int Width, int Height) BuildCurtainSheet() =>
+        LoadSheet(StormRenderer.CurtainSheetAsset, 256, 1, 1, static (u, v, _, _) =>
             {
                 float radius = MathF.Sqrt((u * u) + (v * v));
                 float body = Math.Clamp(1f - radius, 0f, 1f);
@@ -456,17 +426,11 @@ internal static class PrecipitationSpriteSheets
     /// The stand-in's alpha, given the position within the current cell from -1 to 1 on both axes and
     /// the cell's column and row.
     /// </param>
-    private static (Bgra32[] Pixels, int Width, int Height) LoadSheet(
-        string asset,
-        IProjectIGILogger? logger,
-        int cell,
-        int columns,
-        int rows,
-        Func<float, float, int, int, float> shape)
+    private static (Bgra32[] Pixels, int Width, int Height) LoadSheet(string asset, int cell, int columns, int rows, Func<float, float, int, int, float> shape)
     {
         // An empty name is a caller that has already decided to draw the stand-in.
         if (asset.Length > 0
-            && TryLoadMask(asset, logger, out Bgra32[] loaded, out int loadedWidth, out int loadedHeight))
+            && TryLoadMask(asset, out Bgra32[] loaded, out int loadedWidth, out int loadedHeight))
         {
             return (loaded, loadedWidth, loadedHeight);
         }

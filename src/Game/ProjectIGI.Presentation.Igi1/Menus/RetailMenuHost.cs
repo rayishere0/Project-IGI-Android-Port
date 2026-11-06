@@ -1,5 +1,4 @@
 using ProjectIGI.Audio;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Audio;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Input;
@@ -15,11 +14,9 @@ namespace ProjectIGI.Presentation.Igi1.Menus;
 /// </remarks>
 public sealed class RetailMenuHost : IRetailMenuPresenter
 {
-    private const string LogCategory = "Menu";
 
     private readonly List<MenuInputEvent> _events = [];
     private readonly List<char> _typed = [];
-    private readonly IProjectIGILogger _logger;
     private readonly InputState _input;
     private readonly SpriteBatch _batch;
     private readonly Func<int> _screenWidth;
@@ -27,9 +24,6 @@ public sealed class RetailMenuHost : IRetailMenuPresenter
     private readonly Action<MenuManagerState> _leave;
     private readonly SoundSystem? _sounds;
     private MenuRenderer? _renderer;
-
-    // TEMPORARY DIAGNOSTIC (black-screen investigation): last time the menu-draw counts were logged.
-    private DateTime _lastMenuDrawDiag = DateTime.MinValue;
 
     /// <summary>Initializes a new instance of the <see cref="RetailMenuHost"/> class.</summary>
     /// <param name="request">The menu's files, text, input, batch, scale and sounds, and where leaving goes.</param>
@@ -41,7 +35,6 @@ public sealed class RetailMenuHost : IRetailMenuPresenter
         ArgumentNullException.ThrowIfNull(request.ScreenWidth);
         ArgumentNullException.ThrowIfNull(request.ScreenHeight);
         ArgumentNullException.ThrowIfNull(request.Leave);
-        ArgumentNullException.ThrowIfNull(request.Logger);
 
         _input = request.Input;
         _batch = request.Batch;
@@ -49,7 +42,6 @@ public sealed class RetailMenuHost : IRetailMenuPresenter
         _screenHeight = request.ScreenHeight;
         _leave = request.Leave;
         _sounds = request.Sounds;
-        _logger = request.Logger;
         Scale = request.Scale;
         _renderer = new MenuRenderer(
             request.Device,
@@ -150,20 +142,6 @@ public sealed class RetailMenuHost : IRetailMenuPresenter
     {
         _renderer?.Draw(_batch, screen, _screenWidth(), _screenHeight());
 
-        // TEMPORARY DIAGNOSTIC (black-screen investigation): report what the menu's batch
-        // actually submitted, once a second. QuadCount/DrawCallCount are the last Begin/End
-        // pair's counts, read here before DrawPointer's pair overwrites them. Quads == 0 means
-        // the menu drew nothing (its sprites did not resolve); quads > 0 with a black screen
-        // means the draws happened but are invisible downstream. Remove after diagnosis.
-        if (_renderer is not null)
-        {
-            DateTime now = DateTime.UtcNow;
-            if (now - _lastMenuDrawDiag >= TimeSpan.FromSeconds(1))
-            {
-                _lastMenuDrawDiag = now;
-                _logger.Information(LogCategory, $"[Diag] Menu draw: background='{screen.Background}' quads={_batch.QuadCount} drawCalls={_batch.DrawCallCount}");
-            }
-        }
     }
 
     /// <inheritdoc/>
@@ -208,7 +186,6 @@ public sealed class RetailMenuHost : IRetailMenuPresenter
     /// <inheritdoc/>
     public void LeaveMenus(MenuManagerState state)
     {
-        _logger.Information(LogCategory, $"Leaving the menus: {state}.");
         _leave(state);
     }
 

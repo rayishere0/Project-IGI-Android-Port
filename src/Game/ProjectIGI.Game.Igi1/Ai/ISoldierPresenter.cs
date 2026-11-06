@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -249,9 +248,6 @@ public interface ISoldierPresenter : ISoldierBodies, IShootableBodies
 
     /// <inheritdoc/>
     IReadOnlyList<Vector3d> ISoldierBodies.MapContacts() => Simulation.MapContacts();
-
-    /// <inheritdoc/>
-    void ISoldierBodies.LogAiSummary() => Simulation.LogAiSummary();
 
     /// <inheritdoc/>
     IReadOnlyList<EnemyOverlayBox> ISoldierBodies.BinocularTargets(

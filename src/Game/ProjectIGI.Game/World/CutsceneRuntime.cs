@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Formats.Ai;
@@ -23,7 +22,6 @@ public sealed class CutsceneRuntime
     public const int Frequency = 30;
 
     /// <summary>The category the airframe path samples are logged under, at Trace.</summary>
-    public const string AirframePathLogCategory = "Airframe.Path";
 
     private readonly CutsceneContext _context;
     private readonly ScriptVarRegistry _variables;
@@ -139,19 +137,7 @@ public sealed class CutsceneRuntime
     public void RestHelicoptersOnSupport() => _ground.RestCollisionHelisOnSupport();
 
     /// <summary>Builds the live cutscene state for a loaded level.</summary>
-    public CutsceneRuntime(
-        GameTask levelRoot,
-        ScriptVarRegistry variables,
-        Func<string, ScriptArguments, QvmValue?>? native = null,
-        Action<CutsceneSoundEvent>? soundChanged = null,
-        Func<string, float>? modelLength = null,
-        Func<string, float>? modelPivot = null,
-        VehiclePhysicsRegistry? vehiclePhysics = null,
-        Func<GameTask, Vector3d, Vector3d, (GameTask Owner, WorldRayHit Hit, string Label)?>? vehicleObstacleHit = null,
-        Func<GameTask, bool>? vehicleObstacleReleased = null,
-        TerrainData? terrain = null,
-        IProjectIGILogger? logger = null,
-        LevelUpdateWalker? walker = null)
+    public CutsceneRuntime(GameTask levelRoot, ScriptVarRegistry variables, Func<string, ScriptArguments, QvmValue?>? native = null, Action<CutsceneSoundEvent>? soundChanged = null, Func<string, float>? modelLength = null, Func<string, float>? modelPivot = null, VehiclePhysicsRegistry? vehiclePhysics = null, Func<GameTask, Vector3d, Vector3d, (GameTask Owner, WorldRayHit Hit, string Label)?>? vehicleObstacleHit = null, Func<GameTask, bool>? vehicleObstacleReleased = null, TerrainData? terrain = null, LevelUpdateWalker? walker = null)
     {
         ArgumentNullException.ThrowIfNull(levelRoot);
         ArgumentNullException.ThrowIfNull(variables);
@@ -164,12 +150,7 @@ public sealed class CutsceneRuntime
         _variables = variables;
         _hostNative = native;
         _soundChanged = soundChanged;
-        _context = new CutsceneContext(
-            levelRoot,
-            new LevelExpressionRuntime(variables, InvokeNative),
-            vehiclePhysics,
-            terrain,
-            logger ?? NullLogger.Instance);
+        _context = new CutsceneContext(levelRoot, new LevelExpressionRuntime(variables, InvokeNative), vehiclePhysics, terrain);
         _attachments = new CutsceneAttachments(_context);
         _ground = new CutsceneGroundSupport(_context);
         _bodies = new CutsceneVehicleBodies(_context, _ground, vehicleObstacleHit, vehicleObstacleReleased);

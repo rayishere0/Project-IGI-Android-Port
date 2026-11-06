@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Threading;
 using ProjectIGI.Engine.Titles;
 using ProjectIGI.Game.World;
@@ -28,11 +27,7 @@ namespace ProjectIGI.Host.Menu;
 /// hover outranks it -- the sweep stops while the hovered mission is read and picks up after it.
 /// </para>
 /// </remarks>
-public sealed class MissionWarmer(
-    string gamePath,
-    IMissionCatalogue<MissionDescriptor> missions,
-    IProjectIGILogger logger,
-    IWorkScheduler work) : IDisposable
+public sealed class MissionWarmer(string gamePath, IMissionCatalogue<MissionDescriptor> missions, IWorkScheduler work) : IDisposable
 {
     private readonly Lock _gate = new();
     private CancellationTokenSource? _cancellation;
@@ -224,7 +219,6 @@ public sealed class MissionWarmer(
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            logger.Warning("Menu", $"Could not warm mission data at {directory}: {ex.Message}");
             return false;
         }
     }

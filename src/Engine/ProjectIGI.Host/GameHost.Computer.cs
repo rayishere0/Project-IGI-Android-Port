@@ -61,14 +61,14 @@ public sealed partial class GameHost
 
         _computerHighlights = _presentation.Presenters.Create<ComputerHighlightRequest, IComputerHighlightCatalogue>(new ComputerHighlightRequest(levelRoot, _loop.Variables));
         _mapComputer = _presentation.Presenters.Create<MapComputerPresentationRequest, IMapComputerPresenter>(
-            new MapComputerPresentationRequest(_device, _resources, _logger, missionText.Get, _hosted));
+            new MapComputerPresentationRequest(_device, _resources, missionText.Get, _hosted));
         if (_mapComputer is not null && !_mapComputer.Load(_fileSystem))
         {
             _mapComputer.Dispose();
             _mapComputer = null;
         }
 
-        _mapComputerDevice = new MapComputerDeviceRenderer(_device, _resources, _logger);
+        _mapComputerDevice = new MapComputerDeviceRenderer(_device, _resources);
         if (!_mapComputerDevice.Load(loaded))
         {
             _mapComputerDevice.Dispose();
@@ -79,7 +79,7 @@ public sealed partial class GameHost
         // GameHost.TacticalComputer. The retail pair above needs the installation's own archives; this
         // one needs only the shipped faces, so a mission whose computer.res is missing still has a map.
         _tacticalComputer = _presentation.Presenters.Create<MapComputerPresentationRequest, ITacticalComputerPresenter>(
-            new MapComputerPresentationRequest(_device, _resources, _logger, missionText.Get));
+            new MapComputerPresentationRequest(_device, _resources, missionText.Get));
         if (_tacticalComputer is not null && !_tacticalComputer.Load())
         {
             _tacticalComputer.Dispose();
@@ -89,7 +89,7 @@ public sealed partial class GameHost
         // The comms cards. Built here rather than beside the HUD below, because the messages belong to the
         // mission rather than to the loadout: a level whose player carries nothing still sends them.
         _messages?.Dispose();
-        _messages = new StatusMessageRenderer(_device, _logger);
+        _messages = new StatusMessageRenderer(_device);
         if (!_messages.Load())
         {
             _messages.Dispose();

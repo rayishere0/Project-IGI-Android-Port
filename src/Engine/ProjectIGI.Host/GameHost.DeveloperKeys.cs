@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Rendering;
 
 namespace ProjectIGI.Host;
@@ -41,11 +40,6 @@ public sealed partial class GameHost
 
             int swapped = ApplyOverrideChange(out _);
 
-            _logger.Information(
-                "Overrides",
-                _overridesApplied
-                    ? $"Overrides on (F8); {swapped} resource(s) swapped in."
-                    : $"Overrides off (F8); {swapped} resource(s) back to the game's own.");
         }
 
         if (_window.Input.Keyboard.WasPressed(Input.KeyCode.F11)
@@ -70,7 +64,6 @@ public sealed partial class GameHost
                 if (!HostedPlayer.Place(_mission.Ground, _camera.Position, _camera.Yaw))
                 {
                     _playerMode = false;
-                    _logger.Warning("Player", "Nothing to stand on here; staying with the free camera.");
                 }
                 else
                 {
@@ -82,7 +75,6 @@ public sealed partial class GameHost
                 _camera.MoveTo(HostedPlayer.Camera.Position, HostedPlayer.Body.Yaw, HostedPlayer.Body.Pitch);
             }
 
-            _logger.Information("Player", _playerMode ? "Walking." : "Flying.");
         }
     }
 }

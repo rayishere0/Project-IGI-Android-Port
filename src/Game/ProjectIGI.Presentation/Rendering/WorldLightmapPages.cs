@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -18,12 +17,10 @@ namespace ProjectIGI.Presentation.Rendering;
 /// </remarks>
 internal sealed class WorldLightmapPages
 {
-    private const string LogCategory = "World";
 
     private readonly IGraphicsDevice _device;
     private readonly ResourceRegistry _resources;
     private readonly AssetFormatProfile _formats;
-    private readonly IProjectIGILogger _logger;
     private readonly Dictionary<string, TextureHandle[]> _lightmaps = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, IresEntry>? _lightmapArchive;
 
@@ -47,16 +44,11 @@ internal sealed class WorldLightmapPages
     /// <param name="resources">Where the lightmap archive is read from.</param>
     /// <param name="formats">The title's format policy; a baked lightmap's descriptor stride differs.</param>
     /// <param name="logger">Where to report upload problems.</param>
-    internal WorldLightmapPages(
-        IGraphicsDevice device,
-        ResourceRegistry resources,
-        AssetFormatProfile formats,
-        IProjectIGILogger logger)
+    internal WorldLightmapPages(IGraphicsDevice device, ResourceRegistry resources, AssetFormatProfile formats)
     {
         _device = device;
         _resources = resources;
         _formats = formats;
-        _logger = logger;
     }
 
     /// <summary>Gets the headroom the pages are encoded with: one unless an exclusive HDR bake is applied.</summary>
@@ -206,7 +198,6 @@ internal sealed class WorldLightmapPages
             }
             catch (Exception ex) when (ex is PackFormatException or ArgumentException or GraphicsDeviceException)
             {
-                _logger.Warning(LogCategory, $"Lightmap '{entryName}' did not load: {ex.Message}");
                 pages = [];
             }
         }
@@ -230,11 +221,9 @@ internal sealed class WorldLightmapPages
                 _lightmapArchive[BareEntryName(entry.Name)] = entry;
             }
 
-            _logger.Information(LogCategory, $"Object lightmaps: {_lightmapArchive.Count} entries.");
         }
         else
         {
-            _logger.Warning(LogCategory, "The level has no object-lightmap archive; the world draws unshaded.");
         }
 
         return _lightmapArchive;

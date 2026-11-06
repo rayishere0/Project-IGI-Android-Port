@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
@@ -58,7 +57,6 @@ namespace ProjectIGI.Presentation.Rendering;
 /// </remarks>
 public sealed class StormRenderer : IDisposable
 {
-    private const string LogCategory = "Storm";
 
     /// <summary>The most drops ever alive, whatever the settings ask for.</summary>
     /// <remarks>
@@ -148,7 +146,6 @@ public sealed class StormRenderer : IDisposable
     private static readonly SurfaceMaterial RainMaterial = DropMaterial with { Rain = true };
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly PrecipitationSimulation _simulation = new();
     private readonly PrecipitationGeometry _geometry;
     private bool _reportedSpriteFailure;
@@ -176,13 +173,12 @@ public sealed class StormRenderer : IDisposable
     /// <param name="device">The graphics device to draw with.</param>
     /// <param name="logger">Optional logger for diagnostics.</param>
     /// <exception cref="ArgumentNullException"><paramref name="device"/> is <see langword="null"/>.</exception>
-    public StormRenderer(IGraphicsDevice device, IProjectIGILogger? logger = null)
+    public StormRenderer(IGraphicsDevice device)
     {
         ArgumentNullException.ThrowIfNull(device);
 
         _device = device;
         _geometry = new PrecipitationGeometry(_simulation);
-        _logger = logger ?? NullLogger.Instance;
         Resize(_settings);
     }
 
@@ -323,9 +319,6 @@ public sealed class StormRenderer : IDisposable
             if (!_reportedSpriteFailure)
             {
                 _reportedSpriteFailure = true;
-                _logger.Warning(
-                    LogCategory,
-                    FormattableString.Invariant($"The storm's sprite sheets would not load ({ex.Message}); nothing is drawn."));
             }
 
             _lastQuads = 0;
@@ -484,10 +477,6 @@ public sealed class StormRenderer : IDisposable
             _mesh = MeshHandle.None;
         }
 
-        _logger.Information(
-            LogCategory,
-            FormattableString.Invariant(
-                $"Storm sized for {_simulation.DropCapacity} drop(s), {MaximumSplashes} splash(es), {MaximumCurtains} sheet(s)."));
     }
 
     // The drop sheet: two strips of ten streaks stacked into one image, sharp on top and
@@ -502,7 +491,7 @@ public sealed class StormRenderer : IDisposable
             return _dropSprite;
         }
 
-        (Bgra32[] pixels, int width, int height, float splitV) = PrecipitationSpriteSheets.BuildDropSheet(_logger);
+        (Bgra32[] pixels, int width, int height, float splitV) = PrecipitationSpriteSheets.BuildDropSheet();
         _sheetSplitV = splitV;
 
         _dropSprite = PrecipitationSpriteSheets.UploadSheet(_device, pixels, width, height, width / SheetCells);
@@ -525,7 +514,7 @@ public sealed class StormRenderer : IDisposable
             return _splashSprite;
         }
 
-        (Bgra32[] pixels, int width, int height) = PrecipitationSpriteSheets.BuildSplashSheet(_logger);
+        (Bgra32[] pixels, int width, int height) = PrecipitationSpriteSheets.BuildSplashSheet();
         _splashSprite = PrecipitationSpriteSheets.UploadSheet(_device, pixels, width, height, width / 4);
         return _splashSprite;
     }
@@ -540,7 +529,7 @@ public sealed class StormRenderer : IDisposable
             return _curtainSprite;
         }
 
-        (Bgra32[] pixels, int width, int height) = PrecipitationSpriteSheets.BuildCurtainSheet(_logger);
+        (Bgra32[] pixels, int width, int height) = PrecipitationSpriteSheets.BuildCurtainSheet();
 
         _curtainSprite = PrecipitationSpriteSheets.UploadSheet(_device, pixels, width, height, width);
         return _curtainSprite;

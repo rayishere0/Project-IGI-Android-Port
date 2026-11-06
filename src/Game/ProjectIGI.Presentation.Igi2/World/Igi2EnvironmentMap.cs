@@ -1,5 +1,4 @@
 using System.Globalization;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Formats.Ilff;
@@ -88,7 +87,6 @@ public enum Igi2CubeFace
 public sealed class Igi2EnvironmentMap
 {
     /// <summary>The category load diagnostics are logged under.</summary>
-    public const string LogCategory = "igi2.envmap";
 
     /// <summary>How many faces a cube map has.</summary>
     public const int FaceCount = 6;
@@ -244,15 +242,11 @@ public sealed class Igi2EnvironmentMap
     /// the <c>"%d %d %d %d %d"</c> the original parses it with, which <see cref="WaterTask.EnvmapIndices"/>
     /// already honours.
     /// </remarks>
-    public static IReadOnlyList<Igi2EnvironmentMap> LoadAll(
-        WaterTask water,
-        IresArchive archive,
-        IProjectIGILogger? logger = null)
+    public static IReadOnlyList<Igi2EnvironmentMap> LoadAll(WaterTask water, IresArchive archive)
     {
         ArgumentNullException.ThrowIfNull(water);
         ArgumentNullException.ThrowIfNull(archive);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         List<Igi2EnvironmentMap> maps = [];
 
         foreach (int index in water.EnvmapIndices)
@@ -260,9 +254,6 @@ public sealed class Igi2EnvironmentMap
             maps.Add(Load(water, index, archive));
         }
 
-        log.Information(
-            LogCategory,
-            $"Water {water.Id}: {maps.Count} environment map(s), {maps.Count * FaceCount} face(s).");
         return maps;
     }
 

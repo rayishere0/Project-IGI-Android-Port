@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using ProjectIGI.Audio;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Vfs;
 using ProjectIGI.Formats.Sound;
@@ -28,12 +27,10 @@ public sealed class SoundSystem : IDisposable
     /// <summary>Engine units per metre, the factor the whole port scales world data by.</summary>
     public const double UnitsPerMetre = 4096.0;
 
-    private const string LogCategory = "Audio";
 
     private readonly IAudioDevice _device;
     private readonly SoundBank _bank;
     private readonly VirtualFileSystem _fileSystem;
-    private readonly IProjectIGILogger _logger;
     private readonly Dictionary<string, AudioBufferHandle> _buffers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, (AudioFormat Format, byte[] Pcm)> _external = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, AudioBufferHandle> _externalBuffers = new(StringComparer.OrdinalIgnoreCase);
@@ -46,7 +43,7 @@ public sealed class SoundSystem : IDisposable
     /// <param name="fileSystem">Used to reopen streamed sounds, which the bank holds only a path for.</param>
     /// <param name="logger">Where to report a name nothing answers to.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public SoundSystem(IAudioDevice device, SoundBank bank, VirtualFileSystem fileSystem, IProjectIGILogger? logger = null)
+    public SoundSystem(IAudioDevice device, SoundBank bank, VirtualFileSystem fileSystem)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(bank);
@@ -55,7 +52,6 @@ public sealed class SoundSystem : IDisposable
         _device = device;
         _bank = bank;
         _fileSystem = fileSystem;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Gets the device sounds are played on.</summary>
@@ -93,7 +89,6 @@ public sealed class SoundSystem : IDisposable
             // fault at the call site, and a per-shot warning would bury everything else in the log.
             if (_reportedMissing.Add(name.ToUpperInvariant()))
             {
-                _logger.Debug(LogCategory, $"No sound named '{name}'.");
             }
 
             return AudioVoiceHandle.None;
@@ -255,7 +250,6 @@ public sealed class SoundSystem : IDisposable
         {
             if (_reportedMissing.Add(name ?? string.Empty))
             {
-                _logger.Debug(LogCategory, $"No sound definition named '{name}'.");
             }
 
             return AudioVoiceHandle.None;
@@ -400,7 +394,6 @@ public sealed class SoundSystem : IDisposable
             }
             catch (IlsfFormatException error)
             {
-                _logger.Warning(LogCategory, $"Sound '{entry.Name}' would not decode: {error.Message}");
                 return AudioVoiceHandle.None;
             }
 
@@ -417,7 +410,6 @@ public sealed class SoundSystem : IDisposable
         Stream? stream = OpenStreamed(entry);
         if (stream is null)
         {
-            _logger.Warning(LogCategory, $"Streamed sound '{entry.Name}' is no longer at '{entry.Origin}'.");
             return AudioVoiceHandle.None;
         }
 
@@ -432,7 +424,6 @@ public sealed class SoundSystem : IDisposable
         catch (Exception error) when (error is IlsfFormatException or MpegAudioFormatException)
         {
             stream.Dispose();
-            _logger.Warning(LogCategory, $"Streamed sound '{entry.Name}' would not open: {error.Message}");
             return AudioVoiceHandle.None;
         }
     }

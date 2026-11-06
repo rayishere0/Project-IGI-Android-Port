@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 
 namespace ProjectIGI.Game.World;
@@ -25,7 +24,6 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public static partial class LightFixtureStore
 {
-    private const string LogCategory = "Emissive";
 
     /// <summary>What this file's shape and the detection behind it are worth.</summary>
     /// <remarks>
@@ -61,16 +59,11 @@ public static partial class LightFixtureStore
     /// </param>
     /// <param name="logger">Where to report the result.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public static void Save(
-        string path,
-        IReadOnlyList<LightFixture> fixtures,
-        LampDetector.Lamps lamps = default,
-        IProjectIGILogger? logger = null)
+    public static void Save(string path, IReadOnlyList<LightFixture> fixtures, LampDetector.Lamps lamps = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
         ArgumentNullException.ThrowIfNull(fixtures);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         try
         {
@@ -101,11 +94,9 @@ public static partial class LightFixtureStore
                         Fixtures = records,
                     },
                     LightFixtureJsonContext.Default.Document));
-            log.Information(LogCategory, $"Wrote {fixtures.Count} light fixture(s) to {path}.");
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
         {
-            log.Warning(LogCategory, $"The light fixtures could not be written to {path}: {error.Message}");
         }
     }
 
@@ -116,15 +107,10 @@ public static partial class LightFixtureStore
     /// <param name="logger">Where to report the result.</param>
     /// <returns><see langword="true"/> when a file was read; <see langword="false"/> when none exists.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="path"/> is <see langword="null"/>.</exception>
-    public static bool TryLoad(
-        string path,
-        out IReadOnlyList<LightFixture> fixtures,
-        out LampDetector.Lamps lamps,
-        IProjectIGILogger? logger = null)
+    public static bool TryLoad(string path, out IReadOnlyList<LightFixture> fixtures, out LampDetector.Lamps lamps)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         fixtures = [];
         lamps = LampDetector.Lamps.None;
 
@@ -148,10 +134,6 @@ public static partial class LightFixtureStore
                 // Written by an older detector, or by the bare-array format that predates versioning at
                 // all. Refused rather than read, so the caller surveys again and overwrites it: reading
                 // it would pin the level to lamps that a since-corrected detection would not propose.
-                log.Information(
-                    LogCategory,
-                    $"The light fixtures at {path} are version {document.Version}, not {Version}; "
-                        + "they will be proposed again.");
                 return false;
             }
 
@@ -167,16 +149,12 @@ public static partial class LightFixtureStore
                 new HashSet<string>(document.Textures ?? [], StringComparer.OrdinalIgnoreCase),
                 new Dictionary<string, float>(document.SubMeshes ?? [], StringComparer.OrdinalIgnoreCase));
 
-            log.Information(
-                LogCategory,
-                $"Read {read.Length} light fixture(s) and {lamps.Count} lamp sub-mesh(es) from {path}.");
             return true;
         }
         catch (Exception error) when (error is IOException or JsonException or NotSupportedException)
         {
             // A corrupt file is not fatal: the survey can propose the list again. Reported rather than
             // swallowed, because a file that will not parse is a thing the author wants to know about.
-            log.Warning(LogCategory, $"The light fixtures at {path} could not be read: {error.Message}");
             return false;
         }
     }

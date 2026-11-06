@@ -1,7 +1,6 @@
 using ProjectIGI.Core.Configuration;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
-using ProjectIGI.Core.Diagnostics;
 
 namespace ProjectIGI.Host;
 
@@ -39,7 +38,6 @@ public sealed partial class GameHost
                 // To the log as well as the scrollback, because the caller that most wants this is a
                 // headless -runat capture, which has no scrollback to read.
                 context.Print(pose);
-                _logger.Information("Camera", pose);
             });
     }
 }

@@ -21,15 +21,13 @@ namespace ProjectIGI.Engine.Tasks;
 /// </remarks>
 public sealed class TaskTypeRegistry
 {
-    private const string LogCategory = "Tasks";
 
     private readonly Dictionary<string, TaskType> _types = new(StringComparer.Ordinal);
     private readonly List<TaskType> _byId = [];
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="TaskTypeRegistry"/> class.</summary>
     /// <param name="logger">The logger for registration diagnostics; defaults to a sink that discards them.</param>
-    public TaskTypeRegistry(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public TaskTypeRegistry() { }
 
     /// <summary>Gets the number of registered types.</summary>
     public int Count => _types.Count;
@@ -121,7 +119,6 @@ public sealed class TaskTypeRegistry
             VerifyAgainstDeclaration(existing, previous);
         }
 
-        _logger.Debug(LogCategory, $"Task type '{name}' is now made by another class.");
         return existing;
     }
 
@@ -151,7 +148,6 @@ public sealed class TaskTypeRegistry
         }
 
         existing.Reimplement(factory, adapter);
-        _logger.Debug(LogCategory, $"Task type '{name}' is now made by another class, its parameters adapted.");
         return existing;
     }
 
@@ -198,7 +194,6 @@ public sealed class TaskTypeRegistry
 
         _types.Add(name, type);
         _byId.Add(type);
-        _logger.Debug(LogCategory, $"Declared task type '{name}' with {parameters.Count} parameters (no class yet).");
         return type;
     }
 
@@ -271,13 +266,6 @@ public sealed class TaskTypeRegistry
             string surplus = string.Join(
                 ", ", longer.Skip(shared).Select(static parameter => $"'{parameter.Name}'"));
 
-            _logger.Warning(
-                LogCategory,
-                declared.Count > compiled.Count
-                    ? $"Task type '{type.Name}' declares {declared.Count} parameters in level data and its " +
-                      $"class carries {compiled.Count}; {surplus} are read and dropped."
-                    : $"Task type '{type.Name}' declares {declared.Count} parameters in level data and its " +
-                      $"class carries {compiled.Count}; {surplus} read as zero.");
         }
 
         for (int i = 0; i < shared; i++)
@@ -289,10 +277,6 @@ public sealed class TaskTypeRegistry
             {
                 if (!string.Equals(compiled[i].Name, declared[i].Name, StringComparison.Ordinal))
                 {
-                    _logger.Warning(
-                        LogCategory,
-                        $"Task type '{type.Name}' parameter {i} is named '{declared[i].Name}' in level data " +
-                        $"but '{compiled[i].Name}' in its class.");
                 }
 
                 continue;
@@ -316,11 +300,6 @@ public sealed class TaskTypeRegistry
             // eighth parameter as "Set Num Options"/VarString in mainmenu.qvm and as
             // "Number of options"/Int32 in ingamemenu.qvm. A type's parameter list is per-script, not
             // global, so this is data variance rather than a bug to fail on.
-            _logger.Warning(
-                LogCategory,
-                $"Task type '{type.Name}' parameter {i} is declared as " +
-                $"{ScriptParamTypeInfo.GetName(declared[i].Type)} ('{declared[i].Name}') in level data " +
-                $"but as {ScriptParamTypeInfo.GetName(compiled[i].Type)} ('{compiled[i].Name}') in its class.");
         }
     }
 }

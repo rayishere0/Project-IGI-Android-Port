@@ -1,5 +1,4 @@
 using System.Text.Json;
-using ProjectIGI.Core.Diagnostics;
 
 namespace ProjectIGI.Game.World;
 
@@ -42,7 +41,6 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public sealed class LampManifest
 {
-    private const string LogCategory = "Emissive";
 
     private readonly List<Entry> _entries = [];
 
@@ -117,9 +115,8 @@ public sealed class LampManifest
     /// A broken file never stops the game: every level falls back to the detector alone, which is the
     /// behaviour from before this file existed.
     /// </remarks>
-    public static LampManifest Load(string path, IProjectIGILogger? logger = null)
+    public static LampManifest Load(string path)
     {
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         if (string.IsNullOrEmpty(path) || !File.Exists(path))
         {
@@ -146,15 +143,11 @@ public sealed class LampManifest
                 }
             }
 
-            log.Information(
-                LogCategory,
-                $"Lamp manifest: {manifest._entries.Count} model(s) named by hand.");
 
             return manifest;
         }
         catch (Exception error) when (error is IOException or JsonException or UnauthorizedAccessException)
         {
-            log.Warning(LogCategory, $"Could not read {path}: {error.Message}. Lamps will be detected only.");
             return Empty;
         }
     }

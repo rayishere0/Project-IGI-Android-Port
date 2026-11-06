@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Rendering.Rhi;
 using ProjectIGI.Rendering.Streamline;
 using ProjectIGI.Rendering.Vulkan.Memory;
@@ -115,17 +114,11 @@ public sealed class VulkanRhi : IDisposable
     /// What a headless capture draws through, and what lets the whole renderer be run and read back on
     /// a machine with no display attached at all.
     /// </remarks>
-    public static VulkanRhi CreateOffscreen(
-        int width,
-        int height,
-        RhiTextureFormat format,
-        IProjectIGILogger? logger = null,
-        bool enableValidation = false)
+    public static VulkanRhi CreateOffscreen(int width, int height, RhiTextureFormat format, bool enableValidation = false)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(width, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(height, 1);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         VulkanInstance instance = new(new NoSurface(), enableValidation, log);
 
         try
@@ -161,20 +154,12 @@ public sealed class VulkanRhi : IDisposable
     /// when it does not, the device is exactly what it would have been and the log says why.
     /// </param>
     /// <returns>The device.</returns>
-    public static VulkanRhi CreateForSurface(
-        IVulkanSurfaceProvider surface,
-        int width,
-        int height,
-        bool vsync,
-        IProjectIGILogger? logger = null,
-        bool enableValidation = false,
-        StreamlineOptions? streamline = null)
+    public static VulkanRhi CreateForSurface(IVulkanSurfaceProvider surface, int width, int height, bool vsync, bool enableValidation = false, StreamlineOptions? streamline = null)
     {
         ArgumentNullException.ThrowIfNull(surface);
         ArgumentOutOfRangeException.ThrowIfLessThan(width, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(height, 1);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         // Before the instance, which is the whole reason it is here: Streamline's own instance and device
         // creation add what its plugins need, and a device created any other way is one it cannot use.
@@ -199,7 +184,6 @@ public sealed class VulkanRhi : IDisposable
 
         try
         {
-            runtime?.LogFeatureRequirements();
             PhysicalDeviceSelection selection =
                 new PhysicalDeviceSelector(instance, log, forStreamline: runtime is not null).Select();
 

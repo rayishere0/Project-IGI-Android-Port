@@ -1,5 +1,4 @@
 using System.Globalization;
-using ProjectIGI.Core.Diagnostics;
 
 namespace ProjectIGI.Rendering;
 
@@ -32,7 +31,6 @@ namespace ProjectIGI.Rendering;
 /// </remarks>
 public sealed class ColourLookupTable
 {
-    private const string LogCategory = "Grade";
 
     /// <summary>The largest cube edge that will be read.</summary>
     /// <remarks>
@@ -108,10 +106,9 @@ public sealed class ColourLookupTable
     /// Never throws for bad content. A grade is a look rather than a mechanism: a level that cannot
     /// find its grade should render ungraded, not fail to render.
     /// </remarks>
-    public static ColourLookupTable? Load(string path, IProjectIGILogger? logger = null)
+    public static ColourLookupTable? Load(string path)
     {
         ArgumentNullException.ThrowIfNull(path);
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         if (!File.Exists(path))
         {
@@ -124,7 +121,6 @@ public sealed class ColourLookupTable
         }
         catch (IOException ex)
         {
-            log.Warning(LogCategory, $"Could not read the colour table '{path}': {ex.Message}");
             return null;
         }
     }
@@ -135,12 +131,11 @@ public sealed class ColourLookupTable
     /// <param name="logger">Where to report a malformed table.</param>
     /// <returns>The table, or <see langword="null"/> when the lines are not a usable one.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public static ColourLookupTable? Parse(string name, IReadOnlyList<string> lines, IProjectIGILogger? logger = null)
+    public static ColourLookupTable? Parse(string name, IReadOnlyList<string> lines)
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(lines);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         int size = -1;
         float[]? entries = null;
@@ -160,7 +155,6 @@ public sealed class ColourLookupTable
             {
                 if (!TryReadSize(line, out size))
                 {
-                    log.Warning(LogCategory, $"The colour table '{name}' declares an unusable LUT_3D_SIZE.");
                     return null;
                 }
 
@@ -172,7 +166,6 @@ public sealed class ColourLookupTable
             // cube would produce a grade nobody authored.
             if (line.StartsWith("LUT_1D_SIZE", StringComparison.OrdinalIgnoreCase))
             {
-                log.Warning(LogCategory, $"The colour table '{name}' is a 1D LUT; only 3D tables are read.");
                 return null;
             }
 
@@ -185,21 +178,16 @@ public sealed class ColourLookupTable
 
             if (entries is null)
             {
-                log.Warning(LogCategory, $"The colour table '{name}' has entries before its LUT_3D_SIZE.");
                 return null;
             }
 
             if (at + 3 > entries.Length)
             {
-                log.Warning(
-                    LogCategory,
-                    $"The colour table '{name}' holds more entries than its declared size of {size}.");
                 return null;
             }
 
             if (!TryReadTriple(line, entries.AsSpan(at, 3)))
             {
-                log.Warning(LogCategory, $"The colour table '{name}' has a line that is not three numbers.");
                 return null;
             }
 
@@ -208,7 +196,6 @@ public sealed class ColourLookupTable
 
         if (entries is null)
         {
-            log.Warning(LogCategory, $"The colour table '{name}' never declared a LUT_3D_SIZE.");
             return null;
         }
 
@@ -216,13 +203,9 @@ public sealed class ColourLookupTable
         // goes black in the highlights, which looks like a rendering fault rather than a bad file.
         if (at != entries.Length)
         {
-            log.Warning(
-                LogCategory,
-                $"The colour table '{name}' declared {size}³ = {entries.Length / 3} entries and held {at / 3}.");
             return null;
         }
 
-        log.Information(LogCategory, $"Colour table '{name}' loaded, {size}³.");
         return new ColourLookupTable(name, size, entries);
     }
 

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Threading;
 using ProjectIGI.Game.World;
 using ProjectIGI.Presentation.Lighting;
@@ -17,16 +16,9 @@ namespace ProjectIGI.Host.Services;
 /// <param name="host">The level up now and the cache its fields are kept in.</param>
 /// <param name="adopted">Called once a field is in use, so the surface cache can converge against it.</param>
 /// <param name="discarding">Called before the field is thrown away, so whatever was converging against it stops.</param>
-internal sealed class DistanceFieldResidency(
-    IGraphicsDevice device,
-    IProjectIGILogger logger,
-    IWorkScheduler work,
-    IGlobalIlluminationHost host,
-    Action adopted,
-    Action discarding) : IDisposable
+internal sealed class DistanceFieldResidency(IGraphicsDevice device, IWorkScheduler work, IGlobalIlluminationHost host, Action adopted, Action discarding) : IDisposable
 {
     private readonly IGraphicsDevice _device = device;
-    private readonly IProjectIGILogger _logger = logger;
     private readonly IWorkScheduler _work = work;
     private readonly IGlobalIlluminationHost _host = host;
     private readonly Action _adopted = adopted;
@@ -102,12 +94,7 @@ internal sealed class DistanceFieldResidency(
             return;
         }
 
-        FieldBake = DistanceFieldBake.Start(_host.Scene!.Placements, _work, resolution, _logger);
-        _logger.Information(
-            "GlobalIllumination",
-            $"Baking the level's distance fields at {resolution} voxels; the level will light from the "
-            + "artists' lightmaps until it lands, then cross over. The result is cached, so this happens "
-            + "once per mission.");
+        FieldBake = DistanceFieldBake.Start(_host.Scene!.Placements, _work, resolution);
     }
 
     /// <summary>The clipmaps' shape for the trace this device runs.</summary>
@@ -143,7 +130,7 @@ internal sealed class DistanceFieldResidency(
         DistanceFieldScene = scene;
         FieldValidated = false;
         DistanceField?.Dispose();
-        DistanceField = GlobalDistanceField.Create(_device, scene, atlas, DistanceFieldSettings(), _logger);
+        DistanceField = GlobalDistanceField.Create(_device, scene, atlas, DistanceFieldSettings());
 
         _adopted();
 

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Game.Ai;
@@ -33,7 +32,6 @@ public interface IMissionTickHost
     void SoundVehicles(CutsceneRuntime cutscenes);
 
     /// <summary>Gets the log.</summary>
-    IProjectIGILogger Logger { get; }
 
     /// <summary>Gets the input the player's update reads, which a scripted capture may stand in for.</summary>
     InputState ViewInput { get; }

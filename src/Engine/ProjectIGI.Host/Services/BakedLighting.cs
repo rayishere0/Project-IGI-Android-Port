@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Core.Threading;
@@ -20,13 +19,7 @@ namespace ProjectIGI.Host.Services;
 /// <param name="lockstep">Whether frames are captured in lockstep, which waits for every bake at load.</param>
 /// <param name="probeCache">Where probe fields are read from and written to.</param>
 /// <param name="lightmapCache">Where lightmaps are read from and written to.</param>
-internal sealed class BakedLighting(
-    IGraphicsDevice device,
-    IProjectIGILogger logger,
-    IWorkScheduler work,
-    bool lockstep,
-    GiBakeCache probeCache,
-    LightmapBakeCache lightmapCache) : IHostService
+internal sealed class BakedLighting(IGraphicsDevice device, IWorkScheduler work, bool lockstep, GiBakeCache probeCache, LightmapBakeCache lightmapCache) : IHostService
 {
     // One albedo for the whole level, shared by the load-time trace and the live re-bake. IGI's palette is
     // concrete, snow and dirt, so a warm grey stands in for reading each hit's own texture.
@@ -170,9 +163,7 @@ internal sealed class BakedLighting(
                 LightmapBvh lmBvh = LightmapBvh.Build(lmTris);
 
                 _lightmapBake?.Cancel();
-                _lightmapBake = LightmapBake.Start(
-                    scene, lmTargets, lmTris, lmBvh, bakeCast, bakeSunDirection, lmSun, lmSky,
-                    work, bounces: 4, hemisphereRays: 128, logger: logger);
+                _lightmapBake = LightmapBake.Start(scene, lmTargets, lmTris, lmBvh, bakeCast, bakeSunDirection, lmSun, lmSky, work, bounces: 4, hemisphereRays: 128);
 
                 if (lockstep && _lightmapBake.WaitForResult() is { } readyLightmaps)
                 {
@@ -217,7 +208,7 @@ internal sealed class BakedLighting(
         // One albedo for the whole level. The alternative is reading each hit's own texture, which needs the
         // ray to report a material rather than a triangle -- and IGI's palette is concrete, snow and dirt, so
         // a warm grey is not far off any of them.
-        _probeBake = IrradianceProbeBake.Start(scene, bakeCast, bakeSunDirection, giSpacing, ProbeBakeAlbedo, work, logger);
+        _probeBake = IrradianceProbeBake.Start(scene, bakeCast, bakeSunDirection, giSpacing, ProbeBakeAlbedo, work);
 
         if (lockstep)
         {
@@ -350,10 +341,8 @@ internal sealed class BakedLighting(
         ProbeArrivedAt = -1;
         _lastChaseMilliseconds = now;
 
-        _probeBake = IrradianceProbeBake.Start(
-            scene, _bakeCast, _probeBakeSun, _probeBakeSpacing, ProbeBakeAlbedo, work, logger);
+        _probeBake = IrradianceProbeBake.Start(scene, _bakeCast, _probeBakeSun, _probeBakeSpacing, ProbeBakeAlbedo, work);
 
-        logger.Information("GI", $"Re-baking the lighting from scratch (F11); cleared {cleared} cached field(s).");
     }
 
     /// <summary>Cancels the bakes still tracing and lets go of them, as their level is left.</summary>

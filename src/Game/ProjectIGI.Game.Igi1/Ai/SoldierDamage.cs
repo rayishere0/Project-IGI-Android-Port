@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Formats.Animation;
 using ProjectIGI.Game.Igi1.Player;
@@ -282,13 +281,6 @@ internal sealed class SoldierDamage(SoldierContext context, SoldierFootsteps foo
         }
 
         SoldierSimulation.DamageTraced?.Invoke(struck.Soldier.Id, hit.Zone, hit.Bone, damageFactor, health.Damage, health.MaximumHealth);
-        _context.Logger.Information(
-            SoldierContext.LogCategory + ".Damage",
-            $"port zone={hit.Zone} ({HumanDamage.ZoneName(hit.Zone)}) bone={hit.Bone} "
-                + $"dmgFactor={damageFactor:0.000} invuln={(invulnerable ? 1 : 0)} "
-                + $"instDeathDisabled={(brain?.IsInstantDeathDisabled ?? false ? 1 : 0)} "
-                + $"accum={health.Damage:0.000} max={health.MaximumHealth:0.000} "
-                + $"dead={(health.IsDead ? 1 : 0)}");
     }
 
     /// <summary>A round or a blade on a soldier, whoever fired it: <c>HumanSoldier</c>'s <c>WeaponHit</c>, <c>0x45D3C0</c>.</summary>
@@ -356,11 +348,6 @@ internal sealed class SoldierDamage(SoldierContext context, SoldierFootsteps foo
 
         // Deliberately the same shape as the probe's [dmg] line from the retail game (probes.cpp
         // OnDamageHandler), so a run of the port and a capture of the original diff directly.
-        _context.Logger.Information(
-            SoldierContext.LogCategory + ".Damage",
-            $"port zone={hit.Zone} ({HumanDamage.ZoneName(hit.Zone)}) bone={hit.Bone} dmgFactor={damageFactor:0.000} "
-                + $"invuln={(invulnerable ? 1 : 0)} instDeathDisabled={(brain?.IsInstantDeathDisabled ?? false ? 1 : 0)} "
-                + $"accum={health.Damage:0.000} max={health.MaximumHealth:0.000} dead={(health.IsDead ? 1 : 0)}");
     }
 
     /// <summary>A blow from another soldier's close combat -- the soldiers' punch handler (<c>0x45A5E0</c>, <c>0x457620</c>).</summary>

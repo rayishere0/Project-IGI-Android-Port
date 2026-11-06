@@ -1,5 +1,4 @@
 using ProjectIGI.Audio;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Audio;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Engine.Vfs;
@@ -18,11 +17,7 @@ namespace ProjectIGI.Host.Services;
 /// <param name="fileSystem">The game's files, which the bank mounts sounds from.</param>
 /// <param name="logger">Where the device and the bank report.</param>
 /// <param name="menuSoundArchive">The menu system's own sound archive, which the original mounts apart from any mission.</param>
-internal sealed class AudioOutput(
-    IAudioDeviceFactory factory,
-    VirtualFileSystem fileSystem,
-    IProjectIGILogger logger,
-    string menuSoundArchive) : IHostService
+internal sealed class AudioOutput(IAudioDeviceFactory factory, VirtualFileSystem fileSystem, string menuSoundArchive) : IHostService
 {
     // When the score's fade was last advanced, as a stopwatch timestamp.
     private long _timestamp;
@@ -65,12 +60,12 @@ internal sealed class AudioOutput(
         Device.Dispose();
 
         Device = AudioCVars.Enabled.Value
-            ? factory.Open(AudioDeviceOptions.FromCVars(), logger)
+            ? factory.Open(AudioDeviceOptions.FromCVars())
             : new NullAudioDevice();
 
-        Bank = new SoundBank(fileSystem, logger);
+        Bank = new SoundBank(fileSystem);
         Sounds?.Dispose();
-        Sounds = new SoundSystem(Device, Bank, fileSystem, logger);
+        Sounds = new SoundSystem(Device, Bank, fileSystem);
 
         // The remaster's flashlight switch, which the game's banks have no sound for.
         Sounds.RegisterExternal(FlashlightClick.OnSoundName, FlashlightClick.Format, FlashlightClick.OnPcm);
@@ -97,7 +92,7 @@ internal sealed class AudioOutput(
 
         // The original hard-cuts between menu and mission themes, so a fade is an addition and belongs to the
         // enhanced profile only. Under vanilla this stays zero and the cut is exact.
-        Music = new MusicPlayer(Sounds, logger)
+        Music = new MusicPlayer(Sounds)
         {
             FadeSeconds = AudioCVars.Spatial.Value ? 1.5f : 0f,
             Volume = 1f,
@@ -207,7 +202,7 @@ internal sealed class AudioOutput(
         // Registered per mission, and not once at start-up: a second GameLoop is built for every mission the menu
         // previews and one of them takes the session over, so the start-up namespace is NOT the one a promoted
         // mission's scripts resolve against. Re-registering a name rebinds it rather than failing.
-        _definitions ??= new SoundDefinitionRegistry(logger);
+        _definitions ??= new SoundDefinitionRegistry();
         _definitions.Register(natives);
         _definitions.LoadForMission(resources, natives);
 
@@ -231,7 +226,6 @@ internal sealed class AudioOutput(
         int mounted = Bank.MountArchive(menuSoundArchive);
         if (mounted == 0)
         {
-            logger.Warning("Audio", $"No menu sounds in '{menuSoundArchive}'.");
         }
     }
 }

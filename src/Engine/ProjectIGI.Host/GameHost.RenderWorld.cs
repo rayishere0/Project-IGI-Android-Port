@@ -112,9 +112,7 @@ public sealed partial class GameHost
             && SurfaceCacheCVars.SurfaceCacheProbe.Value == 0)
         {
             state.ScreenGiDumped = true;
-            SurfaceCacheDebugDumps.ScreenGather(
-                _device, giCards, giField, eye, unjitteredProjection, FarPlane,
-                _window.Width, _window.Height, giInto, _logger);
+            SurfaceCacheDebugDumps.ScreenGather(_device, giCards, giField, eye, unjitteredProjection, FarPlane, _window.Width, _window.Height, giInto);
         }
     }
 

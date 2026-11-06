@@ -26,7 +26,6 @@ namespace ProjectIGI.Game.Igi1.Player;
 /// </remarks>
 public sealed class AnimTriggerRegistry
 {
-    private const string LogCategory = "Animation";
 
     /// <summary>The script that fills the table.</summary>
     public const string ScriptResource = "LOCAL:animtrigger/animtrigger.qvm";
@@ -39,11 +38,10 @@ public sealed class AnimTriggerRegistry
 
     private readonly Dictionary<int, AnimTriggerDefinition> _byId = [];
     private readonly ProjectIGI.Game.Config.TaskTypeConstants _taskTypes = new();
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="AnimTriggerRegistry"/> class.</summary>
     /// <param name="logger">The logger for load diagnostics; defaults to a sink that discards them.</param>
-    public AnimTriggerRegistry(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public AnimTriggerRegistry() { }
 
     /// <summary>Gets the entries, keyed by event id.</summary>
     public IReadOnlyDictionary<int, AnimTriggerDefinition> Definitions => _byId;
@@ -81,9 +79,6 @@ public sealed class AnimTriggerRegistry
 
         if (!resources.TryLoad(ScriptResource, out ReadOnlyMemory<byte> bytes))
         {
-            _logger.Warning(
-                LogCategory,
-                $"AnimTrigger_ParseConfigFile(): Couldn't load script: {ScriptResource}");
             return 0;
         }
 
@@ -107,7 +102,6 @@ public sealed class AnimTriggerRegistry
                 $"{ScriptResource} faulted with {error}: {interpreter.ErrorMessage}");
         }
 
-        _logger.Information(LogCategory, $"Registered {Count} animation trigger(s).");
         return Count;
     }
 

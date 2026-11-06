@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Formats.World;
@@ -36,7 +35,6 @@ public static class Igi2DrawableScene
     private const int MaxAttachmentDepth = 16;
 
     /// <summary>The category load diagnostics are logged under.</summary>
-    public const string LogCategory = "igi2.world";
 
     /// <summary>Builds the drawable scene for a loaded level.</summary>
     /// <param name="mission">The mission the level belongs to, which locates the lightmap archive.</param>
@@ -53,21 +51,13 @@ public static class Igi2DrawableScene
     /// model is a character kind, and a character is drawn by a character presenter from a skinned mesh
     /// on a schedule the world pass does not own — the same division Project I.G.I. draws under.
     /// </remarks>
-    public static Igi2DrawableSceneResult Build(
-        LoadedMission mission,
-        GameTask levelRoot,
-        Igi2ModelTable table,
-        Igi2LightmapIndex? lightmaps,
-        IReadOnlyList<LoadedPack> packs,
-        IProjectIGILogger? logger = null,
-        Igi2MagicObjTypes? magic = null)
+    public static Igi2DrawableSceneResult Build(LoadedMission mission, GameTask levelRoot, Igi2ModelTable table, Igi2LightmapIndex? lightmaps, IReadOnlyList<LoadedPack> packs, Igi2MagicObjTypes? magic = null)
     {
         ArgumentNullException.ThrowIfNull(mission);
         ArgumentNullException.ThrowIfNull(levelRoot);
         ArgumentNullException.ThrowIfNull(table);
         ArgumentNullException.ThrowIfNull(packs);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         // The walk is given the models because one type cannot be placed without them: a train's
         // carriages are spaced by the distance between their model's two couplings, which nothing
         // authors. See Igi2Train.
@@ -350,10 +340,6 @@ public static class Igi2DrawableScene
                 ? new WorldModelBinding(instance, pack, model)
                 : null;
 
-        log.Information(
-            LogCategory,
-            $"World: {drawable.Count} drawable placements ({attached} attached), {lit} lightmapped, "
-                + $"{unresolved} unresolved, {attachmentsUnresolved} attachment(s) not a model.");
 
         return new Igi2DrawableSceneResult(
             WorldScene.FromPlacements(mission, drawable),

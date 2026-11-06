@@ -1,6 +1,5 @@
 using ProjectIGI.Presentation.Igi1;
 using ProjectIGI.Presentation;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Game.Player;
 using ProjectIGI.Game.Weapons;
@@ -51,7 +50,6 @@ internal sealed class RemasteredHudRenderer : IRemasteredHudPresenter
     public const float MetresPerUnit = 0.0019f;
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private UiFont? _body;
     private UiFont? _display;
     private UiTheme? _theme;
@@ -59,12 +57,10 @@ internal sealed class RemasteredHudRenderer : IRemasteredHudPresenter
     private InteractionBadgeSprite? _badge;
     private bool _disposed;
 
-    public RemasteredHudRenderer(IGraphicsDevice device, IProjectIGILogger logger)
+    public RemasteredHudRenderer(IGraphicsDevice device)
     {
         ArgumentNullException.ThrowIfNull(device);
-        ArgumentNullException.ThrowIfNull(logger);
         _device = device;
-        _logger = logger;
     }
 
     public bool IsReady => _body is not null;
@@ -74,7 +70,6 @@ internal sealed class RemasteredHudRenderer : IRemasteredHudPresenter
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!UiFontLibrary.TypographyAvailable)
         {
-            _logger.Warning("Hud", $"No interface font at {UiFontLibrary.FontsDirectory}; remaster HUD cannot draw.");
             return false;
         }
 
@@ -101,7 +96,6 @@ internal sealed class RemasteredHudRenderer : IRemasteredHudPresenter
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException)
         {
-            _logger.Warning("Hud", $"Could not load the remaster HUD fonts: {ex.Message}");
             return false;
         }
     }

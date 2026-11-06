@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using System.Globalization;
 using System.Text;
 
@@ -23,7 +22,6 @@ namespace ProjectIGI.Presentation.Cameras;
 /// </remarks>
 public static class ShowcasePointFile
 {
-    private const string LogCategory = "Menu";
 
     /// <summary>One mission's entry: the orbit style, and the places the backdrop cycles between.</summary>
     /// <param name="MissionId">The mission id.</param>
@@ -41,7 +39,7 @@ public static class ShowcasePointFile
     /// <param name="entries">The missions, in the order they should appear.</param>
     /// <param name="logger">Where to report the write.</param>
     /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
-    public static void Write(string path, IReadOnlyList<Entry> entries, IProjectIGILogger? logger = null)
+    public static void Write(string path, IReadOnlyList<Entry> entries)
     {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(entries);
@@ -85,9 +83,6 @@ public static class ShowcasePointFile
         }
 
         File.WriteAllText(path, text.ToString());
-        logger?.Information(
-            LogCategory,
-            $"Wrote {entries.Count} mission(s) of showcase points to {path}.");
     }
 
     private static string Invariant(FormattableString text) => text.ToString(CultureInfo.InvariantCulture);

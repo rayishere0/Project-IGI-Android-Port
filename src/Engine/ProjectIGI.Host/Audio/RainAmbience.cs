@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text;
 using ProjectIGI.Audio;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Audio;
 using ProjectIGI.Game.World;
@@ -96,7 +95,6 @@ internal sealed class RainAmbience : IDisposable
     private const int VoicePriority = 180;
 
     private readonly SoundSystem _sounds;
-    private readonly IProjectIGILogger _logger;
     private readonly SkyExposureProbe _probe = new();
     private readonly AudioVoiceHandle[] _voices;
     private readonly FilteredLoopSource?[] _taps;
@@ -111,12 +109,11 @@ internal sealed class RainAmbience : IDisposable
     /// <param name="sounds">The sound system whose device the taps stream on.</param>
     /// <param name="logger">Where to report what was loaded and what could not be.</param>
     /// <exception cref="ArgumentNullException"><paramref name="sounds"/> is <see langword="null"/>.</exception>
-    public RainAmbience(SoundSystem sounds, IProjectIGILogger? logger = null)
+    public RainAmbience(SoundSystem sounds)
     {
         ArgumentNullException.ThrowIfNull(sounds);
 
         _sounds = sounds;
-        _logger = logger ?? NullLogger.Instance;
         _voices = new AudioVoiceHandle[SkyExposureProbe.Directions.Length];
         _taps = new FilteredLoopSource?[SkyExposureProbe.Directions.Length];
         _gains = new float[SkyExposureProbe.Directions.Length];
@@ -149,7 +146,6 @@ internal sealed class RainAmbience : IDisposable
 
         if (!File.Exists(path))
         {
-            _logger.Information("Audio", $"No rain recording at '{path}'; the weather stays silent.");
             return false;
         }
 
@@ -160,22 +156,16 @@ internal sealed class RainAmbience : IDisposable
         }
         catch (IOException error)
         {
-            _logger.Warning("Audio", $"Rain recording would not read: {error.Message}");
             return false;
         }
 
         if (!WavPcm.TryRead(bytes, out AudioFormat format, out byte[] pcm))
         {
-            _logger.Warning("Audio", $"'{path}' is not an uncompressed PCM WAV; the weather stays silent.");
             return false;
         }
 
         if (format.Channels != 1 || format.BitsPerSample != 16)
         {
-            _logger.Warning(
-                "Audio",
-                $"The rain recording must be mono 16-bit to be placed in 3D; '{path}' is "
-                + $"{format.Channels} ch, {format.BitsPerSample}-bit.");
             return false;
         }
 
@@ -183,9 +173,6 @@ internal sealed class RainAmbience : IDisposable
         Buffer.BlockCopy(pcm, 0, _pcm, 0, _pcm.Length * 2);
         _sampleRate = format.SampleRate;
 
-        _logger.Information(
-            "Audio",
-            $"Rain recording: {_pcm.Length / (float)format.SampleRate:0.0} s, {format.SampleRate} Hz mono.");
         return true;
     }
 

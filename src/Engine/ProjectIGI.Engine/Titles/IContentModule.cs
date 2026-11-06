@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Engine.Vfs;
@@ -43,12 +42,7 @@ public interface IContentModule
 /// <param name="Variables">The registry exported task variables are published into.</param>
 /// <param name="Services">Where a module publishes a table it built.</param>
 /// <param name="Logger">Where registration diagnostics go.</param>
-public sealed record ContentRegistrationContext(
-    TaskTypeRegistry Types,
-    NativeRegistry Natives,
-    ScriptVarRegistry Variables,
-    IServiceCollector Services,
-    IProjectIGILogger Logger);
+public sealed record ContentRegistrationContext(TaskTypeRegistry Types, NativeRegistry Natives, ScriptVarRegistry Variables, IServiceCollector Services);
 
 /// <summary>What a content module loads its tables through.</summary>
 /// <param name="FileSystem">The virtual file system scripts and archives are read from.</param>
@@ -63,10 +57,4 @@ public sealed record ContentRegistrationContext(
 /// module could need already exists — including one another module owns. Publishing at load time would
 /// reintroduce the ordering problem the two phases exist to remove.
 /// </remarks>
-public sealed record ContentLoadContext(
-    VirtualFileSystem FileSystem,
-    ResourceRegistry Resources,
-    NativeRegistry Natives,
-    TaskTree Tasks,
-    IServiceCatalog Services,
-    IProjectIGILogger Logger);
+public sealed record ContentLoadContext(VirtualFileSystem FileSystem, ResourceRegistry Resources, NativeRegistry Natives, TaskTree Tasks, IServiceCatalog Services);

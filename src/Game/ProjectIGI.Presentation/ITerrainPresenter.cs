@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Formats.Textures;
@@ -105,12 +104,7 @@ public interface ITerrainPresenter : IDisposable
 /// carrier, and the honest move then is a second factory method rather than widening this one with
 /// fields one title always leaves null.
 /// </remarks>
-public readonly record struct TerrainPresentationRequest(
-    IGraphicsDevice Device,
-    TerrainSurface Surface,
-    IProjectIGILogger Logger,
-    MaterialDetailPack? DetailMaps,
-    IReadOnlyList<Core.Graphics.Bgra32[]>? DerivedDetail);
+public readonly record struct TerrainPresentationRequest(IGraphicsDevice Device, TerrainSurface Surface, MaterialDetailPack? DetailMaps, IReadOnlyList<Core.Graphics.Bgra32[]>? DerivedDetail);
 
 /// <summary>Builds the renderers one title draws with.</summary>
 /// <remarks>
@@ -136,11 +130,7 @@ public readonly record struct TerrainPresentationRequest(
 /// Nothing here is title-shaped, which is the point: a title is handed the level and reads whatever its
 /// own ground happens to be, rather than being handed a ground somebody else decided the shape of.
 /// </remarks>
-public readonly record struct GroundPresentationRequest(
-    IGraphicsDevice Device,
-    GameTask LevelRoot,
-    ResourceRegistry Resources,
-    IProjectIGILogger Logger);
+public readonly record struct GroundPresentationRequest(IGraphicsDevice Device, GameTask LevelRoot, ResourceRegistry Resources);
 
 /// <remarks>
 /// <para>

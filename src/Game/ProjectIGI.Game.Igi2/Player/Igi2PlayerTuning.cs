@@ -32,15 +32,13 @@ public sealed class Igi2PlayerTuning
     /// <summary>The native the ammunition limit script calls.</summary>
     public const string DefineAmmoLimitNative = "DefineHumanPlayerAmmoLimit";
 
-    private const string LogCategory = "Player";
 
-    private readonly IProjectIGILogger _logger;
     private readonly List<int> _weaponCycle = [];
     private readonly List<Igi2AmmoLimit> _ammoLimits = [];
 
     /// <summary>Initializes a new instance of the <see cref="Igi2PlayerTuning"/> class.</summary>
     /// <param name="logger">Where the load reports.</param>
-    public Igi2PlayerTuning(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public Igi2PlayerTuning() { }
 
     /// <summary>Gets the order weapons are cycled through, by <c>WEAPON_ID_*</c> number (<c>HumanPlayer_tWeaponCycle</c>).</summary>
     public IReadOnlyList<int> WeaponCycle => _weaponCycle;
@@ -80,14 +78,12 @@ public sealed class Igi2PlayerTuning
 
         if (Find(tree.Root) is not { } item)
         {
-            _logger.Warning(LogCategory, $"{ScriptResource} declared no HumanPlayerConfigItem; the player is untuned.");
             return false;
         }
 
         Igi2LineScript.Evaluate(item.WeaponCycleScript, natives, functions);
         Igi2LineScript.Evaluate(item.AmmoLimitScript, natives, functions);
         General = Igi2HumanPlayerGeneral.From(item);
-        _logger.Information(LogCategory, $"Player tuning read from {ScriptResource}.");
         return true;
     }
 

@@ -1,5 +1,4 @@
 using System.Globalization;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 
@@ -242,11 +241,6 @@ internal sealed class CutsceneGroundSupport(CutsceneContext context)
                     + $"offset={state.GroundRestOffset:R}");
             }
 
-            _context.Logger.Warning(
-                "Airframe",
-                $"rest id={task.Id} type=Heli "
-                + $"measured={FormatMetres(measuredRest)} applied={FormatMetres(state.GroundRestOffset)} "
-                + $"mode={(plausible && measuredRest >= bodyFloor ? "authored" : "physics-floor")}");
         }
         else
         {
@@ -347,33 +341,12 @@ internal sealed class CutsceneGroundSupport(CutsceneContext context)
             double offset = double.IsNaN(transform.GroundRestOffset)
                 ? 0.0
                 : transform.GroundRestOffset / WorldScene.UnitsPerMetre;
-            _context.Logger.Warning(
-                "Airframe",
-                $"contact id={ignoredOwner?.Id ?? -1} type={type} tick={_context.SimulationTick} "
-                + $"x={transform.Position.X / WorldScene.UnitsPerMetre:F2} "
-                + $"y={transform.Position.Y / WorldScene.UnitsPerMetre:F2} "
-                + $"z={transform.Position.Z / WorldScene.UnitsPerMetre:F2} "
-                + $"support={(rest / WorldScene.UnitsPerMetre) - offset:F2} "
-                + $"rest={transform.Position.Z / WorldScene.UnitsPerMetre:F2} offset={offset:F2} "
-                + $"incomingV=({incomingVelocity.X / WorldScene.UnitsPerMetre:F3},"
-                + $"{incomingVelocity.Y / WorldScene.UnitsPerMetre:F3},"
-                + $"{incomingVelocity.Z / WorldScene.UnitsPerMetre:F3}) "
-                + $"incomingSpeed={incomingSpeed:F3} target={transform.TargetThrust:F3} "
-                + $"terminal={(transform.TargetThrust <= 0f && transform.Thrust <= 0f)} "
-                + $"thrust={transform.Thrust:F3} target={transform.TargetThrust:F3}");
             transform.GroundContactEventLogged = true;
         }
 
         if (transform.TerminalLandingLatched && !transform.TerminalLandingEventLogged)
         {
             string type = ignoredOwner?.Type.Name ?? "Airframe";
-            _context.Logger.Warning(
-                "Airframe",
-                $"landing-latch id={ignoredOwner?.Id ?? -1} type={type} tick={_context.SimulationTick} "
-                + $"x={transform.Position.X / WorldScene.UnitsPerMetre:F2} "
-                + $"y={transform.Position.Y / WorldScene.UnitsPerMetre:F2} "
-                + $"z={transform.Position.Z / WorldScene.UnitsPerMetre:F2} "
-                + $"source={supportSource} stoppedSpeed=0.000");
             _context.Note(
                 $"heli-terminal-latch id={ignoredOwner?.Id ?? -1} source={supportSource} "
                 + $"position={transform.TerminalLandingPosition}");
@@ -389,73 +362,12 @@ internal sealed class CutsceneGroundSupport(CutsceneContext context)
             double offset = double.IsNaN(transform.GroundRestOffset)
                 ? 0.0
                 : transform.GroundRestOffset / WorldScene.UnitsPerMetre;
-            _context.Logger.Warning(
-                "Airframe",
-                $"landing id={ignoredOwner?.Id ?? -1} type={type} tick={_context.SimulationTick} "
-                + $"x={transform.Position.X / WorldScene.UnitsPerMetre:F2} "
-                + $"y={transform.Position.Y / WorldScene.UnitsPerMetre:F2} "
-                + $"z={transform.Position.Z / WorldScene.UnitsPerMetre:F2} "
-                + $"support={(rest / WorldScene.UnitsPerMetre) - offset:F2} "
-                + $"rest={transform.Position.Z / WorldScene.UnitsPerMetre:F2} offset={offset:F2} "
-                + $"incomingV=({incomingVelocity.X / WorldScene.UnitsPerMetre:F3},"
-                + $"{incomingVelocity.Y / WorldScene.UnitsPerMetre:F3},"
-                + $"{incomingVelocity.Z / WorldScene.UnitsPerMetre:F3}) "
-                + $"incomingSpeed={incomingSpeed:F3} stoppedV=(0.000,0.000,0.000) stoppedSpeed=0.000 "
-                + $"thrust={transform.Thrust:F3} target={transform.TargetThrust:F3}");
             transform.GroundContactLogged = true;
         }
         else if (!transform.GroundContact)
         {
             transform.GroundContactLogged = false;
         }
-    }
-
-    /// <summary>
-    /// Samples the live Heli/Plane tick every fifteenth physics tick, at Trace in the <c>Airframe.Path</c>
-    /// log category (<c>ProjectIGI_LOG=Airframe.Path=trace</c>).
-    /// </summary>
-    internal void LogAirframePath(int id, string type, GameTask? target, CutsceneTransformState transform)
-    {
-        if ((transform.PhysicsTicks > 0 && transform.PhysicsTicks % 15 != 0)
-            || !_context.Logger.IsEnabled(LogLevel.Trace, CutsceneRuntime.AirframePathLogCategory))
-        {
-            return;
-        }
-
-        double x = transform.Position.X / WorldScene.UnitsPerMetre;
-        double y = transform.Position.Y / WorldScene.UnitsPerMetre;
-        double z = transform.Position.Z / WorldScene.UnitsPerMetre;
-        double ox = transform.OriginPosition.X / WorldScene.UnitsPerMetre;
-        double oy = transform.OriginPosition.Y / WorldScene.UnitsPerMetre;
-        double oz = transform.OriginPosition.Z / WorldScene.UnitsPerMetre;
-        double dHoriz = Math.Sqrt(((x - ox) * (x - ox)) + ((y - oy) * (y - oy)));
-        double dVert = z - oz;
-        bool hasSupport = TryFindSupportHeight(
-            transform.Position,
-            target,
-            allowDeepRecovery: true,
-            out double supportHeight,
-            out string supportSource);
-        double support = hasSupport ? supportHeight / WorldScene.UnitsPerMetre : double.NaN;
-        double offset = double.IsNaN(transform.GroundRestOffset)
-            ? double.NaN
-            : transform.GroundRestOffset / WorldScene.UnitsPerMetre;
-        double rest = hasSupport && !double.IsNaN(offset) ? support + offset : double.NaN;
-        double supportGap = hasSupport ? z - support : double.NaN;
-        double restGap = !double.IsNaN(rest) ? z - rest : double.NaN;
-        double vx = transform.Velocity.X / WorldScene.UnitsPerMetre;
-        double vy = transform.Velocity.Y / WorldScene.UnitsPerMetre;
-        double vz = transform.Velocity.Z / WorldScene.UnitsPerMetre;
-        _context.Logger.Trace(
-            CutsceneRuntime.AirframePathLogCategory,
-            $"t={_context.SimulationTick} pt={transform.PhysicsTicks} id={id} type={type} "
-            + $"x={x:F2} y={y:F2} z={z:F2} dHoriz={dHoriz:F2} dVert={dVert:F2} "
-            + $"vx={vx:F3} vy={vy:F3} vz={vz:F3} "
-            + $"thrust={transform.Thrust:F3} target={transform.TargetThrust:F3} col={transform.CollisionEnabled} "
-            + $"offset={offset:F3} support={support:F3} source={supportSource} rest={rest:F3} "
-            + $"supportGap={supportGap:F3} restGap={restGap:F3} "
-            + $"latched={transform.TerminalLandingLatched} "
-            + $"ctl=({transform.Control.X:F3},{transform.Control.Y:F3},{transform.Control.Z:F3})");
     }
 
     /// <summary>Finds the height a helicopter should rest at under a body position.</summary>

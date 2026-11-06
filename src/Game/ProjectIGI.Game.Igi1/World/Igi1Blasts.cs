@@ -1,5 +1,4 @@
 using ProjectIGI.Game.Hosting;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Flow;
 using ProjectIGI.Engine.Tasks;
@@ -467,7 +466,6 @@ public sealed class Igi1Blasts(
 
         if (mission.Interactions?.WeaponHit(owner) == true)
         {
-            host.Logger.Information("World", $"{owner!.Name} was shot and broken.");
         }
 
         mission.RotatingObjects?.WeaponHit(owner, placement);
@@ -505,7 +503,6 @@ public sealed class Igi1Blasts(
             destroyed.DestructionSound,
             () => Explode(at, range, 0f, damage, WeaponCategory.Grenade),
             SoundPriority: 60));
-        host.Logger.Information("Ai", $"{destroyed.Task.Name} was shot out.");
     }
 
     /// <summary>Applies the retail presentation and blast side effects of one destroyed world object.</summary>
@@ -534,7 +531,6 @@ public sealed class Igi1Blasts(
             mission.Soldiers?.NotifyGroundImpact(
                 impactUnits ?? item.PositionUnits,
                 mission.Player?.Body.Position ?? item.PositionUnits);
-            host.Logger.Information("World", $"{item.TypeName} at {item.PositionUnits} shattered.");
             return;
         }
 
@@ -571,7 +567,6 @@ public sealed class Igi1Blasts(
             mission.Player.Marks.Forget(surface);
         }
 
-        host.Logger.Information("World", $"{car.Owner.Name} exploded and left the world.");
     }
 
     /// <summary>Sets off one blast of a dying car (<c>0x42E5A0</c>) once its fuse has run.</summary>
@@ -590,7 +585,6 @@ public sealed class Igi1Blasts(
             VehicleBlast.Sound,
             () => Explode(position, blast.RadiusUnits, blast.FalloffUnits, blast.DamageFactor, WeaponCategory.Grenade, blast.Source)));
 
-        host.Logger.Information("World", $"{blast.Source.Owner.Name} blast at {position}: radius={blast.RadiusUnits}.");
     }
 
     /// <summary>Applies the blast side effects after an authored explosive object's delay expires.</summary>
@@ -613,13 +607,9 @@ public sealed class Igi1Blasts(
             () => Explosion0(new Igi1ExplosionHit(item.PositionUnits, radius, falloff, damageFactor, WeaponCategory.Grenade), item, sourceWeaponId: 0)));
         if (damageFactor == 0f)
         {
-            host.Logger.Information("World", $"{item.TypeName} at {item.PositionUnits} broke without a blast.");
             return;
         }
 
-        host.Logger.Information(
-            "World",
-            $"{item.TypeName} at {item.PositionUnits} exploded: radius={radius}, falloff={falloff}, damage={damageFactor}.");
     }
 
     /// <summary>

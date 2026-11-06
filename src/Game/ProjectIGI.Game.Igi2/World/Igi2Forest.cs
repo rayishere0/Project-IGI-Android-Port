@@ -1,5 +1,4 @@
 using System.Globalization;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -36,7 +35,6 @@ public readonly record struct Igi2Tree(Vector3d Position, Vector3f Angles, Vecto
 public sealed class Igi2Forest
 {
     /// <summary>The category load diagnostics are logged under.</summary>
-    public const string LogCategory = "igi2.forest";
 
     private Igi2Forest(IReadOnlyList<Igi2ForestStand> stands) => Stands = stands;
 
@@ -75,12 +73,11 @@ public sealed class Igi2Forest
     /// A <c>Forest</c> task whose file is absent contributes no trees rather than faulting. The task is
     /// the authority on the stand; the file is the bake, and a level may ship one without the other.
     /// </remarks>
-    public static Igi2Forest Build(GameTask levelRoot, ResourceRegistry resources, IProjectIGILogger? logger = null)
+    public static Igi2Forest Build(GameTask levelRoot, ResourceRegistry resources)
     {
         ArgumentNullException.ThrowIfNull(levelRoot);
         ArgumentNullException.ThrowIfNull(resources);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         List<Igi2ForestStand> stands = [];
 
         foreach (GameTask task in levelRoot.Descendants())
@@ -93,7 +90,6 @@ public sealed class Igi2Forest
             string resource = ResourceNameFor(task.Id);
             if (!resources.TryLoad(resource, out ReadOnlyMemory<byte> bytes))
             {
-                log.Warning(LogCategory, $"Forest {task.Id} has no '{resource}'; it plants nothing.");
                 continue;
             }
 
@@ -128,7 +124,6 @@ public sealed class Igi2Forest
                 trees));
         }
 
-        log.Information(LogCategory, $"Forest: {stands.Count} stand(s), {stands.Sum(static s => s.Trees.Count)} trees.");
         return new Igi2Forest(stands);
     }
 

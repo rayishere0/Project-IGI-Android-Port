@@ -1,5 +1,4 @@
 using ProjectIGI.Game.Hosting;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Flow;
 using ProjectIGI.Game.Igi1.Ai;
@@ -206,10 +205,6 @@ public sealed class Igi1PlayerHarm(MissionWorld mission, Igi1HumanSounds sounds,
         // PlayerBody has already added the direct, difficulty-independent dose to the shared health.
         // Raise the desktop wash that the render pass actually draws rather than the body's standalone one.
         mission.DamageFlash.Hit(Vector3f.Zero, mission.SoundRandom.NextSingle());
-        host.Logger.Information(
-            "Player",
-            $"Fall impact {impact.SpeedMetresPerSecond:F2} m/s dealt {impact.Damage:F3} "
-                + $"({mission.PlayerHealth.RemainingFraction:P0} left), sound '{impact.SoundName}'.");
 
         if (mission.PlayerHealth.IsDead)
         {
@@ -232,20 +227,11 @@ public sealed class Igi1PlayerHarm(MissionWorld mission, Igi1HumanSounds sounds,
         }
 
         float healthBefore = mission.PlayerHealth.RemainingFraction;
-        host.Logger.Information(
-            "Player.Fence",
-            $"contact task={fence.Task.Id} powered={(fence.IsElectrified ? "true" : "false")} "
-                + $"healthBefore={healthBefore:P0} position=({player.Body.Position.X:F0},"
-                + $"{player.Body.Position.Y:F0},{player.Body.Position.Z:F0})");
 
         ElectricFenceShock shock = ElectricFenceContact.Shock(mission.PlayerHealth, mission.ElectricFenceDose);
         float dealt = shock.Damage;
         if (dealt <= 0f)
         {
-            host.Logger.Warning(
-                "Player.Fence",
-                $"contact produced no damage task={fence.Task.Id} "
-                    + $"health={mission.PlayerHealth.RemainingFraction:P0} hits={mission.PlayerHealth.Hits}.");
             return;
         }
 
@@ -263,9 +249,6 @@ public sealed class Igi1PlayerHarm(MissionWorld mission, Igi1HumanSounds sounds,
             host.PlayDefinition("elfence_spark1", priority: 250);
         }
 
-        host.Logger.Information(
-            "Player",
-            $"Electric fence shock dealt {dealt:F3} ({mission.PlayerHealth.RemainingFraction:P0} left).");
 
         if (shock.IsLethal)
         {

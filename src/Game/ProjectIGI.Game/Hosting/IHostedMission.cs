@@ -1,5 +1,4 @@
 using ProjectIGI.Core.Configuration;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
@@ -256,5 +255,5 @@ public interface IMissionImpacts
     /// <param name="console">The console to register with.</param>
     /// <param name="eye">The camera the frame is drawn from, which the commands aim with.</param>
     /// <param name="logger">Where the commands report.</param>
-    void Register(ConsoleSystem console, Func<Camera3D> eye, IProjectIGILogger logger);
+    void Register(ConsoleSystem console, Func<Camera3D> eye);
 }

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Formats.World;
@@ -63,7 +62,6 @@ public readonly record struct ShowcasePoint(Vector3d Centre, MenuCameraSpec Orbi
 /// </remarks>
 public static class MissionShowcasePoints
 {
-    private const string LogCategory = "Preview";
 
     /// <summary>The task-name prefix a level uses for the structures it places.</summary>
     private const string BuildingTaskPrefix = "Building_";
@@ -157,12 +155,7 @@ public static class MissionShowcasePoints
     /// <param name="logger">Where to report what was found.</param>
     /// <returns>Up to <paramref name="count"/> places: the triangle first, then its interior.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="scene"/> is <see langword="null"/>.</exception>
-    public static IReadOnlyList<ShowcasePoint> Extract(
-        WorldScene scene,
-        GameTask? levelRoot,
-        int count,
-        MenuCameraSpec fallback,
-        IProjectIGILogger? logger = null)
+    public static IReadOnlyList<ShowcasePoint> Extract(WorldScene scene, GameTask? levelRoot, int count, MenuCameraSpec fallback)
     {
         ArgumentNullException.ThrowIfNull(scene);
         if (count <= 0 || scene.Placements.Count == 0)
@@ -170,10 +163,9 @@ public static class MissionShowcasePoints
             return [];
         }
 
-        List<Structure> candidates = FindBuildings(scene, logger);
+        List<Structure> candidates = FindBuildings(scene);
         if (candidates.Count == 0)
         {
-            logger?.Information(LogCategory, "Nothing in this level reads as a building; showing the spawn instead.");
             return SpawnOnly(levelRoot, fallback);
         }
 
@@ -182,19 +174,16 @@ public static class MissionShowcasePoints
         {
             // One or two buildings is not a triangle. Show what there is rather than nothing.
             chosen.AddRange(candidates.Take(count));
-            logger?.Information(
-                LogCategory,
-                $"Only {candidates.Count} building(s) to show; no triangle to draw between them.");
         }
         else
         {
-            Structure[] triangle = PickTriangle(candidates, logger);
+            Structure[] triangle = PickTriangle(candidates);
             chosen.AddRange(triangle);
 
             int room = Math.Min(count - chosen.Count, MaximumInteriorPoints);
             if (room > 0)
             {
-                chosen.AddRange(PickInside(triangle, candidates, room, logger));
+                chosen.AddRange(PickInside(triangle, candidates, room));
             }
         }
 
@@ -202,17 +191,10 @@ public static class MissionShowcasePoints
         foreach (Structure structure in chosen)
         {
             points.Add(structure.ToPoint(fallback));
-            logger?.Information(
-                LogCategory,
-                $"  {structure.Task} ({structure.Model}), {structure.Radius * 2:0} m across, "
-                + $"{structure.Neighbours} object(s) around it.");
         }
 
         TightenOverlappingShots(points);
 
-        logger?.Information(
-            LogCategory,
-            $"{points.Count} showcase point(s) from {scene.Placements.Count} placement(s).");
 
         return points;
     }
@@ -295,7 +277,7 @@ public static class MissionShowcasePoints
     }
 
     /// <summary>Every placement in a level that is a building, measured and scored.</summary>
-    private static List<Structure> FindBuildings(WorldScene scene, IProjectIGILogger? logger)
+    private static List<Structure> FindBuildings(WorldScene scene)
     {
         (double low, double high) = HeightBand(scene);
         int aloft = 0;
@@ -349,9 +331,6 @@ public static class MissionShowcasePoints
 
         if (aloft > 0)
         {
-            logger?.Information(
-                LogCategory,
-                $"{aloft} candidate(s) sat outside the level's own heights ({low:0} to {high:0} m) and were skipped.");
         }
 
         // The level's own word for it, whenever the level gives one. This is what keeps helicopters, spline
@@ -360,9 +339,6 @@ public static class MissionShowcasePoints
         List<Structure> pool = declared.Count >= FewestDeclaredBuildings ? declared : anyShape;
         if (declared.Count < FewestDeclaredBuildings && anyShape.Count > 0)
         {
-            logger?.Information(
-                LogCategory,
-                "This level declares no buildings by name; falling back to judging the geometry.");
         }
 
         // A building standing among other things is somewhere; the same building alone in a field is not.
@@ -396,10 +372,6 @@ public static class MissionShowcasePoints
                 : a.Position.Y.CompareTo(b.Position.Y);
         });
 
-        logger?.Information(
-            LogCategory,
-            $"{chosen.Count} building(s) to choose from ({declared.Count} declared by the level), "
-            + $"spread over {Extent(chosen):0} m.");
 
         return chosen;
     }
@@ -411,7 +383,7 @@ public static class MissionShowcasePoints
     /// looking at the triple as a whole can trade a slightly duller building for one that is four hundred
     /// metres away.
     /// </remarks>
-    private static Structure[] PickTriangle(List<Structure> candidates, IProjectIGILogger? logger)
+    private static Structure[] PickTriangle(List<Structure> candidates)
     {
         List<Structure> corners = Shortlist(candidates);
         double best = candidates[0].Score;
@@ -477,15 +449,9 @@ public static class MissionShowcasePoints
         double sideB = FlatDistance(triangle[1].Position, triangle[2].Position);
         double sideC = FlatDistance(triangle[2].Position, triangle[0].Position);
 
-        logger?.Information(
-            LogCategory,
-            $"Triangle of {corners.Count} corner(s): sides {sideA:0} / {sideB:0} / {sideC:0} m.");
 
         if (Math.Min(sideA, Math.Min(sideB, sideC)) < CompactTriangleSide)
         {
-            logger?.Information(
-                LogCategory,
-                "This level is barely wider than one compound; its three shots are as far apart as it gets.");
         }
 
         return triangle;
@@ -538,11 +504,7 @@ public static class MissionShowcasePoints
     }
 
     /// <summary>Takes the best buildings standing well inside the triangle, when there is room for any.</summary>
-    private static List<Structure> PickInside(
-        Structure[] triangle,
-        List<Structure> candidates,
-        int wanted,
-        IProjectIGILogger? logger)
+    private static List<Structure> PickInside(Structure[] triangle, List<Structure> candidates, int wanted)
     {
         var inside = new List<Structure>(wanted);
 
@@ -563,9 +525,6 @@ public static class MissionShowcasePoints
         double inradius = 2.0 * TriangleArea(a, b, c) / perimeter;
         if (inradius < InteriorInradiusMetres)
         {
-            logger?.Information(
-                LogCategory,
-                $"The triangle's middle is only {inradius:0} m across; nothing to show inside it.");
             return inside;
         }
 
@@ -607,10 +566,6 @@ public static class MissionShowcasePoints
             }
         }
 
-        logger?.Information(
-            LogCategory,
-            $"{inside.Count} shot(s) inside a triangle {inradius:0} m across at its widest, "
-            + $"of {within} building(s) standing in it ({sameFamily} a corner's kind, {crowded} too close).");
 
         return inside;
     }

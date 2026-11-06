@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using ProjectIGI.Core.Configuration.Presets;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game;
@@ -390,9 +389,6 @@ public sealed partial class GameHost
                 && (_tracerSkipsLogged == 0 || _tracers.SkippedQuads - _tracerSkipsLogged >= 100))
             {
                 _tracerSkipsLogged = _tracers.SkippedQuads;
-                _logger.Warning(
-                    "Tracer",
-                    $"{_tracers.SkippedQuads} tracer quad(s) carried a non-finite value and were not drawn.");
             }
         }
 
@@ -579,17 +575,17 @@ public sealed partial class GameHost
     /// <summary>Gets the title's own player's viewpoint, made from the title's presentation the first time it is asked for.</summary>
     private IMissionViewpoint? Viewpoint =>
         _viewpoint ??= _presentation.Presenters.Create<MissionPresentationRequest, IMissionViewpoint>(
-            new MissionPresentationRequest(_device, _hosted, _logger));
+            new MissionPresentationRequest(_device, _hosted));
 
     /// <summary>Gets what the title's player has put in the world, made from the title's presentation the first time a frame asks for it.</summary>
     private IMissionWorldView? WorldView =>
         _worldView ??= _presentation.Presenters.Create<MissionPresentationRequest, IMissionWorldView>(
-            new MissionPresentationRequest(_device, _hosted, _logger));
+            new MissionPresentationRequest(_device, _hosted));
 
     /// <summary>Gets the title's first-person view, made from the title's presentation the first time a frame asks for it.</summary>
     private IMissionFirstPersonView? FirstPersonView =>
         _firstPerson ??= _presentation.Presenters.Create<MissionPresentationRequest, IMissionFirstPersonView>(
-            new MissionPresentationRequest(_device, _hosted, _logger));
+            new MissionPresentationRequest(_device, _hosted));
 
     /// <summary>Draws the first-person rig, or the scope that replaces it.</summary>
     /// <returns>The binocular range to show, in metres, or <see langword="null"/> when the glasses are down.</returns>

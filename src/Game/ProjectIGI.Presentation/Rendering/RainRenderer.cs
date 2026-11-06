@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
@@ -24,7 +23,6 @@ namespace ProjectIGI.Presentation.Rendering;
 /// </remarks>
 public sealed class RainRenderer : IDisposable
 {
-    private const string LogCategory = "Rain";
 
     /// <summary>The default number of small rain droplets to simulate.</summary>
     public const int DefaultParticleCount = 1200;
@@ -56,7 +54,6 @@ public sealed class RainRenderer : IDisposable
         NoHistory: true);
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly Vertex3D[] _vertices;
     private readonly ushort[] _indices;
     private readonly (float X, float Y, float Z)[] _seeds;
@@ -77,12 +74,11 @@ public sealed class RainRenderer : IDisposable
     /// <param name="device">The graphics device to draw with.</param>
     /// <param name="logger">Optional logger for diagnostics.</param>
     /// <param name="numDrops">Number of rain particle drops to simulate (default 1200).</param>
-    public RainRenderer(IGraphicsDevice device, IProjectIGILogger? logger = null, int numDrops = DefaultParticleCount)
+    public RainRenderer(IGraphicsDevice device, int numDrops = DefaultParticleCount)
     {
         ArgumentNullException.ThrowIfNull(device);
 
         _device = device;
-        _logger = logger ?? NullLogger.Instance;
         _numDrops = Math.Max(1, numDrops);
 
         _vertices = new Vertex3D[_numDrops * 4];
@@ -196,11 +192,6 @@ public sealed class RainRenderer : IDisposable
         float alpha = ReadFloat(rainTask, "Rain Alpha", _alpha);
 
         SetParams(active: isRain && isActive, startMeters: start, endMeters: end, alpha: alpha);
-        _logger.Information(
-            LogCategory,
-            isRain && isActive
-                ? $"RainEffect configured: start={_startMeters}m, end={_endMeters}m, alpha={_alpha}."
-                : $"RainEffect present but disabled by level data (Is Rain={isRain}, Is Active={isActive}).");
         return isRain && isActive;
     }
 

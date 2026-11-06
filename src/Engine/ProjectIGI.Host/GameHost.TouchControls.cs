@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Game.Config;
 using ProjectIGI.Game.Player;
@@ -146,7 +145,6 @@ public sealed partial class GameHost
                         state.Shell.OpenPauseMenu();
                         HostedPlayer?.HoldStill();
                         _window.CursorLocked = false;
-                        _logger.Information("Menu", "Paused via touch button.");
                     }
                 }
                 else if (button == TouchButton.Crouch)

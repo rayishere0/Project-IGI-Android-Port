@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -21,11 +20,7 @@ public delegate TPresenter? PresenterFactory<TRequest, out TPresenter>(in TReque
 /// <param name="Resources">The level's resources.</param>
 /// <param name="LevelRoot">The level's task tree.</param>
 /// <param name="Logger">Where load diagnostics go.</param>
-public readonly record struct TaskPresenterRequest(
-    IGraphicsDevice Device,
-    ResourceRegistry Resources,
-    GameTask LevelRoot,
-    IProjectIGILogger Logger);
+public readonly record struct TaskPresenterRequest(IGraphicsDevice Device, ResourceRegistry Resources, GameTask LevelRoot);
 
 /// <summary>A presenter that draws one task of the level, made for it by a <see cref="PresenterRegistry.ForTask{TTask}"/> registration.</summary>
 public interface ITaskPresenter : IDisposable

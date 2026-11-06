@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Core.Threading;
 using ProjectIGI.Formats.World;
@@ -29,7 +28,6 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public sealed class SceneDistanceField
 {
-    private const string LogCategory = "DistanceField";
 
     private readonly MeshDistanceField[] _fields;
     private readonly Instance[] _instances;
@@ -135,32 +133,18 @@ public sealed class SceneDistanceField
     /// an argument so the choice sits with the caller and the bake stays testable without a level.
     /// </remarks>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public static IEnumerable<bool> Build(
-        IEnumerable<WorldPlacement> placements,
-        Func<MefModel, MeshGeometry?> geometry,
-        int resolution,
-        IProjectIGILogger? logger,
-        IWorkScheduler work,
-        Action<SceneDistanceField> complete,
-        CancellationToken cancellation = default)
+    public static IEnumerable<bool> Build(IEnumerable<WorldPlacement> placements, Func<MefModel, MeshGeometry?> geometry, int resolution, IWorkScheduler work, Action<SceneDistanceField> complete, CancellationToken cancellation = default)
     {
         ArgumentNullException.ThrowIfNull(placements);
         ArgumentNullException.ThrowIfNull(geometry);
         ArgumentNullException.ThrowIfNull(work);
         ArgumentNullException.ThrowIfNull(complete);
 
-        return BuildSlices(placements, geometry, resolution, logger ?? NullLogger.Instance, work, complete, cancellation);
+        return BuildSlices(placements, geometry, resolution, work, complete, cancellation);
     }
 
     /// <summary>The bake itself, checked by <see cref="Build"/> before it is handed out.</summary>
-    private static IEnumerable<bool> BuildSlices(
-        IEnumerable<WorldPlacement> placements,
-        Func<MefModel, MeshGeometry?> geometry,
-        int resolution,
-        IProjectIGILogger log,
-        IWorkScheduler work,
-        Action<SceneDistanceField> complete,
-        CancellationToken cancellation)
+    private static IEnumerable<bool> BuildSlices(IEnumerable<WorldPlacement> placements, Func<MefModel, MeshGeometry?> geometry, int resolution, IWorkScheduler work, Action<SceneDistanceField> complete, CancellationToken cancellation)
     {
 
         List<MeshDistanceField> fields = [];
@@ -257,16 +241,9 @@ public sealed class SceneDistanceField
 
         SceneDistanceField scene = new([.. fields], [.. instances]);
 
-        log.Information(
-            LogCategory,
-            $"Scene distance field: {scene.FieldCount} model(s) baked, {scene.InstanceCount} instance(s), "
-            + $"{scene.BytesUsed / 1024} KiB{(skipped > 0 ? $", {skipped} placement(s) with no usable mesh" : string.Empty)}.");
 
         if (tooCoarse > 0)
         {
-            log.Information(
-                LogCategory,
-                $"{tooCoarse} model(s) bake to voxels too coarse to describe anything and were left out.");
         }
 
         // The widest fields, and how much of each baked as solid. A field's range is half its model's
@@ -285,9 +262,6 @@ public sealed class SceneDistanceField
                 }
             }
 
-            log.Information(
-                LogCategory,
-                $"  field: range {field.Range:0.#} m, {solid * 100.0 / field.Distances.Length:0.#}% solid.");
         }
 
         complete(scene);

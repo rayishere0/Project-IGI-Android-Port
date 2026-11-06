@@ -45,7 +45,6 @@ public sealed record VehicleGun(MagicGunMount Mount, WeaponType Weapon, Vector3d
     /// <param name="models">Resolves a model name to its data, or <see langword="null"/> when it is not loaded.</param>
     /// <param name="magic">The magic-object table the attachments are looked up in.</param>
     /// <param name="roster">The weapon rows, looked up by their model.</param>
-    /// <param name="unresolved">Receives each gun whose weapon model no row uses, by attachment name.</param>
     /// <returns>
     /// The guns, outermost first; a gun on a gun sits at the sum of both attachment offsets, and names the gun it
     /// rides on as its <see cref="Parent"/>.
@@ -59,8 +58,7 @@ public sealed record VehicleGun(MagicGunMount Mount, WeaponType Weapon, Vector3d
         string model,
         Func<string, MefModel?> models,
         MagicObjectRegistry magic,
-        WeaponTypeRegistry roster,
-        Action<string, string>? unresolved = null)
+        WeaponTypeRegistry roster)
     {
         ArgumentNullException.ThrowIfNull(model);
         ArgumentNullException.ThrowIfNull(models);
@@ -122,7 +120,6 @@ public sealed record VehicleGun(MagicGunMount Mount, WeaponType Weapon, Vector3d
                 }
                 else
                 {
-                    unresolved?.Invoke(attachment.Name, mount.WeaponModel);
                 }
 
                 Collect(definition.Model, at, nested, depth + 1, index);

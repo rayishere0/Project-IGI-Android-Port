@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Formats.World;
@@ -26,7 +25,6 @@ namespace ProjectIGI.Game.World;
 public sealed class WorldScene
 {
     /// <summary>The log category the scene walk reports under.</summary>
-    internal const string LogCategory = "World";
 
     private double? _groundHeight;
 
@@ -433,18 +431,11 @@ public sealed class WorldScene
     /// </param>
     /// <returns>The scene.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public static WorldScene Build(
-        LoadedMission mission,
-        GameTask levelRoot,
-        MagicObjectRegistry? magic = null,
-        IProjectIGILogger? logger = null,
-        VehiclePhysicsRegistry? vehiclePhysics = null,
-        Func<int, string, string?>? destroyedModelArchiveName = null)
+    public static WorldScene Build(LoadedMission mission, GameTask levelRoot, MagicObjectRegistry? magic = null, VehiclePhysicsRegistry? vehiclePhysics = null, Func<int, string, string?>? destroyedModelArchiveName = null)
     {
         ArgumentNullException.ThrowIfNull(mission);
         ArgumentNullException.ThrowIfNull(levelRoot);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         Dictionary<string, (MtpInstance Instance, LoadedPack Pack, MefModel Model)> byName =
             new(StringComparer.OrdinalIgnoreCase);
 
@@ -743,14 +734,6 @@ public sealed class WorldScene
 
         int segments = TrainPlacementBuilder.AddSplineSegments(mission, levelRoot, byName, placements, log);
 
-        log.Information(
-            LogCategory,
-            $"Scene: {placements.Count} placement(s) over {byName.Count} bound instance(s)"
-                + $", {attached} attached"
-                + (segments > 0 ? $", {segments} spline segment(s)" : string.Empty)
-                + (unresolved > 0 ? $", {unresolved} unresolved" : string.Empty)
-                + (unplaced > 0 ? $", {unplaced} with no position" : string.Empty)
-                + ".");
 
         return new WorldScene(
             mission,

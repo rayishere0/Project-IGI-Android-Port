@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Engine.Tasks;
@@ -126,17 +125,15 @@ public sealed class Igi2GameMaterials : ProjectIGI.Game.Physics.IWorldMaterialTr
     /// <summary>The type name of the one effect that reads parameters.</summary>
     public const string GunShotEffectTypeName = "GunShotEffect";
 
-    private const string LogCategory = "Material";
 
     private readonly Igi2GameMaterial?[] _rows = new Igi2GameMaterial?[Rows];
     private readonly Igi2QMaterial[] _qMaterials = new Igi2QMaterial[Rows];
-    private readonly IProjectIGILogger _logger;
     private int _gunShotEffectType = Weapons.Igi2WeaponConstants.NoTaskType;
     private int _active;
 
     /// <summary>Initializes a new instance of the <see cref="Igi2GameMaterials"/> class.</summary>
     /// <param name="logger">Where the load reports.</param>
-    public Igi2GameMaterials(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public Igi2GameMaterials() { }
 
     /// <summary>Finds the material in a row.</summary>
     /// <param name="row">The level material row.</param>
@@ -172,7 +169,6 @@ public sealed class Igi2GameMaterials : ProjectIGI.Game.Physics.IWorldMaterialTr
         Array.Clear(_qMaterials);
         _active = 0;
         Igi2SessionScript.Run(resources, natives, Script);
-        _logger.Information(LogCategory, $"{_rows.Count(static r => r is not null)} materials read.");
     }
 
     private QvmValue SetActive(QvmCallContext call)
@@ -214,7 +210,6 @@ public sealed class Igi2GameMaterials : ProjectIGI.Game.Physics.IWorldMaterialTr
 
         if ((uint)_active >= Rows)
         {
-            _logger.Warning(LogCategory, $"Material row {_active} is outside the table's {Rows}.");
             return QvmValue.FromInt32(1);
         }
 

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Scripting.Expressions;
 
 namespace ProjectIGI.Engine.Tasks;
@@ -19,7 +18,6 @@ namespace ProjectIGI.Engine.Tasks;
 /// </remarks>
 public sealed class TaskTree : ILevelTaskTable
 {
-    private const string LogCategory = "Tasks";
 
     /// <summary>The number of script id slots, which the original fixes at 4096.</summary>
     /// <remarks>
@@ -30,18 +28,16 @@ public sealed class TaskTree : ILevelTaskTable
 
     private readonly GameTask?[] _idTable = new GameTask?[IdCapacity];
     private readonly Dictionary<GameTask, int> _idsByTask = [];
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="TaskTree"/> class.</summary>
     /// <param name="types">The type registry tasks in this tree are created from.</param>
     /// <param name="root">The root task, or <see langword="null"/> to create a plain <see cref="RootTask"/>.</param>
     /// <param name="logger">The logger for tree diagnostics; defaults to a sink that discards them.</param>
     /// <exception cref="ArgumentNullException"><paramref name="types"/> is <see langword="null"/>.</exception>
-    public TaskTree(TaskTypeRegistry types, GameTask? root = null, IProjectIGILogger? logger = null)
+    public TaskTree(TaskTypeRegistry types, GameTask? root = null)
     {
         ArgumentNullException.ThrowIfNull(types);
         Types = types;
-        _logger = logger ?? NullLogger.Instance;
 
         if (root is null)
         {
@@ -291,7 +287,6 @@ public sealed class TaskTree : ILevelTaskTable
         }
 
         _idsByTask.Clear();
-        _logger.Debug(LogCategory, "Released all script ids.");
     }
 
     private void ReleaseId(GameTask task)

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Rendering.Rhi;
 using ProjectIGI.Rendering.Vulkan.Interop;
 using ProjectIGI.Rendering.Vulkan.Memory;
@@ -27,7 +26,6 @@ internal sealed unsafe partial class VulkanRhiDevice : IRhiDevice
     private readonly VulkanDevice _device;
     private readonly VulkanAllocator _allocator;
     private readonly VulkanCommands _commands;
-    private readonly IProjectIGILogger _logger;
     private readonly List<DescriptorPoolState> _pools = [];
     private DescriptorPoolState? _pool;
     private bool _disposed;
@@ -49,25 +47,17 @@ internal sealed unsafe partial class VulkanRhiDevice : IRhiDevice
     /// The instance the device came from, which ray tracing needs for its entry points; without it the
     /// device offers none.
     /// </param>
-    public VulkanRhiDevice(
-        Vk vk,
-        VulkanDevice device,
-        VulkanAllocator allocator,
-        VulkanCommands commands,
-        IProjectIGILogger logger,
-        VulkanInstance? instance = null)
+    public VulkanRhiDevice(Vk vk, VulkanDevice device, VulkanAllocator allocator, VulkanCommands commands, VulkanInstance? instance = null)
     {
         ArgumentNullException.ThrowIfNull(vk);
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(allocator);
         ArgumentNullException.ThrowIfNull(commands);
-        ArgumentNullException.ThrowIfNull(logger);
 
         _vk = vk;
         _device = device;
         _allocator = allocator;
         _commands = commands;
-        _logger = logger;
 
         // A one-off goes to the queue around the frame, so anything it may read that is still queued here
         // -- a texture created or written since the last submission -- has to reach the queue before it.
@@ -79,11 +69,6 @@ internal sealed unsafe partial class VulkanRhiDevice : IRhiDevice
 
         // Which of the two ways this device begins a pass, said once at startup rather than inferred from a
         // black screen: a device without dynamic rendering draws through render pass objects instead.
-        _logger.Information(
-            "Vulkan",
-            device.Capabilities.DynamicRendering
-                ? "Pass begin path: dynamic rendering (Vulkan 1.3)."
-                : "Pass begin path: render pass objects (no dynamic rendering on this adapter).");
 
         CreateTimeline();
 

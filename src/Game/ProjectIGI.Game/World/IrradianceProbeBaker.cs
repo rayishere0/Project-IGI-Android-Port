@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Core.Threading;
@@ -26,7 +25,6 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public static class IrradianceProbeBaker
 {
-    private const string LogCategory = "GI";
 
     /// <summary>How many directions each probe is asked about.</summary>
     /// <remarks>
@@ -96,39 +94,18 @@ public static class IrradianceProbeBaker
     /// </param>
     /// <returns>The bake, a slice at a time; see <see cref="SteppedJob{T}"/>.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public static IEnumerable<bool> Bake(
-        WorldScene scene,
-        WorldRayCast cast,
-        Vector3f sunDirection,
-        float spacing,
-        Vector3f groundAlbedo,
-        IProjectIGILogger? logger,
-        Action<IrradianceVolume>? onBouncePass,
-        IWorkScheduler work,
-        Action<IrradianceVolume?> done,
-        CancellationToken cancellationToken = default)
+    public static IEnumerable<bool> Bake(WorldScene scene, WorldRayCast cast, Vector3f sunDirection, float spacing, Vector3f groundAlbedo, Action<IrradianceVolume>? onBouncePass, IWorkScheduler work, Action<IrradianceVolume?> done, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(cast);
         ArgumentNullException.ThrowIfNull(work);
         ArgumentNullException.ThrowIfNull(done);
 
-        return BakeSlices(
-            scene, cast, sunDirection, spacing, groundAlbedo, logger ?? NullLogger.Instance, onBouncePass, work, done, cancellationToken);
+        return BakeSlices(scene, cast, sunDirection, spacing, groundAlbedo, onBouncePass, work, done, cancellationToken);
     }
 
     /// <summary>The bake itself, checked by <see cref="Bake"/> before it is handed out.</summary>
-    private static IEnumerable<bool> BakeSlices(
-        WorldScene scene,
-        WorldRayCast cast,
-        Vector3f sunDirection,
-        float spacing,
-        Vector3f groundAlbedo,
-        IProjectIGILogger log,
-        Action<IrradianceVolume>? onBouncePass,
-        IWorkScheduler work,
-        Action<IrradianceVolume?> done,
-        CancellationToken cancellationToken)
+    private static IEnumerable<bool> BakeSlices(WorldScene scene, WorldRayCast cast, Vector3f sunDirection, float spacing, Vector3f groundAlbedo, Action<IrradianceVolume>? onBouncePass, IWorkScheduler work, Action<IrradianceVolume?> done, CancellationToken cancellationToken)
     {
         if (scene.Placements.Count == 0 || spacing <= 0f)
         {
@@ -138,7 +115,6 @@ public static class IrradianceProbeBaker
 
         if (!TryMeasure(scene, ref spacing, out Vector3f origin, out int countX, out int countY, out int countZ))
         {
-            log.Warning(LogCategory, "The level's bounds gave no room for a probe volume.");
             done(null);
             yield break;
         }
@@ -146,9 +122,6 @@ public static class IrradianceProbeBaker
         IrradianceVolume volume = new(origin, spacing, countX, countY, countZ);
         Vector3f[] directions = FibonacciSphere(RaysPerProbe);
 
-        log.Information(
-            LogCategory,
-            $"Baking {volume.ProbeCount} probes ({countX}x{countY}x{countZ}) at {spacing:0.#} m spacing.");
 
         // A row per piece of work. Every probe writes only its own span of the volume and the cast reads
         // a collision index nothing is mutating, so there is no sharing to guard -- and the bake is the
@@ -240,7 +213,6 @@ public static class IrradianceProbeBaker
             onBouncePass?.Invoke(volume.Clone());
         }
 
-        log.Information(LogCategory, $"Probe bake complete ({Bounces} bounce(s)).");
         done(volume);
     }
 

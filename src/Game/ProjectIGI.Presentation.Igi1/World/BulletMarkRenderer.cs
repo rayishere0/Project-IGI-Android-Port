@@ -1,5 +1,4 @@
 using ProjectIGI.Presentation;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -34,7 +33,9 @@ namespace ProjectIGI.Presentation.Igi1.World;
 /// </para>
 /// </remarks>
 internal sealed class BulletMarkRenderer : IBulletMarkPresenter
+
 {
+
     private const string LogCategory = "Decal";
 
     /// <summary>How far off the surface a mark is lifted, in metres.</summary>
@@ -51,7 +52,6 @@ internal sealed class BulletMarkRenderer : IBulletMarkPresenter
 
     private readonly IGraphicsDevice _device;
     private readonly ResourceRegistry _resources;
-    private readonly IProjectIGILogger _logger;
     private TexTextureCache? _textureCache;
     private readonly Vertex3D[] _vertices = new Vertex3D[MaximumVertices];
     private readonly List<(TextureHandle Texture, int FirstQuad, int QuadCount)> _batches = [];
@@ -72,13 +72,12 @@ internal sealed class BulletMarkRenderer : IBulletMarkPresenter
     /// <param name="resources">Where the decal textures are read from.</param>
     /// <param name="logger">Where to report a texture that will not load.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public BulletMarkRenderer(IGraphicsDevice device, ResourceRegistry resources, IProjectIGILogger? logger = null)
+    public BulletMarkRenderer(IGraphicsDevice device, ResourceRegistry resources)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(resources);
         _device = device;
         _resources = resources;
-        _logger = logger ?? NullLogger.Instance;
         _cachedPose = CachedPose;
     }
 
@@ -190,7 +189,6 @@ internal sealed class BulletMarkRenderer : IBulletMarkPresenter
         }
         catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException)
         {
-            _logger.Warning(LogCategory, $"The marks did not upload: {ex.Message}");
         }
 
         _device.SetDepthState(DepthState.TestAndWrite);
@@ -294,5 +292,5 @@ internal sealed class BulletMarkRenderer : IBulletMarkPresenter
             colour: Bgra32.White);
 
     // The textures the models name, loaded on first use.
-    private TexTextureCache Textures => _textureCache ??= new(_device, _resources, _logger, LogCategory, TextureAddressMode.Clamp, static name => [$"LOCAL:common/textures/{name}", LoadedPack.TextureResourceName(name)]);
+    private TexTextureCache Textures => _textureCache ??= new(_device, _resources, LogCategory, TextureAddressMode.Clamp, static name => [$"LOCAL:common/textures/{name}", LoadedPack.TextureResourceName(name)]);
 }

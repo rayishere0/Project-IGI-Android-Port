@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Formats.Animation;
@@ -64,7 +63,6 @@ public sealed class Igi1PlayerSetup(
             return false;
         }
 
-        host.Logger.Information("Player", $"Carrying {loadout}.");
         carried = Carry(Candidate, loadout, Weapons, Ammunition);
         return true;
     }
@@ -158,7 +156,7 @@ public sealed class Igi1PlayerSetup(
         ArgumentNullException.ThrowIfNull(levelRoot);
         ArgumentNullException.ThrowIfNull(solids);
         ArgumentNullException.ThrowIfNull(missionText);
-        PlayerCamera candidate = new(host.Logger);
+        PlayerCamera candidate = new();
         Candidate = candidate;
 
         // 000.iff, kept so the player's third-person body can be built from the same set it walks on
@@ -178,9 +176,6 @@ public sealed class Igi1PlayerSetup(
         // walking through crates and buildings; the solidity is in each model's own HSMC mesh.
         // The index is the one built above for the soldiers' ground probe.
         candidate.UseWalls(solids);
-        host.Logger.Information(
-            "Player",
-            $"{solids.Count} placed object(s) are solid, {solids.TriangleCount} collision triangle(s).");
 
         // The grenade's own cast INCLUDES the terrain: the body meets the ground through its
         // ground query, but a grenade has no such query and would fall through the world.
@@ -220,17 +215,12 @@ public sealed class Igi1PlayerSetup(
         if (host.Scene is not null)
         {
             candidate.UseLadders(host.Scene.Ladders);
-            host.Logger.Information("Player", $"{host.Scene.Ladders.Count} ladder(s) to climb.");
         }
         if (mission.Interactions is { } interactions)
         {
             candidate.UseInteractions(interactions);
             candidate.TaskActivated += id => mission.Soldiers?.ActivateTask(id);
             candidate.ElectrifiedFenceTouched += fence => harm.ResolvePlayerElectricFence(candidate, fence);
-            candidate.UnarmedStationaryGun += gun => host.Logger.Warning(
-                "Player",
-                $"Mounted stationary gun {gun.TaskId}, but its {gun.WeaponId} is not bound to a weapon; it cannot fire.");
-            host.Logger.Information("Player", $"{interactions.Items.Count} direct world interaction(s).");
         }
         if (mission.GenericPickups is { } genericPickups)
         {
@@ -243,29 +233,25 @@ public sealed class Igi1PlayerSetup(
                     mission.Objectives?.ShowTransientMessage(missionText.Get(AmmoPickupMessage), portrait: AmmoPickupPortrait);
                 }
             };
-            host.Logger.Information("Player", $"{genericPickups.Items.Count} generic pickup(s) available.");
         }
 
         // ORDER MATTERS, and it is the original's. WEAPON_ID_* and AMMO_ID_* are pattern-registered
         // symbols that get their values as the two tables are read, so the rosters have to load
         // before humanplayer.qvm runs -- otherwise every id in its weapon cycle is a placeholder
         // and the cycle names weapons nobody carries.
-        Weapons = new(host.Logger);
-        Ammunition = new(host.Logger);
+        Weapons = new();
+        Ammunition = new();
         WeaponTypeRegistry weaponRoster = Weapons;
         AmmoTypeRegistry ammoTable = Ammunition;
-        GameMaterialRegistry materialTable = new(host.Logger);
+        GameMaterialRegistry materialTable = new();
         try
         {
             weaponRoster.Register(host.Game.Natives);
             weaponRoster.Load(host.FileSystem, host.Resources, host.Game.Natives);
             WeaponConfigRegistry.RegisterTypes(host.Game.Types);
-            WeaponConfigRegistry weaponConfig = new(host.Logger);
+            WeaponConfigRegistry weaponConfig = new();
             if (weaponConfig.Load(host.Resources, host.Game.Natives, host.Game.Tasks) == WeaponConfigRegistry.NoScript)
             {
-                host.Logger.Warning(
-                    "Weapon",
-                    $"No weapon configuration at {WeaponConfigRegistry.ScriptResource}; this title keeps it elsewhere.");
             }
             else
             {
@@ -292,14 +278,12 @@ public sealed class Igi1PlayerSetup(
             }
             else
             {
-                host.Logger.Warning("Material", $"No material table at {GameMaterialRegistry.ScriptResource}.");
             }
 
             int materialCount = materialTable.Load(host.Resources, host.Game.Natives);
             candidate.UseMaterials(materialTable);
             mission.Soldiers?.UseMaterials(materialTable);
             mission.Materials = materialTable;
-            host.Logger.Information("Material", $"Read {materialCount} game material(s).");
 
             // What the open ground is made of. The terrain declares it the same way a mesh face
             // does -- see FootstepSounds.TerrainGameMaterialIndex -- and it is Snow in the Arctic
@@ -316,7 +300,6 @@ public sealed class Igi1PlayerSetup(
 
             if (terrainRow is int row && materialTable.TryGet(row, out GameMaterial groundRow))
             {
-                host.Logger.Information("Material", $"Terrain walks on '{groundRow.Name}' (row {row}).");
             }
 
             mission.GunPickups = GunPickupRegistry.Build(levelRoot, weaponRoster, ammoTable, host.Game.Variables);
@@ -352,12 +335,10 @@ public sealed class Igi1PlayerSetup(
                 mission.Trace is { } dropTrace ? WorldTrace.AsRayCast(dropTrace) : null);
             if (mission.GunPickups.Items.Count > 0)
             {
-                host.Logger.Information("Weapon", $"{mission.GunPickups.Items.Count} gun pickup(s) available.");
             }
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or KeyNotFoundException)
         {
-            host.Logger.Warning("Weapon", $"Could not read the weapon or ammunition tables: {ex.Message}");
         }
 
         host.EndStage("the player's animation sets, walls, ladders and the weapon tables");
@@ -379,10 +360,6 @@ public sealed class Igi1PlayerSetup(
 
             if (config.PlaceholderIds.Count > 0)
             {
-                host.Logger.Warning(
-                    "Player",
-                    $"humanplayer.qvm left {config.PlaceholderIds.Count} id(s) unresolved; the weapon "
-                        + "cycle may name weapons that do not exist.");
             }
 
             if (config.Parameters is { } tuning)
@@ -407,7 +384,6 @@ public sealed class Igi1PlayerSetup(
             }
             else
             {
-                host.Logger.Warning("Player", "humanplayer.qvm published no parameters; using the retail defaults.");
             }
 
             // The same script says which weapon starts in hand, and it is not a guess any more:
@@ -428,7 +404,6 @@ public sealed class Igi1PlayerSetup(
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or KeyNotFoundException)
         {
-            host.Logger.Warning("Player", $"Could not run humanplayer.qvm: {ex.Message}");
         }
 
         host.EndStage("humanplayer.qvm");
@@ -496,10 +471,7 @@ public sealed class Igi1PlayerSetup(
                 modelName,
                 ModelOf,
                 magic,
-                roster,
-                (attachment, weaponModel) => host.Logger.Warning(
-                    "Ai",
-                    $"Vehicle gun {attachment} names weapon model {weaponModel}, which no weapon row uses."));
+                roster);
             if (guns.Count == 0)
             {
                 continue;
@@ -508,10 +480,6 @@ public sealed class Igi1PlayerSetup(
             runtime.ConfigureVehicleGuns(vehicle, guns);
             weaponModels.AddRange(guns.Select(static gun => gun.Mount.WeaponModel));
             armed++;
-            host.Logger.Information(
-                "Ai",
-                $"{vehicle.Type.Name} {vehicle.Id} ({modelName}) carries "
-                    + string.Join(", ", guns.Select(static gun => gun.Weapon.ScriptId)) + ".");
         }
 
         if (armed == 0)
@@ -580,7 +548,6 @@ public sealed class Igi1PlayerSetup(
                 collisionOwner: shot.Owner,
                 sourceWeaponId: roster.TryGetByScriptId(shot.WeaponScriptId, out WeaponType launcher) ? launcher.WeaponId : 0);
         };
-        host.Logger.Information("Ai", $"{armed} armed vehicle(s).");
 
         MefModel? ModelOf(string name) =>
             loaded.LevelPack.TryGetModel(name, out MefModel? mef) || loaded.CommonPack.TryGetModel(name, out mef)
@@ -614,7 +581,6 @@ public sealed class Igi1PlayerSetup(
         {
             if (!roster.TryGetByScriptId(declared.WeaponId, out WeaponType weapon))
             {
-                host.Logger.Warning("Weapon", $"{declared.WeaponId} is not in the roster; it is not carried.");
                 continue;
             }
 

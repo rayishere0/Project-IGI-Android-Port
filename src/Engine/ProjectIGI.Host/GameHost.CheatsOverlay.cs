@@ -124,7 +124,7 @@ public sealed partial class GameHost
         {
             PlayerCheatCVars.InfiniteHealth.Value = !PlayerCheatCVars.InfiniteHealth.Value;
             state.Console.SaveSettings();
-            HostConfiguration.Save(_configuration, _logger);
+            HostConfiguration.Save(_configuration);
             return;
         }
 
@@ -134,7 +134,7 @@ public sealed partial class GameHost
         {
             PlayerCheatCVars.InfiniteAmmo.Value = !PlayerCheatCVars.InfiniteAmmo.Value;
             state.Console.SaveSettings();
-            HostConfiguration.Save(_configuration, _logger);
+            HostConfiguration.Save(_configuration);
             return;
         }
 
@@ -144,7 +144,7 @@ public sealed partial class GameHost
         {
             PlayerCheatCVars.AllWeapons.Value = !PlayerCheatCVars.AllWeapons.Value;
             state.Console.SaveSettings();
-            HostConfiguration.Save(_configuration, _logger);
+            HostConfiguration.Save(_configuration);
             return;
         }
 
@@ -154,7 +154,7 @@ public sealed partial class GameHost
         {
             PlayerCheatCVars.UnlockAllLevels.Value = !PlayerCheatCVars.UnlockAllLevels.Value;
             state.Console.SaveSettings();
-            HostConfiguration.Save(_configuration, _logger);
+            HostConfiguration.Save(_configuration);
             return;
         }
 

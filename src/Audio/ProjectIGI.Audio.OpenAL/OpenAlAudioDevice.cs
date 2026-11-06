@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using Silk.NET.OpenAL;
 
@@ -39,9 +38,7 @@ namespace ProjectIGI.Audio.OpenAL;
 /// </remarks>
 public sealed partial class OpenAlAudioDevice : IAudioDevice
 {
-    private const string LogCategory = "Audio";
 
-    private readonly IProjectIGILogger _logger;
     private readonly AudioDeviceOptions _options;
     private readonly Lock _gate = new();
     private readonly MixBuses _buses = new();
@@ -59,9 +56,8 @@ public sealed partial class OpenAlAudioDevice : IAudioDevice
     /// <summary>Initializes a new instance of the <see cref="OpenAlAudioDevice"/> class.</summary>
     /// <param name="options">How to open the device.</param>
     /// <param name="logger">Where to report what happened, or <see langword="null"/> for silence.</param>
-    public OpenAlAudioDevice(AudioDeviceOptions options, IProjectIGILogger? logger = null)
+    public OpenAlAudioDevice(AudioDeviceOptions options)
     {
-        _logger = logger ?? NullLogger.Instance;
         _options = options;
 
         try
@@ -74,7 +70,6 @@ public sealed partial class OpenAlAudioDevice : IAudioDevice
         {
             // A missing or unusable OpenAL is not a fatal condition. Continuous integration has no
             // sound card, and neither do plenty of machines people will run this on.
-            _logger.Warning(LogCategory, $"No audio device: {error.Message}. Running silently.");
             Shutdown();
         }
     }
@@ -383,7 +378,6 @@ public sealed partial class OpenAlAudioDevice : IAudioDevice
         _device = _alc.OpenDevice(string.Empty);
         if (_device is null)
         {
-            _logger.Warning(LogCategory, "OpenAL opened no device. Running silently.");
             Shutdown();
             return;
         }
@@ -401,7 +395,6 @@ public sealed partial class OpenAlAudioDevice : IAudioDevice
 
         if (_context is null)
         {
-            _logger.Warning(LogCategory, "OpenAL created no context. Running silently.");
             Shutdown();
             return;
         }
@@ -417,7 +410,6 @@ public sealed partial class OpenAlAudioDevice : IAudioDevice
         _pool = new VoicePool<OpenAlVoice>(count, index => new OpenAlVoice(index, al.GenSource()), Silence);
 
         ApplyListener(_listener);
-        _logger.Information(LogCategory, $"OpenAL ready: {count} voices, {(_options.Spatial ? "3D" : "vanilla pan")}.");
     }
 
     private unsafe void Shutdown()

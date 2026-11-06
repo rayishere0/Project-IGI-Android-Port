@@ -73,7 +73,7 @@ public sealed class AiContentModule : IContentModule
         AiTaskTypes.RegisterAll(context.Types);
         HumanAiConfigRegistry.RegisterTypes(context.Types);
 
-        context.Services.GetOrProvide(() => new HumanAiConfigRegistry(context.Logger));
+        context.Services.GetOrProvide(() => new HumanAiConfigRegistry());
     }
 
     /// <inheritdoc/>
@@ -113,9 +113,9 @@ public sealed class WorldContentModule : IContentModule
         // GetOrProvide rather than Provide: a session running beside another -- the mission preview --
         // must bind its own loop's natives to the tables the playing session already loaded, not to a
         // second empty set. The natives are per-loop either way; only the table is shared.
-        context.Services.GetOrProvide(() => new MagicObjectRegistry(context.Logger)).Register(context.Natives);
-        context.Services.GetOrProvide(() => new AnimTriggerRegistry(context.Logger)).Register(context.Natives);
-        context.Services.GetOrProvide(() => new VehiclePhysicsRegistry(context.Logger));
+        context.Services.GetOrProvide(() => new MagicObjectRegistry()).Register(context.Natives);
+        context.Services.GetOrProvide(() => new AnimTriggerRegistry()).Register(context.Natives);
+        context.Services.GetOrProvide(() => new VehiclePhysicsRegistry());
         context.Services.GetOrProvide(static () => new Igi1Quirks());
     }
 

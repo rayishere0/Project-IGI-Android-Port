@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Rendering;
@@ -16,7 +15,6 @@ namespace ProjectIGI.Presentation.Lighting;
 /// </remarks>
 internal sealed class SurfaceCacheRadianceVolume
 {
-    private const string LogCategory = "SurfaceCache";
 
     /// <summary>How many frames the radiance cache spreads a full grid sweep across.</summary>
     /// <remarks>
@@ -32,7 +30,6 @@ internal sealed class SurfaceCacheRadianceVolume
     private const int CacheRays = 48;
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly SurfaceCacheBindings _bindings;
     private readonly Action _ensureTraceMode;
     private readonly Vector3d _origin;
@@ -81,19 +78,9 @@ internal sealed class SurfaceCacheRadianceVolume
     /// <param name="final">The final lighting atlas a hit reads.</param>
     /// <param name="width">The atlas width in texels.</param>
     /// <param name="height">The atlas height in texels.</param>
-    internal SurfaceCacheRadianceVolume(
-        IGraphicsDevice device,
-        IProjectIGILogger logger,
-        SurfaceCacheBindings bindings,
-        Action ensureTraceMode,
-        Vector3d origin,
-        StorageBufferHandle pages,
-        TextureHandle final,
-        int width,
-        int height)
+    internal SurfaceCacheRadianceVolume(IGraphicsDevice device, SurfaceCacheBindings bindings, Action ensureTraceMode, Vector3d origin, StorageBufferHandle pages, TextureHandle final, int width, int height)
     {
         _device = device;
-        _logger = logger;
         _bindings = bindings;
         _ensureTraceMode = ensureTraceMode;
         _origin = origin;
@@ -182,9 +169,6 @@ internal sealed class SurfaceCacheRadianceVolume
         _cacheSweeps = 0;
         _cacheConfigured = true;
 
-        _logger.Information(
-            LogCategory,
-            $"Radiance cache: {countX}x{countY}x{countZ} probes at {spacing:0.#} m.");
     }
 
     /// <summary>Traces one amortised slab of the radiance cache against the surface cache and the sky.</summary>

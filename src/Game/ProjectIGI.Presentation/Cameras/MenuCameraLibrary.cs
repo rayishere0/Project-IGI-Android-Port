@@ -1,5 +1,4 @@
 using ProjectIGI.Presentation.Cameras;
-using ProjectIGI.Core.Diagnostics;
 using System.Text.Json.Serialization;
 using System.Text.Json;
 
@@ -80,7 +79,7 @@ public sealed partial class MenuCameraLibrary
     /// <param name="path">The JSON file path.</param>
     /// <param name="logger">Where to report a load failure.</param>
     /// <returns>The library.</returns>
-    public static MenuCameraLibrary Load(string path, IProjectIGILogger? logger = null)
+    public static MenuCameraLibrary Load(string path)
     {
         if (!File.Exists(path))
         {
@@ -122,7 +121,6 @@ public sealed partial class MenuCameraLibrary
         }
         catch (Exception ex) when (ex is IOException or JsonException)
         {
-            logger?.Warning("Menu", $"Could not read menu cameras from {path}: {ex.Message}");
             return Empty;
         }
     }

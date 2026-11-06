@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Rendering.Rhi;
@@ -144,15 +143,14 @@ internal sealed class WorldScene : IDisposable
     /// <param name="device">The device to build on.</param>
     /// <param name="structures">Its acceleration structures.</param>
     /// <param name="logger">Where running out of records is said.</param>
-    public WorldScene(IRhiDevice device, IRhiAccelerationStructures structures, IProjectIGILogger logger)
+    public WorldScene(IRhiDevice device, IRhiAccelerationStructures structures)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(structures);
-        ArgumentNullException.ThrowIfNull(logger);
 
         _scene = new RayTracingScene(device, structures, Math.Min(MaxInstances, structures.MaxInstances));
 
-        _records = new HitRecordAllocator(device, logger);
+        _records = new HitRecordAllocator(device);
     }
 
     /// <summary>Gets the scene structure, or <see langword="null"/> before anything has been built.</summary>

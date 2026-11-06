@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Engine.Time;
 using ProjectIGI.Scripting.Runtime;
@@ -21,9 +20,7 @@ namespace ProjectIGI.Engine.Flow;
 /// </remarks>
 public sealed class GameLoop
 {
-    private const string LogCategory = "Flow";
 
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="GameLoop"/> class.</summary>
     /// <param name="time">The wall-clock source; defaults to the real clock.</param>
@@ -36,27 +33,20 @@ public sealed class GameLoop
     /// <see cref="EngineTaskTypes.StructuralNames"/>, which is Project I.G.I.'s set. I.G.I. 2 declares
     /// <c>Container</c> itself and must leave it out, or the arity check rejects every level.
     /// </param>
-    public GameLoop(
-        ITimeSource? time = null,
-        IFlowHost? host = null,
-        IFrameSuspension? suspension = null,
-        IRenderScheduler? renderer = null,
-        IProjectIGILogger? logger = null,
-        IReadOnlyList<string>? structuralTypes = null)
+    public GameLoop(ITimeSource? time = null, IFlowHost? host = null, IFrameSuspension? suspension = null, IRenderScheduler? renderer = null, IReadOnlyList<string>? structuralTypes = null)
     {
-        _logger = logger ?? NullLogger.Instance;
         TimeSource = time ?? new SystemTimeSource();
 
-        Types = new TaskTypeRegistry(_logger);
+        Types = new TaskTypeRegistry();
         TaskType root = EngineTaskTypes.Register(Types, structuralTypes ?? EngineTaskTypes.StructuralNames);
         FlowType = Types.Register(FlowTypeName, static () => new FlowTask(), root);
 
         // The system tree is created first because the flow task holds it, and it is unparented in the
         // original for the same reason it is a separate tree here: the render pass must not reach it.
-        SystemTasks = new TaskTree(Types, logger: _logger);
+        SystemTasks = new TaskTree(Types);
 
         Flow = (FlowTask)FlowType.CreateInstance();
-        Tasks = new TaskTree(Types, Flow, _logger);
+        Tasks = new TaskTree(Types, Flow);
 
         Clock = new GameClock(TimeSource);
         Flow.Initialize(
@@ -73,7 +63,7 @@ public sealed class GameLoop
 
         Natives = new NativeRegistry();
         Variables = new ScriptVarRegistry(Natives);
-        TaskCommands = new TaskScriptCommands(Tasks, Variables, _logger);
+        TaskCommands = new TaskScriptCommands(Tasks, Variables);
         TaskCommands.Register(Natives, Flow);
         FlowCommands = new FlowScriptCommands(Flow);
         FlowCommands.Register(Natives);
@@ -143,7 +133,6 @@ public sealed class GameLoop
     public void RequestShutdown()
     {
         IsRunning = false;
-        _logger.Information(LogCategory, "Shutdown requested.");
     }
 
     /// <summary>Requests the first flow event, as the end of <c>Game_Init</c> does.</summary>
@@ -159,7 +148,6 @@ public sealed class GameLoop
     public void Boot(bool showIntro = false)
     {
         Flow.Request(showIntro ? FlowEvent.Intro : FlowEvent.Game);
-        _logger.Information(LogCategory, $"Booting into {Flow.PendingEvent}.");
     }
 
     /// <summary>Runs one frame.</summary>
@@ -178,7 +166,6 @@ public sealed class GameLoop
         }
         catch (GameAbortException abort)
         {
-            _logger.Debug(LogCategory, $"Frame aborted by {abort.Cause}.");
             return FrameOutcome.Aborted;
         }
     }

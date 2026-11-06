@@ -1,5 +1,4 @@
 using ProjectIGI.Core.Graphics;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Formats.World;
 using ProjectIGI.Game.World;
@@ -38,7 +37,6 @@ namespace ProjectIGI.Presentation.Igi2.World;
 public sealed class Igi2ForestPresenter : IForestPresenter
 {
     /// <summary>The category load diagnostics are logged under.</summary>
-    public const string LogCategory = "igi2.forest";
 
     /// <summary>The alpha below which a foliage texel is cut away, out of 255.</summary>
     /// <remarks>
@@ -89,12 +87,7 @@ public sealed class Igi2ForestPresenter : IForestPresenter
     /// <param name="textures">Resolves a model name and material slot to the texture handle it samples.</param>
     /// <param name="logger">Where load diagnostics go.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public Igi2ForestPresenter(
-        IGraphicsDevice device,
-        Igi2Forest forest,
-        Func<string, MefModel?> models,
-        Func<string, int, TextureHandle> textures,
-        IProjectIGILogger? logger = null)
+    public Igi2ForestPresenter(IGraphicsDevice device, Igi2Forest forest, Func<string, MefModel?> models, Func<string, int, TextureHandle> textures)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(forest);
@@ -102,19 +95,16 @@ public sealed class Igi2ForestPresenter : IForestPresenter
         ArgumentNullException.ThrowIfNull(textures);
 
         _device = device;
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         foreach (Igi2ForestStand stand in forest.Stands)
         {
             if (models(stand.Model) is not { } model)
             {
-                log.Warning(LogCategory, $"Forest {stand.TaskId} draws '{stand.Model}', which the level does not hold.");
                 continue;
             }
 
             if (MefMeshBuilder.Build(model, (float)(1.0 / WorldScene.UnitsPerMetre)) is not { } geometry)
             {
-                log.Warning(LogCategory, $"Forest {stand.TaskId}'s model '{stand.Model}' has no geometry.");
                 continue;
             }
 
@@ -151,9 +141,6 @@ public sealed class Igi2ForestPresenter : IForestPresenter
         }
 
         TreeCount = _stands.Sum(static s => s.Trees.Count);
-        log.Information(
-            LogCategory,
-            $"Forest: {_stands.Count} stand(s), {TreeCount} trees, {_stands.Sum(static s => s.Bsp.Count)} indexed.");
     }
 
     /// <summary>Gets how many trees the presenter holds, culled or not.</summary>

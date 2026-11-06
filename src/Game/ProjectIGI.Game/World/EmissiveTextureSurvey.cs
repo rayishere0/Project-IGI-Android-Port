@@ -1,6 +1,5 @@
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Formats;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Formats.Ilff;
 using ProjectIGI.Formats.World;
@@ -45,7 +44,6 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public static class EmissiveTextureSurvey
 {
-    private const string LogCategory = "Emissive";
 
     /// <summary>The lightmap luminance, 0 to 1, above which a surface is called self-lit.</summary>
     /// <remarks>
@@ -91,21 +89,15 @@ public static class EmissiveTextureSurvey
     /// a lightmap at the wrong stride does not fail everywhere, and a survey that quietly measured the
     /// wrong pixels would rank the wrong textures as lights.
     /// </remarks>
-    public static IReadOnlyList<Finding> Survey(
-        WorldScene scene,
-        ResourceRegistry resources,
-        AssetFormatProfile formats,
-        IProjectIGILogger? logger = null)
+    public static IReadOnlyList<Finding> Survey(WorldScene scene, ResourceRegistry resources, AssetFormatProfile formats)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(resources);
         ArgumentNullException.ThrowIfNull(formats);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         if (!scene.Mission.TryReadLightmapArchive(resources, out IresArchive? archive) || archive is null)
         {
-            log.Warning(LogCategory, "This level ships no lightmap archive; nothing to survey.");
             return [];
         }
 
@@ -200,19 +192,11 @@ public static class EmissiveTextureSurvey
 
         findings.Sort((a, b) => b.Score.CompareTo(a.Score));
 
-        log.Information(
-            LogCategory,
-            $"Surveyed {byTexture.Count} textured surface(s); "
-                + $"{findings.Count(f => f.BrightShare > 0.5f)} are lit like sources.");
 
         return findings;
     }
 
-    private static ObjectLightmap? TryRead(
-        Dictionary<string, IresEntry> entries,
-        string entryName,
-        AssetFormatProfile formats,
-        IProjectIGILogger log)
+    private static ObjectLightmap? TryRead(Dictionary<string, IresEntry> entries, string entryName, AssetFormatProfile formats)
     {
         if (!entries.TryGetValue(entryName, out IresEntry? entry) || entry is null)
         {
@@ -225,7 +209,6 @@ public static class EmissiveTextureSurvey
         }
         catch (Exception ex) when (ex is PackFormatException or ArgumentException)
         {
-            log.Warning(LogCategory, $"Lightmap '{entryName}' did not read: {ex.Message}");
             return null;
         }
     }

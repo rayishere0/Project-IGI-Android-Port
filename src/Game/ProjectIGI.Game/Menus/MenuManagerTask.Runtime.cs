@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Game.Config;
 using ProjectIGI.Scripting.Runtime;
 using ProjectIGI.Engine.Tasks;
@@ -36,7 +35,6 @@ public partial class MenuManagerTask
     private MenuScreenTask? _current;
     private DialogWindowTask? _popup;
     private IMenuConfiguration? _configuration;
-    private IProjectIGILogger _logger = NullLogger.Instance;
 
     /// <summary>Gets the screen stack and fade this manager drives.</summary>
     public MenuNavigator Navigator { get; } = new();
@@ -105,16 +103,15 @@ public partial class MenuManagerTask
     /// <paramref name="system"/>'s, which is what a script loaded into a game loop has.
     /// </param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public void Initialize(MenuSystem system, IMenuHost host, IProjectIGILogger? logger = null, ScriptVarRegistry? variables = null)
+    public void Initialize(MenuSystem system, IMenuHost host, ScriptVarRegistry? variables = null)
     {
         ArgumentNullException.ThrowIfNull(system);
         ArgumentNullException.ThrowIfNull(host);
 
         _system = system;
         _host = host;
-        _logger = logger ?? NullLogger.Instance;
 
-        ScriptContext = new MenuScriptContext(Navigator, _logger)
+        ScriptContext = new MenuScriptContext(Navigator)
         {
             Variables = variables ?? system.Variables,
             Fallback = _configuration is null ? null : Invoke,
@@ -298,7 +295,6 @@ public partial class MenuManagerTask
 
         if (_evaluator.HasError)
         {
-            _logger.Warning("Menu", $"{source}: {_evaluator.ErrorMessage}");
         }
     }
 
@@ -346,7 +342,6 @@ public partial class MenuManagerTask
         // visible without filling the log every tick.
         if (_unknownNatives.Add(name))
         {
-            _logger.Warning("Menu", $"No native named '{name}'; it evaluates to zero.");
         }
 
         return QvmValue.Zero;
@@ -390,7 +385,6 @@ public partial class MenuManagerTask
 
         if (_evaluator.HasError)
         {
-            _logger.Warning("Menu", $"{source}: {_evaluator.ErrorMessage}");
         }
 
         return result;

@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
-using ProjectIGI.Core.Diagnostics;
 
 namespace ProjectIGI.Rendering;
 
@@ -29,7 +28,6 @@ namespace ProjectIGI.Rendering;
 /// </remarks>
 public sealed class MaterialLibrary
 {
-    private const string LogCategory = "Material";
 
     private readonly Dictionary<string, SurfaceMaterial> _byName = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<(string Suffix, SurfaceMaterial Material)> _bySuffix = [];
@@ -68,9 +66,8 @@ public sealed class MaterialLibrary
     /// A broken file never stops the game: every surface falls back to the default, which is the
     /// behaviour from before this file existed.
     /// </remarks>
-    public static MaterialLibrary Load(string path, IProjectIGILogger? logger = null)
+    public static MaterialLibrary Load(string path)
     {
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         // Its OWN library rather than the shared empty one, even with nothing to put in it: the level
         // that follows will hand its detected emitters to whatever Load returned, and writing those onto
@@ -125,15 +122,11 @@ public sealed class MaterialLibrary
                 }
             }
 
-            log.Information(
-                LogCategory,
-                $"Materials: {library._byName.Count} texture(s), {library._bySuffix.Count} suffix rule(s).");
 
             return library;
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
-            log.Warning(LogCategory, $"Could not read {path}: {ex.Message}. Every surface takes the default.");
             return new MaterialLibrary(SurfaceMaterial.Default);
         }
     }

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 
 namespace ProjectIGI.Engine.Events;
 
@@ -23,12 +22,10 @@ public delegate void GameEventListener<TEvent>(in TEvent gameEvent)
 /// </para>
 /// </remarks>
 /// <param name="logger">Where a subscriber's failure is reported.</param>
-public sealed class GameEvents(IProjectIGILogger? logger = null)
+public sealed class GameEvents()
 {
-    private const string LogCategory = "Events";
 
     private readonly Dictionary<Type, Delegate[]> _handlers = [];
-    private readonly IProjectIGILogger _logger = logger ?? NullLogger.Instance;
 
     /// <summary>Asks to be told of one kind of event.</summary>
     /// <typeparam name="TEvent">The kind.</typeparam>
@@ -68,7 +65,6 @@ public sealed class GameEvents(IProjectIGILogger? logger = null)
             catch (Exception ex)
 #pragma warning restore CA1031
             {
-                _logger.Error(LogCategory, $"A handler of {typeof(TEvent).Name} failed: {ex.Message}");
             }
         }
     }

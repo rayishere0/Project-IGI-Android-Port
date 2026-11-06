@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Formats.World;
@@ -21,20 +20,7 @@ internal static class WorldAttachmentWalker
     /// so it converts to metres the same way a placement's does. The rotations compose in the order the
     /// camera already uses for a placement's own orientation.
     /// </remarks>
-    internal static int AddAttached(
-        LoadedMission mission,
-        IProjectIGILogger log,
-        WorldObject node,
-        Vector3d position,
-        Matrix3f drawOrientation,
-        Matrix3f taskOrientation,
-        string set,
-        string taskName,
-        GameTask owner,
-        Dictionary<string, (MtpInstance Instance, LoadedPack Pack, MefModel Model)> byName,
-        MagicObjectRegistry? magic,
-        List<WorldPlacement> placements,
-        List<LadderPlacement> ladders)
+    internal static int AddAttached(LoadedMission mission, WorldObject node, Vector3d position, Matrix3f drawOrientation, Matrix3f taskOrientation, string set, string taskName, GameTask owner, Dictionary<string, (MtpInstance Instance, LoadedPack Pack, MefModel Model)> byName, MagicObjectRegistry? magic, List<WorldPlacement> placements, List<LadderPlacement> ladders)
     {
         int added = 0;
         foreach (WorldObject child in node.Children)

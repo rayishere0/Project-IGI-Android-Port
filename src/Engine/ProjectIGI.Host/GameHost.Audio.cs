@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using ProjectIGI.Audio;
 using ProjectIGI.Core.Configuration;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Audio;
 using ProjectIGI.Engine.Vfs;
 using ProjectIGI.Game.Weapons.Ballistics;
@@ -202,7 +201,7 @@ public sealed partial class GameHost
             return;
         }
 
-        RainAmbience rain = new(_audioOut.Sounds, _logger);
+        RainAmbience rain = new(_audioOut.Sounds);
         if (rain.TryLoad(Path.Combine(AppContext.BaseDirectory, "Assets", "sounds", "rain-loop.wav")))
         {
             _rainAmbience = rain;
@@ -259,7 +258,6 @@ public sealed partial class GameHost
         }
 
         _rainDebugTimestamp = now;
-        _logger.Information("Audio", $"Rain: {rain.Describe()}");
     }
 
     /// <summary>Spawns the particle bursts for whatever ballistic rounds landed this tick.</summary>

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Core.Threading;
@@ -33,27 +32,17 @@ internal sealed class GlobalIllumination : IHostService
     /// <param name="work">The workers the distance field bakes on.</param>
     /// <param name="lockstep">Whether frames are captured in lockstep, which runs the convergence in one go.</param>
     /// <param name="host">The level, its sun and the caches.</param>
-    public GlobalIllumination(
-        IGraphicsDevice device,
-        IProjectIGILogger logger,
-        IWorkScheduler work,
-        bool lockstep,
-        IGlobalIlluminationHost host)
+    public GlobalIllumination(IGraphicsDevice device, IWorkScheduler work, bool lockstep, IGlobalIlluminationHost host)
     {
         _device = device;
         _host = host;
 
         // A field taken into use is half of the pair the convergence waits on, and a field thrown away
         // takes the convergence against it with it -- first, as the field discard always did.
-        _fields = new DistanceFieldResidency(
-            device,
-            logger,
-            work,
-            host,
-            adopted: () => _cards!.BeginConvergence(),
+        _fields = new DistanceFieldResidency(device, work, host, adopted: () => _cards!.BeginConvergence(),
             discarding: () => _cards!.ResetConvergence());
-        _cards = new SurfaceCacheResidency(device, logger, lockstep, host, _fields, () => LightFixtures);
-        _sceneLighting = new SceneLightingAssembler(device, logger, host, _fields, _cards);
+        _cards = new SurfaceCacheResidency(device, lockstep, host, _fields, () => LightFixtures);
+        _sceneLighting = new SceneLightingAssembler(device, host, _fields, _cards);
     }
 
     /// <summary>How long after the sun last moved the GI keeps following it closely, in frames.</summary>

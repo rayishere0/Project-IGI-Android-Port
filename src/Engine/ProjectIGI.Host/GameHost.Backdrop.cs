@@ -1,5 +1,4 @@
 using ProjectIGI.Core.Configuration.Presets;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Game.Ai;
 using ProjectIGI.Host.Menu;
 using ProjectIGI.Host.Services;
@@ -74,7 +73,6 @@ public sealed partial class GameHost
             if (settled)
             {
                 state.EntryCamPending = false;
-                _logger.Information("Menu", $"-entrycam is pressing Play on mission {entryBackdrop.MissionId}.");
                 state.ShellHostForEntryCam?.StartMission(
                     entryBackdrop.MissionId,
                     _configuration.Active?.Difficulty ?? (int)AiDifficulty.Normal);
@@ -97,7 +95,6 @@ public sealed partial class GameHost
                     int next = order[(int)(row % order.Length)];
                     if (next != _menuFlow.CurrentShowcaseMissionId)
                     {
-                        _logger.Information("Menu", $"-backdropcycle: selecting mission {next}.");
                         _menuFlow.PendingPreviewMissionId = null;
                         _menuFlow.CurrentShowcaseMissionId = next;
                         RequestBackdrop(state.PreviewLoader, next);
@@ -117,7 +114,6 @@ public sealed partial class GameHost
                 GraphicsPreset preset = presets[(int)(step % presets.Length)];
                 if (GraphicsPresetRegistry.Default.IsAllowed(preset))
                 {
-                    _logger.Information("Menu", $"-presetcycle: applying {preset}.");
                     GraphicsPresetRegistry.Default.Apply(preset);
                 }
             }
@@ -162,12 +158,6 @@ public sealed partial class GameHost
                 // Under the held frame, where the pause is not seen: the outgoing level and the
                 // incoming one's decoding have just been through the heap.
                 _memory.TrimAfterLoad();
-
-                // A soak reports where memory stands every tenth swap, so growth shows as a trend.
-                if (_options.BackdropCycleFrames > 0 && ++_menuFlow.BackdropSwaps % 10 == 0)
-                {
-                    _memory.Report($"After {_menuFlow.BackdropSwaps} backdrop swap(s)");
-                }
 
                 // Once the first backdrop is up, every other mission's files are read through in the
                 // background, so whichever the player settles on next builds from memory.

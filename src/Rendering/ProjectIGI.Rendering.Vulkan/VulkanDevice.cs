@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Rendering;
 using ProjectIGI.Rendering.Vulkan.Capabilities;
 using ProjectIGI.Rendering.Vulkan.Interop;
@@ -26,7 +25,6 @@ internal sealed unsafe class VulkanDevice : IDisposable
 {
     private readonly Vk _vk;
     private readonly Instance _instance;
-    private readonly IProjectIGILogger _logger;
     private readonly Pipelines.VulkanPipelineCache _pipelineCache;
     private readonly bool _deviceFaultEnabled;
     private nint _cmdSetCheckpoint;
@@ -34,7 +32,6 @@ internal sealed unsafe class VulkanDevice : IDisposable
     private bool _disposed;
 
     /// <summary>Gets where the backend reports diagnostics.</summary>
-    public IProjectIGILogger Logger => _logger;
 
     /// <summary>Gets the API the device was created through.</summary>
     /// <remarks>
@@ -49,13 +46,12 @@ internal sealed unsafe class VulkanDevice : IDisposable
     /// <param name="selection">The chosen adapter and how it will be used.</param>
     /// <param name="logger">Where to report device creation.</param>
     /// <exception cref="GraphicsDeviceException">The logical device could not be created.</exception>
-    public VulkanDevice(VulkanInstance instance, PhysicalDeviceSelection selection, IProjectIGILogger logger)
+    public VulkanDevice(VulkanInstance instance, PhysicalDeviceSelection selection)
     {
         ArgumentNullException.ThrowIfNull(instance);
         ArgumentNullException.ThrowIfNull(selection);
         _vk = instance.Vk;
         _instance = instance.Instance;
-        _logger = logger;
         _deviceFaultEnabled = selection.Capabilities.EnabledExtensions.Contains("VK_EXT_device_fault");
         Selection = selection;
         Capabilities = selection.Capabilities;
@@ -94,10 +90,8 @@ internal sealed unsafe class VulkanDevice : IDisposable
         // After the device and before anything builds a pipeline against it. Every pipeline in the
         // backend is created through this, which is what lets the driver hand back what it compiled on
         // a previous run instead of compiling it again on the frame that first needs it.
-        _pipelineCache = new Pipelines.VulkanPipelineCache(_vk, Device, selection.Properties, logger);
+        _pipelineCache = new Pipelines.VulkanPipelineCache(_vk, Device, selection.Properties);
 
-        logger.Information("Vulkan", $"Created logical device on '{selection.Name}'.");
-        LogMemoryBudget("at start-up");
     }
 
     /// <summary>Gets the cache every pipeline creation is built through.</summary>
@@ -148,70 +142,6 @@ internal sealed unsafe class VulkanDevice : IDisposable
     /// path reads this and asks for none.
     /// </remarks>
     public bool SamplerMipLodBias { get; }
-
-    /// <summary>Waits until the device has finished every outstanding submission.</summary>
-    /// <remarks>
-    /// A coarse barrier, for teardown and swapchain rebuild rather than per frame: it is the only safe
-    /// point at which resources a command buffer might still reference can be destroyed. Per-frame
-    /// completion is tracked through each queue's timeline instead.
-    /// </remarks>
-    /// <summary>Logs whatever the driver recorded about a device loss, when the fault extension is on.</summary>
-    /// <remarks>
-    /// Called the instant a submit or wait returns <c>ErrorDeviceLost</c>, before the exception unwinds.
-    /// A hang leaves no address behind and reports only a vendor code or nothing; a real fault reports the
-    /// address it read, wrote or executed at, and whether it was invalid -- which is what tells a timeout
-    /// apart from an out-of-bounds and points at the resource behind it.
-    /// </remarks>
-    /// <summary>Writes how much of each device-local heap is spoken for.</summary>
-    /// <param name="when">What moment this reading describes, for the message.</param>
-    /// <remarks>
-    /// Read through VK_EXT_memory_budget, which reports the driver's own view rather than the sum of what
-    /// the port asked for -- so it counts what other applications and the desktop are holding too. Logged
-    /// at start-up and again on a device loss, because those two readings together answer a question a
-    /// stack trace cannot: whether the device died because it ran out of memory or for some other reason.
-    /// A card with a third of the memory the port was developed against is the case this exists for.
-    /// </remarks>
-    public unsafe void LogMemoryBudget(string when)
-    {
-        if (!_logger.IsEnabled(LogLevel.Information)
-            || !Capabilities.EnabledExtensions.Contains(VulkanExtensionNames.MemoryBudget))
-        {
-            return;
-        }
-
-        PhysicalDeviceMemoryBudgetPropertiesEXT budget = new()
-        {
-            SType = StructureType.PhysicalDeviceMemoryBudgetPropertiesExt,
-        };
-
-        PhysicalDeviceMemoryProperties2 properties = new()
-        {
-            SType = StructureType.PhysicalDeviceMemoryProperties2,
-            PNext = &budget,
-        };
-
-        _vk.GetPhysicalDeviceMemoryProperties2(Selection.Device, &properties);
-
-        List<string> heaps = [];
-        for (uint i = 0; i < properties.MemoryProperties.MemoryHeapCount; i++)
-        {
-            if ((properties.MemoryProperties.MemoryHeaps[(int)i].Flags & MemoryHeapFlags.DeviceLocalBit) == 0)
-            {
-                continue;
-            }
-
-            double used = budget.HeapUsage[(int)i] / (1024.0 * 1024.0);
-            double allowed = budget.HeapBudget[(int)i] / (1024.0 * 1024.0);
-            double size = properties.MemoryProperties.MemoryHeaps[(int)i].Size / (1024.0 * 1024.0);
-            heaps.Add(FormattableString.Invariant(
-                $"heap {i}: {used:F0} MiB used of {allowed:F0} MiB available ({size:F0} MiB total)"));
-        }
-
-        if (heaps.Count > 0)
-        {
-            _logger.Information("Vulkan", $"Device memory {when} -- {string.Join("; ", heaps)}.");
-        }
-    }
 
     /// <summary>Describes every memory heap's use and budget, the host's as well as the device's.</summary>
     /// <returns>One line per heap, or a note that the driver does not report budgets.</returns>
@@ -305,7 +235,6 @@ internal sealed unsafe class VulkanDevice : IDisposable
         read(Graphics, &count, null);
         if (count == 0)
         {
-            _logger.Error("Vulkan", "The graphics queue reports no diagnostic checkpoints.");
             return;
         }
 
@@ -317,24 +246,18 @@ internal sealed unsafe class VulkanDevice : IDisposable
         }
 
         read(Graphics, &count, data);
-        _logger.Error("Vulkan", $"Last {count} diagnostic checkpoint(s) the graphics queue passed:");
         for (int i = 0; i < (int)count; i++)
         {
             VkCheckpointDataNV c = data[i];
-            _logger.Error(
-                "Vulkan",
-                $"  checkpoint: {VulkanCheckpointMarkers.Describe((nint)c.PCheckpointMarker)} (stage {c.Stage}).");
         }
     }
 
     public unsafe void ReportDeviceFault()
     {
-        LogMemoryBudget("when the device was lost");
         ReportCheckpoints();
 
         if (!_deviceFaultEnabled)
         {
-            _logger.Warning("Vulkan", "Device lost; VK_EXT_device_fault is not enabled, so no fault detail is available.");
             return;
         }
 
@@ -367,27 +290,19 @@ internal sealed unsafe class VulkanDevice : IDisposable
         Result read = ext.GetDeviceFaultInfo(Device, &counts, &info);
         if (read != Result.Success && read != Result.Incomplete)
         {
-            _logger.Warning("Vulkan", $"vkGetDeviceFaultInfoEXT returned {read}.");
             return;
         }
 
         string description = new((sbyte*)info.Description);
-        _logger.Error("Vulkan", $"DEVICE FAULT: '{description}' ({counts.AddressInfoCount} address(es), {counts.VendorInfoCount} vendor code(s)).");
 
         for (int i = 0; i < (int)Math.Min(counts.AddressInfoCount, (uint)capacity); i++)
         {
             DeviceFaultAddressInfoEXT a = addresses[i];
-            _logger.Error(
-                "Vulkan",
-                $"  fault address[{i}]: type={a.AddressType} at 0x{a.ReportedAddress:X} (precision mask 0x{a.AddressPrecision:X}).");
         }
 
         for (int i = 0; i < (int)Math.Min(counts.VendorInfoCount, (uint)capacity); i++)
         {
             DeviceFaultVendorInfoEXT v = vendors[i];
-            _logger.Error(
-                "Vulkan",
-                $"  vendor fault[{i}]: code=0x{v.VendorFaultCode:X} data=0x{v.VendorFaultData:X}.");
         }
     }
 
@@ -450,7 +365,6 @@ internal sealed unsafe class VulkanDevice : IDisposable
         // with no VkResult to report and no chance to log afterwards. Written out first, the log names the
         // adapter, the exact extension list and every structure in the chain, which is the whole of what
         // the call was given and enough to see the mismatch without the machine that has it.
-        LogDeviceCreation(selection, chain, features);
 
         nint extensionNames = SilkMarshal.StringArrayToPtr(selection.DeviceExtensions);
         try
@@ -476,61 +390,6 @@ internal sealed unsafe class VulkanDevice : IDisposable
         finally
         {
             SilkMarshal.Free(extensionNames);
-        }
-    }
-
-    /// <summary>Writes everything vkCreateDevice is about to be given.</summary>
-    /// <param name="selection">The adapter and the extensions it will be created with.</param>
-    /// <param name="chain">The feature chain, walked for the structure types and the flags it carries.</param>
-    /// <param name="features">The core features, which travel outside the chain.</param>
-    private void LogDeviceCreation(PhysicalDeviceSelection selection, VulkanStructChain chain, in PhysicalDeviceFeatures features)
-    {
-        if (!_logger.IsEnabled(LogLevel.Information))
-        {
-            return;
-        }
-
-        Version32 api = (Version32)selection.ApiVersion;
-        Version32 driver = (Version32)selection.Properties.DriverVersion;
-        _logger.Information(
-            "Vulkan",
-            $"Creating device on '{selection.Name}' (vendor 0x{selection.Properties.VendorID:X4}, "
-            + $"device 0x{selection.Properties.DeviceID:X4}, type {selection.Properties.DeviceType}, "
-            + $"Vulkan {api.Major}.{api.Minor}.{api.Patch}, driver {driver.Major}.{driver.Minor}.{driver.Patch}).");
-
-        _logger.Information(
-            "Vulkan",
-            $"Enabling {selection.DeviceExtensions.Count} device extensions: "
-            + string.Join(", ", selection.DeviceExtensions));
-
-        // Every Vulkan extension structure opens with a 32-bit type and then, a pointer-slot along, its
-        // own pNext, so the chain can be read back without knowing what was put in it.
-        List<string> linked = [];
-        for (void* link = chain.Head; link is not null; link = ((void**)link)[1])
-        {
-            linked.Add((*(StructureType*)link).ToString());
-        }
-
-        _logger.Information("Vulkan", $"Feature chain ({linked.Count}): {string.Join(", ", linked)}.");
-
-        // And every flag set in each, because VK_ERROR_FEATURE_NOT_PRESENT names no feature: it says one
-        // of the bits was not there, and the list below is the whole set of bits it could have been. The
-        // core structure travels through pEnabledFeatures rather than the chain, so it is written first.
-        _logger.Information("Vulkan", $"Requested core features: {RequestedFlags(features)}.");
-        for (void* link = chain.Head; link is not null; link = ((void**)link)[1])
-        {
-            string? flags = *(StructureType*)link switch
-            {
-                StructureType.PhysicalDeviceVulkan11Features => RequestedFlags(*(PhysicalDeviceVulkan11Features*)link),
-                StructureType.PhysicalDeviceVulkan12Features => RequestedFlags(*(PhysicalDeviceVulkan12Features*)link),
-                StructureType.PhysicalDeviceVulkan13Features => RequestedFlags(*(PhysicalDeviceVulkan13Features*)link),
-                _ => null,
-            };
-
-            if (flags is not null)
-            {
-                _logger.Information("Vulkan", $"Requested {*(StructureType*)link}: {flags}.");
-            }
         }
     }
 

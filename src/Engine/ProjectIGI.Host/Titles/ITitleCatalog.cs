@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Titles;
 using ProjectIGI.Engine.Titles;
 using ProjectIGI.Game.Hosting;
@@ -33,7 +32,7 @@ public sealed record TitleBinding(
     IGameTitleRuntime Runtime,
     ITitlePresentationProvider Presentation,
     ITitleWorldBuilder WorldBuilder,
-    Func<IProjectIGILogger, IMissionCatalogue<MissionDescriptor>> Missions,
+    Func<IMissionCatalogue<MissionDescriptor>> Missions,
     string DataRoot,
     ITitleGameplay? Gameplay = null)
 {

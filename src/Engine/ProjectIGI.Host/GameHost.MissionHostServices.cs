@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Audio;
 using ProjectIGI.Engine.Flow;
@@ -66,7 +65,6 @@ public sealed partial class GameHost
                 host._audioOut.Device.Listener.Position * ProjectIGI.Engine.Audio.SoundSystem.UnitsPerMetre);
         }
 
-        public IProjectIGILogger Logger => host._logger;
 
         public ProjectIGI.Input.InputState ViewInput => host.ViewInput;
 

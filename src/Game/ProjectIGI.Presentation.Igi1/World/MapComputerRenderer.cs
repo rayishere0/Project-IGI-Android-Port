@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -38,7 +37,6 @@ internal sealed partial class MapComputerRenderer : IMapComputerPresenter, IComp
     /// <summary>The level's menu archive, whose fonts the screens are written in (<c>MenuManager_FindFont</c>, <c>0x418E40</c>).</summary>
     public const string MenuArchive = "LOCAL:menusystem/ingamemenu.res";
 
-    private readonly IProjectIGILogger _logger;
     private readonly Igi1Gameplay? _game;
     private readonly RetailUiResources _uiResources;
 
@@ -52,12 +50,11 @@ internal sealed partial class MapComputerRenderer : IMapComputerPresenter, IComp
     private float _scale = 1f;
     private bool _disposed;
 
-    public MapComputerRenderer(IGraphicsDevice device, IProjectIGILogger logger, IMissionGameplay? gameplay)
+    public MapComputerRenderer(IGraphicsDevice device, IMissionGameplay? gameplay)
     {
-        _logger = logger;
         _game = gameplay as Igi1Gameplay;
-        _uiResources = new RetailUiResources(device, new RetailUiResourceOptions { LogCategory = "Computer" }, logger);
-        _menuResources = new RetailUiResources(device, new RetailUiResourceOptions { LogCategory = "Computer" }, logger);
+        _uiResources = new RetailUiResources(device, new RetailUiResourceOptions { LogCategory = "Computer" });
+        _menuResources = new RetailUiResources(device, new RetailUiResourceOptions { LogCategory = "Computer" });
     }
 
     public bool IsReady => _archive is not null && Computer is not null;
@@ -87,7 +84,6 @@ internal sealed partial class MapComputerRenderer : IMapComputerPresenter, IComp
         {
             if (!fileSystem.Exists(LocalArchive))
             {
-                _logger.Warning("Computer", $"No map-computer archive at {LocalArchive}.");
                 return false;
             }
 
@@ -107,7 +103,6 @@ internal sealed partial class MapComputerRenderer : IMapComputerPresenter, IComp
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException)
         {
-            _logger.Warning("Computer", $"Could not load the map computer: {ex.Message}");
             return false;
         }
     }

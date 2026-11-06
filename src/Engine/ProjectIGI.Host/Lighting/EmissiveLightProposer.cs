@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Game.World;
 using ProjectIGI.Presentation.Cameras;
@@ -59,15 +58,8 @@ public static class EmissiveLightProposer
     /// </param>
     /// <param name="logger">The log the proposal is reported to.</param>
     /// <returns>The lamps to place and the surfaces they come out of.</returns>
-    public static Proposal Propose(
-        WorldScene scene,
-        ResourceRegistry resources,
-        LampManifest manifest,
-        int missionId,
-        string titleId,
-        IProjectIGILogger logger)
+    public static Proposal Propose(WorldScene scene, ResourceRegistry resources, LampManifest manifest, int missionId, string titleId)
     {
-        ArgumentNullException.ThrowIfNull(logger);
 
         // Beside the other authored data, one file per mission. When it exists and its version matches
         // it is the truth: the detection ran once to propose the list and a human has had the chance to
@@ -91,8 +83,7 @@ public static class EmissiveLightProposer
                 ? $"mission-{missionId}.json"
                 : $"{titleId}-mission-{missionId}.json");
 
-        if (LightFixtureStore.TryLoad(
-                fixturesPath, out IReadOnlyList<LightFixture> saved, out LampDetector.Lamps stored, logger))
+        if (LightFixtureStore.TryLoad(fixturesPath, out IReadOnlyList<LightFixture> saved, out LampDetector.Lamps stored))
         {
             return new Proposal(saved, stored);
         }
@@ -101,11 +92,11 @@ public static class EmissiveLightProposer
         {
             // Only this game's hand-named lamps. The two titles' model numbering overlaps, and a
             // name that is a lamp in one is ordinary furniture in the other.
-            LampDetector.Lamps lamps = LampDetector.Detect(scene, resources, manifest.For(titleId), logger);
+            LampDetector.Lamps lamps = LampDetector.Detect(scene, resources, manifest.For(titleId));
 
             if (lamps.Count == 0)
             {
-                LightFixtureStore.Save(fixturesPath, [], lamps, logger);
+                LightFixtureStore.Save(fixturesPath, [], lamps);
                 return Proposal.None;
             }
 
@@ -114,18 +105,16 @@ public static class EmissiveLightProposer
             // fixture-shaped ones cast light -- and the extra set was all false positives. Emission means
             // something strong here: an emissive surface is UNLIT, so a bake-bright office cabinet did not glow
             // gently, it turned into a flat shadeless panel.
-            IReadOnlyList<LightFixture> fixtures = LightFixtureExtractor.ProposeFromScene(
-                scene, lamps, LampDetector.Tint(resources), logger: logger);
+            IReadOnlyList<LightFixture> fixtures = LightFixtureExtractor.ProposeFromScene(scene, lamps, LampDetector.Tint(resources));
 
             // Written so the proposal can be reviewed and corrected, and so the next load reads it back
             // rather than walking the whole level again.
-            LightFixtureStore.Save(fixturesPath, fixtures, lamps, logger);
+            LightFixtureStore.Save(fixturesPath, fixtures, lamps);
 
             return new Proposal(fixtures, lamps);
         }
         catch (Exception error) when (error is IOException or InvalidDataException)
         {
-            logger.Warning("Emissive", $"The lights could not be proposed: {error.Message}");
             return Proposal.None;
         }
     }

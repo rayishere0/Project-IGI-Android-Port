@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Game.World;
 using ProjectIGI.Presentation.Lighting;
 using ProjectIGI.Rendering;
@@ -20,7 +19,6 @@ internal sealed class WorldSubsetResolver
     private const double LampBindingRadius = 4.0;
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly WorldPlacementTransforms _transforms;
     private readonly WorldTextureCache _textures;
     private readonly WorldLightmapPages _lightmaps;
@@ -49,15 +47,9 @@ internal sealed class WorldSubsetResolver
     /// <param name="transforms">What each placement is displayed as.</param>
     /// <param name="textures">The diffuse texture cache.</param>
     /// <param name="lightmaps">The baked lightmap pages.</param>
-    internal WorldSubsetResolver(
-        IGraphicsDevice device,
-        IProjectIGILogger logger,
-        WorldPlacementTransforms transforms,
-        WorldTextureCache textures,
-        WorldLightmapPages lightmaps)
+    internal WorldSubsetResolver(IGraphicsDevice device, WorldPlacementTransforms transforms, WorldTextureCache textures, WorldLightmapPages lightmaps)
     {
         _device = device;
-        _logger = logger;
         _transforms = transforms;
         _textures = textures;
         _lightmaps = lightmaps;
@@ -482,7 +474,6 @@ internal sealed class WorldSubsetResolver
         }
         catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException)
         {
-            _logger.Warning(WorldRenderer.LogCategory, $"Model '{name}' did not upload: {ex.Message}");
         }
 
         _meshes[name] = handle;
@@ -558,7 +549,7 @@ internal sealed class WorldSubsetResolver
             meshes.Add(mesh);
         }
 
-        if (SurfaceCacheCapture.Capture(_device, subjects, meshes, 8192, _logger) is not { } captured)
+        if (SurfaceCacheCapture.Capture(_device, subjects, meshes, 8192) is not { } captured)
         {
             return null;
         }
@@ -571,8 +562,7 @@ internal sealed class WorldSubsetResolver
             scene.Placements,
             placement => placement.BentGeometry is null
                 && modelOfName.TryGetValue(placement.Instance.Name, out int model) ? model : -1,
-            8192,
-            _logger);
+            8192);
 
         return (captured, instances);
     }

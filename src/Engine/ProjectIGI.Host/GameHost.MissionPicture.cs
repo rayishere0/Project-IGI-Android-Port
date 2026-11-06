@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
@@ -164,18 +163,17 @@ public sealed partial class GameHost
             // the two coexist without either pretending to the other's shape.
             _terrain?.Dispose();
             _terrain = _presentation.Presenters.Create<GroundPresentationRequest, ITerrainPresenter>(
-                new GroundPresentationRequest(_device, levelRoot, _resources, _logger));
+                new GroundPresentationRequest(_device, levelRoot, _resources));
 
             _terrain ??= loaded.Terrain is { IsUsable: true } usable
-                ? _presentation.Presenters.Create<TerrainPresentationRequest, ITerrainPresenter>(new TerrainPresentationRequest(
-                    _device, TerrainSurface.Build(usable, levelRoot, _logger), _logger, _detailMaps, null))
+                ? _presentation.Presenters.Create<TerrainPresentationRequest, ITerrainPresenter>(new TerrainPresentationRequest(_device, TerrainSurface.Build(usable, levelRoot), _detailMaps, null))
                 : null;
 
             // The sky is script data on the level's task tree; its fog colour is also what the frame
             // clears to, so the horizon meets sky-coloured backing rather than black.
             _sky?.Dispose();
             _sky = _presentation.Presenters.Create<SkyPresentationRequest, ISkyPresenter>(
-                new SkyPresentationRequest(_device, levelRoot, _fileSystem, _resources, FarPlane, _logger));
+                new SkyPresentationRequest(_device, levelRoot, _fileSystem, _resources, FarPlane));
             _shadowPass = new ShadowCasterPass(_device);
 
             ApplyLevelConstants(levelRoot);
@@ -198,25 +196,15 @@ public sealed partial class GameHost
                         boundNight.SunIsMoon ? readSun.Colour : null,
                         authoredNight.Ambient);
                 }
-                _logger.Information(
-                    "Light",
-                    FormattableString.Invariant(
-                        $"Sun at {MathF.Asin(Math.Clamp(readSun.Direction.Z, -1f, 1f)) * 180f / MathF.PI:F1} degrees ")
-                    + FormattableString.Invariant(
-                        $"elevation, time {readSun.TimeOfDay:F0}, colour ({readSun.Colour.X:F2}, {readSun.Colour.Y:F2}, {readSun.Colour.Z:F2}), ")
-                    + FormattableString.Invariant(
-                        $"ambient ({readSun.Ambient.X:F2}, {readSun.Ambient.Y:F2}, {readSun.Ambient.Z:F2})."));
 
                 if (readSun.IsBelowHorizon)
                 {
-                    _logger.Warning("Light", "This level's authored sun is below the horizon.");
                 }
             }
             else
             {
                 _timeOfDay.BoundSun = null;
                 _timeOfDay.DayNight.ResetForLevel(null, ExposureCVars.TimeOfDay.Value);
-                _logger.Information("Light", "The level declares no Dirlight; the modern path will light it with a default sun.");
             }
 
             // A title may decline a sky entirely -- the factory returns null when the level declares
@@ -269,8 +257,7 @@ public sealed partial class GameHost
         {
             _gi.ApplyLamps(
                 LocalLightCVars.GlobalIlluminationLamps.Value != 0
-                    ? EmissiveLightProposer.Propose(
-                        _scene, _resources, _lampManifest, id, ActiveTitle.Id, _logger)
+                    ? EmissiveLightProposer.Propose(_scene, _resources, _lampManifest, id, ActiveTitle.Id)
                     : EmissiveLightProposer.Proposal.None,
                 id);
         }
@@ -320,7 +307,6 @@ public sealed partial class GameHost
             _resources,
             name => loaded.TryGetModel(name, out MefModel? model) ? model : null,
             (name, slot) => loaded.TryGetTextureName(name, slot, out string texture) ? texture : null,
-            _logger,
             _title?.Services);
 
         _forest?.Dispose();
@@ -347,7 +333,6 @@ public sealed partial class GameHost
 
         // Built. What the hold is waiting on from here is the lighting, not the level.
         NotifyMissionBuilt();
-        _logger.Information("Mission", $"{(promoted ? "Promoted" : "Loaded")} {loaded}.");
     }
 
     // The presenters the title registered for the level as a whole, then for particular task types, one for each such task.
@@ -367,7 +352,7 @@ public sealed partial class GameHost
             return;
         }
 
-        TaskPresenterRequest request = new(_device, _resources, levelRoot, _logger);
+        TaskPresenterRequest request = new(_device, _resources, levelRoot);
         _hudOverlays.AddRange(presenters.CreateHudOverlays(request));
         _taskPresenters.AddRange(presenters.CreateForLevel(request));
         foreach (GameTask task in levelRoot.Descendants())
@@ -378,7 +363,6 @@ public sealed partial class GameHost
             }
         }
 
-        _logger.Information("Mission", $"{_taskPresenters.Count} task presenter(s) made.");
     }
 
     // Frees the presenters made for the level's tasks.

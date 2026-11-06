@@ -46,7 +46,6 @@ namespace ProjectIGI.Game.Igi2.World;
 public sealed class Igi2MissionCatalogue : IMissionCatalogue<MissionDescriptor>
 {
     /// <summary>The category load diagnostics are logged under.</summary>
-    public const string LogCategory = "igi2.missions";
 
     /// <summary>How many arguments this title's <c>DefineMission</c> takes.</summary>
     public const int ArgumentCount = 14;
@@ -70,11 +69,10 @@ public sealed class Igi2MissionCatalogue : IMissionCatalogue<MissionDescriptor>
 
     private readonly List<MissionDescriptor> _missions = [];
     private readonly Dictionary<int, MissionDescriptor> _byId = [];
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initialises a new instance of the <see cref="Igi2MissionCatalogue"/> class.</summary>
     /// <param name="logger">Where scan diagnostics go.</param>
-    public Igi2MissionCatalogue(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public Igi2MissionCatalogue() { }
 
     /// <inheritdoc/>
     public IReadOnlyList<MissionDescriptor> Missions => _missions;
@@ -111,17 +109,8 @@ public sealed class Igi2MissionCatalogue : IMissionCatalogue<MissionDescriptor>
         _missions.Clear();
         _byId.Clear();
 
-        int scripts = ScriptTableLoader.WalkAndRun(
-            fileSystem,
-            resources,
-            natives,
-            MissionRegistry.MissionRoot,
-            MissionRegistry.MissionScriptName,
-            _logger);
+        int scripts = ScriptTableLoader.WalkAndRun(fileSystem, resources, natives, MissionRegistry.MissionRoot, MissionRegistry.MissionScriptName);
 
-        _logger.Information(
-            LogCategory,
-            $"Registered {Count} mission(s) from {scripts} script(s); {Campaign.Count()} in the campaign.");
         return Count;
     }
 

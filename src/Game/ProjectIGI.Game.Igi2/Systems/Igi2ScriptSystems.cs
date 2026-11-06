@@ -85,7 +85,6 @@ internal static class Igi2ScriptSystems
             FireTaskTypes = armoury?.FireTaskTypes,
             Config = config,
             Difficulty = (int)player.Human.Difficulty,
-            Logger = b.Request.World.Logger,
             World = b.SessionAi,
             NoiseAt = noise,
 

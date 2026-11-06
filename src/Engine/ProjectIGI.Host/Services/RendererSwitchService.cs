@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Rendering;
 
@@ -10,7 +9,7 @@ namespace ProjectIGI.Host.Services;
 /// </summary>
 /// <param name="device">The device the picture is read from or shown on.</param>
 /// <param name="logger">Where the switch is reported.</param>
-internal sealed class RendererSwitchService(IGraphicsDevice device, IProjectIGILogger logger) : IHostService
+internal sealed class RendererSwitchService(IGraphicsDevice device) : IHostService
 {
     // How many frames the switched-from picture is read over. The RHI copies the presented frame back only once asked
     // to, so the first read of a session is black and a frame or two later it holds the picture.
@@ -54,7 +53,6 @@ internal sealed class RendererSwitchService(IGraphicsDevice device, IProjectIGIL
         ArgumentNullException.ThrowIfNull(request);
         _pending = request;
         _captureFramesLeft = CaptureFrames;
-        logger.Information("Renderer", $"Switching renderer from {Describe(request)}.");
     }
 
     /// <summary>Reads the picture a switch holds across; called at the end of every frame, after it has been presented.</summary>

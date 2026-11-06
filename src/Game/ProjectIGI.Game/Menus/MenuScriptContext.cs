@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Game.World;
 using ProjectIGI.Scripting.Runtime;
@@ -20,7 +19,6 @@ namespace ProjectIGI.Game.Menus;
 /// </remarks>
 public sealed class MenuScriptContext : IScriptExpressionContext
 {
-    private const string LogCategory = "MenuScript";
 
     /// <summary>The prefix an expression uses for the task it belongs to.</summary>
     /// <remarks>
@@ -30,17 +28,15 @@ public sealed class MenuScriptContext : IScriptExpressionContext
     public const string SelfPrefix = "this.";
 
     private readonly MenuNavigator _stack;
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="MenuScriptContext"/> class.</summary>
     /// <param name="stack">The screen stack the navigation natives drive.</param>
     /// <param name="logger">Where to report calls that reach <see cref="Fallback"/>.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public MenuScriptContext(MenuNavigator stack, IProjectIGILogger? logger = null)
+    public MenuScriptContext(MenuNavigator stack)
     {
         ArgumentNullException.ThrowIfNull(stack);
         _stack = stack;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Gets or sets the handler for names this context does not implement.</summary>
@@ -117,7 +113,6 @@ public sealed class MenuScriptContext : IScriptExpressionContext
             return true;
         }
 
-        _logger.Debug(LogCategory, $"read {name} (unresolved, reads 0)");
         value = QvmValue.Zero;
         return true;
     }
@@ -138,7 +133,6 @@ public sealed class MenuScriptContext : IScriptExpressionContext
             return true;
         }
 
-        _logger.Debug(LogCategory, $"write {name} = {value} (unresolved)");
         return true;
     }
 
@@ -213,7 +207,6 @@ public sealed class MenuScriptContext : IScriptExpressionContext
                     return true;
                 }
 
-                _logger.Information(LogCategory, $"{name}/{arguments.Count} (unimplemented, returns 0)");
                 result = QvmValue.Zero;
                 return true;
         }

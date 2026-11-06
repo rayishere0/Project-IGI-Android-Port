@@ -24,7 +24,6 @@ namespace ProjectIGI.Engine.Audio;
 /// </remarks>
 public sealed class SoundDefinitionRegistry : ISoundDefinitionLookup
 {
-    private const string LogCategory = "Audio";
 
     /// <summary>The shared definitions, loaded for every mission.</summary>
     public const string CommonScriptResource = "LOCAL:common/sounds/sounds.qvm";
@@ -45,11 +44,10 @@ public sealed class SoundDefinitionRegistry : ISoundDefinitionLookup
     public const string DefineTriggerOnceNative = "DefineTriggerOnce";
 
     private readonly SoundDefinitionTable _table = new();
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="SoundDefinitionRegistry"/> class.</summary>
     /// <param name="logger">The logger for load diagnostics; defaults to a sink that discards them.</param>
-    public SoundDefinitionRegistry(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public SoundDefinitionRegistry() { }
 
     /// <summary>Gets the top-level definitions, in the order the scripts declared them.</summary>
     public IReadOnlyList<SoundDefinition> Roots => _table.Roots;
@@ -95,7 +93,6 @@ public sealed class SoundDefinitionRegistry : ISoundDefinitionLookup
         int before = _table.Count;
         if (!_table.Run(resources, natives, resource))
         {
-            _logger.Warning(LogCategory, $"Sound_ParseConfigFile(): Couldn't load script: {resource}");
             return 0;
         }
 
@@ -113,7 +110,6 @@ public sealed class SoundDefinitionRegistry : ISoundDefinitionLookup
         Load(resources, natives, CommonScriptResource);
         Load(resources, natives, MissionScriptResource);
 
-        _logger.Information(LogCategory, $"{Count} sound definition(s) registered.");
         return Count;
     }
 

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Formats.Textures;
 using ProjectIGI.Game.World;
@@ -13,11 +12,9 @@ namespace ProjectIGI.Presentation.Rendering;
 /// </remarks>
 internal sealed class WorldTextureCache
 {
-    private const string LogCategory = "World";
 
     private readonly IGraphicsDevice _device;
     private readonly ResourceRegistry _resources;
-    private readonly IProjectIGILogger _logger;
     private readonly Dictionary<string, TextureHandle> _textures = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _missingTextures = new(StringComparer.OrdinalIgnoreCase);
 
@@ -25,11 +22,10 @@ internal sealed class WorldTextureCache
     /// <param name="device">The device to upload to.</param>
     /// <param name="resources">Where texture bytes are read from.</param>
     /// <param name="logger">Where to report upload problems.</param>
-    internal WorldTextureCache(IGraphicsDevice device, ResourceRegistry resources, IProjectIGILogger logger)
+    internal WorldTextureCache(IGraphicsDevice device, ResourceRegistry resources)
     {
         _device = device;
         _resources = resources;
-        _logger = logger;
     }
 
     /// <summary>Gets or sets the derived surface-detail maps, or <see langword="null"/> for none.</summary>
@@ -98,7 +94,6 @@ internal sealed class WorldTextureCache
                 }
                 catch (GraphicsDeviceException ex)
                 {
-                    _logger.Warning(LogCategory, $"Texture '{name}' did not load: {ex.Message}");
                 }
             }
 
@@ -162,12 +157,10 @@ internal sealed class WorldTextureCache
             }
             catch (Exception ex) when (ex is TextureFormatException or ArgumentException or GraphicsDeviceException)
             {
-                _logger.Warning(LogCategory, $"Texture '{name}' did not load: {ex.Message}");
             }
         }
         else if (_missingTextures.Add(name))
         {
-            _logger.Warning(LogCategory, $"Texture '{resource}' is not registered.");
         }
 
         _textures[name] = handle;

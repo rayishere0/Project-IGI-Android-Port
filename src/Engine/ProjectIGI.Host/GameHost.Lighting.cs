@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Game.Player;
 using ProjectIGI.Game.World;
@@ -25,11 +24,10 @@ public sealed partial class GameHost
         string file = Path.Combine(
             AppContext.BaseDirectory, "Assets", "luts", Path.GetFileName(name) + ".cube");
 
-        ColourLookupTable? table = ColourLookupTable.Load(file, _logger);
+        ColourLookupTable? table = ColourLookupTable.Load(file);
 
         if (table is null && named.Length > 0)
         {
-            _logger.Warning("Grade", $"No colour table called '{named}' in Assets/luts; the frame is ungraded.");
         }
 
         _device.SetColourLookup(table);
@@ -53,8 +51,6 @@ public sealed partial class GameHost
             // get nothing, and the level would load unlit having just waited for its lighting.
             if (bake.TryCollect(out IrradianceVolume? ready))
             {
-                _logger.Information(
-                    "Light", $"Waited {_loop.TimeSource.Milliseconds - startedAt} ms for the probe field.");
 
                 return ready;
             }
@@ -77,10 +73,6 @@ public sealed partial class GameHost
             // never starts. Falling through here leaves the blend to cover it.
             if (_loop.TimeSource.Milliseconds - startedAt > LightingWaitMilliseconds)
             {
-                _logger.Warning(
-                    "Light",
-                    $"The probe field did not arrive within {LightingWaitMilliseconds / 1000} s; "
-                    + "entering the level unlit and blending it in when it lands.");
 
                 return null;
             }

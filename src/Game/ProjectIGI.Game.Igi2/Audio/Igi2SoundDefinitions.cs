@@ -62,14 +62,12 @@ public sealed class Igi2SoundDefinitions : ISoundDefinitionLookup
     /// <summary>The fraction of its farthest distance a sound with no nearest distance is heard in full to, <c>0x3CA3D70A</c>.</summary>
     public const float NearestOfFarthest = 0.02f;
 
-    private const string LogCategory = "Sound";
 
-    private readonly IProjectIGILogger _logger;
     private readonly SoundDefinitionTable _table = new();
 
     /// <summary>Initializes a new instance of the <see cref="Igi2SoundDefinitions"/> class.</summary>
     /// <param name="logger">Where load diagnostics go; defaults to nowhere.</param>
-    public Igi2SoundDefinitions(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public Igi2SoundDefinitions() { }
 
     /// <summary>Gets the top-level definitions, in the order the scripts declared them.</summary>
     public IReadOnlyList<SoundDefinition> Roots => _table.Roots;
@@ -136,7 +134,6 @@ public sealed class Igi2SoundDefinitions : ISoundDefinitionLookup
             Run(resources, natives, $"{directory}/{ScriptName}");
         }
 
-        _logger.Information(LogCategory, $"{Count} sound definition(s) registered.");
         return Count;
     }
 
@@ -147,7 +144,6 @@ public sealed class Igi2SoundDefinitions : ISoundDefinitionLookup
     {
         if (!_table.Run(resources, natives, resource))
         {
-            _logger.Debug(LogCategory, $"No sound definitions at {resource}.");
         }
     }
 

@@ -36,10 +36,8 @@ namespace ProjectIGI.Engine.Audio;
 /// </remarks>
 public sealed class SoundBank
 {
-    private const string LogCategory = "Audio";
 
     private readonly VirtualFileSystem _fileSystem;
-    private readonly IProjectIGILogger _logger;
     private readonly Dictionary<string, SoundEntry> _sounds = new(StringComparer.Ordinal);
     private readonly List<string> _mounted = [];
 
@@ -47,11 +45,10 @@ public sealed class SoundBank
     /// <param name="fileSystem">The file system paths are resolved through.</param>
     /// <param name="logger">Where to report what was mounted and what would not load.</param>
     /// <exception cref="ArgumentNullException"><paramref name="fileSystem"/> is <see langword="null"/>.</exception>
-    public SoundBank(VirtualFileSystem fileSystem, IProjectIGILogger? logger = null)
+    public SoundBank(VirtualFileSystem fileSystem)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
         _fileSystem = fileSystem;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Gets the number of sounds in the bank.</summary>
@@ -110,12 +107,10 @@ public sealed class SoundBank
             // An unbound alias or an unregistered device. Fatal when the game asks for a file it needs,
             // but a sound directory that cannot be resolved just means no sounds -- and taking the
             // process down over it would make an audio gap into a crash.
-            _logger.Warning(LogCategory, $"Sound directory '{directory}' did not resolve: {error.Message}");
             return added;
         }
 
         _mounted.Add(directory);
-        _logger.Debug(LogCategory, $"Mounted '{directory}': {added} sound(s).");
         return added;
     }
 
@@ -138,7 +133,6 @@ public sealed class SoundBank
         }
         catch (Exception error) when (error is IlffFormatException or IOException or EngineFatalException)
         {
-            _logger.Warning(LogCategory, $"Sound archive '{path}' would not open: {error.Message}");
             return 0;
         }
 
@@ -182,7 +176,6 @@ public sealed class SoundBank
         }
         catch (Exception error) when (error is IOException or EngineFatalException)
         {
-            _logger.Warning(LogCategory, $"Sound '{path}' would not read: {error.Message}");
             return false;
         }
     }
@@ -215,13 +208,11 @@ public sealed class SoundBank
         if (key.Length == 0)
         {
             // The original's own wording for a path it cannot take a key out of.
-            _logger.Warning(LogCategory, $"Invalid sound filename '{path}'.");
             return false;
         }
 
         if (_sounds.ContainsKey(key))
         {
-            _logger.Debug(LogCategory, $"Sound '{key}' already loaded; keeping the first.");
             return false;
         }
 
@@ -254,7 +245,6 @@ public sealed class SoundBank
         }
         catch (Exception error) when (error is IlsfFormatException or MpegAudioFormatException)
         {
-            _logger.Warning(LogCategory, $"Sound '{path}' is not a valid format: {error.Message}");
             return false;
         }
     }

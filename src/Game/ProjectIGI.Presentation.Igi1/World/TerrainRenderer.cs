@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Formats.Textures;
@@ -34,7 +33,6 @@ namespace ProjectIGI.Presentation.Igi1.World;
 /// </remarks>
 public sealed class TerrainRenderer : ITerrainPresenter
 {
-    private const string LogCategory = "Terrain";
     private const int SparseVisibleQueryInterval = 16;
     private const int ProductiveVisibleQueryInterval = 4;
     private const int ProductiveOccludedChunkThreshold = 64;
@@ -58,7 +56,6 @@ public sealed class TerrainRenderer : ITerrainPresenter
     private readonly IGraphicsDevice _device;
     private readonly TerrainSurface _surface;
     private readonly TerrainData _terrain;
-    private readonly IProjectIGILogger _logger;
     private readonly List<TerrainChunk> _chunks = [];
 
     // The ground the traced sun is shadowed by: the same descent with no frustum. See SubmitShadowCaster.
@@ -111,12 +108,7 @@ public sealed class TerrainRenderer : ITerrainPresenter
     /// </param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">The terrain is not drawable.</exception>
-    public TerrainRenderer(
-        IGraphicsDevice device,
-        TerrainSurface surface,
-        IProjectIGILogger? logger = null,
-        MaterialDetailPack? detailMaps = null,
-        IReadOnlyList<Bgra32[]>? derivedDetail = null)
+    public TerrainRenderer(IGraphicsDevice device, TerrainSurface surface, MaterialDetailPack? detailMaps = null, IReadOnlyList<Bgra32[]>? derivedDetail = null)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(surface);
@@ -131,10 +123,9 @@ public sealed class TerrainRenderer : ITerrainPresenter
         _device = device;
         _surface = surface;
         _terrain = surface.Terrain;
-        _logger = logger ?? NullLogger.Instance;
         DetailMaps = detailMaps;
         _batcher = new TerrainBatcher(device, _cache, _geometryPool);
-        _tiles = new TerrainTileTextures(device, _logger, detailMaps, surface.Terrain.Tiles, derivedDetail);
+        _tiles = new TerrainTileTextures(device, detailMaps, surface.Terrain.Tiles, derivedDetail);
 
         // On the GPU now; the level's terrain data need not hold the pictures as well.
         surface.Terrain.Tiles?.ReleasePixels();
@@ -518,10 +509,6 @@ public sealed class TerrainRenderer : ITerrainPresenter
         {
             // Every one of these is ground the descent chose and the frame will not draw, so it says
             // which setting to raise rather than only that it happened.
-            _logger.Warning(
-                LogCategory,
-                $"{result.Dropped} chunk(s) did not fit the visible list of {CacheLimit}; "
-                    + "the ground has holes in it. Raise r_terrain_cache to match r_terrain_detail.");
         }
 
         _batcher.Trim(_frame, CacheLimit);
@@ -648,7 +635,6 @@ public sealed class TerrainRenderer : ITerrainPresenter
             }
             catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException)
             {
-                _logger.Warning(LogCategory, $"Terrain lightmap page {index} did not upload: {ex.Message}");
             }
         }
 
@@ -670,7 +656,6 @@ public sealed class TerrainRenderer : ITerrainPresenter
         }
         catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException)
         {
-            _logger.Warning(LogCategory, $"Terrain chunk did not upload: {ex.Message}");
             return false;
         }
     }
@@ -687,7 +672,6 @@ public sealed class TerrainRenderer : ITerrainPresenter
         }
         catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException)
         {
-            _logger.Warning(LogCategory, $"Terrain batch {page.Key} did not upload: {ex.Message}");
             return false;
         }
 

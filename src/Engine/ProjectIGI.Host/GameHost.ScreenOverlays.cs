@@ -131,7 +131,7 @@ public sealed partial class GameHost
         float? binocularRangeMetres)
     {
         _hudOverlay ??= _presentation.Presenters.Create<MissionPresentationRequest, IMissionHudOverlay>(
-            new MissionPresentationRequest(_device, _hosted, _logger));
+            new MissionPresentationRequest(_device, _hosted));
         return new MissionHudFrame(
             _window.Width,
             _window.Height,

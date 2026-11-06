@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Rendering.Rhi;
@@ -40,18 +39,13 @@ internal sealed class TracedWorld : ITracedWorld, IDisposable
     /// <param name="structures">Its acceleration structures.</param>
     /// <param name="albedoResolution">How many texels square each texture's colour is kept at for a reflected hit.</param>
     /// <param name="logger">Where the world reports running out of room.</param>
-    public TracedWorld(
-        IRhiDevice device,
-        IRhiAccelerationStructures structures,
-        int albedoResolution,
-        IProjectIGILogger logger)
+    public TracedWorld(IRhiDevice device, IRhiAccelerationStructures structures, int albedoResolution)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(structures);
-        ArgumentNullException.ThrowIfNull(logger);
 
         _clock = new SubmissionClock(device);
-        _scene = new WorldScene(device, structures, logger);
+        _scene = new WorldScene(device, structures);
         _albedo = new TracedAlbedo(device, albedoResolution);
         _masks = new OpacityMasks(device);
 

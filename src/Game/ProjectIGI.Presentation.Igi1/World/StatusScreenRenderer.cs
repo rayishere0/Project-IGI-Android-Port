@@ -17,6 +17,7 @@ namespace ProjectIGI.Presentation.Igi1.World;
 /// The original splits this in two, and so does this. <c>StatusScreen</c> (<c>0x486900</c>) owns the
 /// archive and every sprite; its render (<c>0x486F30</c>) then sends one message to the <b>weapon in
 /// hand</b>, and the <c>Gun</c> class answers it with <c>0x479D20</c> — which is what actually places
+
 /// the crosshair, the name, the icon and the ammunition. So what you see depends on the weapon's own
 /// record: <see cref="SightDisplayType"/> decides whether there is a crosshair at all, and
 /// <see cref="AmmoDisplayType"/> decides how the rounds are counted.
@@ -32,6 +33,7 @@ namespace ProjectIGI.Presentation.Igi1.World;
 /// </remarks>
 internal sealed class StatusScreenRenderer : IHudPresenter, ProjectIGI.Presentation.Hud.Remastered.IHudIconSource
 {
+
     private const string LogCategory = "Hud";
 
     /// <summary>The archive the HUD's font comes out of.</summary>
@@ -73,7 +75,6 @@ internal sealed class StatusScreenRenderer : IHudPresenter, ProjectIGI.Presentat
     public const string SubtitleFontPath = "LOCAL:screens/intro/font4.fnt";
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     // Every sprite and the readout font, searched through status.res, then the font archive, then the
     // global sprites -- the order the archives are listed in below.
     private readonly RetailUiResources _resources;
@@ -90,15 +91,11 @@ internal sealed class StatusScreenRenderer : IHudPresenter, ProjectIGI.Presentat
     /// <param name="device">The device sprites are uploaded to.</param>
     /// <param name="logger">Where to report a missing archive.</param>
     /// <exception cref="ArgumentNullException"><paramref name="device"/> is <see langword="null"/>.</exception>
-    public StatusScreenRenderer(IGraphicsDevice device, IProjectIGILogger? logger = null)
+    public StatusScreenRenderer(IGraphicsDevice device)
     {
         ArgumentNullException.ThrowIfNull(device);
         _device = device;
-        _logger = logger ?? NullLogger.Instance;
-        _resources = new RetailUiResources(
-            device,
-            new RetailUiResourceOptions { LogCategory = LogCategory, FailureSubject = "the HUD sprite " },
-            _logger);
+        _resources = new RetailUiResources(device, new RetailUiResourceOptions { LogCategory = LogCategory, FailureSubject = "the HUD sprite " });
         _binocular = new BinocularOverlayRenderer(Font, GlobalSprite);
         _messages = new HudMessageRenderer(Font, SubtitleFont, Sprite);
     }
@@ -121,7 +118,6 @@ internal sealed class StatusScreenRenderer : IHudPresenter, ProjectIGI.Presentat
         {
             if (!fileSystem.Exists(StatusScreenLayout.Archive))
             {
-                _logger.Warning(LogCategory, $"No HUD archive at {StatusScreenLayout.Archive}; nothing is drawn.");
                 return false;
             }
 
@@ -136,9 +132,6 @@ internal sealed class StatusScreenRenderer : IHudPresenter, ProjectIGI.Presentat
             }
             else
             {
-                _logger.Warning(
-                    LogCategory,
-                    $"No font archive at {FontArchive} or {LocalFontArchive}; the readout has no text.");
             }
 
             // And the global sprites -- the scope overlay lives here, not in status.res.
@@ -148,7 +141,6 @@ internal sealed class StatusScreenRenderer : IHudPresenter, ProjectIGI.Presentat
             }
             else
             {
-                _logger.Warning(LogCategory, $"No sprite archive at {SpriteArchive}; the scope overlay is absent.");
             }
 
             LoadSubtitleFont(fileSystem);
@@ -157,7 +149,6 @@ internal sealed class StatusScreenRenderer : IHudPresenter, ProjectIGI.Presentat
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or EngineFatalException)
         {
-            _logger.Warning(LogCategory, $"Could not read the HUD archive: {ex.Message}");
             return false;
         }
         finally
@@ -683,7 +674,6 @@ internal sealed class StatusScreenRenderer : IHudPresenter, ProjectIGI.Presentat
 
         if (!fileSystem.Exists(SubtitleFontPath))
         {
-            _logger.Warning(LogCategory, $"No cutscene subtitle font at {SubtitleFontPath}; cutscene text is absent.");
             return;
         }
 
@@ -694,7 +684,6 @@ internal sealed class StatusScreenRenderer : IHudPresenter, ProjectIGI.Presentat
                 Path.GetFileName(SubtitleFontPath));
             if (!asset.IsFont)
             {
-                _logger.Warning(LogCategory, $"Cutscene subtitle asset at {SubtitleFontPath} is not a font.");
                 return;
             }
 
@@ -703,7 +692,6 @@ internal sealed class StatusScreenRenderer : IHudPresenter, ProjectIGI.Presentat
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or NotSupportedException or EngineFatalException)
         {
-            _logger.Warning(LogCategory, $"Could not read cutscene subtitle font at {SubtitleFontPath}: {ex.Message}");
         }
     }
 

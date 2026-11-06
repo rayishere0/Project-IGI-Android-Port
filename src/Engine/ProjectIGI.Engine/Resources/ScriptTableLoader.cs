@@ -22,7 +22,6 @@ namespace ProjectIGI.Engine.Resources;
 /// </remarks>
 public static class ScriptTableLoader
 {
-    private const string LogCategory = "Resources";
 
     /// <summary>The deepest the walk descends. Retail nests two levels below the root.</summary>
     public const int DefaultMaxDepth = 8;
@@ -38,14 +37,7 @@ public static class ScriptTableLoader
     /// <returns>How many scripts ran.</returns>
     /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
     /// <exception cref="EngineFatalException">A script failed to compile or faulted while running.</exception>
-    public static int WalkAndRun(
-        VirtualFileSystem fileSystem,
-        ResourceRegistry resources,
-        NativeRegistry natives,
-        string root,
-        string scriptName,
-        IProjectIGILogger? logger = null,
-        int maxDepth = DefaultMaxDepth)
+    public static int WalkAndRun(VirtualFileSystem fileSystem, ResourceRegistry resources, NativeRegistry natives, string root, string scriptName, int maxDepth = DefaultMaxDepth)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentNullException.ThrowIfNull(resources);
@@ -53,7 +45,6 @@ public static class ScriptTableLoader
         ArgumentException.ThrowIfNullOrEmpty(root);
         ArgumentException.ThrowIfNullOrEmpty(scriptName);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         List<string> scripts = [];
         FindScripts(fileSystem, root, scriptName, scripts, 0, maxDepth);
 
@@ -65,7 +56,6 @@ public static class ScriptTableLoader
 
             if (!resources.TryLoad(name, out ReadOnlyMemory<byte> bytes))
             {
-                log.Warning(LogCategory, $"Script '{name}' vanished between the scan and the load.");
                 continue;
             }
 

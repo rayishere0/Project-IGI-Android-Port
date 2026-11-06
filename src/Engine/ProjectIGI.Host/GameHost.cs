@@ -1,6 +1,5 @@
 using ProjectIGI.Audio;
 using ProjectIGI.Core.Configuration;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Threading;
 using ProjectIGI.Core.Titles;
@@ -85,7 +84,7 @@ public sealed partial class GameHost : IDisposable
 
     // A factory rather than the catalogue itself, because the scan happens after the log is wrapped by
     // the developer console and the catalogue reports what it found as it goes.
-    private Func<IProjectIGILogger, IMissionCatalogue<MissionDescriptor>> _missionCatalogue;
+    private Func<IMissionCatalogue<MissionDescriptor>> _missionCatalogue;
     /// <summary>Gets the window width, or the authored 320 when a minimize/dock race reports 0x0.</summary>
     private int SafeWindowWidth => _window.Width > 0 ? _window.Width : 320;
 
@@ -99,7 +98,6 @@ public sealed partial class GameHost : IDisposable
     // Where the RUNNING title is installed. The file system's LOCAL device is re-pointed here on a
     // switch; VirtualFileSystem registers devices by name, so re-registering replaces rather than adds.
     private string _gamePath;
-    private readonly IProjectIGILogger _logger;
 
     // --- Services built during startup ---
     private ResourceRegistry _resources = null!;
@@ -126,7 +124,6 @@ public sealed partial class GameHost : IDisposable
     private HostRenderScheduler _scheduler = null!;
 
     // Whether the presented motion keeps pace with real time; listening only at Pacing=debug.
-    private readonly Diagnostics.PresentationPacingProbe _pacing;
 
     // The one wall clock every loop reads. A mission promoted out of the menu's backdrop brings its own
     // GameLoop with it, and both loops have to measure milliseconds from the same origin — see
@@ -326,19 +323,7 @@ public sealed partial class GameHost : IDisposable
     /// only arrangement in which the second one cannot rot: there is no boot path for a switch to
     /// disagree with.
     /// </remarks>
-    public GameHost(
-        IPlatformHost platform,
-        IGameWindow window,
-        IGraphicsDevice device,
-        IAudioDeviceFactory audioFactory,
-        IWorkScheduler work,
-        ILoadGate loadGate,
-        ITitleCatalog titles,
-        GameTitle startOn,
-        VirtualFileSystem fileSystem,
-        HostOptions options,
-        string gamePath,
-        IProjectIGILogger logger)
+    public GameHost(IPlatformHost platform, IGameWindow window, IGraphicsDevice device, IAudioDeviceFactory audioFactory, IWorkScheduler work, ILoadGate loadGate, ITitleCatalog titles, GameTitle startOn, VirtualFileSystem fileSystem, HostOptions options, string gamePath)
     {
         ArgumentNullException.ThrowIfNull(titles);
         ArgumentNullException.ThrowIfNull(startOn);
@@ -378,20 +363,18 @@ public sealed partial class GameHost : IDisposable
         _fileSystem = fileSystem;
         _options = options;
         _gamePath = gamePath;
-        _logger = logger;
-        _pacing = new Diagnostics.PresentationPacingProbe(logger);
-        _memory = new Services.MemoryDiagnostics(device, logger);
-        _menuBackdrop = new MenuBackdrop(device, logger);
+        _memory = new Services.MemoryDiagnostics(device);
+        _menuBackdrop = new MenuBackdrop(device);
         _menuFlow = new MenuFlow(device);
         _session = new MissionSession();
-        _audioOut = new AudioOutput(audioFactory, fileSystem, logger, MenuSoundArchive);
+        _audioOut = new AudioOutput(audioFactory, fileSystem, MenuSoundArchive);
         _cutsceneSounds = new CutsceneSounds(_audioOut);
-        _effects = new WorldEffects(device, logger, _mission.SoundRandom, new WorldEffectsHost(this));
+        _effects = new WorldEffects(device, _mission.SoundRandom, new WorldEffectsHost(this));
         _timeOfDay = new TimeOfDayLighting(device, options, new TimeOfDayHost(this));
         _lamps = new LevelLamps(device, new LevelLampsHost(this));
-        _switch = new RendererSwitchService(device, logger);
-        _debugOverlays = new DebugOverlays(device, window, options, logger, new DebugOverlaysHost(this));
-        _outcome = new MissionOutcome(_session, logger, new MissionOutcomeHost(this));
+        _switch = new RendererSwitchService(device);
+        _debugOverlays = new DebugOverlays(device, window, options, new DebugOverlaysHost(this));
+        _outcome = new MissionOutcome(_session, new MissionOutcomeHost(this));
     }
 
     /// <summary>Builds the world, runs the frame loop until the game is asked to quit, then shuts down.</summary>
@@ -510,7 +493,6 @@ public sealed partial class GameHost : IDisposable
                 return;
             }
 
-            _logger.Information("Desktop", $"Framebuffer resize event: {width}x{height}.");
 
             // A minimised window, and the occasional spurious event as the window is created, arrive as a
             // zero dimension. There is nothing to project onto and the back buffer keeps its last real size,
@@ -542,7 +524,7 @@ public sealed partial class GameHost : IDisposable
 
         // Settings load from the retail config.qvm, and from our own file in preference to it when one
         // exists. Nothing here ever writes into the original installation.
-        _configuration = HostConfiguration.Load(_fileSystem, _logger);
+        _configuration = HostConfiguration.Load(_fileSystem);
         RestoreTitleInputBindings();
         _menuDisplay = new RetailMenuDisplay(
             () => _device.Capabilities.Renderer,
@@ -551,15 +533,10 @@ public sealed partial class GameHost : IDisposable
             {
                 if (_window.Mode == WindowMode.BorderlessFullscreen)
                 {
-                    _logger.Information(
-                        "Config",
-                        $"Resolution {w}x{h} was chosen but the window is borderless fullscreen, whose size "
-                            + "is the desktop's. Run with -window or -fullscreen for it to take effect.");
                     return;
                 }
 
                 _window.Resize(w, h);
-                _logger.Information("Config", $"Resolution set to {w}x{h}.");
             });
 
         MenuStringTable strings = _menuStrings!;
@@ -580,7 +557,7 @@ public sealed partial class GameHost : IDisposable
         // anything reads a setting, so the saved file and the command line's +statements are already in
         // effect by the time the renderer and the game are built. The process's log is shown in its
         // scrollback, startup included, so opening it shows the log rather than an empty panel.
-        using HostConsole console = new(_device, _logger);
+        using HostConsole console = new(_device);
         state.Console = console;
         SetUpConsole(state);
 
@@ -756,9 +733,6 @@ public sealed partial class GameHost : IDisposable
             if (!state.FirstFrameReported && outcome != FrameOutcome.Tick)
             {
                 state.FirstFrameReported = true;
-                _logger.Information(
-                    "Desktop",
-                    FormattableString.Invariant($"The first frame is on screen {SinceProcessStart():0} ms after the process started."));
             }
 
             // Retire finished voices, refill streaming buffers and advance any crossfade. This sits
@@ -815,7 +789,7 @@ public sealed partial class GameHost : IDisposable
 
         if (!_options.IsBenchmark)
         {
-            HostConfiguration.Save(_configuration, _logger);
+            HostConfiguration.Save(_configuration);
             console.SaveSettings();
         }
         state.MissionWarmer?.Dispose();
@@ -823,9 +797,6 @@ public sealed partial class GameHost : IDisposable
         _menuFlow.ReleaseHeldFrame();
 
         // The shell's faces are the device's shared set; the device's teardown takes their textures.
-        _logger.Information(
-            "Desktop",
-            $"Shutting down after {_loop.Clock.TickCount} ticks and {_loop.Clock.FrameCount} frames.");
 
         // Keep any custom exit code (such as 42 for soft restart back to main menu)
         if (_exitCode == 0)
@@ -883,10 +854,6 @@ public sealed partial class GameHost : IDisposable
         {
             if (CVarRegistry.Default.TryGet(name, out ICVar? variable) && !variable.IsDefault)
             {
-                _logger.Warning(
-                    "Render",
-                    $"{name} is {variable.ValueText}, but {_device.Capabilities.Renderer} does not implement it yet — "
-                        + $"the value is kept and does nothing until that pass lands (default {variable.DefaultText}).");
             }
         }
     }

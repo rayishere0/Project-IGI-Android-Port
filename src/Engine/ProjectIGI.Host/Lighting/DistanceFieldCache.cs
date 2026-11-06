@@ -1,5 +1,4 @@
 using System.IO.Compression;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
 
@@ -47,24 +46,21 @@ public sealed class DistanceFieldCache
     // and a re-bake rather than a stale hit that nothing downstream could notice.
     private const byte FormatVersion = 1;
 
-    private const string LogCategory = "DistanceField";
 
     private readonly string _writeDirectory;
     private readonly IReadOnlyList<string> _readDirectories;
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initialises a new instance of the <see cref="DistanceFieldCache"/> class.</summary>
     /// <param name="writeDirectory">Where newly-baked fields are written (created on first write).</param>
     /// <param name="readDirectories">Directories searched for a cached field, in order; the first hit wins.</param>
     /// <param name="logger">Where to report a load or save failure.</param>
     /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
-    public DistanceFieldCache(string writeDirectory, IReadOnlyList<string> readDirectories, IProjectIGILogger? logger = null)
+    public DistanceFieldCache(string writeDirectory, IReadOnlyList<string> readDirectories)
     {
         ArgumentNullException.ThrowIfNull(writeDirectory);
         ArgumentNullException.ThrowIfNull(readDirectories);
         _writeDirectory = writeDirectory;
         _readDirectories = readDirectories;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Builds a cache with the shipped location searched first and the per-user location written to.</summary>
@@ -72,8 +68,8 @@ public sealed class DistanceFieldCache
     /// <param name="userDirectory">The writable per-user directory.</param>
     /// <param name="logger">Where to report a failure.</param>
     /// <returns>The cache.</returns>
-    public static DistanceFieldCache Create(string shippedDirectory, string userDirectory, IProjectIGILogger? logger = null) =>
-        new(userDirectory, [shippedDirectory, userDirectory], logger);
+    public static DistanceFieldCache Create(string shippedDirectory, string userDirectory) =>
+        new(userDirectory, [shippedDirectory, userDirectory]);
 
     /// <summary>Loads a cached field for a mission, if one baked at the same resolution is present.</summary>
     /// <param name="missionId">The mission the field is for.</param>
@@ -91,10 +87,6 @@ public sealed class DistanceFieldCache
 
             if (TryReadFile(path, resolution, out SceneDistanceField? field))
             {
-                _logger.Information(
-                    LogCategory,
-                    $"Loaded a baked distance field for mission {missionId} from {path}: "
-                    + $"{field!.FieldCount} field(s), {field.InstanceCount} placement(s).");
                 return field;
             }
         }
@@ -116,16 +108,10 @@ public sealed class DistanceFieldCache
             Directory.CreateDirectory(_writeDirectory);
             string path = Path.Combine(_writeDirectory, FileName(missionId));
             WriteFile(path, resolution, field);
-            _logger.Information(
-                LogCategory,
-                $"Baked distance field for mission {missionId} written to {path}.");
             return path;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger.Warning(
-                LogCategory,
-                $"Could not write the baked distance field for mission {missionId}: {ex.Message}");
             return null;
         }
     }
@@ -157,13 +143,11 @@ public sealed class DistanceFieldCache
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    _logger.Warning(LogCategory, $"Could not delete a baked field at {path}: {ex.Message}");
                 }
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger.Warning(LogCategory, $"Could not clear the baked distance-field cache: {ex.Message}");
         }
 
         return removed;
@@ -260,9 +244,6 @@ public sealed class DistanceFieldCache
             when (ex is IOException or EndOfStreamException or InvalidDataException
                 or ArgumentException or ArgumentOutOfRangeException)
         {
-            _logger.Warning(
-                LogCategory,
-                $"A baked distance field at {path} could not be read; it will be re-baked: {ex.Message}");
             return false;
         }
     }

@@ -29,7 +29,6 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public sealed class LoadedPack
 {
-    private const string LogCategory = "Pack";
 
     /// <summary>The directory a pack's <c>BANM</c> animation sets load from.</summary>
     /// <remarks>
@@ -116,18 +115,12 @@ public sealed class LoadedPack
     /// <returns>The bound pack.</returns>
     /// <exception cref="ArgumentException">A required argument is null or empty.</exception>
     /// <exception cref="EngineFatalException">The pack or one of its archives is missing or malformed.</exception>
-    public static LoadedPack Open(
-        string directory,
-        string name,
-        ResourceRegistry resources,
-        IProjectIGILogger? logger = null,
-        AssetFormatProfile? profile = null)
+    public static LoadedPack Open(string directory, string name, ResourceRegistry resources, AssetFormatProfile? profile = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(directory);
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentNullException.ThrowIfNull(resources);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         string dir = directory.EndsWith('/') ? directory : directory + "/";
 
         MtpPack pack = ReadPack($"{dir}{name}.mtp", resources);
@@ -185,7 +178,6 @@ public sealed class LoadedPack
                 }
                 catch (Exception ex) when (ex is PackFormatException or IlffFormatException)
                 {
-                    log.Warning(LogCategory, $"Model '{entry.Name}' in '{name}' did not parse: {ex.Message}");
                 }
             }
         }
@@ -211,24 +203,14 @@ public sealed class LoadedPack
         // identical lines, and the interesting number is which of the two it is.
         if (unreadableSets > 0)
         {
-            log.Warning(
-                LogCategory,
-                $"{unreadableSets} of {pack.AnimationSetNames.Count} animation set(s) named by '{name}' are "
-                    + "ILFF 'MINA' forms rather than IFF 'FORM' ones, which the set reader does not take yet.");
         }
 
         if (shadows > 0)
         {
-            log.Information(
-                LogCategory,
-                $"'{name}' holds {shadows} shadow volume(s) beside its models, which are not render models.");
         }
 
         if (sets.Count > 0)
         {
-            log.Information(
-                LogCategory,
-                $"'{name}' bound {sets.Count} of {pack.AnimationSetNames.Count} animation set(s).");
         }
 
         // Counted, not listed. A pack names hundreds of sets, and a title that keeps them somewhere this
@@ -237,10 +219,6 @@ public sealed class LoadedPack
         // that is one file being wrong rather than a title keeping them elsewhere.
         if (absentSets > 0)
         {
-            log.Warning(
-                LogCategory,
-                $"{absentSets} of {pack.AnimationSetNames.Count} animation set(s) named by '{name}' are in "
-                    + $"neither {AnimationSetRoot}anims/ nor its own models archive.");
         }
 
         List<string> missing = [];
@@ -254,7 +232,6 @@ public sealed class LoadedPack
 
         if (missing.Count > 0)
         {
-            log.Warning(LogCategory, $"Pack '{name}' lists {missing.Count} model(s) its archive does not hold.");
         }
 
         // The textures archive is registered but not decoded here: a texture becomes pixels only when
@@ -266,9 +243,6 @@ public sealed class LoadedPack
         string textureArchivePath = $"{dir}textures/{name}.res";
         _ = TryRegisterArchive(textureArchivePath, resources, log, replaceExisting: true);
 
-        log.Information(
-            LogCategory,
-            $"Opened pack '{name}': {models.Count} model(s), {pack.TextureNames.Count} texture(s), {pack.Instances.Count} instance(s).");
 
         return new LoadedPack(
             name,
@@ -425,11 +399,7 @@ public sealed class LoadedPack
     // One named set, from wherever it was asked for. The sequel's sets are ILFF containers of a MINA
     // form and the first game's are IFF FORMs; only the second parses here, so the first is separated
     // out rather than handed to a reader that will report every one of them as corrupt.
-    private static AnimationSetSource ReadAnimationSet(
-        ResourceRegistry resources,
-        string path,
-        List<BoneAnimationSet> sets,
-        IProjectIGILogger log)
+    private static AnimationSetSource ReadAnimationSet(ResourceRegistry resources, string path, List<BoneAnimationSet> sets)
     {
         if (!resources.TryLoad(path, out ReadOnlyMemory<byte> bytes))
         {
@@ -448,7 +418,6 @@ public sealed class LoadedPack
         }
         catch (IffFormatException ex)
         {
-            log.Warning(LogCategory, $"Animation set '{path}' did not parse: {ex.Message}");
             return AnimationSetSource.Unreadable;
         }
     }
@@ -518,15 +487,10 @@ public sealed class LoadedPack
         }
     }
 
-    private static IresArchive? TryRegisterArchive(
-        string path,
-        ResourceRegistry resources,
-        IProjectIGILogger logger,
-        bool replaceExisting = false)
+    private static IresArchive? TryRegisterArchive(string path, ResourceRegistry resources, bool replaceExisting = false)
     {
         if (!resources.TryLoad(path, out ReadOnlyMemory<byte> bytes))
         {
-            logger.Warning(LogCategory, $"Archive '{path}' is absent.");
             return null;
         }
 

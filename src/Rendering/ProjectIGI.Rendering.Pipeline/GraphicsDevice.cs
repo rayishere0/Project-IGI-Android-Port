@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Rendering.Pipeline.Deferred;
 using ProjectIGI.Rendering.Pipeline.Diagnostics;
@@ -76,12 +75,8 @@ public sealed partial class GraphicsDevice : IGraphicsDevice
     /// a caller asking afterwards is a frame too late.
     /// </param>
     /// <param name="logger">Where the renderer's status lines go, or null to write none.</param>
-    public GraphicsDevice(
-        IRhiDevice device,
-        in DisplayMode mode,
-        bool captureFrames = false,
-        IProjectIGILogger? logger = null)
-        : this(device, mode, captureFrames, logger, tracedWorld: null)
+    public GraphicsDevice(IRhiDevice device, in DisplayMode mode, bool captureFrames = false)
+        : this(device, mode, captureFrames, tracedWorld: null)
     {
     }
 
@@ -94,17 +89,11 @@ public sealed partial class GraphicsDevice : IGraphicsDevice
     /// The traced world, which the caller keeps; or <see langword="null"/> for the device's own, built over
     /// its acceleration structures where it has them. A test hands in a stand-in that counts what is done to it.
     /// </param>
-    internal GraphicsDevice(
-        IRhiDevice device,
-        in DisplayMode mode,
-        bool captureFrames,
-        IProjectIGILogger? logger,
-        ITracedWorld? tracedWorld)
+    internal GraphicsDevice(IRhiDevice device, in DisplayMode mode, bool captureFrames, ITracedWorld? tracedWorld)
     {
         ArgumentNullException.ThrowIfNull(device);
 
         _device = device;
-        _logger = logger;
 
         // The traced world, written once above the RHI for every backend that offers acceleration
         // structures. Built here, before anything is drawn: its placeholder scene is what a tracing shader
@@ -115,8 +104,7 @@ public sealed partial class GraphicsDevice : IGraphicsDevice
         }
         else if (device.AccelerationStructures is { } structures)
         {
-            _ownedTracedWorld = new RayTracing.TracedWorld(
-                device, structures, ReflectionCVars.ReflectionTexture.Value, logger ?? NullLogger.Instance);
+            _ownedTracedWorld = new RayTracing.TracedWorld(device, structures, ReflectionCVars.ReflectionTexture.Value);
             _tracedWorld = _ownedTracedWorld;
         }
 

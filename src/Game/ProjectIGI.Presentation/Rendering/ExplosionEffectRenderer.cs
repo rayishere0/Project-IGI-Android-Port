@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Vfs;
@@ -46,7 +45,6 @@ public sealed class ExplosionEffectRenderer : IDisposable
     private readonly IGraphicsDevice _device;
     private readonly VirtualFileSystem _fileSystem;
     private readonly string _spriteArchive;
-    private readonly IProjectIGILogger _logger;
     private readonly IgiRandom _random = new();
     private readonly Puff[] _puffs = new Puff[MaximumPuffs];
     private readonly Vertex3D[] _vertices = new Vertex3D[MaximumVertices];
@@ -63,12 +61,11 @@ public sealed class ExplosionEffectRenderer : IDisposable
     /// <param name="fileSystem">The virtual file system the common sprite archive is mounted in.</param>
     /// <param name="spriteArchive">The archive in <paramref name="fileSystem"/> the sprite ships in.</param>
     /// <param name="logger">The logger for load diagnostics.</param>
-    public ExplosionEffectRenderer(IGraphicsDevice device, VirtualFileSystem fileSystem, string spriteArchive, IProjectIGILogger? logger = null)
+    public ExplosionEffectRenderer(IGraphicsDevice device, VirtualFileSystem fileSystem, string spriteArchive)
     {
         _spriteArchive = spriteArchive ?? throw new ArgumentNullException(nameof(spriteArchive));
         _device = device ?? throw new ArgumentNullException(nameof(device));
         _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Gets whether the real fireball sprite is available to draw with.</summary>
@@ -345,7 +342,6 @@ public sealed class ExplosionEffectRenderer : IDisposable
         {
             if (!_fileSystem.Exists(_spriteArchive))
             {
-                _logger.Warning("Explosion", $"No sprite archive at {_spriteArchive}; using the procedural burst.");
                 return false;
             }
 
@@ -353,25 +349,21 @@ public sealed class ExplosionEffectRenderer : IDisposable
             IresEntry? entry = archive.FindBody(SpriteName);
             if (entry is null)
             {
-                _logger.Warning("Explosion", $"'{SpriteName}' is missing from {_spriteArchive}; using the procedural burst.");
                 return false;
             }
 
             SpriteAsset asset = SpriteLoader.Load(entry.Data, SpriteName);
             if (asset.Frames.Count == 0 || asset.Textures.Count == 0)
             {
-                _logger.Warning("Explosion", $"'{SpriteName}' has no drawable frame; using the procedural burst.");
                 return false;
             }
 
             _sprite = SpriteResource.Upload(_device, asset, TextureFilter.Linear);
             _frames = [.. asset.Frames];
-            _logger.Information("Explosion", $"Loaded '{SpriteName}' with {_frames.Length} frame(s).");
             return true;
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or TextureFormatException or GraphicsDeviceException)
         {
-            _logger.Warning("Explosion", $"Could not load '{SpriteName}': {ex.Message}; using the procedural burst.");
             return false;
         }
     }

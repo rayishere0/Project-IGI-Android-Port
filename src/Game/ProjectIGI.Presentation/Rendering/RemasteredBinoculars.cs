@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Game.Player;
 using ProjectIGI.Presentation.Text;
@@ -36,7 +35,6 @@ public readonly record struct RemasteredBinocularView(
 public sealed class RemasteredBinoculars
 {
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private UiFont? _body;
     private UiFont? _display;
     private UiTheme? _theme;
@@ -44,12 +42,10 @@ public sealed class RemasteredBinoculars
     /// <summary>Initialises a new instance of the <see cref="RemasteredBinoculars"/> class.</summary>
     /// <param name="device">The device the faces are made on.</param>
     /// <param name="logger">Where a face that cannot load is reported.</param>
-    public RemasteredBinoculars(IGraphicsDevice device, IProjectIGILogger logger)
+    public RemasteredBinoculars(IGraphicsDevice device)
     {
         ArgumentNullException.ThrowIfNull(device);
-        ArgumentNullException.ThrowIfNull(logger);
         _device = device;
-        _logger = logger;
     }
 
     /// <summary>Gets a value indicating whether the faces loaded, so the interface can draw.</summary>
@@ -61,7 +57,6 @@ public sealed class RemasteredBinoculars
     {
         if (!UiFontLibrary.TypographyAvailable)
         {
-            _logger.Warning("Hud", $"No interface font at {UiFontLibrary.FontsDirectory}; the remastered binoculars cannot draw.");
             return false;
         }
 
@@ -75,7 +70,6 @@ public sealed class RemasteredBinoculars
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException)
         {
-            _logger.Warning("Hud", $"Could not load the remastered binoculars' faces: {ex.Message}");
             return false;
         }
     }

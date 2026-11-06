@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -257,10 +256,7 @@ public interface IWorldPresenter : IDisposable
 /// properties, because the host sets each one at the point in the mission load where the thing it binds
 /// was built — and that ordering is behaviour, not incidental.
 /// </remarks>
-public readonly record struct WorldPresentationRequest(
-    IGraphicsDevice Device,
-    ResourceRegistry Resources,
-    IProjectIGILogger Logger);
+public readonly record struct WorldPresentationRequest(IGraphicsDevice Device, ResourceRegistry Resources);
 
 /// <summary>Draws a title's skinned characters.</summary>
 public interface ICharacterPresenter

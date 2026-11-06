@@ -1,5 +1,4 @@
 using ProjectIGI.Game.Hosting;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Audio;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Audio;

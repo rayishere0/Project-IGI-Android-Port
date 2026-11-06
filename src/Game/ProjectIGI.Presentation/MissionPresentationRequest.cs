@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Game.World;
 using ProjectIGI.Rendering;
 
@@ -8,4 +7,4 @@ namespace ProjectIGI.Presentation;
 /// <param name="Device">The device they draw with.</param>
 /// <param name="Gameplay">The title's mission, whose player and objectives they read.</param>
 /// <param name="Logger">Where they report.</param>
-public readonly record struct MissionPresentationRequest(IGraphicsDevice Device, IMissionGameplay Gameplay, IProjectIGILogger Logger);
+public readonly record struct MissionPresentationRequest(IGraphicsDevice Device, IMissionGameplay Gameplay);

@@ -1,7 +1,6 @@
 using System.Reflection;
 using System.Runtime.Loader;
 using ProjectIGI.Core.Content;
-using ProjectIGI.Core.Diagnostics;
 
 namespace ProjectIGI.Modding.Loader;
 
@@ -25,24 +24,22 @@ public static class ModLoader
 {
     private static readonly Dictionary<Guid, Assembly> LoadedBuilds = [];
 
-    private const string LogCategory = "Mods";
 
     /// <summary>Loads the mods installed in a directory, on a machine with every game installed.</summary>
     /// <param name="directory">The mods' directory; a missing one holds none.</param>
     /// <param name="logger">Where what was loaded, and what was not, is reported.</param>
     /// <returns>The mods, in the order they apply.</returns>
-    public static ModSet Load(string directory, IProjectIGILogger? logger = null) => Load(directory, ModEnvironment.Any, logger);
+    public static ModSet Load(string directory) => Load(directory, ModEnvironment.Any);
 
     /// <summary>Loads the mods installed in a directory.</summary>
     /// <param name="directory">The mods' directory; a missing one holds none.</param>
     /// <param name="environment">What the machine has installed.</param>
     /// <param name="logger">Where what was loaded, and what was not, is reported.</param>
     /// <returns>The mods, in the order they apply.</returns>
-    public static ModSet Load(string directory, ModEnvironment environment, IProjectIGILogger? logger = null)
+    public static ModSet Load(string directory, ModEnvironment environment)
     {
         ArgumentException.ThrowIfNullOrEmpty(directory);
         ArgumentNullException.ThrowIfNull(environment);
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         if (!Directory.Exists(directory))
         {
             return ModSet.None;
@@ -65,11 +62,10 @@ public static class ModLoader
     /// <param name="environment">What the machine has installed.</param>
     /// <param name="logger">Where what was loaded, and what was not, is reported.</param>
     /// <returns>Each game's mods by title id, in the order they apply; a mod on two games' lists is loaded once.</returns>
-    public static IReadOnlyDictionary<string, ModSet> Load(ModProfile profile, ModEnvironment environment, IProjectIGILogger? logger = null)
+    public static IReadOnlyDictionary<string, ModSet> Load(ModProfile profile, ModEnvironment environment)
     {
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(environment);
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         Dictionary<string, InstalledMod?> loaded = new(StringComparer.OrdinalIgnoreCase);
         Dictionary<string, ModSet> sets = new(StringComparer.OrdinalIgnoreCase);
         foreach ((string titleId, IReadOnlyList<ModProfileEntry> entries) in profile.Titles)
@@ -149,7 +145,7 @@ public static class ModLoader
     }
 
     // One mod's manifest and code, or nothing when it cannot be played; expectedId is the id a profile listed it under.
-    private static InstalledMod? TryRead(string directory, string? expectedId, IProjectIGILogger log)
+    private static InstalledMod? TryRead(string directory, string? expectedId)
     {
         try
         {
@@ -169,7 +165,6 @@ public static class ModLoader
         }
         catch (Exception ex) when (ex is ModLoadException or IOException or BadImageFormatException or UnauthorizedAccessException)
         {
-            log.Warning(LogCategory, $"The mod in '{directory}' is left out: {ex.Message}");
             return null;
         }
     }
@@ -177,7 +172,7 @@ public static class ModLoader
     // The mods that can be played together, in order: each needs the games it reads installed, no conflict with a mod
     // before it, and its dependencies played with it. Leaving one out can leave out a mod that needed it, so dependencies
     // are checked until nothing more goes.
-    private static ModSet Resolve(List<InstalledMod> mods, ModEnvironment environment, IProjectIGILogger log)
+    private static ModSet Resolve(List<InstalledMod> mods, ModEnvironment environment)
     {
         List<InstalledMod> played = [];
         foreach (InstalledMod mod in mods)
@@ -197,7 +192,6 @@ public static class ModLoader
             }
             else
             {
-                log.Warning(LogCategory, $"{manifest.Name} ({manifest.Id}) is left out: {reason}.");
             }
         }
 
@@ -208,7 +202,6 @@ public static class ModLoader
             {
                 if (UnmetDependency(mod.Manifest, played) is { } unmet)
                 {
-                    log.Warning(LogCategory, $"{mod.Manifest.Name} ({mod.Manifest.Id}) is left out: {unmet}.");
                     played.Remove(mod);
                     removed = true;
                 }
@@ -217,7 +210,6 @@ public static class ModLoader
 
         foreach (InstalledMod mod in played)
         {
-            log.Information(LogCategory, $"Loaded {mod.Manifest.Name} {mod.Manifest.Version} ({mod.Manifest.Id}).");
         }
 
         return new ModSet(played);

@@ -1,5 +1,4 @@
 using ProjectIGI.Presentation;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Presentation.Rendering;
@@ -50,7 +49,6 @@ internal sealed class CameraStatusLightRenderer : ICameraStatusLightPresenter
         NoHistory: true);
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly QuadBatch _lamps = new(0f, 0f, 1f, 1f);
     private readonly QuadBatch _glows = new(0f, 0f, 1f, 1f);
     private SpriteResource? _sprite;
@@ -58,11 +56,10 @@ internal sealed class CameraStatusLightRenderer : ICameraStatusLightPresenter
     private bool _disposed;
 
     /// <summary>Initializes a camera-lamp renderer.</summary>
-    public CameraStatusLightRenderer(IGraphicsDevice device, IProjectIGILogger? logger = null)
+    public CameraStatusLightRenderer(IGraphicsDevice device)
     {
         ArgumentNullException.ThrowIfNull(device);
         _device = device;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Gets whether the retail sprite decoded and uploaded successfully.</summary>
@@ -77,7 +74,6 @@ internal sealed class CameraStatusLightRenderer : ICameraStatusLightPresenter
         {
             if (!fileSystem.Exists(SpriteArchive))
             {
-                _logger.Warning("Camera", $"No camera-lamp archive at {SpriteArchive}.");
                 return false;
             }
 
@@ -85,14 +81,12 @@ internal sealed class CameraStatusLightRenderer : ICameraStatusLightPresenter
             IresEntry? entry = archive.FindBody(SpriteName);
             if (entry is null)
             {
-                _logger.Warning("Camera", $"'{SpriteName}' is missing from {SpriteArchive}.");
                 return false;
             }
 
             SpriteAsset asset = SpriteLoader.Load(entry.Data, SpriteName);
             if (asset.Frames.Count == 0 || asset.Textures.Count == 0)
             {
-                _logger.Warning("Camera", $"'{SpriteName}' has no drawable frame.");
                 return false;
             }
 
@@ -117,7 +111,6 @@ internal sealed class CameraStatusLightRenderer : ICameraStatusLightPresenter
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or GraphicsDeviceException)
         {
-            _logger.Warning("Camera", $"Could not load '{SpriteName}': {ex.Message}");
             return false;
         }
     }

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Game.World;
 using ProjectIGI.Presentation;
 using System.Diagnostics;
@@ -33,7 +32,6 @@ public sealed class MissionArming
 {
     private readonly WorldScene _scene;
     private readonly IWorldPresenter _world;
-    private readonly IProjectIGILogger _logger;
     private readonly Stopwatch _spent = new();
 
     private int _placement;
@@ -46,16 +44,14 @@ public sealed class MissionArming
     /// <param name="world">The renderer they are made resident in.</param>
     /// <param name="logger">The logger.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public MissionArming(int missionId, WorldScene scene, IWorldPresenter world, IProjectIGILogger logger)
+    public MissionArming(int missionId, WorldScene scene, IWorldPresenter world)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(world);
-        ArgumentNullException.ThrowIfNull(logger);
 
         MissionId = missionId;
         _scene = scene;
         _world = world;
-        _logger = logger;
     }
 
     /// <summary>Gets the mission this is arming.</summary>
@@ -115,9 +111,5 @@ public sealed class MissionArming
         }
 
         _reported = true;
-        _logger.Information(
-            "Preview",
-            FormattableString.Invariant(
-                $"Mission {MissionId}'s backdrop is armed: {_scene.Placements.Count} placement(s) made resident over {_totalMilliseconds:F0} ms of idle menu frames."));
     }
 }

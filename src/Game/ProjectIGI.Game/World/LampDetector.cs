@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -164,7 +163,6 @@ public static class LampDetector
     /// </remarks>
     public const float MaximumStrength = 8f;
 
-    private const string LogCategory = "Emissive";
 
     /// <summary>Which sub-meshes of a level are light fixtures.</summary>
     /// <param name="Textures">The textures those fixtures draw with. What the light extractor gathers for.</param>
@@ -231,16 +229,11 @@ public static class LampDetector
     /// <param name="logger">Where the conclusion is reported, named rather than counted.</param>
     /// <returns>The lamps; <see cref="Lamps.None"/> when the level has none.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public static Lamps Detect(
-        WorldScene scene,
-        ResourceRegistry resources,
-        IReadOnlyList<LampManifest.Entry>? named = null,
-        IProjectIGILogger? logger = null)
+    public static Lamps Detect(WorldScene scene, ResourceRegistry resources, IReadOnlyList<LampManifest.Entry>? named = null)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(resources);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         Dictionary<string, TextureLook> looks = new(StringComparer.OrdinalIgnoreCase);
         HashSet<string> textures = new(StringComparer.OrdinalIgnoreCase);
         Dictionary<string, float> subMeshes = new(StringComparer.OrdinalIgnoreCase);
@@ -255,14 +248,7 @@ public static class LampDetector
         Math.Clamp(radiance / MathF.Max(brightness, 0.01f), 0.0625f, MaximumStrength);
 
     /// <summary>Walks the level for sub-meshes shaped like a ceiling lamp, and records them.</summary>
-    private static void Confirm(
-        WorldScene scene,
-        ResourceRegistry resources,
-        Dictionary<string, TextureLook> looks,
-        HashSet<string> textures,
-        Dictionary<string, float> subMeshes,
-        IReadOnlyList<LampManifest.Entry> named,
-        IProjectIGILogger log)
+    private static void Confirm(WorldScene scene, ResourceRegistry resources, Dictionary<string, TextureLook> looks, HashSet<string> textures, Dictionary<string, float> subMeshes, IReadOnlyList<LampManifest.Entry> named)
     {
         Dictionary<MefModel, MeshGeometry?> built = [];
         HashSet<string> tested = new(StringComparer.OrdinalIgnoreCase);
@@ -390,12 +376,6 @@ public static class LampDetector
 
         // Named rather than counted. Part of this is inferred from art that was never meant to be read
         // this way, so the list is the first thing to check when a level lights wrongly.
-        log.Information(
-            LogCategory,
-            subMeshes.Count > 0
-                ? $"Lamps: {subMeshes.Count} sub-mesh(es) drawing {string.Join(", ", textures)}"
-                    + (named.Count > 0 ? $" ({named.Count} named by hand)." : ".")
-                : "Nothing in this level is a light fixture.");
     }
 
     /// <summary>The texture pages a level's own light fittings are skinned with.</summary>

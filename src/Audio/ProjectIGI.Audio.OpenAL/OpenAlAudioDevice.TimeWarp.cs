@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using Silk.NET.OpenAL;
 
 namespace ProjectIGI.Audio.OpenAL;
@@ -101,7 +100,6 @@ public sealed partial class OpenAlAudioDevice
         _efxLooked = true;
         if (!alc.IsExtensionPresent(_device, "ALC_EXT_EFX"))
         {
-            _logger.Information(LogCategory, "No OpenAL effects extension: the time warp slows sounds without muffling them.");
             return false;
         }
 

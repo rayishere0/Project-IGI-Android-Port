@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -179,12 +178,7 @@ public interface ITacticalComputerPresenter : IDisposable
 /// and not a renderer's.
 /// </param>
 /// <param name="Gameplay">The mission the computer belongs to, whose own computer a title's presenter draws; or none.</param>
-public readonly record struct MapComputerPresentationRequest(
-    IGraphicsDevice Device,
-    ResourceRegistry Resources,
-    IProjectIGILogger Logger,
-    Func<string, string> ResolveText,
-    IMissionGameplay? Gameplay = null);
+public readonly record struct MapComputerPresentationRequest(IGraphicsDevice Device, ResourceRegistry Resources, Func<string, string> ResolveText, IMissionGameplay? Gameplay = null);
 
 /// <summary>What a title needs in order to build the catalogue of places its computer marks.</summary>
 /// <param name="LevelRoot">The level's task tree, which the marks are read from.</param>

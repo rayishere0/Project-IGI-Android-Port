@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
@@ -43,7 +42,6 @@ namespace ProjectIGI.Presentation.Rendering;
 /// </remarks>
 public sealed class SkyRenderer : ISkyPresenter
 {
-    private const string LogCategory = "Sky";
 
     /// <summary>Rings between the apex and the horizon, six degrees apart.</summary>
     private const int DomeRings = 15;
@@ -74,7 +72,6 @@ public sealed class SkyRenderer : ISkyPresenter
     private const float StripOverscan = 1.001f;
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly List<CloudLayer> _layers = [];
     private MeshHandle _dome = MeshHandle.None;
 
@@ -111,24 +108,17 @@ public sealed class SkyRenderer : ISkyPresenter
     /// <param name="farPlane">The projection's far plane in metres, which sizes the dome.</param>
     /// <param name="logger">Where to report what was found.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public SkyRenderer(
-        IGraphicsDevice device,
-        VirtualFileSystem fileSystem,
-        GameTask levelRoot,
-        float farPlane,
-        IProjectIGILogger? logger = null)
+    public SkyRenderer(IGraphicsDevice device, VirtualFileSystem fileSystem, GameTask levelRoot, float farPlane)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentNullException.ThrowIfNull(levelRoot);
 
         _device = device;
-        _logger = logger ?? NullLogger.Instance;
 
         DeclaredTask? sky = FindFlatSky(levelRoot);
         if (sky is null)
         {
-            _logger.Information(LogCategory, "The level declares no FlatSky; the sky stays the clear colour.");
             return;
         }
 
@@ -180,10 +170,6 @@ public sealed class SkyRenderer : ISkyPresenter
                 GetColour(declared, "Color", new Vector3f(1f, 1f, 1f))));
         }
 
-        _logger.Information(
-            LogCategory,
-            $"FlatSky: dome over {angle * 180.0 / Math.PI:0.#} degrees, {_layers.Count} cloud layer(s), "
-                + $"plane at {PlaneHeight} m, fades by {Distance} m.");
     }
 
     /// <summary>Gets the fog colour the frame should clear to; the task's <c>Fog Color</c>.</summary>
@@ -690,7 +676,6 @@ public sealed class SkyRenderer : ISkyPresenter
         }
         catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException)
         {
-            _logger.Warning(LogCategory, $"The cloud grid did not upload: {ex.Message}");
             return;
         }
 
@@ -741,7 +726,6 @@ public sealed class SkyRenderer : ISkyPresenter
         {
             if (!fileSystem.Exists(path))
             {
-                _logger.Warning(LogCategory, $"Cloud texture '{name}' is not in the installation.");
                 return TextureHandle.None;
             }
 
@@ -754,7 +738,6 @@ public sealed class SkyRenderer : ISkyPresenter
         }
         catch (Exception ex) when (ex is IOException or ArgumentException or GraphicsDeviceException or TextureFormatException)
         {
-            _logger.Warning(LogCategory, $"Cloud texture '{name}' did not load: {ex.Message}");
             return TextureHandle.None;
         }
     }

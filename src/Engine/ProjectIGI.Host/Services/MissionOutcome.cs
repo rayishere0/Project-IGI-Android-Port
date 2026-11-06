@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Events;
 using ProjectIGI.Engine.Titles;
 using ProjectIGI.Game.Config;
@@ -62,7 +61,7 @@ internal interface IMissionOutcomeHost
 /// <param name="session">The mission being played, which counts the failure's grace and holds the result.</param>
 /// <param name="logger">The log the decision is reported to.</param>
 /// <param name="host">What deciding a mission reads of the host.</param>
-internal sealed class MissionOutcome(MissionSession session, IProjectIGILogger logger, IMissionOutcomeHost host) : IHostService
+internal sealed class MissionOutcome(MissionSession session, IMissionOutcomeHost host) : IHostService
 {
     /// <summary>How much longer than the original the remaster holds a status message, in seconds.</summary>
     private const float RemasteredMessageHoldSeconds = 3f;
@@ -105,9 +104,6 @@ internal sealed class MissionOutcome(MissionSession session, IProjectIGILogger l
                 // 'Failed' expression is authored out of message and area state, and when it
                 // turns for a reason nobody in the room understands this line is where the
                 // reading starts.
-                logger.Information(
-                    "Mission",
-                    $"The level's LevelFlow has failed the mission; opening the failed page.");
                 host.CloseComputer();
 
                 // The result is a shell page, not a drawn card, so its two choices can be clicked
@@ -149,13 +145,11 @@ internal sealed class MissionOutcome(MissionSession session, IProjectIGILogger l
                     host.SaveConfiguration();
                 }
 
-                logger.Information("Mission", $"Completed mission {completedMission.Id}; loading {nextMissionId}.");
                 host.TitlePlayer?.MissionCompleted(nextMissionId);
                 host.StartMission(nextMissionId);
             }
             else
             {
-                logger.Information("Mission", $"Completed final mission {completedMission.Id}; campaign complete.");
                 host.ReleasePlayedMission();
                 if (state.Shell is not null)
                 {

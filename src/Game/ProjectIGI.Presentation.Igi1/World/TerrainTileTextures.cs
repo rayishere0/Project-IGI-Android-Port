@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Formats.Textures;
 using ProjectIGI.Rendering;
@@ -12,10 +11,8 @@ namespace ProjectIGI.Presentation.Igi1.World;
 /// </remarks>
 internal sealed class TerrainTileTextures
 {
-    private const string LogCategory = "Terrain";
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly MaterialDetailPack? _detailMaps;
     private TextureHandle[] _tiles;
 
@@ -25,15 +22,9 @@ internal sealed class TerrainTileTextures
     /// <param name="detailMaps">The derived surface-detail maps, or <see langword="null"/> for none.</param>
     /// <param name="tiles">The atlas to draw the ground from, or <see langword="null"/> for none.</param>
     /// <param name="derivedDetail">Detail maps already derived for the tiles, or <see langword="null"/>.</param>
-    public TerrainTileTextures(
-        IGraphicsDevice device,
-        IProjectIGILogger logger,
-        MaterialDetailPack? detailMaps,
-        TexAtlasFile? tiles,
-        IReadOnlyList<Bgra32[]>? derivedDetail)
+    public TerrainTileTextures(IGraphicsDevice device, MaterialDetailPack? detailMaps, TexAtlasFile? tiles, IReadOnlyList<Bgra32[]>? derivedDetail)
     {
         _device = device;
-        _logger = logger;
         _detailMaps = detailMaps;
         _tiles = UploadTiles(tiles, derivedDetail);
     }
@@ -54,7 +45,6 @@ internal sealed class TerrainTileTextures
     {
         if (tiles is not { } atlas || atlas.Tiles.Count == 0)
         {
-            _logger.Warning(LogCategory, "The level ships no ground texture atlas; the terrain draws untextured.");
             return [];
         }
 
@@ -100,17 +90,12 @@ internal sealed class TerrainTileTextures
             }
             catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException)
             {
-                _logger.Warning(LogCategory, $"Ground tile {i} did not upload: {ex.Message}");
             }
         }
 
         // The UPLOADED size, not the atlas's declared one. Those are the same number until the overrides
         // folder replaces the atlas, and then reporting the header's is actively misleading -- it would
         // say 128x128 for ground that went up at 1024.
-        _logger.Information(
-            LogCategory,
-            $"Ground tiles: {handles.Length} of {uploadedWidth}x{uploadedHeight}"
-                + (uploadedWidth != atlas.TileWidth ? $" (atlas declares {atlas.TileWidth}x{atlas.TileHeight})." : "."));
         return handles;
     }
 

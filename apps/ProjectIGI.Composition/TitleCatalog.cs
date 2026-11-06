@@ -1,7 +1,6 @@
 using ProjectIGI.Game.Hosting;
 using ProjectIGI.Core.Configuration;
 using System.Diagnostics.CodeAnalysis;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Titles;
 using ProjectIGI.Engine.Titles;
 using ProjectIGI.Game.Igi1;
@@ -43,12 +42,12 @@ public static class TitleCatalog
             new Igi1Runtime(),
             new Igi1PresentationProvider(),
             new Igi1WorldBuilder(),
-            static log => new MissionRegistry(log)))
+            static () => new MissionRegistry()))
         .Register(new TitlePackage(
             new Igi2Runtime(),
             new Igi2PresentationProvider(),
             new Igi2WorldBuilder(),
-            static log => new Igi2MissionCatalogue(log),
+            static () => new Igi2MissionCatalogue(),
             new Igi2Gameplay()));
 
     /// <summary>Gets the catalogue the host resolves titles through.</summary>
@@ -175,8 +174,8 @@ public static class TitleCatalog
     /// <param name="logger">Where scan diagnostics go.</param>
     /// <returns>Its catalogue.</returns>
     /// <exception cref="ArgumentException">This build has no such title.</exception>
-    public static IMissionCatalogue<MissionDescriptor> MissionCatalogueFor(GameTitle title, IProjectIGILogger? logger = null) =>
-        Titles.Get(title).Missions(logger);
+    public static IMissionCatalogue<MissionDescriptor> MissionCatalogueFor(GameTitle title) =>
+        Titles.Get(title).Missions();
 
     /// <summary>Finds the scene walk for a title.</summary>
     /// <param name="title">The title to run.</param>

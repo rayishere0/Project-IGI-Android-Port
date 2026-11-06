@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -51,7 +50,6 @@ namespace ProjectIGI.Presentation.Rendering;
 /// </remarks>
 public sealed class TacticalComputerRenderer : ITacticalComputerPresenter
 {
-    private const string LogCategory = "Computer";
 
     /// <summary>How high above the ground the map is read from, in metres.</summary>
     /// <remarks>The retail altitude, kept: it is what the authored field-of-view range is calibrated to.</remarks>
@@ -70,7 +68,6 @@ public sealed class TacticalComputerRenderer : ITacticalComputerPresenter
 
     private readonly IGraphicsDevice _device;
     private readonly ResourceRegistry _resources;
-    private readonly IProjectIGILogger _logger;
     private readonly Func<string, string> _resolveText;
     private readonly TacticalMapOverlay _overlay;
 
@@ -99,20 +96,14 @@ public sealed class TacticalComputerRenderer : ITacticalComputerPresenter
     /// <param name="logger">Where to report a missing font.</param>
     /// <param name="resolveText">The fallback used for a string the archives do not carry.</param>
     /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
-    public TacticalComputerRenderer(
-        IGraphicsDevice device,
-        ResourceRegistry resources,
-        IProjectIGILogger logger,
-        Func<string, string> resolveText)
+    public TacticalComputerRenderer(IGraphicsDevice device, ResourceRegistry resources, Func<string, string> resolveText)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(resources);
-        ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(resolveText);
 
         _device = device;
         _resources = resources;
-        _logger = logger;
         _resolveText = resolveText;
         _overlay = new TacticalMapOverlay(ComputerString);
     }
@@ -131,7 +122,6 @@ public sealed class TacticalComputerRenderer : ITacticalComputerPresenter
 
         if (!UiFontLibrary.TypographyAvailable)
         {
-            _logger.Warning(LogCategory, $"No interface font at {UiFontLibrary.FontsDirectory}; the tactical computer cannot draw.");
             return false;
         }
 
@@ -149,7 +139,6 @@ public sealed class TacticalComputerRenderer : ITacticalComputerPresenter
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException)
         {
-            _logger.Warning(LogCategory, $"Could not build the tactical computer's fonts: {ex.Message}");
             return false;
         }
     }

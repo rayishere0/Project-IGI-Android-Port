@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Formats.Textures;
 using ProjectIGI.Formats.World;
@@ -28,7 +27,6 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public sealed class TerrainLoader
 {
-    private const string LogCategory = "Terrain";
 
     /// <summary>The native the terrain script declares its materials through.</summary>
     public const string MaterialNative = "CreateTerrainMaterial";
@@ -38,21 +36,19 @@ public sealed class TerrainLoader
 
     private readonly ResourceRegistry _resources;
     private readonly NativeRegistry _natives;
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="TerrainLoader"/> class.</summary>
     /// <param name="resources">Where the terrain files are read from.</param>
     /// <param name="natives">The script namespace the two terrain natives are registered into.</param>
     /// <param name="logger">The logger for load diagnostics.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public TerrainLoader(ResourceRegistry resources, NativeRegistry natives, IProjectIGILogger? logger = null)
+    public TerrainLoader(ResourceRegistry resources, NativeRegistry natives)
     {
         ArgumentNullException.ThrowIfNull(resources);
         ArgumentNullException.ThrowIfNull(natives);
 
         _resources = resources;
         _natives = natives;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Loads a level's terrain.</summary>
@@ -75,13 +71,11 @@ public sealed class TerrainLoader
             // "No chunked terrain HERE", not "no terrain". This reader is Project I.G.I.'s octree, and a
             // title whose ground is a different format entirely -- I.G.I. 2's flat grid of .thm tiles
             // inside heightmaps.res -- ships nothing at this path and has terrain all the same.
-            _logger.Warning(LogCategory, $"'{basePath}.ctr' is absent; no chunked terrain is loaded from this path.");
             return null;
         }
 
         if (!_resources.TryLoad(basePath + ".cmd", out ReadOnlyMemory<byte> cmdBytes))
         {
-            _logger.Warning(LogCategory, $"'{basePath}.cmd' is absent; no chunked terrain is loaded from this path.");
             return null;
         }
 
@@ -92,7 +86,6 @@ public sealed class TerrainLoader
         }
         catch (PackFormatException ex)
         {
-            _logger.Warning(LogCategory, $"'{basePath}.ctr' is malformed: {ex.Message}");
             return null;
         }
 
@@ -133,16 +126,9 @@ public sealed class TerrainLoader
             tileMaps,
             defects);
 
-        _logger.Information(
-            LogCategory,
-            $"Loaded terrain from '{basePath}': {octree.Count} node(s), {commands.Length} byte(s) of geometry, "
-                + $"{visibility.GridCount} bitmap(s), {heightmap?.GridCount ?? 0} heightmap(s), "
-                + $"{lightmaps?.OccupiedCount ?? 0} lightmap page(s), {tiles?.Tiles.Count ?? 0} ground tile(s), "
-                + $"{materials.Count} material(s), {tileMaps.Count} tile map(s).");
 
         if (!terrain.IsUsable)
         {
-            _logger.Warning(LogCategory, $"The terrain is not drawable: {string.Join("; ", defects)}.");
         }
 
         return terrain;
@@ -158,7 +144,6 @@ public sealed class TerrainLoader
     {
         if (!_resources.TryLoad(path, out ReadOnlyMemory<byte> bytes))
         {
-            _logger.Warning(LogCategory, $"'{path}' is absent; the terrain draws untextured.");
             return null;
         }
 
@@ -168,7 +153,6 @@ public sealed class TerrainLoader
         }
         catch (TextureFormatException ex)
         {
-            _logger.Warning(LogCategory, $"'{path}' did not decode: {ex.Message}");
             return null;
         }
     }
@@ -205,7 +189,6 @@ public sealed class TerrainLoader
     {
         if (!_resources.TryLoad(path, out ReadOnlyMemory<byte> bytes))
         {
-            _logger.Warning(LogCategory, $"'{path}' is absent; the terrain has no materials or tile maps.");
             return;
         }
 
@@ -225,12 +208,10 @@ public sealed class TerrainLoader
             QvmError error = interpreter.Run();
             if (error != QvmError.None)
             {
-                _logger.Warning(LogCategory, $"'{path}' faulted with {error}: {interpreter.ErrorMessage}");
             }
         }
         catch (QvmFormatException ex)
         {
-            _logger.Warning(LogCategory, $"'{path}' is malformed: {ex.Message}");
         }
         finally
         {
@@ -248,9 +229,6 @@ public sealed class TerrainLoader
     {
         if (call.ArgumentCount < TerrainMaterial.ArgumentCount)
         {
-            _logger.Warning(
-                LogCategory,
-                $"{MaterialNative} was called with {call.ArgumentCount} arguments, expected {TerrainMaterial.ArgumentCount}.");
             return QvmValue.Zero;
         }
 
@@ -280,9 +258,6 @@ public sealed class TerrainLoader
     {
         if (call.ArgumentCount < TerrainTileMap.ArgumentCount)
         {
-            _logger.Warning(
-                LogCategory,
-                $"{TileMapNative} was called with {call.ArgumentCount} arguments, expected {TerrainTileMap.ArgumentCount}.");
             return QvmValue.Zero;
         }
 

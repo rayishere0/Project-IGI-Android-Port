@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
@@ -142,12 +141,7 @@ internal sealed class TrainPlacementBuilder
     /// level needs it.
     /// </para>
     /// </remarks>
-    internal static int AddSplineSegments(
-        LoadedMission mission,
-        GameTask levelRoot,
-        Dictionary<string, (MtpInstance Instance, LoadedPack Pack, MefModel Model)> byName,
-        List<WorldPlacement> placements,
-        IProjectIGILogger log)
+    internal static int AddSplineSegments(LoadedMission mission, GameTask levelRoot, Dictionary<string, (MtpInstance Instance, LoadedPack Pack, MefModel Model)> byName, List<WorldPlacement> placements)
     {
         int added = 0;
         int chain = 0;

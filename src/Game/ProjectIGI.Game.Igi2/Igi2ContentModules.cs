@@ -123,7 +123,7 @@ public sealed class Igi2PlayerContentModule : IContentModule
         context.Types.Register<Player.HumanPlayerConfigItemTask>(Player.HumanPlayerConfigItemTask.TypeName);
         context.Types.Register<Player.Igi2HumanPlayerInputTask>(Player.Igi2HumanPlayerInputTask.TypeName);
         Scripting.Igi2ScriptFunctions functions = context.Services.GetOrProvide(() => new Scripting.Igi2ScriptFunctions());
-        context.Services.GetOrProvide(() => new Player.Igi2PlayerTuning(context.Logger)).RegisterNatives(context.Natives, functions);
+        context.Services.GetOrProvide(() => new Player.Igi2PlayerTuning()).RegisterNatives(context.Natives, functions);
     }
 
     /// <inheritdoc/>
@@ -176,7 +176,7 @@ public sealed class Igi2WeaponContentModule : IContentModule
         context.Types.Register<Weapons.Igi2FireModeTask>(Weapons.Igi2FireModeTask.TypeName);
         context.Types.Register<Weapons.Igi2LaserDotSwitchTask>(Weapons.Igi2LaserDotSwitchTask.TypeName);
         Weapons.Igi2WeaponConstants.Register(context.Natives, context.Types);
-        Weapons.Igi2WeaponTables tables = context.Services.GetOrProvide(() => new Weapons.Igi2WeaponTables(context.Logger));
+        Weapons.Igi2WeaponTables tables = context.Services.GetOrProvide(() => new Weapons.Igi2WeaponTables());
         Scripting.Igi2ScriptFunctions functions = context.Services.GetOrProvide(() => new Scripting.Igi2ScriptFunctions());
         context.Services.GetOrProvide(() => new Weapons.Igi2HumanWeapons(context.Natives, functions, tables));
     }
@@ -304,7 +304,7 @@ public sealed class Igi2SoundContentModule : IContentModule
     public void Register(ContentRegistrationContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        context.Services.GetOrProvide(() => new Audio.Igi2SoundDefinitions(context.Logger)).Register(context.Natives);
+        context.Services.GetOrProvide(() => new Audio.Igi2SoundDefinitions()).Register(context.Natives);
     }
 
     /// <inheritdoc/>
@@ -328,7 +328,7 @@ public sealed class Igi2MaterialContentModule : IContentModule
     public void Register(ContentRegistrationContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        context.Services.GetOrProvide(() => new Igi2GameMaterials(context.Logger)).Register(context.Natives, context.Types);
+        context.Services.GetOrProvide(() => new Igi2GameMaterials()).Register(context.Natives, context.Types);
     }
 
     /// <inheritdoc/>
@@ -402,7 +402,7 @@ public sealed class Igi2AnimTriggerContentModule : IContentModule
     public void Register(ContentRegistrationContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        context.Services.GetOrProvide(() => new Animation.Igi2AnimTriggers(context.Logger)).Register(context.Natives, context.Types);
+        context.Services.GetOrProvide(() => new Animation.Igi2AnimTriggers()).Register(context.Natives, context.Types);
 
         // iLastWhizzbySoundTick (igi2 0x79748FC) lives for the whole run of the game, whatever level is played.
         context.Services.GetOrProvide(static () => new Player.Igi2WhizzbyClock());
@@ -437,7 +437,7 @@ public sealed class Igi2PhysicsObjectContentModule : IContentModule
     public void Register(ContentRegistrationContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        context.Services.GetOrProvide(() => Physics.Igi2PhysicsObjectTypes.Create(context.Logger)).Register(context.Natives, context.Types);
+        context.Services.GetOrProvide(() => Physics.Igi2PhysicsObjectTypes.Create()).Register(context.Natives, context.Types);
     }
 
     /// <inheritdoc/>

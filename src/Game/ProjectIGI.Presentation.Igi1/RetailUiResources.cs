@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Formats.Ilff;
 using ProjectIGI.Formats.Sprites;
 using ProjectIGI.Presentation.Rendering;
@@ -26,7 +25,6 @@ namespace ProjectIGI.Presentation.Igi1;
 internal sealed class RetailUiResources : IDisposable
 {
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly RetailUiResourceOptions _options;
     private readonly Dictionary<string, SpriteResource?> _sprites = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, BitmapTextRenderer?> _fonts = new(StringComparer.OrdinalIgnoreCase);
@@ -36,11 +34,10 @@ internal sealed class RetailUiResources : IDisposable
     /// <param name="device">The device sprites are uploaded to.</param>
     /// <param name="options">How names are matched and how a bad sprite is reported.</param>
     /// <param name="logger">Where an undecodable sprite is reported, when the options catch it.</param>
-    public RetailUiResources(IGraphicsDevice device, RetailUiResourceOptions options, IProjectIGILogger? logger = null)
+    public RetailUiResources(IGraphicsDevice device, RetailUiResourceOptions options)
     {
         _device = device;
         _options = options;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Adds an archive to the end of the search order.</summary>
@@ -160,7 +157,6 @@ internal sealed class RetailUiResources : IDisposable
                 }
                 catch (Exception ex) when (ex is InvalidDataException or NotSupportedException)
                 {
-                    _logger.Warning(category, $"Could not read {failureSubject}'{name}': {ex.Message}");
                 }
             }
         }

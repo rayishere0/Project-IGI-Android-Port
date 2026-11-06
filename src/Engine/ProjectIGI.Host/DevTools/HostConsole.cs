@@ -1,6 +1,6 @@
+using System.Diagnostics;
 using ProjectIGI.Core.Configuration;
 using ProjectIGI.Core.Configuration.Presets;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Vfs;
 using ProjectIGI.Game.Player;
 using ProjectIGI.Input;
@@ -20,41 +20,43 @@ namespace ProjectIGI.Host.DevTools;
 /// once and then never passing it again expects.
 /// </para>
 /// <para>
-/// Everything the game writes through <see cref="IProjectIGILogger"/> is mirrored into the scrollback, so
+/// Everything the game writes to the console is mirrored into the scrollback, so
 /// opening the console shows the log rather than an empty panel.
 /// </para>
 /// </remarks>
 public sealed class HostConsole : IDisposable
 {
-    private const string LogCategory = "Console";
 
-    private readonly IProjectIGILogger _logger;
-    private readonly ConsoleLineSink _logLines = new();
     private readonly Action<ConsoleLine> _writeLine;
     private readonly string _settingsPath;
-    private LogRouter? _router;
     private readonly DeveloperConsole _view;
     private bool _disposed;
+
+    // Seconds since this process started, for stamping console lines. The offset aligns the
+    // stopwatch with the process start time, so the clock reads from process start rather than
+    // from when this class first loaded.
+    private static readonly long ClockStart = Stopwatch.GetTimestamp();
+    private static readonly double ClockOffset = Math.Max(0.0, (DateTimeOffset.Now - Process.GetCurrentProcess().StartTime).TotalSeconds);
+    private static double ElapsedSeconds => ClockOffset + Stopwatch.GetElapsedTime(ClockStart).TotalSeconds;
 
     /// <summary>Initialises a new instance of the <see cref="HostConsole"/> class.</summary>
     /// <param name="device">The device the console's font is uploaded to.</param>
     /// <param name="logger">Where to report what the console does.</param>
     /// <exception cref="ArgumentNullException"><paramref name="device"/> is <see langword="null"/>.</exception>
-    public HostConsole(IGraphicsDevice device, IProjectIGILogger? logger = null)
+    public HostConsole(IGraphicsDevice device)
     {
         ArgumentNullException.ThrowIfNull(device);
 
-        _logger = logger ?? NullLogger.Instance;
         _settingsPath = SettingsPaths.GetSettingsPath();
 
         System = new ConsoleSystem();
         Model = new ConsoleModel(System);
         _writeLine = System.Write;
-        _view = new DeveloperConsole(device, Model, _logger);
+        _view = new DeveloperConsole(device, Model);
 
-        // Stamped on the same clock as the log lines replayed into the scrollback, so a command's output
-        // and the startup it follows read as one timeline.
-        System.Clock = static () => ConsoleLineSink.Elapsed;
+        // Console lines are stamped in seconds since the process started, so a command's output and
+        // the startup it follows read as one timeline.
+        System.Clock = static () => ElapsedSeconds;
 
         string configDirectory = Path.GetDirectoryName(_settingsPath) ?? SettingsPaths.PortableDirectory;
         BuiltInConsoleCommands.Register(System, new DirectoryConsoleFileSystem(configDirectory));
@@ -123,26 +125,20 @@ public sealed class HostConsole : IDisposable
         bool settingsLoaded = false;
         if (IsolatedFromSavedSettings)
         {
-            _logger.Information(
-                LogCategory,
-                "Capture mode: starting from defaults; settings.cfg is neither read nor written.");
         }
         else if (SettingsFile.Load(System, _settingsPath))
         {
             settingsLoaded = true;
-            _logger.Information(LogCategory, $"Loaded settings from {_settingsPath}.");
         }
 
         // After the file, so a saved choice cannot outlive the lock, and before the command line, so a
         // +gfx_preset there is refused like one typed later.
         if (lockedPreset is { } locked)
         {
-            _logger.Information(LogCategory, $"This build is locked to the {locked} graphics preset.");
             GraphicsPresetRegistry.Default.Lock(locked);
         }
         else if (!IsolatedFromSavedSettings && !settingsLoaded)
         {
-            _logger.Information(LogCategory, $"No saved settings found; using the {firstRunPreset} graphics preset.");
             GraphicsPresetRegistry.Default.Apply(firstRunPreset);
         }
 
@@ -163,42 +159,16 @@ public sealed class HostConsole : IDisposable
             System.Execute(statement);
         }
 
-        _logger.Information(
-            LogCategory,
-            $"Effective settings: r_smooth={Rendering.FrameCVars.SmoothPresentation.Value}, "
-                + $"r_hdr={Rendering.FrameCVars.OffscreenScene.Value}, "
-                + $"r_deferred={Rendering.LightingCVars.Deferred.Value}, "
-                + $"r_taa={Rendering.ReconstructionCVars.TemporalFeedback.Value:0.###}, "
-                + $"r_scale={Rendering.ReconstructionCVars.RenderScale.Value:0.###}, "
-                + $"r_motion_blur={Rendering.PostCVars.MotionBlur.Value:0.###}.");
 
         System.Variables.AnyChanged += OnVariableChanged;
         GraphicsPresetRegistry.Default.PresetChanged += OnPresetChanged;
 
         if (!_view.Load(System))
         {
-            _logger.Warning(LogCategory, "The console has no font; it will accept commands but draw nothing.");
         }
 
         System.Write($"ProjectIGI console. {System.Variables.Count} variable(s), {System.Commands.All.Count} command(s).");
         System.Write("Type 'help' for commands, 'cvarlist' for settings, or press Tab to complete.");
-    }
-
-    /// <summary>Shows the process's log in the scrollback, starting with what was logged before the console existed.</summary>
-    /// <param name="router">The process's logger.</param>
-    /// <remarks>Also gives <c>log_level</c> the router's policy to change.</remarks>
-    /// <exception cref="ArgumentNullException"><paramref name="router"/> is <see langword="null"/>.</exception>
-    public void AttachLog(LogRouter router)
-    {
-        ArgumentNullException.ThrowIfNull(router);
-        if (_router is not null)
-        {
-            return;
-        }
-
-        _router = router;
-        router.AddSink(_logLines);
-        DrainLog();
     }
 
     /// <summary>Applies a frame's input.</summary>
@@ -208,8 +178,6 @@ public sealed class HostConsole : IDisposable
     public bool Update(InputState input, float elapsedSeconds)
     {
         ArgumentNullException.ThrowIfNull(input);
-        DrainLog();
-
         // The toggle is handled here rather than in the view, because it is the one key that has to
         // work when the console is shut and the view is doing nothing at all.
         bool wasOpen = Model.IsOpen;
@@ -377,7 +345,6 @@ public sealed class HostConsole : IDisposable
         bool saved = SettingsFile.Save(System, _settingsPath);
         if (!saved)
         {
-            _logger.Warning(LogCategory, $"Could not write {_settingsPath}; settings were not saved.");
         }
 
         return saved;
@@ -392,8 +359,6 @@ public sealed class HostConsole : IDisposable
         }
 
         _disposed = true;
-        _router?.RemoveSink(_logLines);
-        _logLines.Dispose();
         System.Variables.AnyChanged -= OnVariableChanged;
         GraphicsPresetRegistry.Default.PresetChanged -= OnPresetChanged;
         PlayerCheatCVars.CheatsEnabled.Changed -= OnCheatsEnabledChanged;
@@ -404,12 +369,10 @@ public sealed class HostConsole : IDisposable
     {
         if (e.Variable.Name.StartsWith("r_", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.Information(LogCategory, $"CVar changed: {e.Variable.Name} {e.PreviousText} -> {e.CurrentText}.");
         }
     }
 
     private void OnPresetChanged(object? sender, GraphicsPreset preset) =>
-        _logger.Information(LogCategory, $"Graphics preset changed: {preset}.");
 
     private void RegisterShellCommands()
     {
@@ -453,52 +416,7 @@ public sealed class HostConsole : IDisposable
                 context.Print($"cheats {(System.CheatsEnabled ? "enabled" : "disabled")}");
             },
             "[0 | 1]");
-
-        System.Commands.Add(
-            "log_level",
-            "Reports the log levels, or sets the default (log_level debug) or one category's (log_level AI.Gunner trace; 'default' clears it).",
-            RunLogLevel,
-            "[level] | [category level|default]");
     }
-
-    private void RunLogLevel(ConsoleCommandContext context)
-    {
-        if (_router is not { } router)
-        {
-            context.Error("The log is not attached to this console.");
-            return;
-        }
-
-        LogLevelPolicy policy = router.Policy;
-        switch (context.Count)
-        {
-            case 0:
-                context.Print($"default: {policy.Default}");
-                foreach ((string category, LogLevel level) in policy.Overrides.OrderBy(static o => o.Key, StringComparer.OrdinalIgnoreCase))
-                {
-                    context.Print($"  {category}: {level}");
-                }
-
-                return;
-            case 1 when LogLevelPolicy.TryParseLevel(context[0], out LogLevel level):
-                policy.Default = level;
-                context.Print($"default: {level}");
-                return;
-            case 2 when context[1].Equals("default", StringComparison.OrdinalIgnoreCase):
-                policy.SetOverride(context[0], null);
-                context.Print($"{context[0]}: {policy.LevelFor(context[0])} (default)");
-                return;
-            case 2 when LogLevelPolicy.TryParseLevel(context[1], out LogLevel level):
-                policy.SetOverride(context[0], level);
-                context.Print($"{context[0]}: {level}");
-                return;
-            default:
-                context.Error("Expected a level: trace, debug, info, warning, error, fatal or off.");
-                return;
-        }
-    }
-
-    private void DrainLog() => _logLines.Drain(_writeLine);
 
     // The Extras screen's "Enable cheats" toggle writes the variable directly; the console follows it.
     private void OnCheatsEnabledChanged(object? sender, CVarChangedEventArgs e) =>

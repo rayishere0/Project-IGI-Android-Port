@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Formats.World;
@@ -97,7 +96,6 @@ public static class LightFixtureExtractor
     /// </remarks>
     public const float MinimumRadius = 2f;
 
-    private const string LogCategory = "Emissive";
 
     /// <summary>One drawable mesh and where in the world it stands.</summary>
     /// <remarks>
@@ -209,24 +207,11 @@ public static class LightFixtureExtractor
     /// are not fixtures. Only the sub-meshes the shape test passed contribute.
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="scene"/> is <see langword="null"/>.</exception>
-    public static IReadOnlyList<LightFixture> ProposeFromScene(
-        WorldScene scene,
-        LampDetector.Lamps lamps,
-        Func<string, Vector3f>? colour = null,
-        float clusterDistance = DefaultClusterDistance,
-        float radiusScale = DefaultRadiusScale,
-        IProjectIGILogger? logger = null)
+    public static IReadOnlyList<LightFixture> ProposeFromScene(WorldScene scene, LampDetector.Lamps lamps, Func<string, Vector3f>? colour = null, float clusterDistance = DefaultClusterDistance, float radiusScale = DefaultRadiusScale)
     {
         ArgumentNullException.ThrowIfNull(scene);
 
-        return ProposeFromScene(
-            scene,
-            lamps.Textures ?? (IReadOnlySet<string>)new HashSet<string>(),
-            colour,
-            clusterDistance,
-            radiusScale,
-            logger,
-            lamps);
+        return ProposeFromScene(scene, lamps.Textures ?? (IReadOnlySet<string>)new HashSet<string>(), colour, clusterDistance, radiusScale, lamps);
     }
 
     /// <summary>Proposes a light for every cluster of emitter triangles in a loaded level.</summary>
@@ -250,19 +235,11 @@ public static class LightFixtureExtractor
     /// property of the model rather than of where it stands — and hands the rest over.
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="scene"/> or <paramref name="emitterTextures"/> is <see langword="null"/>.</exception>
-    public static IReadOnlyList<LightFixture> ProposeFromScene(
-        WorldScene scene,
-        IEnumerable<string> emitterTextures,
-        Func<string, Vector3f>? colour = null,
-        float clusterDistance = DefaultClusterDistance,
-        float radiusScale = DefaultRadiusScale,
-        IProjectIGILogger? logger = null,
-        LampDetector.Lamps lamps = default)
+    public static IReadOnlyList<LightFixture> ProposeFromScene(WorldScene scene, IEnumerable<string> emitterTextures, Func<string, Vector3f>? colour = null, float clusterDistance = DefaultClusterDistance, float radiusScale = DefaultRadiusScale, LampDetector.Lamps lamps = default)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(emitterTextures);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         Dictionary<MefModel, MeshGeometry?> built = [];
         List<PlacedMesh> meshes = [];
@@ -301,10 +278,6 @@ public static class LightFixtureExtractor
         IReadOnlyList<LightFixture> fixtures =
             Propose(meshes, emitterTextures, colour, clusterDistance, radiusScale);
 
-        log.Information(
-            LogCategory,
-            $"Proposed {fixtures.Count} light fixture(s) from {meshes.Count} placement(s). "
-            + "Every one of them is a candidate for review, not a light the level declared.");
 
         return fixtures;
     }

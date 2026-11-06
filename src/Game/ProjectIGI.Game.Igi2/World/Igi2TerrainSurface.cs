@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -364,7 +363,6 @@ public readonly record struct Igi2TerrainTile(
 public sealed class Igi2TerrainSurface
 {
     /// <summary>The category load diagnostics are logged under.</summary>
-    public const string LogCategory = "igi2.terrain";
 
     /// <summary>The archive a level keeps its three terrain maps per tile in.</summary>
     /// <remarks>
@@ -474,7 +472,7 @@ public sealed class Igi2TerrainSurface
     /// The one place that knows where the maps live, because two callers want them: the presenter that
     /// draws the ground and the walk that hands the player something to stand on.
     /// </remarks>
-    public static Igi2TerrainSurface Build(GameTask levelRoot, ResourceRegistry resources, IProjectIGILogger? logger = null)
+    public static Igi2TerrainSurface Build(GameTask levelRoot, ResourceRegistry resources)
     {
         ArgumentNullException.ThrowIfNull(resources);
 
@@ -482,7 +480,7 @@ public sealed class Igi2TerrainSurface
             ? IresArchive.Read(bytes)
             : null;
 
-        return Build(levelRoot, heightmaps, logger);
+        return Build(levelRoot, heightmaps);
     }
 
     /// <summary>Loads the ground a level declares.</summary>
@@ -491,11 +489,10 @@ public sealed class Igi2TerrainSurface
     /// <param name="logger">Where load diagnostics go.</param>
     /// <returns>The surface, which may be empty.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="levelRoot"/> is <see langword="null"/>.</exception>
-    public static Igi2TerrainSurface Build(GameTask levelRoot, IresArchive? heightmaps, IProjectIGILogger? logger = null)
+    public static Igi2TerrainSurface Build(GameTask levelRoot, IresArchive? heightmaps)
     {
         ArgumentNullException.ThrowIfNull(levelRoot);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         List<Igi2TerrainTile> tiles = [];
         Dictionary<int, TerrainMaterialTask> materials = [];
         List<Igi2TerrainDiscard> discards = [];
@@ -539,9 +536,6 @@ public sealed class Igi2TerrainSurface
 
         BindSubmaps(tiles);
 
-        log.Information(
-            LogCategory,
-            $"Terrain: {tiles.Count} tile(s), {materials.Count} material(s), {discards.Count} discard(s).");
         Vector3d origin = terrain?.Position ?? default;
         return new Igi2TerrainSurface(
             tiles,
@@ -576,16 +570,11 @@ public sealed class Igi2TerrainSurface
         }
     }
 
-    private static bool TryLoad(
-        TerrainMapTask map,
-        IReadOnlyDictionary<string, IresEntry> byName,
-        IProjectIGILogger log,
-        out Igi2TerrainTile tile)
+    private static bool TryLoad(TerrainMapTask map, IReadOnlyDictionary<string, IresEntry> byName, out Igi2TerrainTile tile)
     {
         tile = default;
         if (!TryRead(byName, map.HeightMapResource, out Igi2TerrainMap? heights))
         {
-            log.Warning(LogCategory, $"Terrain tile {map.MapId} has no height map; it is not drawn.");
             return false;
         }
 

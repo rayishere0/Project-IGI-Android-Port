@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
 using ProjectIGI.Rendering;
@@ -33,7 +32,6 @@ namespace ProjectIGI.Presentation.Lighting;
 /// </remarks>
 public sealed class SurfaceCacheLighting : IDisposable
 {
-    private const string LogCategory = "SurfaceCache";
 
     /// <summary>Gets or sets how many frames the temporal accumulation converges over.</summary>
     /// <remarks>
@@ -128,28 +126,7 @@ public sealed class SurfaceCacheLighting : IDisposable
     private readonly Vector3d _origin;
     private bool _disposed;
 
-    private SurfaceCacheLighting(
-        IGraphicsDevice device,
-        IProjectIGILogger logger,
-        TextureHandle direct,
-        TextureHandle indirect,
-        TextureHandle final,
-        ComputeShaderHandle shader,
-        StorageBufferHandle pages,
-        StorageBufferHandle tiles,
-        StorageBufferHandle probePositions,
-        StorageBufferHandle activeTiles,
-        int[] tilePages,
-        float[] pageSpheres,
-        int probeWidth,
-        int probeHeight,
-        int tileCount,
-        int width,
-        int height,
-        Vector3d origin,
-        float[] pageRecords,
-        MeshCard[] cards,
-        SurfaceCacheInstances instances)
+    private SurfaceCacheLighting(IGraphicsDevice device, TextureHandle direct, TextureHandle indirect, TextureHandle final, ComputeShaderHandle shader, StorageBufferHandle pages, StorageBufferHandle tiles, StorageBufferHandle probePositions, StorageBufferHandle activeTiles, int[] tilePages, float[] pageSpheres, int probeWidth, int probeHeight, int tileCount, int width, int height, Vector3d origin, float[] pageRecords, MeshCard[] cards, SurfaceCacheInstances instances)
     {
         _device = device;
         _pages = pages;
@@ -167,13 +144,12 @@ public sealed class SurfaceCacheLighting : IDisposable
         _bindings = new SurfaceCacheBindings(
             device, origin, device.Capabilities.SupportsRayQuery && RayTracingCVars.HardwareRayTracing.Value);
         _movers = new SurfaceCacheMovers(device, pages, origin, pageRecords, cards, instances);
-        _localLights = new SurfaceCacheLocalLights(device, logger, origin);
+        _localLights = new SurfaceCacheLocalLights(device, origin);
         _relight = new SurfaceCacheRelight(
             device, _bindings, _localLights, EnsureTraceMode, shader, pages, tiles, probePositions, activeTiles,
             tilePages, pageSpheres, probeWidth, probeHeight, tileCount, direct, indirect, final, width, height);
         _screen = new ScreenProbeGather(device, _bindings, EnsureTraceMode, pages, final, width, height);
-        _radiance = new SurfaceCacheRadianceVolume(
-            device, logger, _bindings, EnsureTraceMode, origin, pages, final, width, height);
+        _radiance = new SurfaceCacheRadianceVolume(device, _bindings, EnsureTraceMode, origin, pages, final, width, height);
     }
 
     /// <summary>Gets the atlas holding what reaches each surface directly.</summary>
@@ -244,20 +220,14 @@ public sealed class SurfaceCacheLighting : IDisposable
     /// <param name="logger">Where to report what was allocated.</param>
     /// <returns>The pass, or <see langword="null"/> when it cannot be built.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public static SurfaceCacheLighting? Create(
-        IGraphicsDevice device,
-        SurfaceCacheCapture.Result capture,
-        SurfaceCacheInstances instances,
-        IProjectIGILogger? logger = null)
+    public static SurfaceCacheLighting? Create(IGraphicsDevice device, SurfaceCacheCapture.Result capture, SurfaceCacheInstances instances)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(instances);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         if (!device.Capabilities.SupportsCompute)
         {
-            log.Information(LogCategory, "No compute on this context; the card pages will not be lit.");
             return null;
         }
 
@@ -339,11 +309,6 @@ public sealed class SurfaceCacheLighting : IDisposable
                 probeWidth * probeHeight * 4 * sizeof(float), "cards.probes");
             device.UpdateStorageBuffer<float>(probePositions, new float[probeWidth * probeHeight * 4]);
 
-            log.Information(
-                LogCategory,
-                $"Card lighting atlases: direct {direct}, indirect {indirect}, final {final}. "
-                + $"Card lighting: {layout.Pages.Length} page(s) over {tileCount} tile(s) of "
-                + $"{SurfaceCachePageRecords.TileSize} square, into a {layout.Width}x{layout.Height} atlas.");
 
             // The two halves of the reconstruction, measured at build so a collapsed world position
             // can be blamed on the right one: a texel's position is card geometry carried through the
@@ -373,10 +338,6 @@ public sealed class SurfaceCacheLighting : IDisposable
                             Math.Abs(card.Centre.Z) + card.Depth)));
             }
 
-            log.Information(
-                LogCategory,
-                $"Card lighting reach: placements {placementReach:0.#} unit(s) from their centre, "
-                + $"cards {cardReach:0.#} unit(s) from their model's origin.");
 
             return new SurfaceCacheLighting(
                 device, log, direct, indirect, final, shader, pageBuffer, tileBuffer, probePositions,
@@ -386,7 +347,6 @@ public sealed class SurfaceCacheLighting : IDisposable
         }
         catch (GraphicsDeviceException error)
         {
-            log.Error(LogCategory, $"The card lighting could not be built: {error.Message}");
             return null;
         }
     }

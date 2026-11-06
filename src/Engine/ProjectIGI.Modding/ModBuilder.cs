@@ -2,7 +2,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using ProjectIGI.Core.Configuration;
 using ProjectIGI.Core.Content;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Titles;
 using ProjectIGI.Engine.Titles;
 using ProjectIGI.Game.Level;
@@ -102,9 +101,6 @@ internal sealed class ModBuilder : IModBuilder
                 return;
             }
 
-            context.Logger.Warning(
-                ModContentModule.LogCategory,
-                $"The mod '{_mod.Manifest.Id}' reads {title.DisplayName}'s data, which is not installed; '{device}:' is not mounted.");
         });
         return this;
     }

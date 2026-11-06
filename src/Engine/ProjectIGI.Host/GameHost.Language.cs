@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Frontend;
 using ProjectIGI.Game;
@@ -41,7 +40,6 @@ public sealed partial class GameHost
         string language = LanguageCVars.Directory;
         if (!_fileSystem.Exists(MenuStringTable.GetArchiveName(language)))
         {
-            _logger.Warning(TitleLogCategory, $"No '{language}' text in this installation; using {MenuStringTable.DefaultLanguageDirectory}.");
             language = MenuStringTable.DefaultLanguageDirectory;
         }
 
@@ -101,7 +99,6 @@ public sealed partial class GameHost
             shell.Missions = ShellMissions();
         }
 
-        _logger.Information(TitleLogCategory, $"Text is now read in '{_menuStrings?.LanguageDirectory}'.");
     }
 
     // The archives a language's text is in, for the title running now.

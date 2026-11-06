@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Titles;
 using ProjectIGI.Engine.Titles;
 using ProjectIGI.Game.Player;
@@ -18,7 +17,7 @@ public sealed record TitlePackage(
     IGameTitleRuntime Runtime,
     ITitlePresentationProvider Presentation,
     ITitleWorldBuilder WorldBuilder,
-    Func<IProjectIGILogger?, IMissionCatalogue<MissionDescriptor>> Missions,
+    Func<IMissionCatalogue<MissionDescriptor>> Missions,
     ITitleGameplay? Gameplay = null)
 {
     /// <summary>Gets the title.</summary>
@@ -28,7 +27,7 @@ public sealed record TitlePackage(
     /// <param name="dataRoot">The installation's data root.</param>
     /// <returns>The binding.</returns>
     public TitleBinding Bind(string dataRoot) =>
-        new(Runtime, Presentation, WorldBuilder, log => Missions(log), dataRoot, Gameplay);
+        new(Runtime, Presentation, WorldBuilder, () => Missions(), dataRoot, Gameplay);
 }
 
 /// <summary>The titles this build can play, in the order they are offered; a mod adds a title or replaces one here.</summary>

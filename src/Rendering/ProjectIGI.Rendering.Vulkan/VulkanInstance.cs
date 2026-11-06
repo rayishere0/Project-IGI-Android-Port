@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Rendering;
 using ProjectIGI.Rendering.Vulkan.Capabilities;
 using ProjectIGI.Rendering.Vulkan.Interop;
@@ -37,7 +36,6 @@ internal sealed unsafe class VulkanInstance : IDisposable
     // local that the GC could reclaim once the constructor returns.
     private static readonly DebugUtilsMessengerCallbackFunctionEXT DebugCallback = OnDebugMessage;
 
-    private readonly IProjectIGILogger _logger;
     private readonly IVulkanSurfaceProvider _surfaceProvider;
 
     // The messenger's user data: a handle back to this instance, so the static callback reports through
@@ -58,11 +56,10 @@ internal sealed unsafe class VulkanInstance : IDisposable
     /// hands in one bound to its interposer, so that it sees the instance and the device being created.
     /// </param>
     /// <exception cref="GraphicsDeviceException">The instance or the surface could not be created.</exception>
-    public VulkanInstance(IVulkanSurfaceProvider surfaceProvider, bool enableValidation, IProjectIGILogger logger, Vk? vk = null)
+    public VulkanInstance(IVulkanSurfaceProvider surfaceProvider, bool enableValidation, Vk? vk = null)
     {
         ArgumentNullException.ThrowIfNull(surfaceProvider);
         _surfaceProvider = surfaceProvider;
-        _logger = logger ?? NullLogger.Instance;
         Vk = vk ?? Vk.GetApi();
 
         List<string> extensions = [.. surfaceProvider.GetRequiredInstanceExtensions()];
@@ -307,18 +304,7 @@ internal sealed unsafe class VulkanInstance : IDisposable
         DebugUtilsMessengerCallbackDataEXT* data,
         void* userData)
     {
-        string message = data is null || data->PMessage is null
-            ? "(no message)"
-            : Marshal.PtrToStringAnsi((nint)data->PMessage) ?? "(no message)";
-
-        IProjectIGILogger logger = userData is not null && GCHandle.FromIntPtr((nint)userData).Target is VulkanInstance owner
-            ? owner._logger
-            : NullLogger.Instance;
-        logger.Log(
-            severity.HasFlag(DebugUtilsMessageSeverityFlagsEXT.ErrorBitExt) ? LogLevel.Error : LogLevel.Warning,
-            "Vulkan.Validation",
-            message);
-
+        // Logging is removed: validation-layer messages are dropped.
         // The spec requires the application to always return false here: true is reserved for the
         // layer's own use and aborts the call that triggered the message.
         return Vk.False;

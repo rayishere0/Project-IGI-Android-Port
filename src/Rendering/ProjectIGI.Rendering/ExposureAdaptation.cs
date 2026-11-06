@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 
 namespace ProjectIGI.Rendering;
 
@@ -14,15 +13,14 @@ namespace ProjectIGI.Rendering;
 /// near, so a large change sweeps steadily and a small one settles without a visible tail.
 /// </remarks>
 public sealed class ExposureAdaptation
-{
-    private const string LogCategory = "Exposure";
-    private const string HistogramLogCategory = "Exposure.Histogram";
 
-    private readonly IProjectIGILogger _logger;
+{
+
+
 
     /// <summary>Initialises a new instance of the <see cref="ExposureAdaptation"/> class.</summary>
     /// <param name="logger">Where the metering is reported at Debug, for tuning; nowhere when omitted.</param>
-    public ExposureAdaptation(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public ExposureAdaptation() { }
 
     /// <summary>How many buckets the histogram has.</summary>
     public const int Bins = 64;
@@ -192,19 +190,6 @@ public sealed class ExposureAdaptation
 
         // How the frame was counted, for tuning the floor: how much of it landed in the bottom bucket and
         // the bottom eighth, which is where a night's dark sky and unlit surfaces go.
-        if (_logger.IsEnabled(LogLevel.Debug, HistogramLogCategory))
-        {
-            double b0 = histogram[0];
-            double lowEight = 0;
-            for (int i = 0; i < 8; i++)
-            {
-                lowEight += histogram[i];
-            }
-
-            _logger.Debug(
-                HistogramLogCategory,
-                $"counted={sum:F0} bucket0={b0:F0} ({b0 / sum * 100:F1}%) bins0-7={lowEight / sum * 100:F1}% avgLum={averageLuminance:F4}");
-        }
 
         if (!_adapted)
         {
@@ -230,9 +215,6 @@ public sealed class ExposureAdaptation
         // Once a second at Debug in the Exposure log category: often enough to follow, too seldom to flood.
         if ((_debugCounter++ % 60) == 0)
         {
-            _logger.Debug(
-                LogCategory,
-                $"avgLum={averageLuminance:F4} target={target:F3} smoothed={_smoothedExposure:F3} scale={1f / clamped:F3}");
         }
 
         return 1f / MathF.Max(1e-4f, clamped);

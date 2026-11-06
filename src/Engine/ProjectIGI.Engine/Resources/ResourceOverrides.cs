@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using ProjectIGI.Core;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Resources;
 using ProjectIGI.Engine.Vfs;
 using ProjectIGI.Formats.Ilff;
@@ -56,7 +55,6 @@ namespace ProjectIGI.Engine.Resources;
 /// </remarks>
 public sealed class ResourceOverrides : IFileOverlay
 {
-    private const string LogCategory = "Overrides";
 
     /// <summary>The game folder's own overrides directory name, relative to the installation root.</summary>
     public const string DirectoryName = "overrides";
@@ -64,7 +62,6 @@ public sealed class ResourceOverrides : IFileOverlay
     /// <summary>The extension that marks a file in a layer as an archive of overrides, not an asset.</summary>
     public const string ArchiveExtension = ".res";
 
-    private readonly IProjectIGILogger _logger;
     private readonly Layer[] _layers;
 
     // The index is read from more than one thread. A menu backdrop builds its level on a worker, and the
@@ -79,8 +76,8 @@ public sealed class ResourceOverrides : IFileOverlay
     /// <summary>Initializes a new instance of the <see cref="ResourceOverrides"/> class with one folder.</summary>
     /// <param name="root">The overrides directory, or <see langword="null"/> or absent for none.</param>
     /// <param name="logger">Where to report what was found.</param>
-    public ResourceOverrides(string? root, IProjectIGILogger? logger = null)
-        : this(string.IsNullOrWhiteSpace(root) ? [] : [new OverrideLayer(DirectoryName, DirectoryName, root)], logger)
+    public ResourceOverrides(string? root)
+        : this(string.IsNullOrWhiteSpace(root) ? [] : [new OverrideLayer(DirectoryName, DirectoryName, root)])
     {
     }
 
@@ -88,11 +85,10 @@ public sealed class ResourceOverrides : IFileOverlay
     /// <param name="layers">The layers, highest priority first.</param>
     /// <param name="logger">Where to report what was found.</param>
     /// <exception cref="ArgumentNullException"><paramref name="layers"/> is <see langword="null"/>.</exception>
-    public ResourceOverrides(IReadOnlyList<OverrideLayer> layers, IProjectIGILogger? logger = null)
+    public ResourceOverrides(IReadOnlyList<OverrideLayer> layers)
     {
         ArgumentNullException.ThrowIfNull(layers);
 
-        _logger = logger ?? NullLogger.Instance;
         _layers = [.. layers.Select(layer => new Layer(
             layer.Id,
             layer.Name,
@@ -359,7 +355,6 @@ public sealed class ResourceOverrides : IFileOverlay
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            _logger.Warning(LogCategory, $"Override '{path}' could not be read: {error.Message}");
             return false;
         }
     }
@@ -440,7 +435,6 @@ public sealed class ResourceOverrides : IFileOverlay
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            _logger.Warning(LogCategory, $"Override '{relativePath}' could not be read: {error.Message}");
             return false;
         }
     }
@@ -590,7 +584,6 @@ public sealed class ResourceOverrides : IFileOverlay
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or IlffFormatException)
         {
-            _logger.Warning(LogCategory, $"Override archive '{path}' could not be read: {error.Message}");
             return;
         }
 
@@ -617,7 +610,6 @@ public sealed class ResourceOverrides : IFileOverlay
             }
         }
 
-        _logger.Information(LogCategory, $"'{_layers[layer].Name}': '{archive}' contributes {registered} override(s).");
     }
 
     // Under _gate. Walks the layers top-down so each path keeps the first enabled layer that has it.

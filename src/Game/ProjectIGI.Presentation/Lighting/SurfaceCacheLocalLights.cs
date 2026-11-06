@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
 using ProjectIGI.Rendering;
@@ -11,13 +10,11 @@ namespace ProjectIGI.Presentation.Lighting;
 /// </summary>
 internal sealed class SurfaceCacheLocalLights
 {
-    private const string LogCategory = "SurfaceCache";
 
     /// <summary>How many floats one local light occupies. Two <c>vec4</c>s.</summary>
     private const int FloatsPerLight = 12;
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly Vector3d _origin;
     private StorageBufferHandle _lights;
     private int _lightCount;
@@ -37,10 +34,9 @@ internal sealed class SurfaceCacheLocalLights
     /// <param name="device">The device the buffers live on.</param>
     /// <param name="logger">Where to report what was uploaded.</param>
     /// <param name="origin">The world point the lights are rebased onto.</param>
-    internal SurfaceCacheLocalLights(IGraphicsDevice device, IProjectIGILogger logger, Vector3d origin)
+    internal SurfaceCacheLocalLights(IGraphicsDevice device, Vector3d origin)
     {
         _device = device;
-        _logger = logger;
         _origin = origin;
     }
 
@@ -95,7 +91,6 @@ internal sealed class SurfaceCacheLocalLights
         _lights = _device.CreateStorageBuffer(packed.Length * sizeof(float), "cards.lights");
         _device.UpdateStorageBuffer<float>(_lights, packed);
 
-        _logger.Information(LogCategory, $"Card lighting: {fixtures.Count} local light(s).");
     }
 
     /// <summary>Records which lamps hold coarse maps, re-sending only what changed.</summary>

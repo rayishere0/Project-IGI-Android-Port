@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Flow;
 using ProjectIGI.Engine.Resources;
@@ -16,7 +15,6 @@ namespace ProjectIGI.Game.Hosting;
 public interface IPlayerSetupHost
 {
     /// <summary>Gets the log.</summary>
-    IProjectIGILogger Logger { get; }
 
     /// <summary>Gets the game's loop, whose namespace, types and tree the player's tables and scripts load into.</summary>
     GameLoop Game { get; }

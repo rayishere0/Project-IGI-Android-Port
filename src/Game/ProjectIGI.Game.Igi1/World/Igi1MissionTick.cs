@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Game.Ai;
@@ -610,7 +609,6 @@ public sealed partial class Igi1MissionTick(MissionWorld mission, Igi1PlayerHarm
         }
 
         mission.PlayerHealth.Apply(VehicleDeathZone.Zone, VehicleDeathZone.Damage);
-        host.Logger.Information("Ai", $"The player was run over by {vehicle.Type.Name} {vehicle.Id}.");
         if (mission.PlayerHealth.IsDead)
         {
             Vector3d from = runtime.TryGetDrawTransform(vehicle, out Vector3d metres, out _)
@@ -965,7 +963,6 @@ public sealed partial class Igi1MissionTick(MissionWorld mission, Igi1PlayerHarm
             return;
         }
 
-        host.Logger.Information("Player", $"All-weapons cheat added {added} weapon(s).");
         host.CheatWeaponsGranted();
     }
 
@@ -984,11 +981,6 @@ public sealed partial class Igi1MissionTick(MissionWorld mission, Igi1PlayerHarm
                     ? $"{player.Impacts[0].Position}"
                     : $"nothing inside {fired.EffectiveRange} m";
 
-            host.Logger.Information(
-                "Weapon",
-                $"Fired {fired.ScriptId} — {GunTiming.TicksPerRound(fired.RoundsPerMinute)} tick(s) "
-                    + $"a round at {fired.RoundsPerMinute} rpm, "
-                    + $"{player.Weapons?.InHand?.Gun.RoundsInClip} left in the magazine, into {where}.");
         }
 
         // Every round that lands on a guard, reported once each so the zone and the kill are
@@ -996,10 +988,6 @@ public sealed partial class Igi1MissionTick(MissionWorld mission, Igi1PlayerHarm
         if (player.HumanHits != _reportedHumanHits)
         {
             _reportedHumanHits = player.HumanHits;
-            host.Logger.Information(
-                "Weapon",
-                $"Hit a guard in zone {player.LastHumanZone} "
-                    + $"({_reportedHumanHits} hit(s), {mission.Soldiers?.Killed ?? 0} killed).");
         }
     }
 

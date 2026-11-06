@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Formats.Animation;
@@ -70,7 +69,6 @@ public sealed partial class PlayerCamera : IHostedPlayer, IPlayerInteractionHost
     private readonly PlayerInteractionDriver _interaction;
     private readonly PlayerLadderController _ladder;
     private readonly PlayerFootsteps _footsteps;
-    private readonly PlayerWallBlockLog _wallBlocks;
     private readonly PlayerWeaponActions _weaponActions;
     private readonly PlayerLocomotion _locomotion;
     private ObjectCollisionIndex? _walls;
@@ -81,9 +79,8 @@ public sealed partial class PlayerCamera : IHostedPlayer, IPlayerInteractionHost
 
     /// <summary>Initializes the player camera.</summary>
     /// <param name="logger">Where optional collision diagnostics are written.</param>
-    public PlayerCamera(IProjectIGILogger? logger = null)
+    public PlayerCamera()
     {
-        _wallBlocks = new PlayerWallBlockLog(logger ?? NullLogger.Instance, _body);
         _firstPerson = new PlayerFirstPersonView(_body);
         _pickups = new PlayerPickups(_body);
         _shots = new PlayerShotResolver(_body, _random);
@@ -95,7 +92,6 @@ public sealed partial class PlayerCamera : IHostedPlayer, IPlayerInteractionHost
     }
 
     /// <summary>Gets whether the expensive wall-contact diagnostic is enabled.</summary>
-    internal bool WallBlockDiagnosticsEnabled => _wallBlocks.IsEnabled;
 
     /// <summary>Gets the body being driven.</summary>
     public PlayerBody Body => _body;
@@ -774,7 +770,6 @@ public sealed partial class PlayerCamera : IHostedPlayer, IPlayerInteractionHost
 
         // Diagnostic: name whatever the wall sweep stopped the body against, so a doorway you cannot walk
         // through can be traced to the exact model and task blocking it. Only while trying to move.
-        _wallBlocks.LogIfAny(_walls, _interactions, command.Forward, command.Strafe);
 
         _pickups.Collect(_weapons);
 

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Configuration.Presets;
 using ProjectIGI.Engine.Audio;
 using ProjectIGI.Engine.Tasks;
@@ -74,13 +73,8 @@ public sealed partial class GameHost
                 double parsed = double.Parse(assignmentValue, System.Globalization.CultureInfo.InvariantCulture);
                 if (parsed != Math.Floor(parsed))
                 {
-                    _logger.Warning(
-                        "Mission",
-                        $"Test capture write {assignmentName}={assignmentValue} is not an integer; "
-                            + $"script variables carry ints, so it truncates to {(int)parsed}.");
                 }
 
-                _logger.Information("Mission", $"Test capture write: {assignmentName}={assignmentValue}.");
                 _loop.Variables.TryWrite(assignmentName, QvmValue.FromInt32((int)parsed));
             }
 
@@ -91,7 +85,6 @@ public sealed partial class GameHost
             outroObjectives.TickLevelState();
             outroObjectives.TickAfterLevelState();
             outroCutscenes.FinishExpressionTick();
-            _logger.Information("Mission", "Test capture outro forcing active.");
         }
     }
 
@@ -146,8 +139,7 @@ public sealed partial class GameHost
             // Without it every placement went unbound, and the renderer drops a destroyed placement that has
             // nothing to swap in -- so a LAW'd tank simply vanished where retail leaves its wreck.
             WorldBuildResult built = _worldBuilder.Build(
-                new WorldBuildRequest(
-                    loaded, levelRoot, _resources, _mission.MagicObjects, _logger, _mission.VehiclePhysics, _title.Services));
+                new WorldBuildRequest(loaded, levelRoot, _resources, _mission.MagicObjects, _mission.VehiclePhysics, _title.Services));
             scene = built.Scene;
             _scene = scene;
             _mission.Ground = built.Ground;
@@ -155,17 +147,13 @@ public sealed partial class GameHost
 
             if (built.UnresolvedCount > 0 || built.LightmappedCount > 0)
             {
-                _logger.Information(
-                    "World",
-                    $"{scene.Placements.Count} placement(s), {built.LightmappedCount} lightmapped, "
-                        + $"{built.UnresolvedCount} unresolved.");
             }
 
             // Unlike the thirteen optional passes, a mission cannot load without a world to put in it:
             // the collision index, the destructibles and the cut-scene bindings below all attach to it.
             // A title that has not written one yet can still show a menu, and says so here rather than
             // by a null reference three hundred lines later.
-            world = _presentation.Presenters.Create<WorldPresentationRequest, IWorldPresenter>(new WorldPresentationRequest(_device, _resources, _logger))
+            world = _presentation.Presenters.Create<WorldPresentationRequest, IWorldPresenter>(new WorldPresentationRequest(_device, _resources))
                 ?? throw new InvalidOperationException(
                     "The title supplies no world presenter, so it cannot load a mission yet.");
 
@@ -208,13 +196,13 @@ public sealed partial class GameHost
         // dropped first, exactly as the reference editor resets its rain at every level load. The same scene's
         // geometry also provides the roofs the rain is suppressed under.
         _rain?.Dispose();
-        _rain = new RainRenderer(_device, _logger);
+        _rain = new RainRenderer(_device);
         _rain.ReadParams(levelRoot);
         _snow?.Dispose();
-        _snow = new SnowRenderer(_device, _logger);
+        _snow = new SnowRenderer(_device);
         _snow.ReadParams(levelRoot);
         _storm?.Dispose();
-        _storm = new StormRenderer(_device, _logger);
+        _storm = new StormRenderer(_device);
         BuildShelterField(scene, loaded);
         StartTerrainRaster();
 
@@ -250,13 +238,7 @@ public sealed partial class GameHost
         {
             _soldiers?.Dispose();
             _soldiers = _presentation.Presenters.Create<SoldierPresentationRequest, ISoldierBodies>(
-                new SoldierPresentationRequest(
-                    _device,
-                    _resources,
-                    _logger,
-                    _mission.MagicObjects,
-                    _detailMaps,
-                    () => _world?.Shading.Sun,
+                new SoldierPresentationRequest(_device, _resources, _mission.MagicObjects, _detailMaps, () => _world?.Shading.Sun,
                     // The original's levels of detail, on its own look only, as the world's models give theirs up.
                     () => GraphicsPresetRegistry.Default.Current == GraphicsPreset.Vanilla ? _modelLod : null));
             _mission.AdoptSoldiers(_soldiers);

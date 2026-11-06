@@ -1,6 +1,5 @@
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Presentation.Rendering;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Formats.Animation;
@@ -30,12 +29,13 @@ namespace ProjectIGI.Presentation.Igi1.World;
 /// </para>
 /// </remarks>
 internal sealed class ViewModelRenderer : IViewModelPresenter
+
 {
+
     private const string LogCategory = "ViewModel";
 
     private readonly IGraphicsDevice _device;
     private readonly ResourceRegistry _resources;
-    private readonly IProjectIGILogger _logger;
     private TexTextureCache? _textureCache;
 
     private MefModel? _model;
@@ -52,14 +52,13 @@ internal sealed class ViewModelRenderer : IViewModelPresenter
     /// <param name="resources">Where texture bytes are read from.</param>
     /// <param name="logger">Where to report problems.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public ViewModelRenderer(IGraphicsDevice device, ResourceRegistry resources, IProjectIGILogger? logger = null)
+    public ViewModelRenderer(IGraphicsDevice device, ResourceRegistry resources)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(resources);
 
         _device = device;
         _resources = resources;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Gets whether the arms are loaded and can be drawn.</summary>
@@ -78,20 +77,17 @@ internal sealed class ViewModelRenderer : IViewModelPresenter
 
         if (!mission.TryGetModel(HumanView.ModelName, out MefModel? model) || model is null)
         {
-            _logger.Warning(LogCategory, $"The mission's packs do not hold '{HumanView.ModelName}'.");
             return false;
         }
 
         if (!MefSkinner.IsSkinned(model))
         {
-            _logger.Warning(LogCategory, $"'{HumanView.ModelName}' is {model.Format}, not a skinned model.");
             return false;
         }
 
         _geometry = MefMeshBuilder.Build(model, 1f);
         if (_geometry is null)
         {
-            _logger.Warning(LogCategory, $"'{HumanView.ModelName}' has nothing to draw.");
             return false;
         }
 
@@ -100,10 +96,6 @@ internal sealed class ViewModelRenderer : IViewModelPresenter
         _poseIsStale = true;
         (_pack, _instance) = FindInstance(mission, HumanView.ModelName);
 
-        _logger.Information(
-            LogCategory,
-            $"Arms '{HumanView.ModelName}': {model.BaseVertexCount} vertices, "
-                + $"{model.ExtraInfluenceCount} extra influence(s), highest bone {MefSkinner.HighestBone(model)}.");
         return true;
     }
 
@@ -241,7 +233,6 @@ internal sealed class ViewModelRenderer : IViewModelPresenter
         }
         catch (ArgumentException ex)
         {
-            _logger.Warning(LogCategory, $"The arms could not be posed: {ex.Message}");
             _geometry = null;
             return false;
         }
@@ -261,7 +252,6 @@ internal sealed class ViewModelRenderer : IViewModelPresenter
         }
         catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException)
         {
-            _logger.Warning(LogCategory, $"The arms did not upload: {ex.Message}");
             _geometry = null;
             return false;
         }
@@ -303,5 +293,5 @@ internal sealed class ViewModelRenderer : IViewModelPresenter
 
 
     // The textures the models name, loaded on first use.
-    private TexTextureCache Textures => _textureCache ??= new(_device, _resources, _logger, LogCategory);
+    private TexTextureCache Textures => _textureCache ??= new(_device, _resources, LogCategory);
 }

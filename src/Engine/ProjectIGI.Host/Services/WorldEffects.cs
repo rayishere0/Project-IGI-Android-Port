@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -30,7 +29,7 @@ internal interface IWorldEffectsHost
 /// <param name="logger">Where load problems and the test commands report.</param>
 /// <param name="random">The stream the puffs' drift and life draw from, shared with the rest of the frame's effects.</param>
 /// <param name="host">The title's own mission, whose impact effects are drawn among the rest.</param>
-internal sealed class WorldEffects(IGraphicsDevice device, IProjectIGILogger logger, IgiRandom random, IWorldEffectsHost host) : IHostService
+internal sealed class WorldEffects(IGraphicsDevice device, IgiRandom random, IWorldEffectsHost host) : IHostService
 {
     /// <summary>Gets the bursts where rounds land, and the procedural explosions a mission without the fireball falls back to.</summary>
     public ImpactParticleRenderer? Particles { get; private set; }
@@ -67,25 +66,19 @@ internal sealed class WorldEffects(IGraphicsDevice device, IProjectIGILogger log
         host.ResetTitleImpacts(_retailImpacts?.MistFrameCount ?? 1);
         if (_retailImpacts is not { SpritesAvailable: true } impacts)
         {
-            logger.Warning(
-                "Impact",
-                "concrete1.spr, blood1.spr or blood2.spr did not resolve; the original's impact dust and blood will not draw.");
         }
         else
         {
-            logger.Debug(
-                "Impact",
-                $"Retail impact effects bound: {impactModels} chip model(s), {impacts.MistFrameCount} blood frame(s).");
         }
 
         // The retail 1009_01_1 fireball, shared by every blast in the level. Loads its real texture lazily on
         // first blast; falls back to the procedural burst without it.
         _explosions?.Dispose();
-        _explosions = new ExplosionEffectRenderer(device, fileSystem, MissionLoader.CommonSpritesArchive, logger);
+        _explosions = new ExplosionEffectRenderer(device, fileSystem, MissionLoader.CommonSpritesArchive);
 
         // The retail smoke2.spr trail behind rockets and the grey column a blast leaves.
         _smoke?.Dispose();
-        _smoke = new SmokeSpriteRenderer(device, fileSystem, MissionLoader.CommonSpritesArchive, logger);
+        _smoke = new SmokeSpriteRenderer(device, fileSystem, MissionLoader.CommonSpritesArchive);
     }
 
     /// <summary>Frees a mission's effects, as it goes.</summary>

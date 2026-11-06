@@ -20,9 +20,6 @@ public sealed class SpriteResource : IDisposable
     private readonly TextureHandle[] _textures;
     private bool _disposed;
 
-    // TEMPORARY DIAGNOSTIC (black-screen investigation): how many textures have been reported.
-    private static int _diagUploads;
-
     private SpriteResource(IGraphicsDevice device, SpriteAsset asset, TextureHandle[] textures)
     {
         _device = device;
@@ -62,20 +59,6 @@ public sealed class SpriteResource : IDisposable
             {
                 TextureImage image = asset.Textures[created];
 
-                // TEMPORARY DIAGNOSTIC (black-screen investigation): report what the decoded
-                // pixels actually hold, so a black screen can be told apart from black textures.
-                // Sampled, not averaged in full, to keep load time sane. Logged to stdout, which
-                // reaches logcat. Always reported for the first few uploads (proof the diagnostic
-                // runs), and for any texture whose sampled average is black or fully transparent.
-                // Remove after diagnosis.
-                (long avgR, long avgG, long avgB, long avgA, int samples) = SampleAverage(image);
-                _diagUploads++;
-                if (_diagUploads <= 3 || (avgR < 4 && avgG < 4 && avgB < 4) || avgA < 4)
-                {
-                    Console.WriteLine(
-                        $"[Diag] Texture upload: asset='{asset.Name}' {image.Width}x{image.Height} " +
-                        $"avg=({avgR},{avgG},{avgB},{avgA}) samples={samples}");
-                }
 
                 TextureDescription description = new(
                     image.Width,
@@ -100,31 +83,6 @@ public sealed class SpriteResource : IDisposable
         return new SpriteResource(device, asset, handles);
     }
 
-    // TEMPORARY DIAGNOSTIC (black-screen investigation): sampled per-channel average of a
-    // decoded texture's pixels. Remove after diagnosis.
-    private static (long R, long G, long B, long A, int Samples) SampleAverage(TextureImage image)
-    {
-        ReadOnlySpan<Bgra32> pixels = image.Pixels;
-        if (pixels.IsEmpty)
-        {
-            return (0, 0, 0, 0, 0);
-        }
-
-        int stride = Math.Max(1, pixels.Length / 4096);
-        long r = 0, g = 0, b = 0, a = 0;
-        int n = 0;
-        for (int i = 0; i < pixels.Length; i += stride)
-        {
-            Bgra32 pixel = pixels[i];
-            r += pixel.R;
-            g += pixel.G;
-            b += pixel.B;
-            a += pixel.A;
-            n++;
-        }
-
-        return (r / n, g / n, b / n, a / n, n);
-    }
 
     /// <summary>Queues one frame at a position, at its natural size.</summary>
     /// <param name="batch">The batch to draw into.</param>

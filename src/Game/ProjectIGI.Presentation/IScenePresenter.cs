@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -39,14 +38,7 @@ namespace ProjectIGI.Presentation;
 /// belongs above the seam. What both agree on is that a name resolves to a mesh, or does not.
 /// </para>
 /// </remarks>
-public readonly record struct ScenePresentationRequest(
-    IGraphicsDevice Device,
-    GameTask LevelRoot,
-    ResourceRegistry Resources,
-    Func<string, MefModel?> Models,
-    Func<string, int, string?> MaterialTextures,
-    IProjectIGILogger Logger,
-    Engine.Titles.IServiceCatalog? Services = null);
+public readonly record struct ScenePresentationRequest(IGraphicsDevice Device, GameTask LevelRoot, ResourceRegistry Resources, Func<string, MefModel?> Models, Func<string, int, string?> MaterialTextures, Engine.Titles.IServiceCatalog? Services = null);
 
 /// <summary>What one frame needs in order to draw a title's foliage.</summary>
 /// <param name="Camera">Where the trees are seen from.</param>

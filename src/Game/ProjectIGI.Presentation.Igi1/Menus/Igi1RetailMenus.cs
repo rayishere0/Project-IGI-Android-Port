@@ -17,10 +17,7 @@ internal sealed class Igi1RetailMenus : IRetailMenus
     /// <param name="request">What the menus are started with.</param>
     public Igi1RetailMenus(in RetailMenusRequest request)
     {
-        MenuSystem menu = MenuSystem.Load(
-            request.FileSystem.ReadAllBytes("LOCAL:menusystem/mainmenu.qvm"),
-            request.Loop,
-            request.Logger);
+        MenuSystem menu = MenuSystem.Load(request.FileSystem.ReadAllBytes("LOCAL:menusystem/mainmenu.qvm"), request.Loop);
         _menu = menu;
 
         Action<bool> leave = request.Leave;
@@ -56,7 +53,7 @@ internal sealed class Igi1RetailMenus : IRetailMenus
         // by the menu's own evaluator rather than by the script VM -- so registering it with the VM is
         // not enough to make the Select Mission button or the music slider work.
         menu.Manager.ExternalNatives = request.ExternalNatives;
-        menu.Manager.Initialize(menu, _shell, request.Logger);
+        menu.Manager.Initialize(menu, _shell);
     }
 
     /// <inheritdoc/>

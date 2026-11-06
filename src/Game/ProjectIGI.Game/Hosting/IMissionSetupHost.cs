@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Flow;
 using ProjectIGI.Engine.Resources;
@@ -18,7 +17,6 @@ namespace ProjectIGI.Game.Hosting;
 public interface IMissionSetupHost : IGuardRoundHost
 {
     /// <summary>Gets the log.</summary>
-    IProjectIGILogger Logger { get; }
 
     /// <summary>Gets the game's loop, whose variables the runtimes read and write.</summary>
     GameLoop Game { get; }

@@ -17,7 +17,6 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public sealed class VehiclePhysicsRegistry
 {
-    private const string LogCategory = "World";
     private const string RotorType = "Rotor";
     private const string HeliType = "Heli";
     private const string CarType = "Car";
@@ -59,10 +58,9 @@ public sealed class VehiclePhysicsRegistry
     private readonly Dictionary<string, HelicopterPhysicsDefinition> _helicopters = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, CarPhysicsDefinition> _cars = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PlanePhysicsDefinition> _planes = new(StringComparer.OrdinalIgnoreCase);
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Creates an empty registry.</summary>
-    public VehiclePhysicsRegistry(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public VehiclePhysicsRegistry() { }
 
     /// <summary>Gets every physics object type the scripts define, vehicles and the rest.</summary>
     public PhysicsObjectTypes Types { get; private set; } = new(TaskTypes, Constants);
@@ -78,7 +76,7 @@ public sealed class VehiclePhysicsRegistry
         _cars.Clear();
         _planes.Clear();
 
-        PhysicsObjectTypes types = new(TaskTypes, Constants, _logger);
+        PhysicsObjectTypes types = new(TaskTypes, Constants);
         NativeRegistry natives = new();
         types.Register(natives, null);
         try
@@ -96,8 +94,6 @@ public sealed class VehiclePhysicsRegistry
             Define(new Row(type));
         }
 
-        _logger.Information(LogCategory,
-            $"Vehicle physics: {_helicopters.Count} helicopter(s), {_cars.Count} car(s), {_planes.Count} plane(s), {_rotors.Count} rotor model(s).");
         return _helicopters.Count + _rotors.Count + _planes.Count;
     }
 

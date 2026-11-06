@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -23,13 +22,7 @@ namespace ProjectIGI.Presentation;
 /// texture comes from", and it keeps the alias vocabulary on the titles' side of the seam where the
 /// layering rules put it.
 /// </remarks>
-public readonly record struct SkyPresentationRequest(
-    IGraphicsDevice Device,
-    GameTask LevelRoot,
-    VirtualFileSystem FileSystem,
-    ResourceRegistry Resources,
-    float FarPlane,
-    IProjectIGILogger Logger);
+public readonly record struct SkyPresentationRequest(IGraphicsDevice Device, GameTask LevelRoot, VirtualFileSystem FileSystem, ResourceRegistry Resources, float FarPlane);
 
 /// <summary>What one frame needs in order to draw a title's sky.</summary>
 /// <param name="Camera">The camera the sky is drawn about.</param>

@@ -37,13 +37,13 @@ public sealed class Igi1PresentationProvider : ITitlePresentationProvider
             .Add<MissionPresentationRequest, IMissionHudOverlay>(static (in MissionPresentationRequest request) =>
                 request.Gameplay is Igi1Gameplay gameplay ? new Igi1HudOverlay(request.Device, gameplay) : null)
             .Add<MissionPresentationRequest, IMissionFirstPersonView>(static (in MissionPresentationRequest request) =>
-                request.Gameplay is Igi1Gameplay gameplay ? new Igi1FirstPersonView(request.Device, gameplay, request.Logger) : null)
+                request.Gameplay is Igi1Gameplay gameplay ? new Igi1FirstPersonView(request.Device, gameplay) : null)
             .Add<MissionPresentationRequest, IMissionWorldView>(static (in MissionPresentationRequest request) =>
                 request.Gameplay is Igi1Gameplay gameplay ? new Igi1WorldView(gameplay) : null)
             .Add<MissionPresentationRequest, IMissionViewpoint>(static (in MissionPresentationRequest request) =>
                 request.Gameplay is Igi1Gameplay gameplay ? new Igi1Viewpoint(gameplay) : null)
             .Add<SoldierPresentationRequest, ISoldierBodies>(static (in SoldierPresentationRequest request) =>
-                new SoldierRenderer(request.Device, request.Resources, request.Logger, request.Magic) { DetailMaps = request.DetailMaps, Sun = request.Sun, Lod = request.Lod })
+                new SoldierRenderer(request.Device, request.Resources, request.Magic) { DetailMaps = request.DetailMaps, Sun = request.Sun, Lod = request.Lod })
             .Add<WorldPresentationRequest, IWorldPresenter>(CreateWorld)
             .Add<SkyPresentationRequest, ISkyPresenter>(CreateSky)
             .Add<ViewModelPresentationRequest, IViewModelPresenter>(CreateViewModel)
@@ -206,7 +206,7 @@ public sealed class Igi1PresentationProvider : ITitlePresentationProvider
 
     /// <inheritdoc/>
     private IWorldPresenter CreateWorld(in WorldPresentationRequest request) =>
-        new WorldRenderer(request.Device, request.Resources, AssetFormatProfile.Igi1, request.Logger, additiveFaceGroups: ProjectIGI.Rendering.BlendMode.AddColour);
+        new WorldRenderer(request.Device, request.Resources, AssetFormatProfile.Igi1, additiveFaceGroups: ProjectIGI.Rendering.BlendMode.AddColour);
 
     /// <inheritdoc/>
     /// <remarks>
@@ -214,27 +214,27 @@ public sealed class Igi1PresentationProvider : ITitlePresentationProvider
     /// texture is a path under <c>LOCAL:</c>, so the file system is the half of the request it reads.
     /// </remarks>
     private ISkyPresenter CreateSky(in SkyPresentationRequest request) =>
-        new SkyRenderer(request.Device, request.FileSystem, request.LevelRoot, request.FarPlane, request.Logger);
+        new SkyRenderer(request.Device, request.FileSystem, request.LevelRoot, request.FarPlane);
 
     /// <inheritdoc/>
     private IViewModelPresenter CreateViewModel(in ViewModelPresentationRequest request) =>
-        new ViewModelRenderer(request.Device, request.Resources, request.Logger);
+        new ViewModelRenderer(request.Device, request.Resources);
 
     /// <inheritdoc/>
     private IHeldWeaponPresenter CreateHeldWeapon(in ViewModelPresentationRequest request) =>
-        new HeldWeaponRenderer(request.Device, request.Resources, MagicOf(request), request.Logger);
+        new HeldWeaponRenderer(request.Device, request.Resources, MagicOf(request));
 
     /// <inheritdoc/>
     private IGrenadePresenter CreateGrenades(in ViewModelPresentationRequest request) =>
-        new GrenadeRenderer(request.Device, request.Resources, MagicOf(request), request.Logger);
+        new GrenadeRenderer(request.Device, request.Resources, MagicOf(request));
 
     /// <inheritdoc/>
     private IMissilePresenter CreateMissiles(in ViewModelPresentationRequest request) =>
-        new MissileRenderer(request.Device, request.Resources, MagicOf(request), request.Logger);
+        new MissileRenderer(request.Device, request.Resources, MagicOf(request));
 
     /// <inheritdoc/>
     private IGunPickupPresenter CreateGunPickups(in ViewModelPresentationRequest request) =>
-        new GunPickupRenderer(request.Device, request.Resources, MagicOf(request), request.Logger);
+        new GunPickupRenderer(request.Device, request.Resources, MagicOf(request));
 
     /// <summary>Takes the magic-object table these renderers cannot do without.</summary>
     /// <remarks>
@@ -250,27 +250,27 @@ public sealed class Igi1PresentationProvider : ITitlePresentationProvider
 
     /// <inheritdoc/>
     private IBulletMarkPresenter CreateBulletMarks(in EffectsPresentationRequest request) =>
-        new BulletMarkRenderer(request.Device, request.Resources, request.Logger);
+        new BulletMarkRenderer(request.Device, request.Resources);
 
     /// <inheritdoc/>
     private ICameraStatusLightPresenter CreateCameraStatusLights(in EffectsPresentationRequest request) =>
-        new CameraStatusLightRenderer(request.Device, request.Logger);
+        new CameraStatusLightRenderer(request.Device);
 
     /// <inheritdoc/>
     private IHudPresenter CreateHud(in HudPresentationRequest request) =>
-        new StatusScreenRenderer(request.Device, request.Logger);
+        new StatusScreenRenderer(request.Device);
 
     /// <inheritdoc/>
     private IRemasteredHudPresenter CreateRemasteredHud(in HudPresentationRequest request) =>
-        new RemasteredHudRenderer(request.Device, request.Logger);
+        new RemasteredHudRenderer(request.Device);
 
     /// <inheritdoc/>
     private IMapComputerPresenter CreateMapComputer(in MapComputerPresentationRequest request) =>
-        new MapComputerRenderer(request.Device, request.Logger, request.Gameplay);
+        new MapComputerRenderer(request.Device, request.Gameplay);
 
     /// <inheritdoc/>
     private ITacticalComputerPresenter CreateTacticalComputer(in MapComputerPresentationRequest request) =>
-        new TacticalComputerRenderer(request.Device, request.Resources, request.Logger, request.ResolveText);
+        new TacticalComputerRenderer(request.Device, request.Resources, request.ResolveText);
 
     /// <inheritdoc/>
     private IComputerHighlightCatalogue CreateComputerHighlights(in ComputerHighlightRequest request) =>
@@ -278,10 +278,5 @@ public sealed class Igi1PresentationProvider : ITitlePresentationProvider
 
     /// <inheritdoc/>
     private ITerrainPresenter CreateTerrain(in TerrainPresentationRequest request) =>
-        new TerrainRenderer(
-            request.Device,
-            request.Surface,
-            request.Logger,
-            request.DetailMaps,
-            request.DerivedDetail);
+        new TerrainRenderer(request.Device, request.Surface, request.DetailMaps, request.DerivedDetail);
 }

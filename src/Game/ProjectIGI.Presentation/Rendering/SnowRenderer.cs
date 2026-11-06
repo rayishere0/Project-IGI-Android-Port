@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
@@ -14,7 +13,6 @@ namespace ProjectIGI.Presentation.Rendering;
 /// </remarks>
 public sealed class SnowRenderer : IDisposable
 {
-    private const string LogCategory = "Snow";
     private const int DefaultParticleCount = 900;
     private const float BoxSizeMeters = 50f;
     private const float FlakeSizeMeters = 0.045f;
@@ -31,7 +29,6 @@ public sealed class SnowRenderer : IDisposable
         NoHistory: true);
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly Vertex3D[] _vertices;
     private readonly ushort[] _indices;
     private readonly (float X, float Y, float Z)[] _seeds;
@@ -48,12 +45,11 @@ public sealed class SnowRenderer : IDisposable
     private float _alpha = 0.25f;
 
     /// <summary>Initializes the snowfall renderer.</summary>
-    public SnowRenderer(IGraphicsDevice device, IProjectIGILogger? logger = null, int particleCount = DefaultParticleCount)
+    public SnowRenderer(IGraphicsDevice device, int particleCount = DefaultParticleCount)
     {
         ArgumentNullException.ThrowIfNull(device);
 
         _device = device;
-        _logger = logger ?? NullLogger.Instance;
         _particleCount = Math.Clamp(particleCount, 1, ushort.MaxValue / 4);
         _vertices = new Vertex3D[_particleCount * 4];
         _indices = new ushort[_particleCount * 6];
@@ -121,11 +117,6 @@ public sealed class SnowRenderer : IDisposable
         _alpha = RainRenderer.ReadFloat(task, "Rain Alpha", _alpha);
         _active = !isRain && isActive;
 
-        _logger.Information(
-            LogCategory,
-            _active
-                ? $"Snow weather configured: start={_startMeters}m, end={_endMeters}m, alpha={_alpha}."
-                : $"Snow weather not active (Is Rain={isRain}, Is Active={isActive}).");
         return _active;
     }
 

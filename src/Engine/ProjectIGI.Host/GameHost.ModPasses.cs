@@ -1,6 +1,5 @@
 using System.Globalization;
 using ProjectIGI.Core.Configuration;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Titles;
 using ProjectIGI.Rendering;
 using ProjectIGI.Shaders;
@@ -32,13 +31,11 @@ public sealed partial class GameHost
             }
             catch (Exception error) when (error is InvalidOperationException or IOException or UnauthorizedAccessException)
             {
-                _logger.Warning("Mods", $"The mod pass '{pass.Name}' is left out: {error.Message}");
             }
         }
 
         if (_modPasses.Count > 0)
         {
-            _logger.Information("Mods", $"{_modPasses.Count} mod pass(es) registered.");
         }
     }
 

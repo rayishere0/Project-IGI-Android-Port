@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Core.Threading;
@@ -32,20 +31,17 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public sealed class IrradianceProbeBake
 {
-    private const string LogCategory = "GI";
 
     private readonly ScheduledJob<IrradianceVolume?> _job;
     private readonly CancellationTokenSource _cancellation;
     private readonly Stream _stream;
-    private readonly IProjectIGILogger _log;
     private bool _collected;
 
-    private IrradianceProbeBake(ScheduledJob<IrradianceVolume?> job, CancellationTokenSource cancellation, Stream stream, IProjectIGILogger log)
+    private IrradianceProbeBake(ScheduledJob<IrradianceVolume?> job, CancellationTokenSource cancellation, Stream stream)
     {
         _job = job;
         _cancellation = cancellation;
         _stream = stream;
-        _log = log;
     }
 
     // The worker publishes each bounce pass's field here as it finishes; the render thread takes the
@@ -105,20 +101,12 @@ public sealed class IrradianceProbeBake
     /// <param name="logger">Where to report the bake's size and duration.</param>
     /// <returns>A handle to poll with <see cref="TryCollect"/>.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="scene"/> or <paramref name="cast"/> is null.</exception>
-    public static IrradianceProbeBake Start(
-        WorldScene scene,
-        WorldRayCast cast,
-        Vector3f sunDirection,
-        float spacing,
-        Vector3f groundAlbedo,
-        IWorkScheduler work,
-        IProjectIGILogger? logger = null)
+    public static IrradianceProbeBake Start(WorldScene scene, WorldRayCast cast, Vector3f sunDirection, float spacing, Vector3f groundAlbedo, IWorkScheduler work)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(cast);
         ArgumentNullException.ThrowIfNull(work);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         CancellationTokenSource cancellation = new();
         CancellationToken token = cancellation.Token;
         Stream stream = new();
@@ -128,17 +116,7 @@ public sealed class IrradianceProbeBake
     }
 
     /// <summary>The trace, a slice at a time, and how long it took once it is done.</summary>
-    private static IEnumerable<bool> Trace(
-        WorldScene scene,
-        WorldRayCast cast,
-        Vector3f sunDirection,
-        float spacing,
-        Vector3f groundAlbedo,
-        IProjectIGILogger log,
-        Stream stream,
-        IWorkScheduler work,
-        Action<IrradianceVolume?> done,
-        CancellationToken token)
+    private static IEnumerable<bool> Trace(WorldScene scene, WorldRayCast cast, Vector3f sunDirection, float spacing, Vector3f groundAlbedo, Stream stream, IWorkScheduler work, Action<IrradianceVolume?> done, CancellationToken token)
     {
         long startedAt = Stopwatch.GetTimestamp();
         IrradianceVolume? volume = null;
@@ -152,10 +130,6 @@ public sealed class IrradianceProbeBake
         if (volume is not null)
         {
             double seconds = Stopwatch.GetElapsedTime(startedAt).TotalSeconds;
-            log.Information(
-                LogCategory,
-                FormattableString.Invariant(
-                    $"Probe bake took {seconds:0.00} s; the field lights the level from the next frame."));
         }
 
         done(volume);
@@ -197,7 +171,6 @@ public sealed class IrradianceProbeBake
         // never collected, and has nothing to report.
         if (_job.Failure is { } failure)
         {
-            _log.Error(LogCategory, $"The probe bake failed and the level will use flat ambient: {failure.Message}", failure);
         }
 
         volume = _job.Result;

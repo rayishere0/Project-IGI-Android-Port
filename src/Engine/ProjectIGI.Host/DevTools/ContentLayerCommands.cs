@@ -1,5 +1,4 @@
 using ProjectIGI.Core.Configuration;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Resources;
 
 namespace ProjectIGI.Host.DevTools;
@@ -9,11 +8,7 @@ namespace ProjectIGI.Host.DevTools;
 /// <param name="resources">The current title's resource registry.</param>
 /// <param name="reapply">Brings what is loaded up to date with the layers, and says what it reloaded.</param>
 /// <param name="logger">Where reports go besides the scrollback.</param>
-internal sealed class ContentLayerCommands(
-    Func<ResourceOverrides> overrides,
-    Func<ResourceRegistry> resources,
-    Func<string> reapply,
-    IProjectIGILogger logger)
+internal sealed class ContentLayerCommands(Func<ResourceOverrides> overrides, Func<ResourceRegistry> resources, Func<string> reapply)
 {
     private ResourceOverrides Overrides => overrides();
 
@@ -27,15 +22,12 @@ internal sealed class ContentLayerCommands(
 
         if (scan.Total == 0 && !scan.Moved)
         {
-            logger.Debug("Overrides", $"No overrides in {layers.Count} content layer(s).");
             return;
         }
 
-        logger.Information("Overrides", $"{scan} across {layers.Count} content layer(s).");
 
         foreach (ResourceOverrides.LayerInfo layer in layers)
         {
-            logger.Information("Overrides", "  " + Describe(layer));
         }
     }
 
@@ -127,7 +119,6 @@ internal sealed class ContentLayerCommands(
         {
             string line = $"  {index + 1,2}. {Describe(layers[index])}";
             context.Print(line);
-            logger.Information("Overrides", line);
         }
     }
 
@@ -148,7 +139,6 @@ internal sealed class ContentLayerCommands(
             string covered = string.Join(", ", conflict.Covered.Select(layer => layers[layer].Name));
             string line = $"  {conflict.Path}  <- {layers[conflict.Winner].Name} (covers {covered})";
             context.Print(line);
-            logger.Information("Overrides", line);
         }
 
         if (conflicts.Count > 40)
@@ -184,7 +174,6 @@ internal sealed class ContentLayerCommands(
         }
 
         context.Print(report);
-        logger.Information("Overrides", report);
     }
 
     private void Rescan(ConsoleCommandContext context)
@@ -194,17 +183,12 @@ internal sealed class ContentLayerCommands(
 
         string report = $"{scan}; {reload}";
         context.Print(report);
-        logger.Information("Overrides", report);
     }
 
     private void ListOverrides(ConsoleCommandContext context)
     {
         // To the log as well as the scrollback: a headless -runat run has no scrollback, and this is
         // exactly the command somebody reaches for when a pack is not taking effect.
-        logger.Information(
-            "Overrides",
-            $"{Overrides.Count} override(s) across {Overrides.Layers.Count} layer(s); "
-                + $"{Resources.OverriddenCount} standing in for a shipped asset.");
 
         if (!Overrides.IsActive)
         {
@@ -223,7 +207,6 @@ internal sealed class ContentLayerCommands(
 
             if (index < 10)
             {
-                logger.Information("Overrides", line);
             }
         }
 

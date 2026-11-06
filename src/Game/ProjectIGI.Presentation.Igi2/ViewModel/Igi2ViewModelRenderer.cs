@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -40,11 +39,9 @@ namespace ProjectIGI.Presentation.Igi2.ViewModel;
 /// </remarks>
 public sealed partial class Igi2ViewModelRenderer : ITitleViewModelPresenter, ITitleWorldModelPresenter
 {
-    private const string LogCategory = "igi2.viewmodel";
 
     private readonly IGraphicsDevice _device;
     private readonly ResourceRegistry _resources;
-    private readonly IProjectIGILogger _logger;
     private readonly List<MeshDrawRange> _outlineRanges = [];
     private readonly Dictionary<string, Part?> _parts = new(StringComparer.OrdinalIgnoreCase);
     // Each body at each level it has been drawn at keeps its own mesh.
@@ -70,14 +67,12 @@ public sealed partial class Igi2ViewModelRenderer : ITitleViewModelPresenter, IT
     /// <param name="logger">Where to report problems.</param>
     /// <param name="work">Where the world models' skinning runs in parallel; none skins them in line.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public Igi2ViewModelRenderer(
-        IGraphicsDevice device, ResourceRegistry resources, IProjectIGILogger? logger = null, Core.Threading.IWorkScheduler? work = null)
+    public Igi2ViewModelRenderer(IGraphicsDevice device, ResourceRegistry resources, Core.Threading.IWorkScheduler? work = null)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(resources);
         _device = device;
         _resources = resources;
-        _logger = logger ?? NullLogger.Instance;
         _work = work;
     }
 
@@ -110,8 +105,8 @@ public sealed partial class Igi2ViewModelRenderer : ITitleViewModelPresenter, IT
 
         _table = Igi2ModelTable.Create([.. packs.Select(static pack => pack.Pack)]);
         _models = Igi2DrawableScene.Models(_table, packs);
-        _textures = new Igi2TextureLoader(_device, _resources, _logger);
-        _spriteResources = new Igi2SpriteResources(_device, _resources.FileSystem, _logger);
+        _textures = new Igi2TextureLoader(_device, _resources);
+        _spriteResources = new Igi2SpriteResources(_device, _resources.FileSystem);
         _spriteResources.Get("alarmlight.spr");
         return true;
     }
@@ -475,14 +470,12 @@ public sealed partial class Igi2ViewModelRenderer : ITitleViewModelPresenter, IT
     {
         if (_models!(name) is not { } model)
         {
-            _logger.Warning(LogCategory, $"The first-person view draws '{name}', which the mission does not hold.");
             return null;
         }
 
         Igi2BoneSkin? skin = null;
         if (skinned && (skin = Igi2BoneSkin.Create(model)) is null)
         {
-            _logger.Warning(LogCategory, $"'{name}' is {model.Format}, not a boned model its hierarchy covers.");
             return null;
         }
 
@@ -490,7 +483,6 @@ public sealed partial class Igi2ViewModelRenderer : ITitleViewModelPresenter, IT
         MeshGeometry? geometry = MefMeshBuilder.Build(model, skinned ? 1f : (float)(1.0 / WorldScene.UnitsPerMetre));
         if (geometry is null)
         {
-            _logger.Warning(LogCategory, $"'{name}' has nothing to draw.");
             return null;
         }
 
@@ -510,7 +502,6 @@ public sealed partial class Igi2ViewModelRenderer : ITitleViewModelPresenter, IT
 
         Vertex3D[] vertices = [.. geometry.Vertices];
         MeshHandle mesh = skinned ? MeshHandle.None : _device.CreateMesh(vertices, geometry.Indices);
-        _logger.Information(LogCategory, $"First-person part '{name}': {model.Format}, {subsets.Count} subset(s).");
         return new Part(skin, geometry, vertices, mesh, [.. subsets]);
     }
 
@@ -569,7 +560,6 @@ public sealed partial class Igi2ViewModelRenderer : ITitleViewModelPresenter, IT
             }
             catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException)
             {
-                _logger.Warning(LogCategory, $"'{part.PendingModel}' could not be posed: {ex.Message}");
                 _bodies[(BodyKey)part.PendingInstance!] = null;
             }
             finally
@@ -690,7 +680,6 @@ public sealed partial class Igi2ViewModelRenderer : ITitleViewModelPresenter, IT
         }
         catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException)
         {
-            _logger.Warning(LogCategory, $"'{model}' could not be posed: {ex.Message}");
             drop();
             return false;
         }

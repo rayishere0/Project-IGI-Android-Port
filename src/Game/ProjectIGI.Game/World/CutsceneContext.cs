@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Tasks;
 
 namespace ProjectIGI.Game.World;
@@ -11,12 +10,7 @@ namespace ProjectIGI.Game.World;
 /// <see cref="CutsceneRuntime"/> builds one and hands it to each collaborator it splits its work across, so that all of
 /// them read and write the same transforms in the order the level walk runs them. Main thread only.
 /// </remarks>
-internal sealed class CutsceneContext(
-    GameTask root,
-    LevelExpressionRuntime expressions,
-    VehiclePhysicsRegistry? vehiclePhysics,
-    TerrainData? terrain,
-    IProjectIGILogger logger)
+internal sealed class CutsceneContext(GameTask root, LevelExpressionRuntime expressions, VehiclePhysicsRegistry? vehiclePhysics, TerrainData? terrain)
 {
     private readonly List<string> _diagnostics = [];
 
@@ -33,7 +27,6 @@ internal sealed class CutsceneContext(
     public TerrainData? Terrain { get; } = terrain;
 
     /// <summary>Gets the logger the airframe notes go to.</summary>
-    public IProjectIGILogger Logger { get; } = logger;
 
     /// <summary>Gets each driven task's transform, by task id.</summary>
     public Dictionary<int, CutsceneTransformState> Transforms { get; } = [];

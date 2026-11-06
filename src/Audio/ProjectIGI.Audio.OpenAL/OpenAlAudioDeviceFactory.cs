@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 
 namespace ProjectIGI.Audio.OpenAL;
 
@@ -15,5 +14,5 @@ public sealed class OpenAlAudioDeviceFactory : IAudioDeviceFactory
 
     /// <inheritdoc/>
     /// <remarks><see cref="OpenAlAudioDevice"/> degrades to silence on its own when it cannot open.</remarks>
-    public IAudioDevice Open(AudioDeviceOptions options, IProjectIGILogger logger) => new OpenAlAudioDevice(options, logger);
+    public IAudioDevice Open(AudioDeviceOptions options) => new OpenAlAudioDevice(options);
 }

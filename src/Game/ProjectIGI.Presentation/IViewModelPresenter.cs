@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -316,9 +315,4 @@ public interface IGunPickupPresenter : IDisposable
 /// presenter would be four-fifths repetition. <see cref="Magic"/> is unused by the arms, which name no
 /// magic object; a presenter ignoring a field it does not need is cheaper than a second request type.
 /// </remarks>
-public readonly record struct ViewModelPresentationRequest(
-    IGraphicsDevice Device,
-    ResourceRegistry Resources,
-    MagicObjectRegistry? Magic,
-    IProjectIGILogger Logger,
-    Core.Threading.IWorkScheduler? Work = null);
+public readonly record struct ViewModelPresentationRequest(IGraphicsDevice Device, ResourceRegistry Resources, MagicObjectRegistry? Magic, Core.Threading.IWorkScheduler? Work = null);

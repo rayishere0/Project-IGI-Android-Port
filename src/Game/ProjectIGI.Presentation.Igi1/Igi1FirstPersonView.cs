@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.Igi1.World;
@@ -14,11 +13,10 @@ namespace ProjectIGI.Presentation.Igi1;
 /// <param name="device">The device it draws with.</param>
 /// <param name="gameplay">The first game's mission, whose player it draws.</param>
 /// <param name="logger">Where it reports the weapon it takes up.</param>
-internal sealed class Igi1FirstPersonView(IGraphicsDevice device, Igi1Gameplay gameplay, IProjectIGILogger logger) : IMissionFirstPersonView
+internal sealed class Igi1FirstPersonView(IGraphicsDevice device, Igi1Gameplay gameplay) : IMissionFirstPersonView
 {
     private readonly IGraphicsDevice _device = device;
     private readonly Igi1Gameplay _gameplay = gameplay;
-    private readonly IProjectIGILogger _logger = logger;
 
     /// <inheritdoc/>
     public FirstPersonResult Draw(in Camera3D eye, in FirstPersonFrame frame)
@@ -205,8 +203,6 @@ internal sealed class Igi1FirstPersonView(IGraphicsDevice device, Igi1Gameplay g
 
         if (held.Load(loadedMission, weapon.GunModel))
         {
-            _logger.Information("Weapon", $"Holding {weapon.ScriptId} ('{weapon.GunModel}') on view bone "
-                + $"{HumanAttachPoints.FirstPersonWeapon}.");
         }
     }
 }

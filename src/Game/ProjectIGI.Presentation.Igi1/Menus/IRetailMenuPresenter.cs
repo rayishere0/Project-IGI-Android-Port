@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Audio;
 using ProjectIGI.Engine.Vfs;
 using ProjectIGI.Game.Menus;
@@ -34,17 +33,4 @@ public interface IRetailMenuPresenter : IMenuHost, IDisposable
 /// <param name="Sounds">Where the menu's sounds play, or <see langword="null"/> for silence.</param>
 /// <param name="Leave">What leaving the menus does, given how the manager left them.</param>
 /// <param name="Logger">Where diagnostics go.</param>
-public readonly record struct RetailMenuPresentationRequest(
-    IGraphicsDevice Device,
-    VirtualFileSystem FileSystem,
-    string ResourcePath,
-    MenuStringTable Strings,
-    IReadOnlyList<string> ExtraArchives,
-    InputState Input,
-    SpriteBatch Batch,
-    Func<int> ScreenWidth,
-    Func<int> ScreenHeight,
-    int Scale,
-    SoundSystem? Sounds,
-    Action<MenuManagerState> Leave,
-    IProjectIGILogger Logger);
+public readonly record struct RetailMenuPresentationRequest(IGraphicsDevice Device, VirtualFileSystem FileSystem, string ResourcePath, MenuStringTable Strings, IReadOnlyList<string> ExtraArchives, InputState Input, SpriteBatch Batch, Func<int> ScreenWidth, Func<int> ScreenHeight, int Scale, SoundSystem? Sounds, Action<MenuManagerState> Leave);

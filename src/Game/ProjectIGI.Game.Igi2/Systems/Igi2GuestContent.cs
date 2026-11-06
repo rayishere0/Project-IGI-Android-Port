@@ -1,5 +1,4 @@
 using System.Text;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Titles;
 using ProjectIGI.Formats;
 using ProjectIGI.Formats.World;
@@ -64,11 +63,10 @@ public sealed class Igi2GuestContent
     /// <param name="models">The models the host dresses soldiers in, which decide which locations' packs are opened.</param>
     /// <param name="logger">Where diagnostics go.</param>
     /// <returns>The content.</returns>
-    public static Igi2GuestContent Load(string dataRoot, IEnumerable<string> models, IProjectIGILogger? logger = null)
+    public static Igi2GuestContent Load(string dataRoot, IEnumerable<string> models)
     {
         ArgumentException.ThrowIfNullOrEmpty(dataRoot);
         ArgumentNullException.ThrowIfNull(models);
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         GuestTitle guest = GuestTitle.Start(new Igi2Runtime(), dataRoot, log, LanguageCVars.Directory);
 
         List<LoadedPack> packs =

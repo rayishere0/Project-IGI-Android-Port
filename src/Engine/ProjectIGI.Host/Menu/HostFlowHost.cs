@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Flow;
 
 namespace ProjectIGI.Host.Menu;
@@ -15,9 +14,8 @@ namespace ProjectIGI.Host.Menu;
 /// </para>
 /// </remarks>
 /// <param name="logger">Where the flow's requests are reported.</param>
-internal sealed class HostFlowHost(IProjectIGILogger logger) : IFlowHost
+internal sealed class HostFlowHost() : IFlowHost
 {
-    private const string LogCategory = "Menu";
 
     /// <summary>Gets or sets what <see cref="ShowMainMenu"/> does.</summary>
     public Action? LoadMainMenu { get; set; }
@@ -25,7 +23,6 @@ internal sealed class HostFlowHost(IProjectIGILogger logger) : IFlowHost
     /// <inheritdoc/>
     public void ShowMainMenu()
     {
-        logger.Information(LogCategory, "Flow entered the main menu.");
         LoadMainMenu?.Invoke();
     }
 
@@ -48,5 +45,4 @@ internal sealed class HostFlowHost(IProjectIGILogger logger) : IFlowHost
     public void EndGame() => NotYet(nameof(EndGame));
 
     private void NotYet(string what) =>
-        logger.Information(LogCategory, $"Flow asked for {what}, which is not implemented yet.");
 }

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Scripting.Qvm;
 using ProjectIGI.Scripting.Runtime;
 
@@ -28,7 +27,6 @@ namespace ProjectIGI.Game.Config;
 /// </remarks>
 public sealed class ConfigScript
 {
-    private const string LogCategory = "Config";
 
     /// <summary>The retail save file, relative to the installation root.</summary>
     public const string RetailPath = "LOCAL:config.qvm";
@@ -54,12 +52,8 @@ public sealed class ConfigScript
     /// assumed because this loads ProjectIGI's own file far more often than the original's, and a fault
     /// blamed on the wrong one sends you reading a file that turns out to be perfectly good.
     /// </param>
-    public static GameConfig Load(
-        ReadOnlyMemory<byte> script,
-        IProjectIGILogger? logger = null,
-        string? source = null)
+    public static GameConfig Load(ReadOnlyMemory<byte> script, string? source = null)
     {
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         GameConfig config = new();
         Loader loader = new(config);
 
@@ -83,15 +77,10 @@ public sealed class ConfigScript
         QvmError error = interpreter.Run();
         if (error != QvmError.None)
         {
-            log.Warning(
-                LogCategory,
-                $"{source ?? RetailPath} faulted with {error} at offset {interpreter.ErrorOffset}: "
-                    + interpreter.ErrorMessage);
         }
 
         loader.Finish();
         config.RestoreMissingProfileBindings();
-        log.Information(LogCategory, $"Loaded {config.Profiles.Count} profile(s), active '{config.Active?.Name}'.");
         return config;
     }
 

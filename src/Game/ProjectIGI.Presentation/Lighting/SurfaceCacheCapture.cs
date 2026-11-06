@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
@@ -29,7 +28,6 @@ namespace ProjectIGI.Presentation.Lighting;
 /// </remarks>
 public static class SurfaceCacheCapture
 {
-    private const string LogCategory = "SurfaceCache";
 
     /// <summary>What a capture produced.</summary>
     /// <param name="Layout">Where every card's page sits.</param>
@@ -57,18 +55,12 @@ public static class SurfaceCacheCapture
     /// <param name="logger">Where to report what was captured.</param>
     /// <returns>The layout and cards, or <see langword="null"/> when there was nothing to capture.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public static Result? Capture(
-        IGraphicsDevice device,
-        IReadOnlyList<Subject> subjects,
-        IReadOnlyList<MeshHandle> meshes,
-        int maximumSize = 8192,
-        IProjectIGILogger? logger = null)
+    public static Result? Capture(IGraphicsDevice device, IReadOnlyList<Subject> subjects, IReadOnlyList<MeshHandle> meshes, int maximumSize = 8192)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(subjects);
         ArgumentNullException.ThrowIfNull(meshes);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         List<MeshCard> cards = [];
         List<int> owners = [];
@@ -84,7 +76,6 @@ public static class SurfaceCacheCapture
 
         if (cards.Count == 0)
         {
-            log.Information(LogCategory, "No cards to capture; the surface cache is empty.");
             return null;
         }
 
@@ -92,7 +83,6 @@ public static class SurfaceCacheCapture
 
         if (!device.BeginCardCapture(layout.Width, layout.Height))
         {
-            log.Warning(LogCategory, "The card atlas could not be opened; the surface cache is empty.");
             return null;
         }
 
@@ -126,10 +116,6 @@ public static class SurfaceCacheCapture
             device.EndCardCapture();
         }
 
-        log.Information(
-            LogCategory,
-            $"Captured {captured} of {cards.Count} card(s) from {subjects.Count} model(s) into a "
-            + $"{layout.Width}x{layout.Height} atlas.");
 
         return new Result(layout, [.. cards], [.. owners]);
     }

@@ -1,6 +1,5 @@
 using System.Text.Json;
 using ProjectIGI.Core.Content;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Engine.Titles;
 using ProjectIGI.Host.Configuration;
@@ -39,7 +38,6 @@ public static class ContentLayers
     /// <summary>The variable the launcher used to name a single overrides folder in.</summary>
     public const string LegacyVariable = "ProjectIGI_OVERRIDES";
 
-    private const string LogCategory = "Overrides";
 
     /// <summary>Resolves the layers for a title.</summary>
     /// <param name="titleId">The title id.</param>
@@ -50,19 +48,11 @@ public static class ContentLayers
     /// <param name="logger">Where to report a profile that could not be read.</param>
     /// <param name="modFolders">The data of the mods played, highest priority first; none by default.</param>
     /// <returns>The layers, highest priority first.</returns>
-    public static IReadOnlyList<OverrideLayer> Resolve(
-        string titleId,
-        string? dataRoot,
-        string? profilePath,
-        IReadOnlyList<string> developmentFolders,
-        string? legacyFolder,
-        IProjectIGILogger? logger = null,
-        IReadOnlyList<TitleContentFolder>? modFolders = null)
+    public static IReadOnlyList<OverrideLayer> Resolve(string titleId, string? dataRoot, string? profilePath, IReadOnlyList<string> developmentFolders, string? legacyFolder, IReadOnlyList<TitleContentFolder>? modFolders = null)
     {
         ArgumentNullException.ThrowIfNull(titleId);
         ArgumentNullException.ThrowIfNull(developmentFolders);
 
-        logger ??= NullLogger.Instance;
         List<OverrideLayer> layers = [];
 
         foreach (string folder in developmentFolders)
@@ -87,7 +77,7 @@ public static class ContentLayers
             layers.Add(new OverrideLayer(Unique(layers, folder.Id), $"{folder.Name} (mod)", folder.Root));
         }
 
-        IReadOnlyList<ContentLayerSpec> chosen = ReadProfile(titleId, profilePath, logger);
+        IReadOnlyList<ContentLayerSpec> chosen = ReadProfile(titleId, profilePath);
         if (chosen.Count == 0)
         {
             chosen = [ContentLayerSpec.Local()];
@@ -112,22 +102,10 @@ public static class ContentLayers
     /// <param name="logger">Where to report a profile that could not be read.</param>
     /// <param name="modFolders">The data of the mods played, highest priority first; none by default.</param>
     /// <returns>The layers, highest priority first.</returns>
-    public static IReadOnlyList<OverrideLayer> Resolve(
-        string titleId,
-        string? dataRoot,
-        HostOptions options,
-        IProjectIGILogger? logger = null,
-        IReadOnlyList<TitleContentFolder>? modFolders = null) =>
-        Resolve(
-            titleId,
-            dataRoot,
-            options.ContentProfilePath ?? NonEmpty(Environment.GetEnvironmentVariable(ContentProfile.EnvironmentVariable)),
-            options.ContentDirectories,
-            NonEmpty(Environment.GetEnvironmentVariable(LegacyVariable)),
-            logger,
-            modFolders);
+    public static IReadOnlyList<OverrideLayer> Resolve(string titleId, string? dataRoot, HostOptions options, IReadOnlyList<TitleContentFolder>? modFolders = null) =>
+        Resolve(titleId, dataRoot, options.ContentProfilePath ?? NonEmpty(Environment.GetEnvironmentVariable(ContentProfile.EnvironmentVariable)), options.ContentDirectories, NonEmpty(Environment.GetEnvironmentVariable(LegacyVariable)), modFolders);
 
-    private static IReadOnlyList<ContentLayerSpec> ReadProfile(string titleId, string? profilePath, IProjectIGILogger logger)
+    private static IReadOnlyList<ContentLayerSpec> ReadProfile(string titleId, string? profilePath)
     {
         if (string.IsNullOrWhiteSpace(profilePath))
         {
@@ -141,7 +119,6 @@ public static class ContentLayers
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
         {
             // Not fatal: the game is playable without its packs, and the reason is in the log.
-            logger.Warning(LogCategory, $"Content profile '{profilePath}' could not be read, so only the game folder's overrides are used: {error.Message}");
             return [];
         }
     }

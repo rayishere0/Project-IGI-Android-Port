@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Engine.Tasks;
@@ -41,9 +40,7 @@ public sealed partial class SoldierSimulation : IHumanEvents
     /// <remarks>The constructor (<c>0x44F060</c>) writes 300 and nothing else in the image writes it.</remarks>
     public const int GeneratedBodyLingerTicks = Igi1HumanAi.BodyStayTicks;
 
-    private const string LogCategory = SoldierContext.LogCategory;
 
-    private readonly IProjectIGILogger _logger;
 
     private readonly SoldierContext _context;
 
@@ -71,8 +68,6 @@ public sealed partial class SoldierSimulation : IHumanEvents
 
     private readonly SoldierRagdolls _ragdolls;
 
-    private readonly SoldierDiagnostics _diagnostics;
-
     private readonly SoldierPlayerBody _playerBody = new();
 
     private readonly HashSet<SoldierView> _combatClipMissing = [];
@@ -91,10 +86,9 @@ public sealed partial class SoldierSimulation : IHumanEvents
 
     /// <summary>Initializes a new instance of the <see cref="SoldierSimulation"/> class.</summary>
     /// <param name="logger">Where the soldiers report.</param>
-    public SoldierSimulation(IProjectIGILogger logger)
+    public SoldierSimulation()
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _context = new SoldierContext(_logger);
+        _context = new SoldierContext();
 
         // The parts play a script's sound through whatever sink is set when it plays, not the one set when they were made.
         Action<string, Vector3d, Func<Vector3d>?> scriptSound = (name, at, follow) => ScriptSound?.Invoke(name, at, follow);
@@ -111,7 +105,6 @@ public sealed partial class SoldierSimulation : IHumanEvents
         _generators = new GuardGeneratorSpawner(_context, _sight, Enlist);
         _brains = new SoldierBrainBinder(_context, _sight, Enlist);
         _ragdolls = new SoldierRagdolls(_context);
-        _diagnostics = new SoldierDiagnostics(_context);
     }
 
     /// <summary>Gets or sets where the player is, read by each soldier as it updates (<see cref="BeginTick"/>).</summary>
@@ -119,9 +112,6 @@ public sealed partial class SoldierSimulation : IHumanEvents
 
     /// <summary>Gets the bodies that have updated this tick, so none updates twice and the tick's close can find any the walk missed.</summary>
     internal HashSet<SoldierView> Ticked { get; } = new(ReferenceEqualityComparer.Instance);
-
-    /// <summary>Gets or sets whether this tick's diagnostics are collected, decided once as it opens.</summary>
-    internal bool CollectDiagnostics { get; set; }
 
     /// <summary>Gets or sets the tick the last detection shout was sounded on, or -1 for none this mission.</summary>
     internal int LastDetectionShoutTick { get; set; } = -1;
@@ -139,7 +129,6 @@ public sealed partial class SoldierSimulation : IHumanEvents
 
         TickingSoldierId = view.Soldier.Id;
 
-        bool collectDiagnostics = CollectDiagnostics;
         SoldierEnemy enemy = Enemy?.Invoke() ?? default;
         bool enemyAlive = enemy.Alive;
         bool enemyCrouching = enemy.Crouching;
@@ -203,7 +192,7 @@ public sealed partial class SoldierSimulation : IHumanEvents
             return;
         }
 
-        (double travel, double lateral) = ClipTravel(view, brain, collectDiagnostics);
+        (double travel, double lateral) = ClipTravel(view, brain);
 
         // The alarm the soldier watches is the one ITS OWN +15044 names -- resolved per AI, as the
         // retail per-tick resolves the control task each tick. First sight of an id lazily makes
@@ -253,22 +242,13 @@ public sealed partial class SoldierSimulation : IHumanEvents
             return;
         }
 
-        if (member is not null && collectDiagnostics && brain.Arm == AiCombatArm.Gunner)
-        {
-            _diagnostics.ReportGunner(brain, ScriptVariables);
-        }
-
-        if (collectDiagnostics)
-        {
-            _diagnostics.ReportDrained(brain);
-        }
 
         if (member is not null)
         {
             member.FiredThisTick = false;
         }
 
-        int? combatState = TickBody(view, brain, collectDiagnostics);
+        int? combatState = TickBody(view, brain);
         ReleaseOnClipEvents(view, brain, member, clipBefore, combatState);
         SoldierClipSelection.Play(view, brain, combatState, _combatClipMissing);
         SoldierClipSelection.StepBody(view, brain, clipBefore, animationBefore, travel, lateral);
@@ -382,18 +362,6 @@ public sealed partial class SoldierSimulation : IHumanEvents
         return Brains.Count;
     }
 
-    /// <summary>Reports what every soldier's AI is actually doing, for diagnosing a level that looks wrong.</summary>
-    /// <remarks>
-    /// Written for the "why is nobody patrolling?" question, which needs to distinguish four different
-    /// failures that look identical on screen: no brain, no script, a script that never asked to patrol, and
-    /// a patrol that started but cannot move.
-    /// </remarks>
-    public void LogAiSummary()
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        _diagnostics.LogAiSummary();
-    }
-
     /// <summary>Opens a tick: the tick count, and where the enemy (the player) is read from.</summary>
     /// <param name="enemy">
     /// Reads the player as a soldier sees it at the moment the soldier updates -- live, so a soldier ahead of the
@@ -406,12 +374,6 @@ public sealed partial class SoldierSimulation : IHumanEvents
         TickCount++;
         Enemy = enemy;
         Ticked.Clear();
-        CollectDiagnostics = _logger.IsEnabled(LogLevel.Information);
-        bool collectDiagnostics = CollectDiagnostics;
-        if (collectDiagnostics)
-        {
-            _diagnostics.Heartbeat();
-        }
     }
 
     /// <summary>Publishes the living soldiers' collision bodies where they stand now.</summary>
@@ -508,7 +470,6 @@ public sealed partial class SoldierSimulation : IHumanEvents
     /// <summary>Closes the tick's simulation before the corpses move: the bodies the walk missed, the staged actors, the collision.</summary>
     internal void FinishTick()
     {
-        bool collectDiagnostics = CollectDiagnostics;
         if (_walker is not null)
         {
             // A registered, live soldier the walk never reached sits under a task the port does not walk the way
@@ -522,9 +483,6 @@ public sealed partial class SoldierSimulation : IHumanEvents
 
                 if (_unwalkedSoldiers.Add(view.Soldier))
                 {
-                    _logger.Warning(
-                        LogCategory,
-                        $"{view.Soldier.Name} is live but the level walk did not reach it; ticking it after the walk.");
                 }
 
                 TickSoldier(view, brain);
@@ -544,11 +502,6 @@ public sealed partial class SoldierSimulation : IHumanEvents
 
         // This scans the complete roster. Calling it from inside the roster loop made diagnostics O(N²)
         // every tick, including when the logger discarded the result. One final-state scan is sufficient.
-        if (collectDiagnostics)
-        {
-            _diagnostics.ReportCombat(RoundsFired);
-        }
-
         // Simulated corpses advance on the tick, alongside the rigs they replaced -- and only until they
         // settle, or until their HumanAI takes them out of the world (Igi1HumanAi.TickDeadAi).
     }
@@ -615,9 +568,6 @@ public sealed partial class SoldierSimulation : IHumanEvents
         if (alarmIsOn != _alarmWasOn)
         {
             _alarmWasOn = alarmIsOn;
-            _logger.Information(
-                LogCategory + ".Alarm",
-                $"mission alarm {(alarmIsOn ? "ON" : "OFF")} at tick {TickCount}.");
         }
     }
 
@@ -911,7 +861,7 @@ public sealed partial class SoldierSimulation : IHumanEvents
     }
 
     // The clip's own delta in the body's frame this tick: forward and sideways, signed.
-    private (double Travel, double Lateral) ClipTravel(SoldierView view, Igi1HumanAi brain, bool collectDiagnostics)
+    private (double Travel, double Lateral) ClipTravel(SoldierView view, Igi1HumanAi brain)
     {
         // The clip's own delta in the body's frame: forward and sideways, signed.
         Vector3f clipDelta = view.RootMotion();
@@ -928,16 +878,11 @@ public sealed partial class SoldierSimulation : IHumanEvents
         // Retail ground truth, measured by hooking 0x48E920 in the original: a walking guard covers
         // 160-185 units a tick, about 1.28 m/s, varying through the gait cycle. Recorded here so the
         // port's own figure can be compared without another instrumented run.
-        if (collectDiagnostics && brain.Activity == AiSoldierActivity.Patrolling && travel > 0.0)
-        {
-            _diagnostics.RecordTravel(travel);
-        }
-
         return (travel, lateral);
     }
 
     // The body machine's tick, and what its state lets go of: the grenade, the detection shout and the alert.
-    private int? TickBody(SoldierView view, Igi1HumanAi brain, bool collectDiagnostics)
+    private int? TickBody(SoldierView view, Igi1HumanAi brain)
     {
         // The body machine consumes this tick's AI channel writes before the weapon consumes the
         // body's forwarded trigger. Running it after FireIfAsked let a round leave while the body
@@ -982,11 +927,6 @@ public sealed partial class SoldierSimulation : IHumanEvents
                 }
             }
         }
-        if (collectDiagnostics)
-        {
-            _diagnostics.ReportChannels(brain);
-        }
-
         return combatState;
     }
 

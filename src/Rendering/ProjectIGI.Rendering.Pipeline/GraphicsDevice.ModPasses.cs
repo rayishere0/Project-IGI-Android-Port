@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Rendering.Pipeline.Deferred;
 using ProjectIGI.Rendering.Pipeline.Mesh3D;
@@ -36,13 +35,13 @@ public sealed partial class GraphicsDevice
         PostPassModule[] display = [.. passes.Where(static p => p.Stage == PostPassStage.Display)];
         if (scene.Length > 0 || _modPasses is not null)
         {
-            _modPasses ??= new ModPostChain(_device, FramesInFlight, _retired, _logger ?? NullLogger.Instance, "mods");
+            _modPasses ??= new ModPostChain(_device, FramesInFlight, _retired, "mods");
             _modPasses.Set(scene);
         }
 
         if (display.Length > 0 || _modDisplayPasses is not null)
         {
-            _modDisplayPasses ??= new ModPostChain(_device, FramesInFlight, _retired, _logger ?? NullLogger.Instance, "mods.display");
+            _modDisplayPasses ??= new ModPostChain(_device, FramesInFlight, _retired, "mods.display");
             _modDisplayPasses.Set(display);
         }
     }

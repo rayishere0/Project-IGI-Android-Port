@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Formats.Textures;
 using ProjectIGI.Game.World;
@@ -24,7 +23,6 @@ public sealed class TexTextureCache : IDisposable
 {
     private readonly IGraphicsDevice _device;
     private readonly ResourceRegistry _resources;
-    private readonly IProjectIGILogger _logger;
     private readonly string _logCategory;
     private readonly TextureAddressMode _addressMode;
     private readonly Func<string, IEnumerable<string>> _resourceNames;
@@ -41,20 +39,12 @@ public sealed class TexTextureCache : IDisposable
     /// when none is given.
     /// </param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public TexTextureCache(
-        IGraphicsDevice device,
-        ResourceRegistry resources,
-        IProjectIGILogger logger,
-        string logCategory,
-        TextureAddressMode addressMode = TextureAddressMode.Repeat,
-        Func<string, IEnumerable<string>>? resourceNames = null)
+    public TexTextureCache(IGraphicsDevice device, ResourceRegistry resources, string logCategory, TextureAddressMode addressMode = TextureAddressMode.Repeat, Func<string, IEnumerable<string>>? resourceNames = null)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(resources);
-        ArgumentNullException.ThrowIfNull(logger);
         _device = device;
         _resources = resources;
-        _logger = logger;
         _logCategory = logCategory ?? string.Empty;
         _addressMode = addressMode;
         _resourceNames = resourceNames ?? (static name => [LoadedPack.TextureResourceName(name)]);
@@ -97,13 +87,11 @@ public sealed class TexTextureCache : IDisposable
             }
             catch (Exception ex) when (ex is TextureFormatException or ArgumentException or GraphicsDeviceException)
             {
-                _logger.Warning(_logCategory, $"Texture '{name}' did not load: {ex.Message}");
             }
         }
 
         if (!found && ReportMissing)
         {
-            _logger.Warning(_logCategory, $"Texture '{name}' is not registered.");
         }
 
         _textures[name] = handle;

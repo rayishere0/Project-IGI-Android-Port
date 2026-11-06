@@ -20,14 +20,12 @@ namespace ProjectIGI.Engine.Configuration;
 /// </remarks>
 public sealed class ConfigVariableRegistry
 {
-    private const string LogCategory = "Config";
 
     private readonly Dictionary<string, ConfigVariable> _variables = new(StringComparer.OrdinalIgnoreCase);
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="ConfigVariableRegistry"/> class.</summary>
     /// <param name="logger">The logger for registration diagnostics; defaults to a sink that discards them.</param>
-    public ConfigVariableRegistry(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public ConfigVariableRegistry() { }
 
     /// <summary>Gets the number of registered variables.</summary>
     public int Count => _variables.Count;
@@ -49,7 +47,6 @@ public sealed class ConfigVariableRegistry
             throw new EngineFatalException($"Symbol \"{variable.Name}\" already registered in hash table");
         }
 
-        _logger.Trace(LogCategory, $"Registered variable '{variable.Name}'.");
         return variable;
     }
 

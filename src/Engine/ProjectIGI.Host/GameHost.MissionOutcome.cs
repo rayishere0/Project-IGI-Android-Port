@@ -43,7 +43,7 @@ public sealed partial class GameHost
 
         public void HoldPlayerStill() => host.HostedPlayer?.HoldStill();
 
-        public void SaveConfiguration() => HostConfiguration.Save(host._configuration, host._logger);
+        public void SaveConfiguration() => HostConfiguration.Save(host._configuration);
 
         public void StartMission(int id) => host.StartMission(id);
 

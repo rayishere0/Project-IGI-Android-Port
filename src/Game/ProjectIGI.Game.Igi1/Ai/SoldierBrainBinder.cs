@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Engine.Tasks;
@@ -89,7 +88,6 @@ internal sealed class SoldierBrainBinder(SoldierContext context, SoldierSightQue
         {
             // No graphs means no patrolling -- but a brain does not need a node to see or to shoot, so
             // the soldiers are still armed and still fight from where they stand.
-            _context.Logger.Warning(SoldierContext.LogCategory, "The level ships no nav graph, so no soldier can patrol.");
         }
 
         // The level's authored patrol paths, keyed by the PatrolPath task's own id -- what AIAction_Patrol's
@@ -97,11 +95,10 @@ internal sealed class SoldierBrainBinder(SoldierContext context, SoldierSightQue
         AiPatrolPathRegistry? paths = levelRoot is null ? null : AiPatrolPathRegistry.Build(levelRoot);
         if (paths is not null)
         {
-            _context.Logger.Information(SoldierContext.LogCategory, $"{paths.Count} authored patrol path(s) in this level.");
         }
 
         AiScriptHost? host = scripts is not null && natives is not null
-            ? new AiScriptHost(natives, _context.Logger, _context.AiRandom)
+            ? new AiScriptHost(natives, _context.AiRandom)
             : null;
         Dictionary<string, QvmProgram?> scriptCache = new(StringComparer.Ordinal);
 
@@ -142,10 +139,6 @@ internal sealed class SoldierBrainBinder(SoldierContext context, SoldierSightQue
                     double groundedZ = _context.SnapToGround(initialPosition.X, initialPosition.Y, initialPosition.Z);
                     if (groundedZ != initialPosition.Z)
                     {
-                        _context.Logger.Information(
-                            SoldierContext.LogCategory + ".Ground",
-                            $"soldier={view.Soldier.Id} declaredZ={initialPosition.Z:0.0} " +
-                            $"groundedZ={groundedZ:0.0} delta={(groundedZ - initialPosition.Z) / WorldScene.UnitsPerMetre:0.000}m");
                         initialPosition = new Vector3d(initialPosition.X, initialPosition.Y, groundedZ);
                         view.PlaceAt(initialPosition, view.Orientation);
                     }
@@ -198,10 +191,6 @@ internal sealed class SoldierBrainBinder(SoldierContext context, SoldierSightQue
                             if (brain.Arm == AiCombatArm.Gunner
                                 || Interactions?.FindStationaryGun(id) is not null)
                             {
-                                _context.Logger.Information(
-                                    SoldierContext.LogCategory + ".Gunner",
-                                    $"runtime={brain.RuntimeId} activation reached task={id} "
-                                        + $"gunnerId={brain.GunnerId}");
                             }
                             TaskActivator?.Invoke(id);
                         });
@@ -286,18 +275,6 @@ internal sealed class SoldierBrainBinder(SoldierContext context, SoldierSightQue
             }
         }
 
-        _context.Logger.Information(
-            SoldierContext.LogCategory,
-            $"{_context.Brains.Count} soldier(s) with brains ({patrolling} scripted, {perTask} from their own " +
-            $"MISSION:AI script); {hasRun} of {total} soldier set(s) hold their class's run clip, the rest " +
-            "fall back to the walk when chasing.");
-        _context.Logger.Information(
-            SoldierContext.LogCategory,
-            $"Soldiers per nav graph: " +
-            string.Join(", ", graphUse.OrderBy(p => p.Key).Select(p => $"graph{p.Key}:{p.Value}")) +
-            (unroutable > 0
-                ? $"; {unroutable} soldier(s) name a graph the level does not ship (they fight, but cannot patrol)"
-                : string.Empty));
     }
 
     /// <summary>The authored heading a soldier was placed with.</summary>
@@ -381,9 +358,6 @@ internal sealed class SoldierBrainBinder(SoldierContext context, SoldierSightQue
         // The arm decides whether a soldier can chase at all: only the patrol (move-and-fight) arm hunts and
         // advances; the guard arm stands its ground. Logged so a "they don't chase" report can be told apart.
         string split = string.Join(", ", arms.OrderBy(a => a.Key).Select(a => $"{a.Key}:{a.Value}"));
-        _context.Logger.Information(
-            SoldierContext.LogCategory,
-            $"AI: {bound} soldier(s) configured at {HumanAiConfigRegistry.NameOf(difficulty)} ({difficulty}); arms {split}.");
 
         // One line per AI type: the hit chance a guard of that type actually fires with, at this difficulty.
         // "hit@0m" is point-blank (where you die), "hit@far" is the cone's end; the round handler rolls a
@@ -392,10 +366,6 @@ internal sealed class SoldierBrainBinder(SoldierContext context, SoldierSightQue
         foreach ((AiType type, (int count, AiCombatParameters row)) in accuracyByType.OrderBy(e => e.Key))
         {
             string name = HumanAiConfigRegistry.NameOf(difficulty);
-            _context.Logger.Information(
-                SoldierContext.LogCategory,
-                FormattableString.Invariant(
-                    $"AI accuracy [{type}] x{count} @ {name}: hit@0m={row.HitProbabilityAtMinimumRange:F3} hit@far={row.HitProbabilityAtMaximumRange:F3} clip%={row.MinimumClipFraction:F2}+{row.RandomClipFraction:F2} aimPrec={row.AimPrecision:F2}"));
         }
     }
 
@@ -418,12 +388,10 @@ internal sealed class SoldierBrainBinder(SoldierContext context, SoldierSightQue
             {
                 // Most HumanAI tasks have an override, but it is not required: an absent one runs the
                 // archetype selected by AIType instead.
-                _context.Logger.Debug(SoldierContext.LogCategory, $"No behaviour script at '{path}'.");
             }
         }
         catch (Exception ex) when (ex is IOException or QvmFormatException or InvalidOperationException)
         {
-            _context.Logger.Warning(SoldierContext.LogCategory, $"Could not read behaviour script at '{path}': {ex.Message}");
         }
 
         cache[path] = program;

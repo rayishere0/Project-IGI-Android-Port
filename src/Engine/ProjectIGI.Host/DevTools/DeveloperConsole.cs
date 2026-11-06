@@ -1,5 +1,4 @@
 using ProjectIGI.Core.Configuration;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Input;
 using ProjectIGI.Presentation.Text;
 using ProjectIGI.Rendering;
@@ -48,7 +47,6 @@ public sealed class DeveloperConsole : IDisposable
 {
     private readonly IGraphicsDevice _device;
     private readonly ConsoleModel _model;
-    private readonly IProjectIGILogger _logger;
     private readonly ContextMenu _menu = new();
     private readonly PromptEditor _editor = new();
     private readonly DevConsolePanels _panels;
@@ -73,14 +71,13 @@ public sealed class DeveloperConsole : IDisposable
     /// <param name="model">The console state shown and edited.</param>
     /// <param name="logger">Where to report what the console does.</param>
     /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
-    public DeveloperConsole(IGraphicsDevice device, ConsoleModel model, IProjectIGILogger? logger = null)
+    public DeveloperConsole(IGraphicsDevice device, ConsoleModel model)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(model);
 
         _device = device;
         _model = model;
-        _logger = logger ?? NullLogger.Instance;
         Watch = new ConsoleWatchList();
         _panels = new DevConsolePanels(model, _editor, Watch);
         _pointer = new DevConsolePointer(_panels, _editor, _menu);
@@ -186,7 +183,6 @@ public sealed class DeveloperConsole : IDisposable
         }
         catch (Exception ex) when (ex is IOException or FileNotFoundException or InvalidOperationException)
         {
-            _logger.Warning("Console", $"The developer console could not load its font: {ex.Message}");
             return false;
         }
     }

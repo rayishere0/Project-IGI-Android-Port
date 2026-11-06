@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Rendering;
 using ProjectIGI.Rendering.Vulkan.Capabilities;
 using ProjectIGI.Rendering.Vulkan.Interop;
@@ -34,21 +33,19 @@ internal sealed unsafe class PhysicalDeviceSelector
     private readonly Instance _instance;
     private readonly KhrSurface _khrSurface;
     private readonly SurfaceKHR _surface;
-    private readonly IProjectIGILogger _logger;
     private readonly bool _forStreamline;
 
     /// <summary>Initialises a new instance of the <see cref="PhysicalDeviceSelector"/> class.</summary>
     /// <param name="instance">The instance and its surface to select against.</param>
     /// <param name="logger">Where to report the choice made.</param>
     /// <param name="forStreamline">Whether the device will run NVIDIA Streamline; see <see cref="VulkanCapabilityProbe.Probe"/>.</param>
-    public PhysicalDeviceSelector(VulkanInstance instance, IProjectIGILogger logger, bool forStreamline = false)
+    public PhysicalDeviceSelector(VulkanInstance instance, bool forStreamline = false)
     {
         ArgumentNullException.ThrowIfNull(instance);
         _vk = instance.Vk;
         _instance = instance.Instance;
         _khrSurface = instance.KhrSurface;
         _surface = instance.Surface;
-        _logger = logger;
         _forStreamline = forStreamline;
     }
 
@@ -110,37 +107,18 @@ internal sealed unsafe class PhysicalDeviceSelector
         VulkanDeviceCapabilities capabilities = selection.Capabilities;
         Version32 api = (Version32)selection.ApiVersion;
 
-        _logger.Information(
-            "Vulkan",
-            $"Selected adapter '{selection.Name}' (Vulkan {api.Major}.{api.Minor}.{api.Patch}).");
 
         VulkanQueuePlan queues = selection.Queues;
-        _logger.Information(
-            "Vulkan",
-            queues.GraphicsAndPresentUnified
-                ? $"Queue: family {queues.Graphics.Family}, drawing and presenting."
-                : $"Queues: graphics family {queues.Graphics.Family}, present family {queues.Present.Family}.");
 
         string tracing = capabilities.HardwareRayTracing
             ? capabilities.RayTracingPipeline ? "ray query and ray-tracing pipeline" : "ray query only"
             : "unavailable";
-        _logger.Information(
-            "Vulkan",
-            $"Hardware ray tracing: {tracing}. Bindless descriptor buffer: " +
-            $"{(capabilities.DescriptorBuffer ? "available" : "unavailable")}. " +
-            $"Synchronisation 2: {(capabilities.Synchronization2 ? "available" : "unavailable")}. " +
-            $"Timeline semaphores: {(capabilities.TimelineSemaphore ? "available" : "unavailable")}.");
 
         // Said once, near the top, because it reframes everything under it: on a portable adapter an
         // absent capability is the translation layer's limit rather than the hardware's, and no amount of
         // driver updating will add it.
         if (capabilities.PortabilitySubset)
         {
-            _logger.Information(
-                "Vulkan",
-                "Adapter implements the Vulkan portability subset (Vulkan translated to another API, "
-                + $"which on macOS is Metal through MoltenVK). Sampler mip LOD bias: "
-                + $"{(capabilities.SamplerMipLodBias ? "available" : "unavailable, textures sample unbiased")}.");
         }
 
         // Named individually only when one is missing, because on every adapter the port has run on so
@@ -180,10 +158,6 @@ internal sealed unsafe class PhysicalDeviceSelector
 
         if (absent.Count > 0)
         {
-            _logger.Warning(
-                "Vulkan",
-                $"Adapter does not offer: {string.Join(", ", absent)}. These are not enabled, and no pass "
-                + "depends on one today; a pass added later that does must check the capability first.");
         }
     }
 
@@ -213,17 +187,6 @@ internal sealed unsafe class PhysicalDeviceSelector
         // feature chain are both derived from this, so a report that carries all three says which of the
         // two derivations went wrong -- and it is the only one of the three that cannot be worked out
         // from the source, because it is the driver's answer rather than the port's decision.
-        if (_logger.IsEnabled(LogLevel.Information))
-        {
-            _vk.GetPhysicalDeviceProperties(device, out PhysicalDeviceProperties reported);
-            Version32 reportedApi = (Version32)reported.ApiVersion;
-            _logger.Information(
-                "Vulkan",
-                $"'{VkString.Read(reported.DeviceName)}' (Vulkan {reportedApi.Major}.{reportedApi.Minor}."
-                + $"{reportedApi.Patch}) offers {available.Count} device extensions: "
-                + string.Join(", ", available.Order(StringComparer.Ordinal)));
-        }
-
         foreach (string required in RequiredExtensions)
         {
             if (!available.Contains(required))
@@ -269,11 +232,6 @@ internal sealed unsafe class PhysicalDeviceSelector
             return available;
         }
 
-        _logger.Warning(
-            "Vulkan",
-            $"{DisableEnvironmentVariable} is withdrawing {withdrawn.Count} extension(s) the adapter "
-            + $"does offer: {string.Join(", ", withdrawn.Order(StringComparer.Ordinal))}. "
-            + "The device is created as though this adapter did not have them.");
 
         return [.. available.Except(withdrawn)];
     }

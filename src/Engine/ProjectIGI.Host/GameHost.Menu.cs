@@ -77,7 +77,7 @@ public sealed partial class GameHost
         // replaced every time the player settles on a different mission rather than once per game. Dropping
         // the reference without disposing would leak a level's textures per row of the list.
         _world?.Dispose();
-        _world = _presentation.Presenters.Create<WorldPresentationRequest, IWorldPresenter>(new WorldPresentationRequest(_device, preview.Resources, _logger));
+        _world = _presentation.Presenters.Create<WorldPresentationRequest, IWorldPresenter>(new WorldPresentationRequest(_device, preview.Resources));
         if (_world is not null)
         {
             _world.Materials = _materials;
@@ -114,11 +114,10 @@ public sealed partial class GameHost
         // routes were asking different questions of the same title.
         _terrain?.Dispose();
         _terrain = _presentation.Presenters.Create<GroundPresentationRequest, ITerrainPresenter>(
-            new GroundPresentationRequest(_device, preview.LevelRoot, preview.Resources, _logger));
+            new GroundPresentationRequest(_device, preview.LevelRoot, preview.Resources));
 
         _terrain ??= preview.TerrainSurface is { } surface
-            ? _presentation.Presenters.Create<TerrainPresentationRequest, ITerrainPresenter>(new TerrainPresentationRequest(
-                _device, surface, _logger, _detailMaps, preview.GroundDetail))
+            ? _presentation.Presenters.Create<TerrainPresentationRequest, ITerrainPresenter>(new TerrainPresentationRequest(_device, surface, _detailMaps, preview.GroundDetail))
             : null;
 
         // Uploaded with the tiles; the preview held a full-size map per tile for as long as it lived.
@@ -146,7 +145,7 @@ public sealed partial class GameHost
         if (!BackdropLite)
         {
             ISoldierBodies? soldiers = _presentation.Presenters.Create<SoldierPresentationRequest, ISoldierBodies>(
-                new SoldierPresentationRequest(_device, preview.Resources, _logger, _mission.MagicObjects, _detailMaps));
+                new SoldierPresentationRequest(_device, preview.Resources, _mission.MagicObjects, _detailMaps));
             _menuBackdrop.ArmSoldiers(soldiers);
             soldiers?.Load(
                 preview.Mission,
@@ -162,7 +161,7 @@ public sealed partial class GameHost
         // player's spawn uploads everything else at once.
         _arming = _world is null
             ? null
-            : new MissionArming(preview.MissionId, preview.Scene, _world, _logger);
+            : new MissionArming(preview.MissionId, preview.Scene, _world);
 
         // The preview's OWN registry, not the session's. The two halves of this request have to describe
         // the same installation: preview.FileSystem carries the MISSION alias the backdrop's level bound,
@@ -172,8 +171,7 @@ public sealed partial class GameHost
         // "device not present" -- which took the process down the first time a backdrop was built for it.
         _sky?.Dispose();
         _sky = _presentation.Presenters.Create<SkyPresentationRequest, ISkyPresenter>(
-            new SkyPresentationRequest(
-                _device, preview.LevelRoot, preview.FileSystem, preview.Resources, FarPlane, _logger));
+            new SkyPresentationRequest(_device, preview.LevelRoot, preview.FileSystem, preview.Resources, FarPlane));
         _shadowPass ??= new ShadowCasterPass(_device);
         Lap("sky");
 
@@ -255,10 +253,6 @@ public sealed partial class GameHost
 
         // The one number that says whether this stayed off the frame: everything else was built on a
         // worker, so this is the whole of what a backdrop swap costs the render thread.
-        _logger.Information(
-            "Preview",
-            FormattableString.Invariant(
-                $"The backdrop is now mission {preview.MissionId}; the handover took {handover.ElapsedMilliseconds} ms ({stages} ms), {SinceProcessStart():0} ms after the process started."));
     }
 
     /// <summary>Builds every mission and writes out the places its menu backdrop should circle.</summary>
@@ -272,11 +266,9 @@ public sealed partial class GameHost
     /// </remarks>
     private void DumpShowcasePoints(string path, MenuStringTable strings)
     {
-        MenuCameraLibrary cameras = MenuCameraLibrary.Load(
-            Path.Combine(AppContext.BaseDirectory, "Assets", "menu-cameras.json"), _logger);
+        MenuCameraLibrary cameras = MenuCameraLibrary.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "menu-cameras.json"));
 
-        using var loader = new MissionPreviewLoader(
-            _gamePath, _missions, _mission.MagicObjects, _baked.ProbeCache, cameras, _previewContext, _logger, _work);
+        using var loader = new MissionPreviewLoader(_gamePath, _missions, _mission.MagicObjects, _baked.ProbeCache, cameras, _previewContext, _work);
         var entries = new List<ShowcasePointFile.Entry>();
 
         foreach (MissionDescriptor descriptor in _missions.InCampaignOrder())
@@ -294,17 +286,13 @@ public sealed partial class GameHost
                     cameras.For(descriptor.Id, _titleRuntime.Title.Id),
                     preview.PointsOfInterest));
 
-                _logger.Information(
-                    "Preview",
-                    $"Mission {descriptor.Id}: {preview.PointsOfInterest.Count} place(s).");
             }
             catch (Exception ex) when (ex is EngineFatalException or IOException or InvalidDataException)
             {
-                _logger.Warning("Preview", $"Mission {descriptor.Id} would not build: {ex.Message}");
             }
         }
 
-        ShowcasePointFile.Write(path, entries, _logger);
+        ShowcasePointFile.Write(path, entries);
     }
 
     /// <summary>Points the showcase camera at a mission's places, or at the level as a whole when it has none.</summary>

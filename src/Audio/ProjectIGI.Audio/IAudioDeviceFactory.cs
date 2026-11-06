@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 
 namespace ProjectIGI.Audio;
 
@@ -27,5 +26,5 @@ public interface IAudioDeviceFactory
     /// A backend that cannot open returns a silent device rather than throwing, because the game runs
     /// either way and a missing sound card is not a reason to refuse to start.
     /// </remarks>
-    IAudioDevice Open(AudioDeviceOptions options, IProjectIGILogger logger);
+    IAudioDevice Open(AudioDeviceOptions options);
 }

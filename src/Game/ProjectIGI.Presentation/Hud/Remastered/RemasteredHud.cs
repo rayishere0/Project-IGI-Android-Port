@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Presentation.Hud.Remastered.Widgets;
 using ProjectIGI.Presentation.Text;
 using ProjectIGI.Rendering;
@@ -69,7 +68,6 @@ public readonly record struct HudFrame(int Width, int Height, int RequestedScale
 public sealed class RemasteredHud : IDisposable
 {
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly HudReactiveState _reactive = new();
     private HudFonts? _fonts;
     private RhiBackdrop? _glass;
@@ -79,10 +77,9 @@ public sealed class RemasteredHud : IDisposable
     /// <summary>Initializes a new instance of the <see cref="RemasteredHud"/> class.</summary>
     /// <param name="device">The device the faces are uploaded to and the layer drawn through.</param>
     /// <param name="logger">Where load problems are told.</param>
-    public RemasteredHud(IGraphicsDevice device, IProjectIGILogger logger)
+    public RemasteredHud(IGraphicsDevice device)
     {
         _device = device ?? throw new ArgumentNullException(nameof(device));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>Gets a value indicating whether the faces loaded and the display can be drawn.</summary>
@@ -102,7 +99,6 @@ public sealed class RemasteredHud : IDisposable
 
         if (!UiFontLibrary.TypographyAvailable)
         {
-            _logger.Warning("Hud", $"No interface font at {UiFontLibrary.FontsDirectory}; the remastered HUD cannot draw.");
             return false;
         }
 
@@ -115,7 +111,6 @@ public sealed class RemasteredHud : IDisposable
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException)
         {
-            _logger.Warning("Hud", $"Could not load the remastered HUD's fonts: {ex.Message}");
             return false;
         }
     }

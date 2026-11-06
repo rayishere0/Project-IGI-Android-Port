@@ -1,5 +1,4 @@
 using ProjectIGI.Core.Configuration;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Rendering.Vulkan.Interop;
 using Silk.NET.Vulkan;
 
@@ -31,7 +30,6 @@ namespace ProjectIGI.Rendering.Vulkan.Pipelines;
 /// </remarks>
 internal sealed unsafe class VulkanPipelineCache : IDisposable
 {
-    private const string LogCategory = "Vulkan";
     private const string FileName = "pipelines.bin";
 
     // The layout Vulkan guarantees at the head of every cache blob: four uint32 fields and then the
@@ -43,7 +41,6 @@ internal sealed unsafe class VulkanPipelineCache : IDisposable
     private readonly Vk _vk;
     private readonly Device _device;
     private readonly string? _path;
-    private readonly IProjectIGILogger _logger;
     private bool _disposed;
 
     /// <summary>Initialises a new instance of the <see cref="VulkanPipelineCache"/> class.</summary>
@@ -52,16 +49,10 @@ internal sealed unsafe class VulkanPipelineCache : IDisposable
     /// <param name="properties">The physical device's properties, which the blob's header must match.</param>
     /// <param name="logger">Where to report what was loaded.</param>
     /// <param name="directory">Where to keep the blob, or <see langword="null"/> for the user directory.</param>
-    public VulkanPipelineCache(
-        Vk vk,
-        Device device,
-        in PhysicalDeviceProperties properties,
-        IProjectIGILogger logger,
-        string? directory = null)
+    public VulkanPipelineCache(Vk vk, Device device, in PhysicalDeviceProperties properties, string? directory = null)
     {
         _vk = vk;
         _device = device;
-        _logger = logger;
 
         byte[]? initial = null;
         try
@@ -77,9 +68,6 @@ internal sealed unsafe class VulkanPipelineCache : IDisposable
                 initial = Matches(blob, in properties) ? blob : null;
                 if (initial is null)
                 {
-                    _logger.Debug(
-                        LogCategory,
-                        "Discarding the pipeline cache: it was written by a different driver or device.");
                 }
             }
         }
@@ -105,7 +93,6 @@ internal sealed unsafe class VulkanPipelineCache : IDisposable
 
         if (initial is not null)
         {
-            _logger.Debug(LogCategory, $"Pipeline cache loaded, {initial.Length / 1024} KiB.");
         }
     }
 
@@ -160,7 +147,6 @@ internal sealed unsafe class VulkanPipelineCache : IDisposable
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            _logger.Debug(LogCategory, "The pipeline cache could not be written; it will be rebuilt.");
         }
     }
 

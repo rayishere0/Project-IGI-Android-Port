@@ -582,7 +582,7 @@ public sealed class Igi2Gameplay : ITitleGameplay
         ArgumentNullException.ThrowIfNull(request.World.Mission);
         if (!request.Services.TryGet(out Igi2SoundDefinitions? definitions))
         {
-            definitions = new Igi2SoundDefinitions(request.World.Logger);
+            definitions = new Igi2SoundDefinitions();
         }
 
         IReadOnlyList<string> directories = Igi2SoundDefinitions.Directories(request.World.Mission.Descriptor);

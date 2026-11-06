@@ -1,5 +1,4 @@
 using System.IO.Compression;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Rendering;
@@ -34,20 +33,18 @@ public sealed class GiBakeCache
 
     private readonly string _writeDirectory;
     private readonly IReadOnlyList<string> _readDirectories;
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initialises a new instance of the <see cref="GiBakeCache"/> class.</summary>
     /// <param name="writeDirectory">Where newly-baked volumes are written (created on first write).</param>
     /// <param name="readDirectories">Directories searched for a cached volume, in order; the first hit wins.</param>
     /// <param name="logger">Where to report a load or save failure.</param>
     /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
-    public GiBakeCache(string writeDirectory, IReadOnlyList<string> readDirectories, IProjectIGILogger? logger = null)
+    public GiBakeCache(string writeDirectory, IReadOnlyList<string> readDirectories)
     {
         ArgumentNullException.ThrowIfNull(writeDirectory);
         ArgumentNullException.ThrowIfNull(readDirectories);
         _writeDirectory = writeDirectory;
         _readDirectories = readDirectories;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Builds a cache with the shipped location searched first and the per-user location written to.</summary>
@@ -55,8 +52,8 @@ public sealed class GiBakeCache
     /// <param name="userDirectory">The writable per-user directory.</param>
     /// <param name="logger">Where to report a failure.</param>
     /// <returns>The cache.</returns>
-    public static GiBakeCache Create(string shippedDirectory, string userDirectory, IProjectIGILogger? logger = null) =>
-        new(userDirectory, [shippedDirectory, userDirectory], logger);
+    public static GiBakeCache Create(string shippedDirectory, string userDirectory) =>
+        new(userDirectory, [shippedDirectory, userDirectory]);
 
     /// <summary>Loads a cached volume for a mission, if one matching the bake inputs is present.</summary>
     /// <param name="missionId">The mission the volume is for.</param>
@@ -75,7 +72,6 @@ public sealed class GiBakeCache
 
             if (TryReadFile(path, spacing, sunDirection, out IrradianceVolume? volume))
             {
-                _logger.Information("Light", $"Loaded a baked probe field for mission {missionId} from {path}.");
                 return volume;
             }
         }
@@ -98,12 +94,10 @@ public sealed class GiBakeCache
             Directory.CreateDirectory(_writeDirectory);
             string path = Path.Combine(_writeDirectory, FileName(missionId));
             WriteFile(path, spacing, sunDirection, volume);
-            _logger.Information("Light", $"Baked probe field for mission {missionId} written to {path}.");
             return path;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger.Warning("Light", $"Could not write the baked probe field for mission {missionId}: {ex.Message}");
             return null;
         }
     }
@@ -135,13 +129,11 @@ public sealed class GiBakeCache
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    _logger.Warning("Light", $"Could not delete a baked field at {path}: {ex.Message}");
                 }
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger.Warning("Light", $"Could not clear the baked-field cache: {ex.Message}");
         }
 
         return removed;
@@ -199,7 +191,6 @@ public sealed class GiBakeCache
         }
         catch (Exception ex) when (ex is IOException or EndOfStreamException or InvalidDataException)
         {
-            _logger.Warning("Light", $"A baked probe field at {path} could not be read; it will be re-baked: {ex.Message}");
             return false;
         }
     }

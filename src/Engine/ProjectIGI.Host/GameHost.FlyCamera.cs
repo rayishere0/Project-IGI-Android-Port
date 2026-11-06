@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.Player;
 using ProjectIGI.Rendering;
@@ -159,11 +158,6 @@ public sealed partial class GameHost
 
             if (_options.LogCamera && (right || rawX != 0f || rawY != 0f))
             {
-                _logger.Information(
-                    "Camera",
-                    $"rmb={(right ? 1 : 0)} raw=({rawX:0.##},{rawY:0.##}) pos=({_camera.Position.X:0.##},"
-                        + $"{_camera.Position.Y:0.##},{_camera.Position.Z:0.##}) fwd={_camera.Camera.Orientation.Row3} "
-                        + $"right={_camera.Camera.Orientation.Row1} dt={elapsed:0.####}");
             }
         }
     }

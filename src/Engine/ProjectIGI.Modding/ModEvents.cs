@@ -22,7 +22,7 @@ public sealed class ModEvents
     {
         ArgumentNullException.ThrowIfNull(handler);
         _module().Registrations.Add(context =>
-            context.Services.GetOrProvide(() => new GameEvents(context.Logger)).Subscribe((in TEvent gameEvent) => handler(gameEvent)));
+            context.Services.GetOrProvide(() => new GameEvents()).Subscribe((in TEvent gameEvent) => handler(gameEvent)));
         return this;
     }
 }

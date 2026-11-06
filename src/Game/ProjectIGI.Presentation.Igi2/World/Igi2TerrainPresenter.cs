@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
@@ -39,7 +38,7 @@ namespace ProjectIGI.Presentation.Igi2.World;
 /// </para>
 /// <para>
 /// <b>Two modes, and the constructor chooses.</b> Given
-/// <see cref="Igi2TerrainPresenter(IGraphicsDevice, Igi2TerrainSurface, Igi2TerrainLodSettings, Func{string, TextureHandle}, IProjectIGILogger?)">
+/// <see cref="Igi2TerrainPresenter(IGraphicsDevice, Igi2TerrainSurface, Igi2TerrainLodSettings, Func{string, TextureHandle})">
 /// a level's detail controls</see> it runs <see cref="Igi2TerrainLod"/> every frame and streams the
 /// result, which is what the original does — <c>TerrainRender_Draw</c> locks its vertex and index
 /// buffers at the top of the frame and refills them from the quadtree. Without them it uploads every
@@ -54,7 +53,6 @@ namespace ProjectIGI.Presentation.Igi2.World;
 public sealed class Igi2TerrainPresenter : ITerrainPresenter
 {
     /// <summary>The category load diagnostics are logged under.</summary>
-    public const string LogCategory = "igi2.terrain";
 
     /// <summary>The most indices one chunk holds before the next is started.</summary>
     /// <remarks>
@@ -121,18 +119,13 @@ public sealed class Igi2TerrainPresenter : ITerrainPresenter
     /// The textures arrive through a delegate rather than an archive, because which archive a name lives
     /// in is the mission loader's business and resolving it here would make this type need one.
     /// </remarks>
-    public Igi2TerrainPresenter(
-        IGraphicsDevice device,
-        Igi2TerrainSurface surface,
-        Func<string, TextureHandle> textures,
-        IProjectIGILogger? logger = null)
+    public Igi2TerrainPresenter(IGraphicsDevice device, Igi2TerrainSurface surface, Func<string, TextureHandle> textures)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(surface);
         ArgumentNullException.ThrowIfNull(textures);
 
         _device = device;
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         foreach (Igi2TerrainTile tile in surface.Tiles)
         {
@@ -158,7 +151,6 @@ public sealed class Igi2TerrainPresenter : ITerrainPresenter
 
         TriangleCount = _chunks.Sum(static c => c.IndexCount) / 3;
         ChunkCount = _chunks.Count;
-        log.Information(LogCategory, $"Terrain: {_chunks.Count} chunk(s), {TriangleCount} triangles.");
     }
 
     /// <summary>Builds the ground of one level and tessellates it per frame.</summary>
@@ -176,12 +168,7 @@ public sealed class Igi2TerrainPresenter : ITerrainPresenter
     /// port's shape of <c>TerrainRender_tRenderChunkPool</c> — fifty chunks of 10,000 indices that the
     /// original flushes and reuses within a frame.
     /// </remarks>
-    public Igi2TerrainPresenter(
-        IGraphicsDevice device,
-        Igi2TerrainSurface surface,
-        Igi2TerrainLodSettings settings,
-        Func<string, TextureHandle> textures,
-        IProjectIGILogger? logger = null)
+    public Igi2TerrainPresenter(IGraphicsDevice device, Igi2TerrainSurface surface, Igi2TerrainLodSettings settings, Func<string, TextureHandle> textures)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(surface);
@@ -190,7 +177,6 @@ public sealed class Igi2TerrainPresenter : ITerrainPresenter
         _device = device;
         _settings = settings;
         _tessellates = true;
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         foreach (Igi2TerrainTile tile in surface.Tiles)
         {
@@ -208,9 +194,6 @@ public sealed class Igi2TerrainPresenter : ITerrainPresenter
                 resolved));
         }
 
-        log.Information(
-            LogCategory,
-            $"Terrain: {_tiles.Count} tile(s) tessellated per frame, detail {settings.Detail}, adaption {settings.Adaption}.");
     }
 
     /// <summary>Gets how many triangles the ground draws.</summary>

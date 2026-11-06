@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Core.Threading;
 
@@ -27,18 +26,15 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public sealed class LightmapBake
 {
-    private const string LogCategory = "Lightmap";
 
     private readonly ScheduledJob<BakedLightmaps?> _job;
     private readonly CancellationTokenSource _cancellation;
-    private readonly IProjectIGILogger _log;
     private bool _collected;
 
-    private LightmapBake(ScheduledJob<BakedLightmaps?> job, CancellationTokenSource cancellation, IProjectIGILogger log)
+    private LightmapBake(ScheduledJob<BakedLightmaps?> job, CancellationTokenSource cancellation)
     {
         _job = job;
         _cancellation = cancellation;
-        _log = log;
     }
 
     /// <summary>Gets whether the bake has finished, however it finished.</summary>
@@ -59,19 +55,7 @@ public sealed class LightmapBake
     /// <param name="logger">Where to report the bake's duration.</param>
     /// <returns>A handle to poll with <see cref="TryCollect"/>.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public static LightmapBake Start(
-        WorldScene scene,
-        IReadOnlyList<LightmapTarget> targets,
-        LightmapTriangle[] triangles,
-        LightmapBvh bvh,
-        WorldRayCast cast,
-        Vector3f sunDirection,
-        Vector3f sunColour,
-        Vector3f skyColour,
-        IWorkScheduler work,
-        int bounces = 4,
-        int hemisphereRays = 64,
-        IProjectIGILogger? logger = null)
+    public static LightmapBake Start(WorldScene scene, IReadOnlyList<LightmapTarget> targets, LightmapTriangle[] triangles, LightmapBvh bvh, WorldRayCast cast, Vector3f sunDirection, Vector3f sunColour, Vector3f skyColour, IWorkScheduler work, int bounces = 4, int hemisphereRays = 64)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(targets);
@@ -80,7 +64,6 @@ public sealed class LightmapBake
         ArgumentNullException.ThrowIfNull(cast);
         ArgumentNullException.ThrowIfNull(work);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         CancellationTokenSource cancellation = new();
         CancellationToken token = cancellation.Token;
 
@@ -91,21 +74,7 @@ public sealed class LightmapBake
     }
 
     /// <summary>The bake's phases, a slice at a time.</summary>
-    private static IEnumerable<bool> Bake(
-        WorldScene scene,
-        IReadOnlyList<LightmapTarget> targets,
-        LightmapTriangle[] triangles,
-        LightmapBvh bvh,
-        WorldRayCast cast,
-        Vector3f sunDirection,
-        Vector3f sunColour,
-        Vector3f skyColour,
-        int bounces,
-        int hemisphereRays,
-        IWorkScheduler work,
-        IProjectIGILogger log,
-        Action<BakedLightmaps?> done,
-        CancellationToken token)
+    private static IEnumerable<bool> Bake(WorldScene scene, IReadOnlyList<LightmapTarget> targets, LightmapTriangle[] triangles, LightmapBvh bvh, WorldRayCast cast, Vector3f sunDirection, Vector3f sunColour, Vector3f skyColour, int bounces, int hemisphereRays, IWorkScheduler work, Action<BakedLightmaps?> done, CancellationToken token)
     {
         long startedAt = Stopwatch.GetTimestamp();
 
@@ -143,10 +112,6 @@ public sealed class LightmapBake
         BakedLightmaps baked = BakedLightmaps.Compose(scene, targets);
 
         double seconds = Stopwatch.GetElapsedTime(startedAt).TotalSeconds;
-        log.Information(
-            LogCategory,
-            FormattableString.Invariant(
-                $"Lightmap bake took {seconds:0.00} s over {baked.ObjectCount} object(s); it swaps in from the next frame."));
 
         done(baked);
     }
@@ -170,7 +135,6 @@ public sealed class LightmapBake
         // cancelled one -- quitting, or changing level -- is simply never collected.
         if (_job.Failure is { } failure)
         {
-            _log.Error(LogCategory, $"The lightmap bake failed and the shipped lightmaps stay: {failure.Message}", failure);
         }
 
         baked = _job.Result;

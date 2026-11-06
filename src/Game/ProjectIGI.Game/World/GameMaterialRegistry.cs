@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Scripting.Qvm;
 using ProjectIGI.Scripting.Runtime;
@@ -50,12 +49,11 @@ public sealed class GameMaterialRegistry
     public const int BulletSoundCount = 6;
 
     private readonly Dictionary<int, GameMaterial> _byIndex = [];
-    private readonly IProjectIGILogger _logger;
     private int _active;
 
     /// <summary>Initializes a new instance of the <see cref="GameMaterialRegistry"/> class.</summary>
     /// <param name="logger">Where to report a row that cannot be read.</param>
-    public GameMaterialRegistry(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public GameMaterialRegistry() { }
 
     /// <summary>Gets the materials, keyed by the row they occupy.</summary>
     public IReadOnlyDictionary<int, GameMaterial> ByIndex => _byIndex;
@@ -106,7 +104,6 @@ public sealed class GameMaterialRegistry
 
         if (!resources.TryLoad(ScriptResource, out ReadOnlyMemory<byte> bytes))
         {
-            _logger.Warning("Material", $"No material table at {ScriptResource}; no surface leaves a mark.");
             return 0;
         }
 

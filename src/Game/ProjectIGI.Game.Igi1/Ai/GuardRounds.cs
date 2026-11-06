@@ -1,5 +1,4 @@
 using ProjectIGI.Game.Hosting;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Game.Igi1.Player;
@@ -27,7 +26,6 @@ public sealed class GuardRounds
     private readonly Igi1HumanSounds _sounds;
     private readonly Igi1ImpactEffects _impacts;
     private readonly IGuardRoundHost _host;
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="GuardRounds"/> class.</summary>
     /// <param name="soldiers">The soldiers, who fire the rounds and may take the ones that pass the player.</param>
@@ -39,16 +37,7 @@ public sealed class GuardRounds
     /// <param name="impacts">The material's own effects where a marched round lands.</param>
     /// <param name="host">The burst of the hits.</param>
     /// <param name="logger">Told about every hit on the player.</param>
-    public GuardRounds(
-        SoldierSimulation soldiers,
-        WorldTraceCast trace,
-        MissionWorld mission,
-        Igi1PlayerHarm harm,
-        Igi1Blasts blasts,
-        Igi1HumanSounds sounds,
-        Igi1ImpactEffects impacts,
-        IGuardRoundHost host,
-        IProjectIGILogger logger)
+    public GuardRounds(SoldierSimulation soldiers, WorldTraceCast trace, MissionWorld mission, Igi1PlayerHarm harm, Igi1Blasts blasts, Igi1HumanSounds sounds, Igi1ImpactEffects impacts, IGuardRoundHost host)
     {
         _impacts = impacts ?? throw new ArgumentNullException(nameof(impacts));
         _mission = mission ?? throw new ArgumentNullException(nameof(mission));
@@ -58,7 +47,6 @@ public sealed class GuardRounds
         _soldiers = soldiers ?? throw new ArgumentNullException(nameof(soldiers));
         _trace = trace ?? throw new ArgumentNullException(nameof(trace));
         _host = host ?? throw new ArgumentNullException(nameof(host));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>Gets how many rounds the guards have fired this mission.</summary>
@@ -340,10 +328,6 @@ public sealed class GuardRounds
         {
             OfferNearMiss(worldHit.Position);
             MarkTheImpact();
-            _logger.Debug(
-                "Weapon",
-                $"Guard round blocked by {blocker.Kind} '{blocker.Label}' at "
-                    + $"{blocker.Fraction:P1} before the player body.");
             return;
         }
 
@@ -473,18 +457,9 @@ public sealed class GuardRounds
             _mission.PlayerEvents?.TakeRound(round);
         }
 
-        _logger.Information(
-            "Weapon",
-            $"A guard's {weapon.ScriptId} hit the player in the {HumanDamage.ZoneName(struck.Zone)} "
-                + $"({HitsOnPlayer} of {Fired} round(s); "
-                + $"{health.RemainingFraction:P0} left).");
 
         if (health.IsDead)
         {
-            _logger.Information(
-                "Weapon",
-                $"The player is DEAD after {HitsOnPlayer} hit(s) from {Fired} round(s), "
-                    + $"struck in zone {struck.Zone}; the death camera has pulled back.");
         }
 
         return health.IsDead;

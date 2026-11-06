@@ -57,15 +57,13 @@ public sealed class VirtualFileSystem
     /// <summary>The alias bound to the menu system directory.</summary>
     public const string MenuSystemAlias = "MENUSYS:";
 
-    private const string LogCategory = "Vfs";
 
     private readonly Dictionary<string, IFileDevice> _devices = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<AliasBinding> _aliases = [];
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="VirtualFileSystem"/> class.</summary>
     /// <param name="logger">The logger for mount and rebind diagnostics; defaults to a sink that discards them.</param>
-    public VirtualFileSystem(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public VirtualFileSystem() { }
 
     /// <summary>Gets or sets the files that stand in for the devices' own, or <see langword="null"/> for none.</summary>
     /// <remarks>
@@ -104,7 +102,6 @@ public sealed class VirtualFileSystem
     {
         ArgumentNullException.ThrowIfNull(device);
         _devices[device.Name] = device;
-        _logger.Information(LogCategory, $"Registered device '{device.Name}:'.");
     }
 
     /// <summary>Binds an alias to a target, replacing any previous binding of the same name.</summary>
@@ -151,7 +148,6 @@ public sealed class VirtualFileSystem
 
         RemoveAlias(name);
         _aliases.Add(new AliasBinding(name, variants));
-        _logger.Information(LogCategory, $"Bound alias '{name}' to '{string.Join(';', variants)}'.");
     }
 
     /// <summary>Removes an alias binding.</summary>

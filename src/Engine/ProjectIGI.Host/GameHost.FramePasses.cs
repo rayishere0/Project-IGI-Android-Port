@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Engine.Time;
 using ProjectIGI.Frontend;
@@ -25,14 +24,13 @@ public sealed partial class GameHost
         // The outgoing title's sweep stops with it, and the new title's missions are swept once its
         // first backdrop is up.
         state.MissionWarmer?.Dispose();
-        state.MissionWarmer = new MissionWarmer(_gamePath, _missions, _logger, _work);
+        state.MissionWarmer = new MissionWarmer(_gamePath, _missions, _work);
         _menuFlow.MissionsSwept = false;
 
         // Closed rather than dropped: it owns a worker that may be part way through building the
         // outgoing game's backdrop, and the replacement below would otherwise race it.
         state.PreviewLoader?.Dispose();
-        state.PreviewLoader = new MissionPreviewLoader(
-            _gamePath, _missions, _mission.MagicObjects, _baked.ProbeCache, _menuCameras, _previewContext, _logger, _work);
+        state.PreviewLoader = new MissionPreviewLoader(_gamePath, _missions, _mission.MagicObjects, _baked.ProbeCache, _menuCameras, _previewContext, _work);
 
         if (state.ShellHost is not null && state.ShellTypography is not null && state.Saves is not null)
         {
@@ -264,7 +262,6 @@ public sealed partial class GameHost
                     // Nothing to promote. Rather than hold forever, let the shot finish and land on
                     // whatever the view already is.
                     _entry.NotifyPromoted();
-                    _logger.Warning("Menu", "The mission-entry shot had no backdrop left to promote.");
                 }
             }
 
@@ -318,7 +315,6 @@ public sealed partial class GameHost
                 // The eye is drawn between its last two ticks, and it has just been somewhere else
                 // entirely; without dropping the pair the first gameplay frame interpolates across
                 // the whole descent.
-                _logger.Information("Menu", "The mission-entry shot has handed over.");
             }
         }
     }
@@ -352,7 +348,6 @@ public sealed partial class GameHost
                 _missionCycleLeg = leg;
                 if (_session.Mission is { } cycling)
                 {
-                    _logger.Information("Mission", $"-missioncycle: abandoning {cycling.Id}.");
                     _missionCycleMission = cycling.Id;
                     ReleasePlayedMission();
                     state.Shell.ClosePauseMenu();
@@ -363,7 +358,6 @@ public sealed partial class GameHost
                 }
                 else if (_missionCycleMission > 0)
                 {
-                    _logger.Information("Mission", $"-missioncycle: playing {_missionCycleMission} again.");
                     state.Shell.ClosePauseMenu();
                     _menuFlow.MenuMode = false;
                     _menuFlow.PauseMenu = false;
@@ -410,7 +404,6 @@ public sealed partial class GameHost
             // The eye is drawn between its last two ticks and neither of them moves again until the
             // menu closes, so the pair is dropped: without this the frozen picture rocked back and
             // forth between two positions a tick apart as the blend swept on.
-            _logger.Information("Menu", "Paused.");
         }
     }
 
@@ -450,7 +443,6 @@ public sealed partial class GameHost
             state.Shell.OpenPauseMenu();
             HostedPlayer?.HoldStill();
             _window.CursorLocked = false;
-            _logger.Information("Menu", "Paused (background).");
         }
 
         IsTextFieldFocused = false;
@@ -472,7 +464,6 @@ public sealed partial class GameHost
                 }
 
                 _deferredCommandsFired.Add(i);
-                _logger.Information("Console", $"-runat {frame}: {statement}");
                 state.Console.System.Execute(statement, echo: true);
             }
         }
@@ -740,7 +731,6 @@ public sealed partial class GameHost
                     ? FormattableString.Invariant($"mission-{missionId:00}-scene-{activeCutscene.Id}-tick-{activeCutscene.Ticks:000000}.bmp")
                     : FormattableString.Invariant($"mission-{missionId:00}-scene-{activeCutscene.Id}-tick-{activeCutscene.Ticks:000000}-frame-{_loop.Clock.FrameCount:000000}.bmp"));
             BitmapWriter.Write(path, _window.Width, _window.Height, capture);
-            _logger.Information("CutsceneCapture", $"Wrote {path}.");
             state.CutsceneCaptureTick += state.CutsceneCaptureEvery;
             state.CutsceneCaptureCount++;
         }
@@ -755,13 +745,9 @@ public sealed partial class GameHost
                 Bgra32[] capture = new Bgra32[_window.Width * _window.Height];
                 _device.CaptureFrame(_window.Width, _window.Height, capture);
                 BitmapWriter.Write(screenshotPath, _window.Width, _window.Height, capture);
-                _logger.Information("Desktop", $"Wrote {_window.Width}x{_window.Height} capture to {screenshotPath}.");
             }
             else if (_options.HasFlight)
             {
-                _logger.Information(
-                    "Desktop",
-                    $"Wrote {state.FlightFrame} flight frame(s) at {_window.Width}x{_window.Height} beside {_options.ScreenshotPath}.");
             }
 
             if (_options.LightingDumpPath is { } lightingDumpPath)
@@ -769,7 +755,6 @@ public sealed partial class GameHost
                 WriteLightingDump(lightingDumpPath);
             }
 
-            _soldiers?.LogAiSummary();
             state.Running = false;
         }
     }

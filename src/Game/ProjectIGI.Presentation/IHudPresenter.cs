@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -225,7 +224,7 @@ public interface IRemasteredHudPresenter : IDisposable
 /// <summary>What a title needs in order to build its heads-up display.</summary>
 /// <param name="Device">The graphics device to upload through.</param>
 /// <param name="Logger">Where load diagnostics go.</param>
-public readonly record struct HudPresentationRequest(IGraphicsDevice Device, IProjectIGILogger Logger);
+public readonly record struct HudPresentationRequest(IGraphicsDevice Device);
 
 /// <summary>Everything the remaster HUD needs for one draw, collected without mutable renderer state.</summary>
 /// <remarks>

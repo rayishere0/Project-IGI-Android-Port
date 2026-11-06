@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 
 namespace ProjectIGI.Rendering.Pipeline;
 
@@ -19,8 +18,6 @@ namespace ProjectIGI.Rendering.Pipeline;
 /// </remarks>
 public sealed partial class GraphicsDevice
 {
-    private readonly IProjectIGILogger? _logger;
-    private readonly Dictionary<string, string> _reported = new(StringComparer.Ordinal);
 
     // How the panes that reached the forward pass this frame reflected, for the glazing's line.
     private string _glazingReflection = "not reflecting";
@@ -30,14 +27,7 @@ public sealed partial class GraphicsDevice
     /// <param name="state">What is now true of it.</param>
     private void ReportOnChange(string subject, string state)
     {
-        if (_logger is not { } logger
-            || (_reported.TryGetValue(subject, out string? last) && string.Equals(last, state, StringComparison.Ordinal)))
-        {
-            return;
-        }
-
-        _reported[subject] = state;
-        logger.Information("Renderer", $"{subject}: {state}.");
+        // Logging is removed: status changes are no longer reported anywhere.
     }
 
     /// <summary>Says whether the scene's reflections trace, and when they do not, which gate stopped them.</summary>

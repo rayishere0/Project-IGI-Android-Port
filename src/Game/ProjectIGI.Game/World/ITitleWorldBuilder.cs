@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Engine.Tasks;
 
@@ -21,7 +20,6 @@ public readonly record struct WorldBuildRequest(
     GameTask LevelRoot,
     ResourceRegistry Resources,
     MagicObjectRegistry? Magic,
-    IProjectIGILogger Logger,
 
     // The registry a walk reads a vehicle's mass and contact points from. Nullable because a title
     // without driveable vehicles has none to read, and the walk treats absent as "no vehicle here".

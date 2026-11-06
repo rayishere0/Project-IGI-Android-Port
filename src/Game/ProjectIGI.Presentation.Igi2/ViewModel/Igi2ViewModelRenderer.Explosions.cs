@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Formats.World;
@@ -47,7 +46,6 @@ public sealed partial class Igi2ViewModelRenderer
         if (_models!(ExplosionFireBall.Model) is not { } model
             || MefMeshBuilder.Build(model, (float)(1.0 / WorldScene.UnitsPerMetre)) is not { } geometry)
         {
-            _logger.Warning(LogCategory, $"The level holds no '{ExplosionFireBall.Model}'; its explosions are drawn without fire.");
             return;
         }
 
@@ -63,7 +61,6 @@ public sealed partial class Igi2ViewModelRenderer
             first,
             name => _textures!.Resolve(Igi2ModelTable.TextureResourceName(name)));
         _ = explosions.UseFireBall(geometry, frames, RetailExplosionEffects.BlendOf(model));
-        _logger.Information(LogCategory, $"FireBall '{ExplosionFireBall.Model}': {frames.Length} frame(s).");
     }
 
     private void ReleaseExplosions()

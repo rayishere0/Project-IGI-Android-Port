@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Game.Ai;
@@ -67,9 +66,6 @@ internal sealed class GuardGeneratorSpawner(SoldierContext context, SoldierSight
 
             if (view is null)
             {
-                _context.Logger.Warning(
-                    SoldierContext.LogCategory,
-                    $"{generator.Name} has no resolved HumanSoldier child; its authored spawn cannot run.");
                 continue;
             }
 
@@ -78,9 +74,6 @@ internal sealed class GuardGeneratorSpawner(SoldierContext context, SoldierSight
 
         if (GuardGenerators.Count > 0)
         {
-            _context.Logger.Information(
-                SoldierContext.LogCategory,
-                $"{GuardGenerators.Count} GuardGenerator(s) own bounded authored soldier templates.");
         }
     }
 
@@ -159,7 +152,6 @@ internal sealed class GuardGeneratorSpawner(SoldierContext context, SoldierSight
     {
         if (!_context.Brains.TryGetValue(deadView, out Igi1HumanAi? deadBrain))
         {
-            _context.Logger.Warning(SoldierContext.LogCategory, $"{generator.Name} could not clone its missing rendered Human subtree.");
             return null;
         }
 
@@ -217,10 +209,6 @@ internal sealed class GuardGeneratorSpawner(SoldierContext context, SoldierSight
         _context.Combat.Remove(deadView);
         _context.DetectorMarkerScaleMetres.Remove(deadView);
 
-        _context.Logger.Information(
-            SoldierContext.LogCategory,
-            $"{generator.Name} spawned {generator.SpawnCount}/{generator.MaxSpawns}: "
-                + $"{freshView.Soldier.Name} cloned at its authored position.");
         return freshView;
     }
 }

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Formats.Animation;
 using ProjectIGI.Formats.World;
 using ProjectIGI.Game.Igi1.Physics;
@@ -61,7 +60,6 @@ internal sealed class SoldierRagdolls(SoldierContext context)
         {
             // A rig the solver cannot use is not fatal: the retail death clip is still playing
             // underneath, so the body falls the way it always did and only the remaster is skipped.
-            _context.Logger.Warning(SoldierContext.LogCategory, $"Skeleton {set.Skeleton.Id} cannot drive a ragdoll: {ex.Message}");
             return null;
         }
 

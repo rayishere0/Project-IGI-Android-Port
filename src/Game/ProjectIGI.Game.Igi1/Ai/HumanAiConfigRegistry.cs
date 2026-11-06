@@ -40,21 +40,18 @@ public sealed class HumanAiConfigRegistry
     /// <summary>How many difficulties the table is deep.</summary>
     public const int DifficultyCount = 3;
 
-    private const string LogCategory = "Ai";
 
     private static readonly string[] DifficultyNames = ["GD_1", "GD_2", "GD_3"];
 
     private readonly HumanAiConfigItemTask?[] _declared = new HumanAiConfigItemTask?[AiTypeCount * DifficultyCount];
     private readonly HumanAiConfigItemTask[] _rows = new HumanAiConfigItemTask[AiTypeCount * DifficultyCount];
     private readonly AiCombatParameters[] _resolved = new AiCombatParameters[AiTypeCount * DifficultyCount];
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="HumanAiConfigRegistry"/> class.</summary>
     /// <param name="logger">The logger for load diagnostics; defaults to a sink that discards them.</param>
     /// <remarks>The table starts complete, filled with the engine's own default rows.</remarks>
-    public HumanAiConfigRegistry(IProjectIGILogger? logger = null)
+    public HumanAiConfigRegistry()
     {
-        _logger = logger ?? NullLogger.Instance;
         FillGaps();
     }
 
@@ -140,9 +137,6 @@ public sealed class HumanAiConfigRegistry
         Collect(tree.Root);
         FillGaps();
 
-        _logger.Information(
-            LogCategory,
-            $"Registered {DeclaredRowCount} AI configuration row(s); {DefaultedRowCount} defaulted.");
 
         return DeclaredRowCount;
     }

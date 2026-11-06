@@ -64,17 +64,8 @@ namespace ProjectIGI.Host.Menu;
 /// Where a backdrop is built: beside the menu where the platform can, and inline -- a stall on the frame
 /// that asks -- where it cannot.
 /// </param>
-public sealed class MissionPreviewLoader(
-    string gamePath,
-    IMissionCatalogue<MissionDescriptor> missions,
-    MagicObjectRegistry? magic,
-    GiBakeCache probeFields,
-    MenuCameraLibrary cameras,
-    MissionPreviewContext context,
-    IProjectIGILogger logger,
-    IWorkScheduler work) : IDisposable
+public sealed class MissionPreviewLoader(string gamePath, IMissionCatalogue<MissionDescriptor> missions, MagicObjectRegistry? magic, GiBakeCache probeFields, MenuCameraLibrary cameras, MissionPreviewContext context, IWorkScheduler work) : IDisposable
 {
-    private const string LogCategory = "Preview";
 
     /// <summary>How many places in a mission the backdrop cycles between.</summary>
     /// <remarks>
@@ -189,7 +180,6 @@ public sealed class MissionPreviewLoader(
         {
             // A backdrop that cannot be built is not a reason to take the menu down with it; the shell
             // keeps showing whatever level is already up.
-            logger.Warning(LogCategory, $"Mission {missionId} could not be previewed: {ex.Message}");
         }
 
         int next;
@@ -210,7 +200,6 @@ public sealed class MissionPreviewLoader(
             else if (built is not null)
             {
                 built.PendingDistanceField?.Cancel();
-                logger.Debug(LogCategory, $"Mission {missionId}'s backdrop finished after the selection moved on; dropped.");
             }
 
             next = _wanted != missionId && _wanted >= 0 ? _wanted : -1;
@@ -246,9 +235,9 @@ public sealed class MissionPreviewLoader(
         // measured time from its own origin would make every elapsed reading in the frame loop jump at
         // the moment of the swap. None of the three is called here; the loop's constructor only stores
         // them, and a preview that is never promoted is still never advanced.
-        var fileSystem = new VirtualFileSystem(logger);
+        var fileSystem = new VirtualFileSystem();
         fileSystem.RegisterDevice(new LocalFileDevice(gamePath));
-        var resources = new ResourceRegistry(fileSystem, logger);
+        var resources = new ResourceRegistry(fileSystem);
 
         // Before a single Register call, because registering an archive substitutes its entries on the
         // way in and a store attached afterwards would have missed every one of them. This is also the
@@ -256,12 +245,7 @@ public sealed class MissionPreviewLoader(
         // to the game wholesale -- so a registry built without it plays the mission from the game's own
         // archives no matter what is in the folder.
         resources.Overrides = context.Overrides;
-        var loop = new GameLoop(
-            time: context.TimeSource,
-            host: context.Host,
-            renderer: context.Scheduler,
-            logger: logger,
-            structuralTypes: context.StructuralTaskTypes);
+        var loop = new GameLoop(time: context.TimeSource, host: context.Host, renderer: context.Scheduler, structuralTypes: context.StructuralTaskTypes);
 
         // The archives that belong to the session rather than to this level. Registered from bytes the
         // composition root read at start-up: once promoted, this registry is the one the menus, the
@@ -276,14 +260,7 @@ public sealed class MissionPreviewLoader(
         // entry. loadTables is false because a preview does not play the mission: it needs every type
         // registered so the tree comes out properly typed rather than as untyped placeholders, and it
         // reads the tables the playing session already loaded through `inherited`.
-        TitleSession.Start(
-            context.TitleModules,
-            loop,
-            fileSystem,
-            resources,
-            logger,
-            loadTables: false,
-            inherited: context.TitleServices);
+        TitleSession.Start(context.TitleModules, loop, fileSystem, resources, loadTables: false, inherited: context.TitleServices);
 
         // The two natives the composition root installs at boot and a look-only preview never needed.
         // DefineMission's table is already scanned and lives on the shared registry, so this is the hook
@@ -292,16 +269,15 @@ public sealed class MissionPreviewLoader(
         context.MissionState.Register(loop.Natives);
 
         var levelRoot = (LevelTask)loop.Tasks.New(loop.Tasks.Root, loop.Types.Get(EngineTaskTypes.Level));
-        var levelLoader = new LevelLoader(levelRoot, loop.TaskCommands, loop.Natives, resources, logger);
-        var terrainLoader = new TerrainLoader(resources, loop.Natives, logger);
-        var missionLoader = new MissionLoader(
-            missions, fileSystem, resources, levelLoader, logger, terrainLoader, soundBank: null, context.Formats);
+        var levelLoader = new LevelLoader(levelRoot, loop.TaskCommands, loop.Natives, resources);
+        var terrainLoader = new TerrainLoader(resources, loop.Natives);
+        var missionLoader = new MissionLoader(missions, fileSystem, resources, levelLoader, terrainLoader, soundBank: null, context.Formats);
 
         LoadedMission loaded = missionLoader.Load(missionId);
 
         // The same gate the played mission runs, so a preview does not show the intro and outro actors the
         // original leaves unregistered.
-        new ConditionalContainerGate(loop.Variables, logger).Prepare(levelRoot);
+        new ConditionalContainerGate(loop.Variables).Prepare(levelRoot);
 
         // The ground tiles' derived detail maps, started here and collected at the very end. They need only
         // the terrain, which the load has just produced, so they run alongside everything below rather than
@@ -322,12 +298,12 @@ public sealed class MissionPreviewLoader(
         // and without the table its cars have no wreck to become.
         context.TitleServices.TryGet(out VehiclePhysicsRegistry? vehiclePhysics);
         WorldBuildResult built = context.WorldBuilder.Build(
-            new WorldBuildRequest(loaded, levelRoot, resources, magic, logger, vehiclePhysics));
+            new WorldBuildRequest(loaded, levelRoot, resources, magic, vehiclePhysics));
         WorldScene scene = built.Scene;
         ObjectCollisionIndex solids = built.Solids ?? ObjectCollisionIndex.Build([]);
 
         TerrainSurface? surface = loaded.Terrain is { IsUsable: true } usable
-            ? TerrainSurface.Build(usable, levelRoot, logger)
+            ? TerrainSurface.Build(usable, levelRoot)
             : null;
 
         // The places the backdrop will circle. Derived from the level rather than authored, so every mission
@@ -337,7 +313,7 @@ public sealed class MissionPreviewLoader(
         IReadOnlyList<ShowcasePoint> pointsOfInterest =
             !forceDerivedPoints && cameras.PointsFor(missionId, context.TitleId) is { Count: > 0 } authored
                 ? authored
-                : MissionShowcasePoints.Extract(scene, levelRoot, ShowcasePointCount, cameras.For(missionId, context.TitleId), logger);
+                : MissionShowcasePoints.Extract(scene, levelRoot, ShowcasePointCount, cameras.For(missionId, context.TitleId));
 
         DirectionalLightSettings? sun =
             DirectionalLightSettings.TryRead(levelRoot, out DirectionalLightSettings read) ? read : null;
@@ -355,8 +331,7 @@ public sealed class MissionPreviewLoader(
         // to about 140 ms -- and it is half of what makes a backdrop look like the mission: a lamplit
         // interior previewed with its lamps out is simply a different, darker picture.
         EmissiveLightProposer.Proposal lamps = LocalLightCVars.GlobalIlluminationLamps.Value != 0
-            ? EmissiveLightProposer.Propose(
-                scene, resources, context.Lamps, missionId, context.TitleId, logger)
+            ? EmissiveLightProposer.Propose(scene, resources, context.Lamps, missionId, context.TitleId)
             : EmissiveLightProposer.Proposal.None;
 
         // The other half: the distance field the real-time lighting traces against. Cached, it is a file
@@ -374,10 +349,7 @@ public sealed class MissionPreviewLoader(
             distanceField = context.DistanceFields.TryLoad(missionId, fieldResolution);
             if (distanceField is null)
             {
-                pendingField = DistanceFieldBake.Start(scene.Placements, work, fieldResolution, logger);
-                logger.Information(
-                    LogCategory,
-                    $"Mission {missionId} has no cached distance field; baking one at {fieldResolution} voxels behind the menu.");
+                pendingField = DistanceFieldBake.Start(scene.Placements, work, fieldResolution);
             }
         }
 
@@ -404,12 +376,8 @@ public sealed class MissionPreviewLoader(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.Warning(LogCategory, $"The backdrop's textures did not all decode ahead: {ex.Message}");
         }
 
-        logger.Information(
-            LogCategory,
-            $"Built the backdrop for mission {missionId} in {clock.ElapsedMilliseconds} ms off the render thread.");
 
         return new MissionPreview(
             missionId,

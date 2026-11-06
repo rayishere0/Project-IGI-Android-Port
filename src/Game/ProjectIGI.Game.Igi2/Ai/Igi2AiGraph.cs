@@ -1,5 +1,4 @@
 using System.Globalization;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Engine.Tasks;
@@ -470,7 +469,6 @@ public sealed partial class Igi2AiGraphTask : Igi2Task
 /// <summary>A level's AI graphs, read when the level is.</summary>
 public sealed class Igi2AiGraphs
 {
-    private const string LogCategory = "AI";
 
     private readonly Dictionary<int, Igi2AiGraph> _graphs;
 
@@ -501,13 +499,12 @@ public sealed class Igi2AiGraphs
     /// <param name="logger">Where load diagnostics go.</param>
     /// <returns>The graphs.</returns>
     /// <remarks>Retail aborts on a missing file (<c>Graph_ParseGraphStream</c>, <c>igi2 0x59B4B0</c>); here the graph is left out and logged.</remarks>
-    public static Igi2AiGraphs Build(GameTask levelRoot, ResourceRegistry resources, NativeRegistry natives, Igi2ScriptFunctions functions, IProjectIGILogger? logger = null)
+    public static Igi2AiGraphs Build(GameTask levelRoot, ResourceRegistry resources, NativeRegistry natives, Igi2ScriptFunctions functions)
     {
         ArgumentNullException.ThrowIfNull(levelRoot);
         ArgumentNullException.ThrowIfNull(resources);
         ArgumentNullException.ThrowIfNull(natives);
         ArgumentNullException.ThrowIfNull(functions);
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         Dictionary<int, Igi2AiGraph> graphs = [];
         foreach (GameTask task in levelRoot.Descendants())
         {
@@ -519,7 +516,6 @@ public sealed class Igi2AiGraphs
             string resource = Igi2AiGraphTask.ResourceNameFor(task.Id);
             if (!resources.TryLoad(resource, out ReadOnlyMemory<byte> bytes))
             {
-                log.Warning(LogCategory, $"AIGraph {task.Id} has no '{resource}'.");
                 continue;
             }
 

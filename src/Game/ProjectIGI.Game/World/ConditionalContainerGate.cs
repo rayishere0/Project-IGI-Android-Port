@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Game.Ai;
 using ProjectIGI.Scripting.Expressions;
@@ -24,10 +23,8 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public sealed class ConditionalContainerGate
 {
-    private const string LogCategory = "Level";
 
     private readonly VariablesContext _context;
-    private readonly IProjectIGILogger _logger;
 
     // Each condition is compiled once per owner: this. names the container the condition belongs to.
     private readonly Dictionary<(string Condition, ConditionalContainerTask Owner), LevelExpression> _expressions = [];
@@ -55,11 +52,10 @@ public sealed class ConditionalContainerGate
     /// <param name="variables">The level's exported script variables, which the conditions read.</param>
     /// <param name="logger">Where to report a condition that would not parse; defaults to a sink.</param>
     /// <exception cref="ArgumentNullException"><paramref name="variables"/> is <see langword="null"/>.</exception>
-    public ConditionalContainerGate(ScriptVarRegistry variables, IProjectIGILogger? logger = null)
+    public ConditionalContainerGate(ScriptVarRegistry variables)
     {
         ArgumentNullException.ThrowIfNull(variables);
         _context = new VariablesContext(variables);
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>
@@ -135,10 +131,6 @@ public sealed class ConditionalContainerGate
 
         if (containers.Count > 0)
         {
-            _logger.Information(
-                LogCategory,
-                $"{containers.Count} conditional container(s); {dormant} dormant (their subtrees are not "
-                    + "registered, as the original leaves cut-scene actors until their scene runs).");
         }
 
         return dormant;
@@ -174,9 +166,6 @@ public sealed class ConditionalContainerGate
             _expressions[(condition, container)] = expression;
             if (expression.IsEmpty)
             {
-                _logger.Warning(
-                    LogCategory,
-                    $"Conditional container condition '{condition}' did not parse; treating it as running.");
             }
         }
 

@@ -1,5 +1,4 @@
 using System.Globalization;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Formats.Ai;
@@ -25,14 +24,9 @@ public static class NavGraphs
     /// </param>
     /// <returns>The graphs by their task's id, in world space.</returns>
     /// <exception cref="IOException">The directory or a graph could not be read.</exception>
-    public static Dictionary<int, GraphFile> Read(
-        string directory,
-        LevelTask levelRoot,
-        IProjectIGILogger logger,
-        IReadOnlyList<WorldPlacement>? placements = null)
+    public static Dictionary<int, GraphFile> Read(string directory, LevelTask levelRoot, IReadOnlyList<WorldPlacement>? placements = null)
     {
         ArgumentNullException.ThrowIfNull(levelRoot);
-        ArgumentNullException.ThrowIfNull(logger);
         Dictionary<int, GraphFile> graphs = [];
         if (!Directory.Exists(directory))
         {
@@ -59,7 +53,6 @@ public static class NavGraphs
             }
             catch (GraphFormatException ex)
             {
-                logger.Warning("Ai", $"Nav graph '{stem}' did not parse: {ex.Message}");
             }
         }
 

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
 using ProjectIGI.Presentation;
@@ -45,14 +44,12 @@ public readonly record struct Igi2WaterLight(Vector3f SunDirection, Vector3f Sun
 public sealed class Igi2WaterPresenter : IWaterPresenter
 {
     /// <summary>The category load diagnostics are logged under.</summary>
-    public const string LogCategory = "igi2.water";
 
     // A sheet's mesh is refilled every frame, so it is three: one being written while the device may still be
     // drawing the two before it.
     private const int MeshRing = 3;
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly Func<int, int>? _envmapSlot;
     private readonly Func<double, double, double?>? _ground;
     private readonly Igi2WaterLight _light;
@@ -69,27 +66,16 @@ public sealed class Igi2WaterPresenter : IWaterPresenter
     /// <param name="ground">The ground's height under a world point, in world units, as the water's depth reads it; none for no ground.</param>
     /// <param name="light">The level's sun and ambient.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public Igi2WaterPresenter(
-        IGraphicsDevice device,
-        Igi2WaterSurface surface,
-        Func<Igi2WaterSheet, IReadOnlyList<TextureHandle>>? cubes = null,
-        IProjectIGILogger? logger = null,
-        Func<int, int>? envmapSlot = null,
-        Func<double, double, double?>? ground = null,
-        Igi2WaterLight light = default)
+    public Igi2WaterPresenter(IGraphicsDevice device, Igi2WaterSurface surface, Func<Igi2WaterSheet, IReadOnlyList<TextureHandle>>? cubes = null, Func<int, int>? envmapSlot = null, Func<double, double, double?>? ground = null, Igi2WaterLight light = default)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(surface);
 
         _device = device;
-        _logger = logger ?? NullLogger.Instance;
         _envmapSlot = envmapSlot;
         _ground = ground;
         _light = light;
         _sheets = [.. surface.Sheets.Select(sheet => new Sheet(sheet, Igi2WaterWaveField.For(sheet), cubes?.Invoke(sheet) ?? []))];
-        _logger.Information(
-            LogCategory,
-            $"Water: {_sheets.Length} sheet(s), {_sheets.Count(static s => s.Cube.IsValid)} reflecting a baked cube.");
     }
 
     /// <inheritdoc/>
@@ -171,7 +157,6 @@ public sealed class Igi2WaterPresenter : IWaterPresenter
         }
         catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException)
         {
-            _logger.Warning(LogCategory, $"A water sheet did not upload: {ex.Message}");
             return;
         }
 

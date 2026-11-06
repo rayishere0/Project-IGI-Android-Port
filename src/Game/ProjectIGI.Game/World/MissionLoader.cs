@@ -29,7 +29,6 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public sealed class MissionLoader
 {
-    private const string LogCategory = "Mission";
 
     /// <summary>The resource search directory the original falls back to for shared content.</summary>
     public const string CommonSearchDirectory = "LOCAL:common/";
@@ -61,7 +60,6 @@ public sealed class MissionLoader
     private readonly LevelLoader _levelLoader;
     private readonly TerrainLoader? _terrainLoader;
     private readonly SoundBank? _soundBank;
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="MissionLoader"/> class.</summary>
     /// <param name="registry">The mission table, already scanned.</param>
@@ -80,15 +78,7 @@ public sealed class MissionLoader
     /// terrain loader is: a caller with no audio still loads missions, and says what it went without.
     /// </param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public MissionLoader(
-        IMissionCatalogue<MissionDescriptor> registry,
-        VirtualFileSystem fileSystem,
-        ResourceRegistry resources,
-        LevelLoader levelLoader,
-        IProjectIGILogger? logger = null,
-        TerrainLoader? terrainLoader = null,
-        SoundBank? soundBank = null,
-        AssetFormatProfile? formats = null)
+    public MissionLoader(IMissionCatalogue<MissionDescriptor> registry, VirtualFileSystem fileSystem, ResourceRegistry resources, LevelLoader levelLoader, TerrainLoader? terrainLoader = null, SoundBank? soundBank = null, AssetFormatProfile? formats = null)
     {
         ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(fileSystem);
@@ -102,7 +92,6 @@ public sealed class MissionLoader
         _levelLoader = levelLoader;
         _terrainLoader = terrainLoader;
         _soundBank = soundBank;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Loads a mission by id.</summary>
@@ -124,7 +113,6 @@ public sealed class MissionLoader
             throw new EngineFatalException($"The mission ID {missionId} does not exist.");
         }
 
-        _logger.Information(LogCategory, $"Loading {descriptor}.");
 
         // 2. Bind MISSION: before anything resolves a path through it.
         _fileSystem.SetAlias(VirtualFileSystem.MissionAlias, descriptor.MissionAliasTarget);
@@ -162,7 +150,7 @@ public sealed class MissionLoader
         List<LoadedPack> packs = [];
         foreach (PackReference reference in descriptor.PacksToOpen)
         {
-            packs.Add(LoadedPack.Open(reference.Directory, reference.Name, _resources, _logger, _formats));
+            packs.Add(LoadedPack.Open(reference.Directory, reference.Name, _resources, _formats));
         }
 
         LoadedPack common = packs[0];
@@ -191,12 +179,10 @@ public sealed class MissionLoader
         }
         else
         {
-            _logger.Information(LogCategory, $"{graphFiles.Count} AI navigation graph file(s) present.");
         }
 
         if (pending.Count > 0)
         {
-            _logger.Warning(LogCategory, $"Mission {descriptor.Id} loaded without: {string.Join(", ", pending)}.");
         }
 
         return new LoadedMission(descriptor, common, level, pending, terrain, packs);
@@ -208,7 +194,6 @@ public sealed class MissionLoader
         {
             if (!_resources.TryLoad(archive, out _))
             {
-                _logger.Warning(LogCategory, $"Shared archive '{archive}' is absent.");
                 pending.Add(archive);
             }
         }
@@ -231,7 +216,6 @@ public sealed class MissionLoader
         }
         else
         {
-            _logger.Information(LogCategory, $"{sounds} sound(s) mounted.");
         }
     }
 }

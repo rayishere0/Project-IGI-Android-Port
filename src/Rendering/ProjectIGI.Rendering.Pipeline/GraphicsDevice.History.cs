@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 
 namespace ProjectIGI.Rendering.Pipeline;
 
@@ -63,11 +62,6 @@ public sealed partial class GraphicsDevice
         if (_historyResetPending == HistoryResetReason.None)
         {
             return;
-        }
-
-        if (_logger is { } logger && logger.IsEnabled(LogLevel.Debug, "Renderer"))
-        {
-            logger.Debug("Renderer", $"History reset: {_historyResetPending}.");
         }
 
         _historyResetPending = HistoryResetReason.None;

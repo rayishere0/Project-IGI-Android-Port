@@ -55,8 +55,7 @@ public sealed partial class SoldierRenderer
         }
 
         _shadowDrawer ??= new GroundDecalDrawer(_device);
-        _shadowTextures ??= new TexTextureCache(
-            _device, _resources, _logger, LogCategory, TextureAddressMode.Clamp, static name => [$"LOCAL:common/textures/{name}"]);
+        _shadowTextures ??= new TexTextureCache(_device, _resources, LogCategory, TextureAddressMode.Clamp, static name => [$"LOCAL:common/textures/{name}"]);
         _shadowDrawer.Draw(_shadowDecals, _shadowTextures.Get, camera, projection);
     }
 

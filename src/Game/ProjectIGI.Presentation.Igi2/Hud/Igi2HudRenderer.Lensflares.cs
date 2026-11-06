@@ -63,7 +63,7 @@ public sealed partial class Igi2HudRenderer
         {
             ResourceRegistry resources = new(files);
             resources.Register(FlareArchive, files.ReadAllBytes(FlareArchive));
-            _flareTextures = new Igi2TextureLoader(_device, resources, _logger);
+            _flareTextures = new Igi2TextureLoader(_device, resources);
         }
 
         return _flareTextures;

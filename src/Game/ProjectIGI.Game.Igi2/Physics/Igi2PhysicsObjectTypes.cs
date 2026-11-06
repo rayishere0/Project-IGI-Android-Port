@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Game.Igi2.Weapons;
 using ProjectIGI.Game.Physics;
 
@@ -43,5 +42,5 @@ public static class Igi2PhysicsObjectTypes
     /// <summary>The engine's reader of I.G.I. 2's types.</summary>
     /// <param name="logger">Where the load reports.</param>
     /// <returns>The reader.</returns>
-    public static PhysicsObjectTypes Create(IProjectIGILogger? logger = null) => new(TaskTypes, Constants, logger);
+    public static PhysicsObjectTypes Create() => new(TaskTypes, Constants);
 }

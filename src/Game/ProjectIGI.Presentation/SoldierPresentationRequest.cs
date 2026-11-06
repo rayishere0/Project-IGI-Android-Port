@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Game.World;
 using ProjectIGI.Rendering;
@@ -13,11 +12,4 @@ namespace ProjectIGI.Presentation;
 /// <param name="DetailMaps">The material detail maps the bodies are shaded with, or <see langword="null"/> for none.</param>
 /// <param name="Sun">The level's fixed-function light as it stands, which the bodies and their guns are lit by; or none.</param>
 /// <param name="Lod">The level's detail settings as they stand, which a distant body gives up detail by; or none to draw it whole.</param>
-public readonly record struct SoldierPresentationRequest(
-    IGraphicsDevice Device,
-    ResourceRegistry Resources,
-    IProjectIGILogger Logger,
-    MagicObjectRegistry? Magic = null,
-    MaterialDetailPack? DetailMaps = null,
-    Func<FixedFunctionSun?>? Sun = null,
-    Func<Rendering.ModelLodPolicy?>? Lod = null);
+public readonly record struct SoldierPresentationRequest(IGraphicsDevice Device, ResourceRegistry Resources, MagicObjectRegistry? Magic = null, MaterialDetailPack? DetailMaps = null, Func<FixedFunctionSun?>? Sun = null, Func<Rendering.ModelLodPolicy?>? Lod = null);

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
 using ProjectIGI.Host.Lighting;
@@ -18,16 +17,9 @@ namespace ProjectIGI.Host.Services;
 /// <param name="host">The level, its sun and its renderer.</param>
 /// <param name="fields">The level's distance field, which the convergence and the sweep trace against.</param>
 /// <param name="fixtures">The level's lamps, which the cache bounces off as area emitters.</param>
-internal sealed class SurfaceCacheResidency(
-    IGraphicsDevice device,
-    IProjectIGILogger logger,
-    bool lockstep,
-    IGlobalIlluminationHost host,
-    DistanceFieldResidency fields,
-    Func<IReadOnlyList<LightFixture>> fixtures) : IDisposable
+internal sealed class SurfaceCacheResidency(IGraphicsDevice device, bool lockstep, IGlobalIlluminationHost host, DistanceFieldResidency fields, Func<IReadOnlyList<LightFixture>> fixtures) : IDisposable
 {
     private readonly IGraphicsDevice _device = device;
-    private readonly IProjectIGILogger _logger = logger;
     private readonly bool _lockstep = lockstep;
     private readonly IGlobalIlluminationHost _host = host;
     private readonly DistanceFieldResidency _fields = fields;
@@ -190,9 +182,6 @@ internal sealed class SurfaceCacheResidency(
         // model's cards before it can discover it has nothing to capture.
         if (_host.World!.CaptureSurfaceCache(_host.Scene!, density) is not { } cards)
         {
-            _logger.Warning(
-                "GlobalIllumination",
-                "This level captured no surfaces, so it keeps the lighting it already has.");
             return;
         }
 
@@ -200,15 +189,11 @@ internal sealed class SurfaceCacheResidency(
 
         if (SurfaceCacheCVars.SurfaceCacheDump.Value is { Length: > 0 } into)
         {
-            SurfaceCacheDebugDumps.CardAtlas(_device, cards.Capture, into, _logger);
+            SurfaceCacheDebugDumps.CardAtlas(_device, cards.Capture, into);
         }
 
         _capturedCards = cards.Capture;
         _cardInstances = cards.Instances;
-        _logger.Information(
-            "GlobalIllumination",
-            $"Captured the level's surfaces at {density} texels per unit for real-time lighting "
-            + $"in {captureClock.ElapsedMilliseconds} ms.");
 
         RebuildCardLighting();
         BeginConvergence();
@@ -261,11 +246,6 @@ internal sealed class SurfaceCacheResidency(
             // nothing to converge yet. Said out loud anyway, because a convergence that silently does not
             // happen is invisible -- the level simply opens on the old ramp, which is exactly what it
             // looks like when the feature is off. That cost an afternoon once.
-            _logger.Information(
-                "GlobalIllumination",
-                $"Cannot converge yet: the surface cache is {(CardLighting is null ? "not built" : "ready")} "
-                + $"and the distance field is {(_fields.DistanceField is null ? "not built" : "ready")}. "
-                + "Whichever arrives second will converge.");
             return;
         }
 
@@ -514,10 +494,6 @@ internal sealed class SurfaceCacheResidency(
         // so the fast warm-up rate would only make the exposure hunt around an answer it already has.
         ExposureWarmup = 0;
 
-        _logger.Information(
-            "GlobalIllumination",
-            $"Converged the surface cache through {job.Passes} bounce(s) over {job.ElapsedMilliseconds} ms of "
-            + "presented frames, so the level opens lit rather than filling in.");
         _giConvergence = null;
     }
 
@@ -549,7 +525,7 @@ internal sealed class SurfaceCacheResidency(
         }
 
         CardLighting?.Dispose();
-        CardLighting = SurfaceCacheLighting.Create(_device, surfaces, placedCards, _logger);
+        CardLighting = SurfaceCacheLighting.Create(_device, surfaces, placedCards);
 
         // A fresh pass has no history to accumulate onto, so the next bounce converges in one shot.
         CardBounceFrame = 0;
@@ -570,8 +546,7 @@ internal sealed class SurfaceCacheResidency(
         // Built once, from the same capture and placements the lighting was. A ray that stops somewhere
         // knows only that it stopped; this is what lets it read the surface it hit.
         _cardLookup?.Dispose();
-        _cardLookup = SurfaceCacheLookup.Build(
-            _device, surfaces, placedCards, CardLighting.Origin, _logger);
+        _cardLookup = SurfaceCacheLookup.Build(_device, surfaces, placedCards, CardLighting.Origin);
         CardLighting.SetLookup(_cardLookup);
 
         // A level with no Dirlight has no sun to light the cards with, so they take the sky alone -- which
@@ -587,8 +562,7 @@ internal sealed class SurfaceCacheResidency(
 
         if (SurfaceCacheCVars.SurfaceCacheDump.Value is { Length: > 0 } lightingInto)
         {
-            SurfaceCacheDebugDumps.CardLighting(
-                _device, CardLighting, lightingInto, _logger, 0, "cards-direct-load.png");
+            SurfaceCacheDebugDumps.CardLighting(_device, CardLighting, lightingInto, 0, "cards-direct-load.png");
         }
     }
 

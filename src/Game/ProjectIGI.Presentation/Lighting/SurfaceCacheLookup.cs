@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
 using ProjectIGI.Rendering;
@@ -39,7 +38,6 @@ namespace ProjectIGI.Presentation.Lighting;
 /// </remarks>
 public sealed class SurfaceCacheLookup : IDisposable
 {
-    private const string LogCategory = "SurfaceCache";
 
     /// <summary>How many buckets the grid's cells are hashed into.</summary>
     /// <remarks>
@@ -159,17 +157,11 @@ public sealed class SurfaceCacheLookup : IDisposable
     /// <param name="logger">Where to report what was built.</param>
     /// <returns>The grid, or <see langword="null"/> when there is nothing to index.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public static SurfaceCacheLookup? Build(
-        IGraphicsDevice device,
-        SurfaceCacheCapture.Result capture,
-        SurfaceCacheInstances instances,
-        Vector3d origin,
-        IProjectIGILogger? logger = null)
+    public static SurfaceCacheLookup? Build(IGraphicsDevice device, SurfaceCacheCapture.Result capture, SurfaceCacheInstances instances, Vector3d origin)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(instances);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         SurfaceCacheLayout layout = instances.Layout;
 
         int pageCount = layout.Pages.Length;
@@ -215,7 +207,6 @@ public sealed class SurfaceCacheLookup : IDisposable
 
         if (worldLow.X > worldHigh.X)
         {
-            log.Information(LogCategory, "No card page has usable bounds; nothing was indexed.");
             return null;
         }
 
@@ -301,10 +292,6 @@ public sealed class SurfaceCacheLookup : IDisposable
             {
                 if (oversized > 0)
                 {
-                    log.Warning(
-                        LogCategory,
-                        $"{oversized} card page(s) claim a box too large to index and were left out; "
-                        + "a ray that hits one takes no bounce off it.");
                 }
 
                 return Upload(device, log, offsets!, counts, references!, minimum);
@@ -417,13 +404,7 @@ public sealed class SurfaceCacheLookup : IDisposable
         _device.DestroyStorageBuffer(Pages);
     }
 
-    private static SurfaceCacheLookup? Upload(
-        IGraphicsDevice device,
-        IProjectIGILogger log,
-        int[] offsets,
-        int[] counts,
-        int[] references,
-        Vector3f minimum)
+    private static SurfaceCacheLookup? Upload(IGraphicsDevice device, int[] offsets, int[] counts, int[] references, Vector3f minimum)
     {
         int cells = counts.Length;
 
@@ -460,17 +441,12 @@ public sealed class SurfaceCacheLookup : IDisposable
                 device.UpdateStorageBuffer<int>(pageBuffer, references);
             }
 
-            log.Information(
-                LogCategory,
-                $"Card lookup: {references.Length} reference(s) over {occupied} occupied bucket(s) of "
-                + $"{cells}, busiest {busiest}, cell {CellMetres:0.##} m.");
 
             return new SurfaceCacheLookup(
                 device, cellBuffer, pageBuffer, minimum, ranges, references);
         }
         catch (GraphicsDeviceException error)
         {
-            log.Error(LogCategory, $"The card lookup could not be built: {error.Message}");
             return null;
         }
     }

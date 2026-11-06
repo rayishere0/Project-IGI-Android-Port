@@ -1,5 +1,4 @@
 using System.IO.Compression;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
 
@@ -28,20 +27,18 @@ public sealed class LightmapBakeCache
 
     private readonly string _writeDirectory;
     private readonly IReadOnlyList<string> _readDirectories;
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initialises a new instance of the <see cref="LightmapBakeCache"/> class.</summary>
     /// <param name="writeDirectory">Where newly-baked pages are written (created on first write).</param>
     /// <param name="readDirectories">Directories searched for a cached bake, in order; the first hit wins.</param>
     /// <param name="logger">Where to report a load or save failure.</param>
     /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
-    public LightmapBakeCache(string writeDirectory, IReadOnlyList<string> readDirectories, IProjectIGILogger? logger = null)
+    public LightmapBakeCache(string writeDirectory, IReadOnlyList<string> readDirectories)
     {
         ArgumentNullException.ThrowIfNull(writeDirectory);
         ArgumentNullException.ThrowIfNull(readDirectories);
         _writeDirectory = writeDirectory;
         _readDirectories = readDirectories;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Builds a cache with the shipped location searched first and the per-user location written to.</summary>
@@ -49,8 +46,8 @@ public sealed class LightmapBakeCache
     /// <param name="userDirectory">The writable per-user directory.</param>
     /// <param name="logger">Where to report a failure.</param>
     /// <returns>The cache.</returns>
-    public static LightmapBakeCache Create(string shippedDirectory, string userDirectory, IProjectIGILogger? logger = null) =>
-        new(userDirectory, [shippedDirectory, userDirectory], logger);
+    public static LightmapBakeCache Create(string shippedDirectory, string userDirectory) =>
+        new(userDirectory, [shippedDirectory, userDirectory]);
 
     /// <summary>Loads a cached bake for a mission, if one matching the bake inputs is present.</summary>
     /// <param name="missionId">The mission the bake is for.</param>
@@ -70,7 +67,6 @@ public sealed class LightmapBakeCache
 
             if (TryReadFile(path, sunDirection, sunColour, skyColour, out BakedLightmaps? baked))
             {
-                _logger.Information("Lightmap", $"Loaded a path-traced lightmap bake for mission {missionId} from {path}.");
                 return baked;
             }
         }
@@ -104,12 +100,10 @@ public sealed class LightmapBakeCache
             WriteVector(writer, skyColour);
             baked.Write(writer);
 
-            _logger.Information("Lightmap", $"Path-traced lightmap bake for mission {missionId} written to {path}.");
             return path;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger.Warning("Lightmap", $"Could not write the lightmap bake for mission {missionId}: {ex.Message}");
             return null;
         }
     }
@@ -144,7 +138,6 @@ public sealed class LightmapBakeCache
         }
         catch (Exception ex) when (ex is IOException or EndOfStreamException or InvalidDataException)
         {
-            _logger.Warning("Lightmap", $"A lightmap bake at {path} could not be read; it will be re-baked: {ex.Message}");
             return false;
         }
     }

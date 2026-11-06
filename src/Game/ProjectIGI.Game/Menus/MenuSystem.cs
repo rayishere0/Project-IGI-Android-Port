@@ -54,9 +54,8 @@ public sealed class MenuSystem
     /// <returns>The loaded menu.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="script"/> is <see langword="null"/>.</exception>
     /// <exception cref="EngineFatalException">The script faulted, or built no manager.</exception>
-    public static MenuSystem Load(ReadOnlyMemory<byte> script, IProjectIGILogger? logger = null)
+    public static MenuSystem Load(ReadOnlyMemory<byte> script)
     {
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         NativeRegistry natives = new();
         TaskTypeRegistry types = new();
@@ -87,9 +86,6 @@ public sealed class MenuSystem
             ?? throw new EngineFatalException("The menu script built no MenuManager.");
 
         MenuSystem menu = new(tree, types, natives, manager) { Variables = variables };
-        log.Information(
-            "Menu",
-            $"Loaded {menu.Screens.Count} screen(s) from '{manager.ResourcePath}', starting on {manager.CurrentMenuScreen}.");
 
         return menu;
     }
@@ -106,10 +102,9 @@ public sealed class MenuSystem
     /// updates and renders it like anything else. The loop has already registered <c>Task_New</c> and
     /// <c>Task_DeclareParameters</c>, so only the menu types and constants are added here.
     /// </remarks>
-    public static MenuSystem Load(ReadOnlyMemory<byte> script, GameLoop loop, IProjectIGILogger? logger = null)
+    public static MenuSystem Load(ReadOnlyMemory<byte> script, GameLoop loop)
     {
         ArgumentNullException.ThrowIfNull(loop);
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         MenuTaskTypes.RegisterAll(loop.Types);
         MenuTaskTypes.RegisterConstants(loop.Natives);
@@ -136,9 +131,6 @@ public sealed class MenuSystem
             ?? throw new EngineFatalException("The menu script built no MenuManager.");
 
         MenuSystem menu = new(loop.Tasks, loop.Types, loop.Natives, manager) { Variables = loop.Variables };
-        log.Information(
-            "Menu",
-            $"Loaded {menu.Screens.Count} screen(s) from '{manager.ResourcePath}', starting on {manager.CurrentMenuScreen}.");
 
         return menu;
     }

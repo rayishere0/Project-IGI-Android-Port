@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Formats.Animation;
@@ -34,12 +33,11 @@ namespace ProjectIGI.Presentation.Igi1;
 /// <param name="device">The device the body is uploaded to and drawn with.</param>
 /// <param name="sim">The soldiers' simulation, which holds the body's pose and placement.</param>
 /// <param name="logger">Where load problems are reported.</param>
-internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice device, SoldierSimulation sim, IProjectIGILogger logger)
+internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice device, SoldierSimulation sim)
 {
     private readonly SoldierRenderer _owner = owner;
     private readonly IGraphicsDevice _device = device;
     private readonly SoldierSimulation _sim = sim;
-    private readonly IProjectIGILogger _logger = logger;
 
     // The player's own third-person body -- Jones, the rig the first-person view never shows. It is NOT a
     // guard: it has no AI, is not in _groups, and the soldier tick and draw loops never touch it. It loads
@@ -105,7 +103,6 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         }
         catch (ArgumentException ex)
         {
-            _logger.Warning(SoldierRenderer.LogCategory, $"The player body could not be posed on skeleton {animations.Skeleton.Id}: {ex.Message}");
             return false;
         }
 
@@ -123,7 +120,6 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         }
         catch (PackFormatException ex)
         {
-            _logger.Warning(SoldierRenderer.LogCategory, $"The player collision mesh was not usable: {ex.Message}");
         }
 
         if (GameplayCVars.Ragdoll.Value && group.Body.Model is not null)
@@ -138,7 +134,6 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         }
         catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException or InvalidOperationException)
         {
-            _logger.Warning(SoldierRenderer.LogCategory, $"The player body '{model}' did not upload: {ex.Message}");
             return false;
         }
 
@@ -151,7 +146,6 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         _hasTickState = false;
         _captureTick = -1;
         _skinTick = -1;
-        _logger.Information(SoldierRenderer.LogCategory, $"Loaded the player's third-person body '{model}' on skeleton {animations.Skeleton.Id}.");
         return true;
     }
 
@@ -203,10 +197,6 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         // never falls; reported once so a wrong id is visible rather than a body that just stands there.
         if (_sim.PlayerBodyView.CurrentAnimation != deathAnimation)
         {
-            _logger.Warning(
-                SoldierRenderer.LogCategory,
-                $"The player's death clip {deathAnimation} is not in its set; the body keeps clip "
-                    + $"{_sim.PlayerBodyView.CurrentAnimation} and will not fall.");
         }
     }
 
@@ -256,7 +246,6 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
             if (!playerCorpse.IsValid)
             {
                 _ragdoll = null;
-                _logger.Warning(SoldierRenderer.LogCategory, "The player's ragdoll left the level; falling back to the death clip.");
             }
         }
 
@@ -808,11 +797,6 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         if (!_tracedReported)
         {
             _tracedReported = true;
-            _logger.Information(
-                SoldierRenderer.LogCategory,
-                $"Player body in the traced world: {subsets} subset(s), {textured} with a texture "
-                    + $"(first '{first}'); instance {(group.Instance is null ? "absent" : "present")}, "
-                    + $"pack {(group.Pack is null ? "absent" : "present")}.");
         }
     }
 

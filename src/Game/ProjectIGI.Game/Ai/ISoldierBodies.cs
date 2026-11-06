@@ -271,9 +271,6 @@ public interface ISoldierBodies : IDisposable
     /// <returns>Their feet, in world units.</returns>
     IReadOnlyList<Vector3d> MapContacts();
 
-    /// <summary>Logs a summary of the soldiers' brains, as the game closes.</summary>
-    void LogAiSummary();
-
     /// <summary>Every soldier where it stands at this moment.</summary>
     /// <returns>The soldiers, dead and alive.</returns>
     IEnumerable<HumanOccupant> LiveOccupants();

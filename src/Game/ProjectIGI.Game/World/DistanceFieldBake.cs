@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Threading;
 using ProjectIGI.Formats.World;
 
@@ -26,7 +25,6 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public sealed class DistanceFieldBake
 {
-    private const string LogCategory = "DistanceField";
 
     private readonly ScheduledJob<Result?> _job;
     private readonly CancellationTokenSource _cancellation;
@@ -55,16 +53,11 @@ public sealed class DistanceFieldBake
     /// rather than a stale answer — the same hazard that made the probe bake take the doors-shut cast.
     /// </remarks>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public static DistanceFieldBake Start(
-        IEnumerable<WorldPlacement> placements,
-        IWorkScheduler work,
-        int resolution = MeshDistanceFieldBaker.DefaultResolution,
-        IProjectIGILogger? logger = null)
+    public static DistanceFieldBake Start(IEnumerable<WorldPlacement> placements, IWorkScheduler work, int resolution = MeshDistanceFieldBaker.DefaultResolution)
     {
         ArgumentNullException.ThrowIfNull(placements);
         ArgumentNullException.ThrowIfNull(work);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
         WorldPlacement[] snapshot = [.. placements];
 
         // The token is taken before the work starts, and the work captures the token rather than the
@@ -120,13 +113,7 @@ public sealed class DistanceFieldBake
     public void Cancel() => _cancellation.Cancel();
 
     /// <summary>The bake, a slice at a time.</summary>
-    private static IEnumerable<bool> Bake(
-        WorldPlacement[] snapshot,
-        IWorkScheduler work,
-        int resolution,
-        IProjectIGILogger log,
-        Action<Result?> done,
-        CancellationToken token)
+    private static IEnumerable<bool> Bake(WorldPlacement[] snapshot, IWorkScheduler work, int resolution, Action<Result?> done, CancellationToken token)
     {
         // One geometry build per distinct model, cached here rather than inside the field builder:
         // MefMeshBuilder.Build allocates a whole mesh, and a level that places the same crate two
@@ -157,13 +144,11 @@ public sealed class DistanceFieldBake
 
         if (scene is null || scene.FieldCount == 0)
         {
-            log.Information(LogCategory, "This level has no bakeable geometry; no field was built.");
             done(null);
             yield break;
         }
 
         DistanceFieldAtlas atlas = DistanceFieldAtlas.Build(scene.Fields);
-        log.Information(LogCategory, atlas.ToString());
 
         done(new Result(scene, atlas));
     }

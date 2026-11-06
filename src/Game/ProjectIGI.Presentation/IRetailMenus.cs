@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Audio;
 using ProjectIGI.Engine.Flow;
 using ProjectIGI.Engine.Titles;
@@ -39,24 +38,7 @@ public sealed record RetailMenuDisplay(
 /// <param name="ExternalNatives">The game's natives a menu expression may call, which answer <see langword="null"/> for a name they do not know.</param>
 /// <param name="Leave">What leaving the menus does: <see langword="true"/> to start the chosen mission, <see langword="false"/> to quit.</param>
 /// <param name="Logger">Where diagnostics go.</param>
-public readonly record struct RetailMenusRequest(
-    IGraphicsDevice Device,
-    VirtualFileSystem FileSystem,
-    GameLoop Loop,
-    GameConfig Configuration,
-    RetailMenuDisplay Display,
-    Func<IMissionCatalogue<MissionDescriptor>?> Missions,
-    Func<MenuStringTable?> Strings,
-    InputState Input,
-    SpriteBatch Batch,
-    Func<int> ScreenWidth,
-    Func<int> ScreenHeight,
-    int Scale,
-    SoundSystem? Sounds,
-    int StartScreen,
-    Func<string, ScriptArguments, QvmValue?> ExternalNatives,
-    Action<bool> Leave,
-    IProjectIGILogger Logger);
+public readonly record struct RetailMenusRequest(IGraphicsDevice Device, VirtualFileSystem FileSystem, GameLoop Loop, GameConfig Configuration, RetailMenuDisplay Display, Func<IMissionCatalogue<MissionDescriptor>?> Missions, Func<MenuStringTable?> Strings, InputState Input, SpriteBatch Batch, Func<int> ScreenWidth, Func<int> ScreenHeight, int Scale, SoundSystem? Sounds, int StartScreen, Func<string, ScriptArguments, QvmValue?> ExternalNatives, Action<bool> Leave);
 
 /// <summary>A title's own retail menus: its menu script run in the loop, its screens drawn, its pointer and keys read.</summary>
 public interface IRetailMenus : IDisposable

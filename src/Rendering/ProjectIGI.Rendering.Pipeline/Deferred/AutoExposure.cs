@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Rendering.Pipeline.Compute;
 using ProjectIGI.Rendering.Rhi;
 using ProjectIGI.Shaders;
@@ -42,13 +41,13 @@ public sealed class AutoExposure : IDisposable
     /// <param name="device">The device, which must compile the histogram module (see <see cref="RunsOn"/>).</param>
     /// <param name="framesInFlight">How many frames may be recorded before one completes.</param>
     /// <param name="logger">Where the metering is reported at Debug; nowhere when omitted.</param>
-    public AutoExposure(IRhiDevice device, int framesInFlight, IProjectIGILogger? logger = null)
+    public AutoExposure(IRhiDevice device, int framesInFlight)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentOutOfRangeException.ThrowIfLessThan(framesInFlight, 1);
 
         _device = device;
-        _adaptation = new ExposureAdaptation(logger);
+        _adaptation = new ExposureAdaptation();
         _histogram = new ComputePass(device, ShaderModuleId.ExposureHistogram, "exposure.histogram");
         _parameters = new ComputeParameters(
             device, ExposureAdaptation.ParameterFloats * sizeof(float), framesInFlight, "exposure");

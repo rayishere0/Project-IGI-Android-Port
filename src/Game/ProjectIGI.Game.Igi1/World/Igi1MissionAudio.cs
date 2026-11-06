@@ -1,5 +1,4 @@
 using ProjectIGI.Audio;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Audio;
 using ProjectIGI.Engine.Tasks;
@@ -486,9 +485,6 @@ public sealed partial class Igi1MissionAudio(MissionWorld mission, IMissionSound
             {
                 if (sounding && _reportedSirenFailures.Add(speaker))
                 {
-                    host.Logger.Warning(
-                        "Audio.Alarm",
-                        $"voice {voice.Value} for {speaker.Task.Name} ended while its condition remained true; restarting.");
                 }
 
                 AudioVoiceHandle started = host.SoundOutput.PlayDefinition(
@@ -500,19 +496,11 @@ public sealed partial class Igi1MissionAudio(MissionWorld mission, IMissionSound
 
                 if (!sounding)
                 {
-                    host.Logger.Information(
-                        "Audio.Alarm",
-                        $"start {speaker.Task.Name}: sound='{sound}', voice={started.Value}, "
-                            + $"playing={host.SoundOutput.IsPlaying(started)}, position={speaker.PositionUnits}, "
-                            + $"condition='{speaker.AlarmExpression}'.");
                 }
 
                 if ((!started.IsValidHandle || !host.SoundOutput.IsPlaying(started))
                     && _reportedSirenFailures.Add(speaker))
                 {
-                    host.Logger.Warning(
-                        "Audio.Alarm",
-                        $"'{sound}' failed to produce a playing voice for {speaker.Task.Name}.");
                 }
             }
             else if (!on && sounding)
@@ -520,9 +508,6 @@ public sealed partial class Igi1MissionAudio(MissionWorld mission, IMissionSound
                 host.SoundOutput.Stop(voice);
                 _sirenVoices.Remove(speaker);
                 _reportedSirenFailures.Remove(speaker);
-                host.Logger.Information(
-                    "Audio.Alarm",
-                    $"stop {speaker.Task.Name}: voice={voice.Value}, condition='{speaker.AlarmExpression}'.");
             }
         }
     }

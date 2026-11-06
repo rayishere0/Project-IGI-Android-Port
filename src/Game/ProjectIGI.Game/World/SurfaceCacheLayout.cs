@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 
 namespace ProjectIGI.Game.World;
 
@@ -33,7 +32,6 @@ namespace ProjectIGI.Game.World;
 /// </remarks>
 public sealed class SurfaceCacheLayout
 {
-    private const string LogCategory = "SurfaceCache";
 
     /// <summary>How many texels are left between one page and the next.</summary>
     /// <remarks>
@@ -97,12 +95,10 @@ public sealed class SurfaceCacheLayout
     /// which is wrong in one place instead of everywhere.
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="cards"/> is <see langword="null"/>.</exception>
-    public static SurfaceCacheLayout Pack(
-        IReadOnlyList<MeshCard> cards, int maximumSize = 8192, IProjectIGILogger? logger = null)
+    public static SurfaceCacheLayout Pack(IReadOnlyList<MeshCard> cards, int maximumSize = 8192)
     {
         ArgumentNullException.ThrowIfNull(cards);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         if (cards.Count == 0)
         {
@@ -152,10 +148,6 @@ public sealed class SurfaceCacheLayout
 
                 SurfaceCacheLayout layout = new(width, Math.Min(height, maximumSize), packed);
 
-                log.Information(
-                    LogCategory,
-                    $"Surface cache: {cards.Count} page(s) in a {layout.Width}x{layout.Height} atlas, "
-                    + $"{layout.Occupancy * 100f:0.#}% occupied.");
 
                 return layout;
             }
@@ -164,10 +156,6 @@ public sealed class SurfaceCacheLayout
             {
                 SurfaceCacheLayout layout = new(width, maximumSize, packed);
 
-                log.Warning(
-                    LogCategory,
-                    $"Surface cache: {unplaced} of {cards.Count} page(s) did not fit a "
-                    + $"{width}x{maximumSize} atlas and will read as nothing. Lower the card resolution.");
 
                 return layout;
             }

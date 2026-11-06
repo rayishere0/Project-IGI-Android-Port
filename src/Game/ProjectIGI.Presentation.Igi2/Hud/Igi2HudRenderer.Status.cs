@@ -1,5 +1,4 @@
 using System.Globalization;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Presentation.Rendering;
 using ProjectIGI.Engine.Vfs;
@@ -20,7 +19,6 @@ namespace ProjectIGI.Presentation.Igi2.Hud;
 public sealed partial class Igi2HudRenderer
 {
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private Igi2SpriteResources? _assets;
     private BitmapTextRenderer? _font;
     private int _loadedRounds = -1;
@@ -37,10 +35,9 @@ public sealed partial class Igi2HudRenderer
     /// <summary>Creates the title's HUD presenter.</summary>
     /// <param name="device">The sprite upload device.</param>
     /// <param name="logger">The load diagnostics.</param>
-    public Igi2HudRenderer(IGraphicsDevice device, IProjectIGILogger logger)
+    public Igi2HudRenderer(IGraphicsDevice device)
     {
         _device = device;
-        _logger = logger;
     }
 
     /// <inheritdoc/>
@@ -48,7 +45,7 @@ public sealed partial class Igi2HudRenderer
     {
         Dispose();
         _files = files;
-        _assets = new Igi2SpriteResources(_device, files, _logger);
+        _assets = new Igi2SpriteResources(_device, files);
         // statusscreen.c StatusScreen_CreateHandler: persistent weapon/ammo text uses ComputerMenu's font3, not fontmp -- and the
         // computer's font3 is the file font1.fnt (ComputerMenu_LoadComputerMenuResource loads its fonts one and three the other way round).
         if (_assets.Get("font1.fnt") is { IsFont: true } font) { _font = new BitmapTextRenderer(font); }

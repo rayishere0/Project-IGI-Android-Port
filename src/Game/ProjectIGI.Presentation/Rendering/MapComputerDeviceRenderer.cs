@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -17,13 +16,14 @@ namespace ProjectIGI.Presentation.Rendering;
 /// black slab in the first implementation.
 /// </remarks>
 public sealed class MapComputerDeviceRenderer : IDisposable
+
 {
+
     private const string LogCategory = "Computer";
     private const string ModelName = "mapcomputer";
 
     private readonly IGraphicsDevice _device;
     private readonly ResourceRegistry _resources;
-    private readonly IProjectIGILogger _logger;
     private TexTextureCache? _textureCache;
 
     private MeshGeometry? _geometry;
@@ -37,11 +37,10 @@ public sealed class MapComputerDeviceRenderer : IDisposable
     /// <param name="device">The device the model is uploaded to and drawn with.</param>
     /// <param name="resources">The resources the common pack's device model is read from.</param>
     /// <param name="logger">Told when the model does not load.</param>
-    public MapComputerDeviceRenderer(IGraphicsDevice device, ResourceRegistry resources, IProjectIGILogger logger)
+    public MapComputerDeviceRenderer(IGraphicsDevice device, ResourceRegistry resources)
     {
         _device = device;
         _resources = resources;
-        _logger = logger;
     }
 
     /// <summary>Gets whether the common pack supplied the retail device model.</summary>
@@ -68,7 +67,6 @@ public sealed class MapComputerDeviceRenderer : IDisposable
                 _geometry = MefMeshBuilder.Build(model, (float)(1.0 / WorldScene.UnitsPerMetre));
                 if (_geometry is null)
                 {
-                    _logger.Warning(LogCategory, $"'{ModelName}' has no drawable geometry.");
                     return false;
                 }
 
@@ -76,12 +74,10 @@ public sealed class MapComputerDeviceRenderer : IDisposable
                 _pack = pack;
                 _instance = instance;
                 _hasInstance = true;
-                _logger.Information(LogCategory, $"Loaded retail device '{ModelName}' ({_geometry.Subsets.Length} subset(s)).");
                 return true;
             }
         }
 
-        _logger.Warning(LogCategory, $"The mission's packs do not bind the retail device '{ModelName}'.");
         return false;
     }
 
@@ -111,7 +107,6 @@ public sealed class MapComputerDeviceRenderer : IDisposable
             }
             catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException)
             {
-                _logger.Warning(LogCategory, $"The map computer did not upload: {ex.Message}");
                 return;
             }
         }
@@ -189,5 +184,5 @@ public sealed class MapComputerDeviceRenderer : IDisposable
 
 
     // The textures the models name, loaded on first use.
-    private TexTextureCache Textures => _textureCache ??= new(_device, _resources, _logger, LogCategory) { ReportMissing = true };
+    private TexTextureCache Textures => _textureCache ??= new(_device, _resources, LogCategory) { ReportMissing = true };
 }

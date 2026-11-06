@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Formats.Animation;
 using ProjectIGI.Presentation.Rendering;
@@ -79,11 +78,9 @@ public sealed partial class GameHost
                 return BoneAnimationSet.Read(File.ReadAllBytes(path));
             }
 
-            _logger.Warning("Player", $"No animation set at {path}; {consequence}.");
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException)
         {
-            _logger.Warning("Player", $"Could not read {path}: {ex.Message}; {consequence}.");
         }
 
         return null;
@@ -186,9 +183,6 @@ public sealed partial class GameHost
         {
             double milliseconds =
                 (Stopwatch.GetTimestamp() - _stageStartedAt) * 1000.0 / Stopwatch.Frequency;
-            _logger.Information(
-                "Mission",
-                FormattableString.Invariant($"  {what}: {milliseconds:F1} ms."));
         }
 
         // One more share of the loading bar, and a frame to show it on: the load is the one stretch
@@ -209,9 +203,6 @@ public sealed partial class GameHost
             (Stopwatch.GetTimestamp() - _stageStartedAt) * 1000.0 / Stopwatch.Frequency;
         if (_watchingFramePasses && milliseconds > HitchMilliseconds)
         {
-            _logger.Information(
-                "Mission",
-                FormattableString.Invariant($"  {what}: {milliseconds:F1} ms."));
         }
     }
 
@@ -225,10 +216,6 @@ public sealed partial class GameHost
         }
 
         _watchingFramePasses = false;
-        _logger.Information(
-            "Mission",
-            FormattableString.Invariant(
-                $"{what}: the worst single frame cost {_worstPassMilliseconds:F1} ms."));
     }
 
     /// <summary>Gives the motion blur back to the player's setting once the entry shot hands over.</summary>

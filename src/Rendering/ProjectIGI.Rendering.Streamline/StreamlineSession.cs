@@ -1,5 +1,4 @@
 using System.Numerics;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Rendering.Rhi;
 
 namespace ProjectIGI.Rendering.Streamline;
@@ -23,11 +22,9 @@ namespace ProjectIGI.Rendering.Streamline;
 /// </remarks>
 internal sealed unsafe class StreamlineSession : IRhiStreamline, IDisposable
 {
-    private const string LogCategory = StreamlineRuntime.LogCategory;
 
     private readonly StreamlineRuntime _runtime;
     private readonly IStreamlineGraphicsAdapter _adapter;
-    private readonly IProjectIGILogger _logger;
     private readonly SlFeatureApi _api;
     private readonly Dictionary<RhiStreamlineFeature, RhiStreamlineSupport> _support = [];
 
@@ -49,15 +46,13 @@ internal sealed unsafe class StreamlineSession : IRhiStreamline, IDisposable
     /// <param name="runtime">The runtime, already started, with the device handed to it.</param>
     /// <param name="adapter">The backend's native side.</param>
     /// <param name="logger">Where to report.</param>
-    public StreamlineSession(StreamlineRuntime runtime, IStreamlineGraphicsAdapter adapter, IProjectIGILogger logger)
+    public StreamlineSession(StreamlineRuntime runtime, IStreamlineGraphicsAdapter adapter)
     {
         ArgumentNullException.ThrowIfNull(runtime);
         ArgumentNullException.ThrowIfNull(adapter);
-        ArgumentNullException.ThrowIfNull(logger);
 
         _runtime = runtime;
         _adapter = adapter;
-        _logger = logger;
 
         // Which features this adapter runs, asked before anything is bound: a plugin Streamline declined to
         // load answers every later call about it with an error in the log.
@@ -175,10 +170,6 @@ internal sealed unsafe class StreamlineSession : IRhiStreamline, IDisposable
         if (result == SlResult.Ok)
         {
             _latency = (mode, limit);
-            _logger.Information(
-                LogCategory,
-                $"Low latency {effective}{(effective != mode ? $" ({mode} was asked for; {Support(RhiStreamlineFeature.LowLatency).Reason})" : string.Empty)}"
-                    + (limit > 0 ? $", capped at {limit} µs a frame." : "."));
         }
         else
         {
@@ -436,7 +427,6 @@ internal sealed unsafe class StreamlineSession : IRhiStreamline, IDisposable
         {
             FrameGenerationLoaded = loaded;
             _frameGeneration.Clear();
-            _logger.Information(LogCategory, $"Frame generation {(loaded ? "loaded" : "unloaded")}; swapchain rebuilt around it.");
         }
 
         return done && FrameGenerationLoaded == loaded;
@@ -469,12 +459,6 @@ internal sealed unsafe class StreamlineSession : IRhiStreamline, IDisposable
         if (Report(_api.DlssgSetOptions(&handle, &native), "slDLSSGSetOptions"))
         {
             _frameGeneration[viewport] = options;
-            _logger.Information(
-                LogCategory,
-                options.Enabled
-                    ? $"Frame generation on: {options.FramesToGenerate + 1}x, inputs {options.RenderWidth}x{options.RenderHeight}"
-                        + (options.UserInterfaceRecomposition ? ", interface recomposed." : ".")
-                    : "Frame generation off (resources kept).");
         }
     }
 
@@ -612,7 +596,6 @@ internal sealed unsafe class StreamlineSession : IRhiStreamline, IDisposable
         if (supported != SlResult.Ok)
         {
             string reason = StreamlineRuntime.Describe(supported);
-            _logger.Information(LogCategory, $"{StreamlineRuntime.Describe(id)} is not available: {reason}.");
             return new RhiStreamlineSupport(false, reason);
         }
 
@@ -621,13 +604,11 @@ internal sealed unsafe class StreamlineSession : IRhiStreamline, IDisposable
             SlReflexState state = SlReflexState.Create();
             if (_api.ReflexGetState(&state) == SlResult.Ok && state.LowLatencyAvailable == 0)
             {
-                _logger.Information(LogCategory, "Reflex low latency is not available on this system; latency is still measured.");
                 return new RhiStreamlineSupport(false, "low latency is not available on this system");
             }
         }
 
         string version = _runtime.DescribeVersion(id) ?? "version unknown";
-        _logger.Information(LogCategory, $"{StreamlineRuntime.Describe(id)} is available ({version}).");
         return new RhiStreamlineSupport(true, version);
     }
 
@@ -646,7 +627,6 @@ internal sealed unsafe class StreamlineSession : IRhiStreamline, IDisposable
         // drowning the log.
         if (count == 1 || IsPowerOfTen(count))
         {
-            _logger.Warning(LogCategory, $"{call} failed: {StreamlineRuntime.Describe(result)}{(count > 1 ? $" ({count} times)" : string.Empty)}.");
         }
 
         return false;

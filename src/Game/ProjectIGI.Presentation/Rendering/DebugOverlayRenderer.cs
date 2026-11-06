@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Presentation.Text;
 using ProjectIGI.Rendering;
@@ -31,7 +30,6 @@ public sealed class DebugOverlayRenderer : IDisposable
     private const float BodySizeDesign = 16f;
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private UiFont? _body;
     private UiTheme? _theme;
     private bool _disposed;
@@ -39,12 +37,10 @@ public sealed class DebugOverlayRenderer : IDisposable
     /// <summary>Initializes a new instance of the <see cref="DebugOverlayRenderer"/> class.</summary>
     /// <param name="device">The device the panels are drawn with.</param>
     /// <param name="logger">Told when the interface font cannot be found.</param>
-    public DebugOverlayRenderer(IGraphicsDevice device, IProjectIGILogger logger)
+    public DebugOverlayRenderer(IGraphicsDevice device)
     {
         ArgumentNullException.ThrowIfNull(device);
-        ArgumentNullException.ThrowIfNull(logger);
         _device = device;
-        _logger = logger;
     }
 
     /// <summary>Gets whether the font and theme the panels are set in have loaded.</summary>
@@ -57,9 +53,6 @@ public sealed class DebugOverlayRenderer : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!UiFontLibrary.TypographyAvailable)
         {
-            _logger.Warning(
-                "DebugOverlay",
-                $"No interface font at {UiFontLibrary.FontsDirectory}; diagnostics cannot draw.");
             return false;
         }
 
@@ -79,7 +72,6 @@ public sealed class DebugOverlayRenderer : IDisposable
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException)
         {
-            _logger.Warning("DebugOverlay", $"Could not load the diagnostics font: {ex.Message}");
             _body = null;
             _theme = null;
             return false;

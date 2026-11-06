@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Formats;
@@ -46,11 +45,9 @@ namespace ProjectIGI.Presentation.Igi2.World;
 public sealed class Igi2TextureLoader
 {
     /// <summary>The category load diagnostics are logged under.</summary>
-    public const string LogCategory = "igi2.textures";
 
     private readonly IGraphicsDevice _device;
     private readonly ResourceRegistry _resources;
-    private readonly IProjectIGILogger _logger;
     private readonly Dictionary<string, TextureHandle> _byName = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Creates a loader.</summary>
@@ -58,14 +55,13 @@ public sealed class Igi2TextureLoader
     /// <param name="resources">The registry textures are read from.</param>
     /// <param name="logger">Where load diagnostics go.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public Igi2TextureLoader(IGraphicsDevice device, ResourceRegistry resources, IProjectIGILogger? logger = null)
+    public Igi2TextureLoader(IGraphicsDevice device, ResourceRegistry resources)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(resources);
 
         _device = device;
         _resources = resources;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Gets how many distinct textures were uploaded.</summary>
@@ -116,7 +112,6 @@ public sealed class Igi2TextureLoader
         string resource = ResourceNameFor(name);
         if (!_resources.TryLoad(resource, out ReadOnlyMemory<byte> bytes))
         {
-            _logger.Warning(LogCategory, $"Texture '{resource}' is absent; what names it draws untextured.");
             return TextureHandle.None;
         }
 
@@ -146,7 +141,6 @@ public sealed class Igi2TextureLoader
             if (image is null)
             {
                 // Warned once per name, because the dictionary caches the miss.
-                _logger.Warning(LogCategory, $"Texture '{resource}' is in no format read here; it draws untextured.");
                 return TextureHandle.None;
             }
 
@@ -178,7 +172,6 @@ public sealed class Igi2TextureLoader
         }
         catch (Exception ex) when (ex is PackFormatException or TextureFormatException)
         {
-            _logger.Warning(LogCategory, $"Texture '{resource}' did not decode: {ex.Message}");
             return TextureHandle.None;
         }
     }

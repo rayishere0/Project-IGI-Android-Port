@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -19,17 +18,15 @@ internal sealed class MissileRenderer : IMissilePresenter
     private readonly IGraphicsDevice _device;
     private readonly ResourceRegistry _resources;
     private readonly MagicObjectRegistry _magic;
-    private readonly IProjectIGILogger _logger;
     private readonly Dictionary<string, HeldWeaponRenderer?> _models = new(StringComparer.OrdinalIgnoreCase);
     private LoadedMission? _mission;
     private bool _disposed;
 
-    public MissileRenderer(IGraphicsDevice device, ResourceRegistry resources, MagicObjectRegistry magic, IProjectIGILogger? logger = null)
+    public MissileRenderer(IGraphicsDevice device, ResourceRegistry resources, MagicObjectRegistry magic)
     {
         _device = device ?? throw new ArgumentNullException(nameof(device));
         _resources = resources ?? throw new ArgumentNullException(nameof(resources));
         _magic = magic ?? throw new ArgumentNullException(nameof(magic));
-        _logger = logger ?? NullLogger.Instance;
     }
 
     public void Load(LoadedMission mission)
@@ -143,12 +140,11 @@ internal sealed class MissileRenderer : IMissilePresenter
             return existing;
         }
 
-        HeldWeaponRenderer renderer = new(_device, _resources, _magic, _logger);
+        HeldWeaponRenderer renderer = new(_device, _resources, _magic);
         HeldWeaponRenderer? result = renderer.Load(_mission!, modelName) ? renderer : null;
         if (result is null)
         {
             renderer.Dispose();
-            _logger.Warning("Missile", $"The mission's packs hold no missile model '{modelName}'; that missile flies unseen.");
         }
         _models[modelName] = result;
         return result;

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Formats.World;
@@ -21,13 +20,7 @@ namespace ProjectIGI.Presentation.Igi1;
 /// <param name="frames">What resolves a soldier drawn before its frame was.</param>
 /// <param name="textures">The textures the models name, loaded on first use.</param>
 /// <param name="logger">Where a stationary gun's first draw is reported.</param>
-internal sealed class SoldierWeaponDrawer(
-    List<SoldierGroup> groups,
-    IGraphicsDevice device,
-    SoldierArmoury armoury,
-    SoldierFrameInterpolator frames,
-    Func<TexTextureCache> textures,
-    IProjectIGILogger logger)
+internal sealed class SoldierWeaponDrawer(List<SoldierGroup> groups, IGraphicsDevice device, SoldierArmoury armoury, SoldierFrameInterpolator frames, Func<TexTextureCache> textures)
 {
     private readonly List<SoldierGroup> _groups = groups;
 
@@ -42,7 +35,6 @@ internal sealed class SoldierWeaponDrawer(
     private readonly SoldierArmoury _armoury = armoury;
     private readonly SoldierFrameInterpolator _frames = frames;
     private readonly Func<TexTextureCache> _textures = textures;
-    private readonly IProjectIGILogger _logger = logger;
 
     /// <summary>Gets or sets the sector cull the soldiers are drawn by, or <see langword="null"/> for none.</summary>
     public Game.Igi1.World.Igi1SectorVisibility? Visibility { get; set; }
@@ -217,10 +209,6 @@ internal sealed class SoldierWeaponDrawer(
 
             if (_armoury.FirstDrawOf(gun.TaskId))
             {
-                _logger.Information(
-                    SoldierRenderer.LogCategory + ".Gunner",
-                    $"static visual task={gun.TaskId} weapon={gun.WeaponId} "
-                    + $"position=({gun.Position.X:0.##},{gun.Position.Y:0.##},{gun.Position.Z:0.##}) drawn");
             }
 
             // 0x474420's pose: on the stand's mount point, turned and elevated by the shown aim. The

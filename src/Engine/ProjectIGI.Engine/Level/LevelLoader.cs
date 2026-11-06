@@ -27,7 +27,6 @@ namespace ProjectIGI.Engine.Level;
 /// </remarks>
 public sealed class LevelLoader
 {
-    private const string LogCategory = "Level";
 
     /// <summary>The file each mission's task tree is built from, relative to the mission directory.</summary>
     public const string ObjectsScriptName = "objects.qvm";
@@ -36,7 +35,6 @@ public sealed class LevelLoader
     private readonly TaskScriptCommands _commands;
     private readonly NativeRegistry _natives;
     private readonly ResourceRegistry _resources;
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="LevelLoader"/> class.</summary>
     /// <param name="levelRoot">The task the level's subtree hangs off.</param>
@@ -45,12 +43,7 @@ public sealed class LevelLoader
     /// <param name="resources">Where level scripts are read from.</param>
     /// <param name="logger">The logger for load diagnostics; defaults to a sink that discards them.</param>
     /// <exception cref="ArgumentNullException">Any required argument is <see langword="null"/>.</exception>
-    public LevelLoader(
-        LevelTask levelRoot,
-        TaskScriptCommands commands,
-        NativeRegistry natives,
-        ResourceRegistry resources,
-        IProjectIGILogger? logger = null)
+    public LevelLoader(LevelTask levelRoot, TaskScriptCommands commands, NativeRegistry natives, ResourceRegistry resources)
     {
         ArgumentNullException.ThrowIfNull(levelRoot);
         ArgumentNullException.ThrowIfNull(commands);
@@ -62,7 +55,6 @@ public sealed class LevelLoader
         _commands = commands;
         _natives = natives;
         _resources = resources;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Gets the task the level's subtree hangs off.</summary>
@@ -82,7 +74,6 @@ public sealed class LevelLoader
         _tree.DeleteChildren(LevelRoot);
         _tree.ClearIds();
         LoadedScriptPath = null;
-        _logger.Information(LogCategory, "Unloaded the level subtree.");
     }
 
     /// <summary>Loads a mission's task tree from its <c>objects.qvm</c>.</summary>
@@ -139,8 +130,5 @@ public sealed class LevelLoader
         LevelRoot.ResetClock(tickRate);
         LoadedScriptPath = scriptPath;
 
-        _logger.Information(
-            LogCategory,
-            $"Loaded '{scriptPath}' at {tickRate} Hz ({LevelRoot.MillisecondsPerTick} ms per tick).");
     }
 }

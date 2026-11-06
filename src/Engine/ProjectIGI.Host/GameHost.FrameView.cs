@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.Player;
@@ -108,20 +107,6 @@ public sealed partial class GameHost
         _titlePresentationBlend = TitlePlayer is { IsCutscenePlaying: true } ? 1f : tickBlend;
         PresentTitleLook(smoothPresentation && !console.WantsPointer);
 
-        // Whether the picture's own clock keeps step with the wall clock, behind
-        // the Pacing log category at Debug. Sampled here because this pair -- the tick and the blend --
-        // is exactly the moment in the simulation the frame is about to be drawn at.
-        _pacing.Sample(
-            pacingWall, _loop.Clock.TickCount, tickBlend, _loop.Clock.TickRate, smoothPresentation);
-        _pacing.SampleGate(
-            _menuFlow.PauseMenu,
-            _mission.Cutscenes?.IsPlaying == true,
-            _options.Lockstep,
-            FrameCVars.SmoothPresentation.Value);
-        if (_loop.Clock.FrameCount % 600 == 0)
-        {
-            _pacing.Report("vulkan");
-        }
         SightZoomFrame sight = _playerMode && Viewpoint?.SightZoom(tickBlend) is { } playerSight
             ? playerSight
             : _playerMode && TitlePlayer is { } titleLens
@@ -475,11 +460,6 @@ public sealed partial class GameHost
             // flag produced no output at all -- the flag existed and did nothing. It is opt-in
             // and its whole purpose is to be read, so it has to be emitted at a level that
             // survives. The same is true of the older mouse-look line just above.
-            _logger.Warning(
-                "Camera",
-                $"eye {(_playerMode ? "player" : "free")} -campos {eye.Position.X:0.###},{eye.Position.Y:0.###},"
-                    + $"{eye.Position.Z:0.###} -yaw {eyeYaw:0.#####} -pitch {eyePitch:0.#####}"
-                    + $" -sundir {loggedSun.X:0.######},{loggedSun.Y:0.######},{loggedSun.Z:0.######}");
         }
 
         // Behind the cinematic shell the eye is the slow menu orbit, on real elapsed time, whatever

@@ -285,7 +285,6 @@ internal sealed class CutsceneAnimationPackets(
         transform.RotorPhaseTick = _context.SimulationTick;
         transform.PhysicsTicks++;
         transform.IsDynamic = true;
-        _ground.LogAirframePath(targetId, "Heli", target, transform);
     }
 
     /// <summary>The Heli set-up packet: the authored pose and collective back, motion cleared, the hold sentinels written.</summary>
@@ -370,7 +369,6 @@ internal sealed class CutsceneAnimationPackets(
         transform.QueuedRotorTorque = default;
         transform.IsDynamic = true;
         transform.PhysicsTicks++;
-        _ground.LogAirframePath(targetId, "Heli", target, transform);
     }
 
     /// <summary>One flight step: the controls smoothed, the collective stepped, the rigid body integrated and kept above ground.</summary>
@@ -422,7 +420,6 @@ internal sealed class CutsceneAnimationPackets(
         }
         transform.PhysicsTicks++;
         transform.IsDynamic = true;
-        _ground.LogAirframePath(targetId, "Heli", target, transform);
     }
 
     /// <summary>The Plane receiver (<c>0x4337E0</c>): the retail body, or the set-up or one flight step.</summary>
@@ -491,7 +488,6 @@ internal sealed class CutsceneAnimationPackets(
         transform.Velocity = transform.Position - transform.PreviousPosition;
         transform.PhysicsTicks++;
         transform.IsDynamic = true;
-        _ground.LogAirframePath(targetId, "Plane", target, transform);
     }
 
     /// <summary>The Plane set-up packet: the authored rigid-body pose back and no movement published.</summary>
@@ -575,7 +571,6 @@ internal sealed class CutsceneAnimationPackets(
             * transform.Speed;
         transform.Velocity = transform.Position - previousPosition;
         transform.IsDynamic = true;
-        _ground.LogAirframePath(targetId, "Plane", target, transform);
     }
 
     private static float MoveTowards(float value, float target, float step)

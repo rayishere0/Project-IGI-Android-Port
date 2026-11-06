@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Game.Ai;
@@ -17,10 +16,9 @@ namespace ProjectIGI.Game.Igi1.Ai;
 /// copy, so a brain made by one part is the brain every other part ticks, hits and hears.
 /// </remarks>
 /// <param name="logger">Where the soldiers report.</param>
-internal sealed class SoldierContext(IProjectIGILogger logger)
+internal sealed class SoldierContext()
 {
     /// <summary>The category every soldier line is logged under, and the prefix of the narrower ones.</summary>
-    public const string LogCategory = "Soldier";
 
     /// <summary>How far above the declared position the ground probe starts — 0.5 m.</summary>
     public const double ProbeAboveInUnits = 2048.0;
@@ -38,7 +36,6 @@ internal sealed class SoldierContext(IProjectIGILogger logger)
     private readonly Dictionary<Vector3d, double> _groundSnaps = [];
 
     /// <summary>Gets where the soldiers report.</summary>
-    public IProjectIGILogger Logger { get; } = logger;
 
     /// <summary>Gets the soldiers as the simulation walks them: each drawn group's roster, in the groups' order.</summary>
     public List<SoldierModelGroup> Roster { get; } = [];

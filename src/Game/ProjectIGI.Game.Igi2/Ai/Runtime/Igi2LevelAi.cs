@@ -1,5 +1,4 @@
 using ProjectIGI.Game.Ai;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Engine.Tasks;
@@ -43,7 +42,6 @@ public sealed record Igi2LevelAiSetup(
     public int Difficulty { get; init; } = 1;
 
     /// <summary>Gets where load diagnostics go.</summary>
-    public IProjectIGILogger? Logger { get; init; }
 
     /// <summary>
     /// Gets the session's AI module, whose natives are already bound, or <see langword="null"/> to make one for this level and bind
@@ -130,7 +128,7 @@ public static class Igi2LevelAi
         world.Difficulty = setup.Difficulty;
         world.Detection = setup.Detection;
         world.Player = setup.Player;
-        world.Graphs = setup.Graphs ?? Igi2AiGraphs.Build(setup.Root, setup.Resources, setup.Natives, setup.Functions, setup.Logger);
+        world.Graphs = setup.Graphs ?? Igi2AiGraphs.Build(setup.Root, setup.Resources, setup.Natives, setup.Functions);
         if (setup.SectorAt is { } sectorAt)
         {
             AssignNodeSectors(world.Graphs, sectorAt);

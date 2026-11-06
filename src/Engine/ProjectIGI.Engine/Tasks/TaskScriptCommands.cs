@@ -22,7 +22,6 @@ namespace ProjectIGI.Engine.Tasks;
 /// </remarks>
 public sealed class TaskScriptCommands
 {
-    private const string LogCategory = "Tasks";
 
     /// <summary>The script name of the task-spawning command.</summary>
     public const string TaskNew = "Task_New";
@@ -32,7 +31,6 @@ public sealed class TaskScriptCommands
 
     private readonly TaskTree _tree;
     private readonly ScriptVarRegistry _variables;
-    private readonly IProjectIGILogger _logger;
     private QvmSymbol? _taskNewSymbol;
 
     /// <summary>Initializes a new instance of the <see cref="TaskScriptCommands"/> class.</summary>
@@ -40,13 +38,12 @@ public sealed class TaskScriptCommands
     /// <param name="variables">The registry exported task variables are published into.</param>
     /// <param name="logger">The logger for load diagnostics; defaults to a sink that discards them.</param>
     /// <exception cref="ArgumentNullException"><paramref name="tree"/> or <paramref name="variables"/> is <see langword="null"/>.</exception>
-    public TaskScriptCommands(TaskTree tree, ScriptVarRegistry variables, IProjectIGILogger? logger = null)
+    public TaskScriptCommands(TaskTree tree, ScriptVarRegistry variables)
     {
         ArgumentNullException.ThrowIfNull(tree);
         ArgumentNullException.ThrowIfNull(variables);
         _tree = tree;
         _variables = variables;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>
@@ -172,7 +169,6 @@ public sealed class TaskScriptCommands
         bool hasId = id >= 0 && id < TaskTree.IdCapacity && _tree.TryBindId(id, task);
         if (id >= 0 && !hasId)
         {
-            _logger.Warning(LogCategory, $"Task id {id} is already bound; '{typeName}' was created without one.");
         }
 
         var reader = new ScriptArgumentReader(call, ScriptArgumentReader.FirstParameterArgument);

@@ -3,7 +3,6 @@ using System.Globalization;
 using System.Runtime;
 using System.Text;
 using ProjectIGI.Core.Configuration;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Presentation;
 using ProjectIGI.Rendering;
 
@@ -12,57 +11,15 @@ namespace ProjectIGI.Host.Services;
 /// <summary>Where the game's memory is, and giving back what a finished load leaves idle.</summary>
 /// <param name="device">The graphics device, whose own allocations and caches are reported and trimmed.</param>
 /// <param name="logger">Where reports are logged.</param>
-internal sealed class MemoryDiagnostics(IGraphicsDevice device, IProjectIGILogger logger) : IHostService
+internal sealed class MemoryDiagnostics(IGraphicsDevice device) : IHostService
 {
     /// <summary>The category memory reports are logged under.</summary>
-    public const string LogCategory = "Memory";
 
     /// <inheritdoc/>
     public string Name => "Memory";
 
-    /// <summary>Registers <c>mem_report</c>.</summary>
-    /// <param name="console">The console to register with.</param>
-    public void Register(ConsoleSystem console)
-    {
-        ArgumentNullException.ThrowIfNull(console);
-        console.Commands.Add(
-            "mem_report",
-            "Prints where the game's memory is: the managed heap, the process, the graphics device and its caches.",
-            // Logged rather than printed, so the report reaches the console, the log file and standard output
-            // alike: a scripted soak (-runat, -backdropcycle) reads it back from the last two. The Memory
-            // category is on at Information whatever the verbosity; see DesktopLogging.
-            _ => logger.Information(LogCategory, Describe()));
-    }
 
-    /// <summary>Logs where the memory is, after something worth measuring.</summary>
-    /// <param name="after">What has just happened, which heads the report.</param>
-    public void Report(string after) => logger.Information(LogCategory, $"{after}:\n{Describe()}");
 
-    /// <summary>Describes where the process's memory is, managed and native.</summary>
-    /// <returns>A multi-line report.</returns>
-    public string Describe()
-    {
-        var text = new StringBuilder();
-        CultureInfo invariant = CultureInfo.InvariantCulture;
-
-        // A browser has no process to ask.
-        if (!OperatingSystem.IsBrowser())
-        {
-            using Process self = Process.GetCurrentProcess();
-            text.Append(invariant, $"Process: {Mib(self.PrivateMemorySize64)} private, {Mib(self.WorkingSet64)} working set.\n");
-        }
-
-        GCMemoryInfo gc = GC.GetGCMemoryInfo();
-        long largeObjects = gc.GenerationInfo.Length > 3 ? gc.GenerationInfo[3].SizeAfterBytes : 0;
-        text.Append(invariant,
-            $"Managed: {Mib(gc.HeapSizeBytes)} heap ({Mib(largeObjects)} large objects), "
-            + $"{Mib(gc.FragmentedBytes)} fragmented, {Mib(gc.TotalCommittedBytes)} committed; "
-            + $"{GC.CollectionCount(0)}/{GC.CollectionCount(1)}/{GC.CollectionCount(2)} collections; "
-            + $"{(GCSettings.IsServerGC ? "server" : "workstation")} GC.\n");
-
-        text.Append(device.DescribeMemory());
-        return text.ToString().TrimEnd('\n');
-    }
 
     /// <summary>Gives back what a finished load leaves idle: upload staging, and the large-object heap's holes.</summary>
     /// <remarks>

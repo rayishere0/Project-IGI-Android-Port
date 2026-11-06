@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Game.Ai;
 using ProjectIGI.Host.Menu;
 using ProjectIGI.Rendering;
@@ -12,7 +11,7 @@ namespace ProjectIGI.Host.Services;
 /// </summary>
 /// <param name="device">The device the backdrop is drawn on.</param>
 /// <param name="logger">Where profile changes are reported.</param>
-internal sealed class MenuBackdrop(IGraphicsDevice device, IProjectIGILogger logger) : IHostService
+internal sealed class MenuBackdrop(IGraphicsDevice device) : IHostService
 {
     // Whether the lite profile's overrides are in force, so they are applied and cleared once per change rather than
     // every frame.
@@ -160,11 +159,6 @@ internal sealed class MenuBackdrop(IGraphicsDevice device, IProjectIGILogger log
             ScreenGatherCVars.RadianceCache.ClearOverride();
         }
 
-        logger.Information(
-            "Preview",
-            lite
-                ? "The backdrop is drawn lite: no real-time GI, shadows, traces or screen-space gathers."
-                : "The full preset is back for the level.");
     }
 
     /// <summary>Gets the menu's frosted glass: the device's blurred frame, restated in the interface's units.</summary>

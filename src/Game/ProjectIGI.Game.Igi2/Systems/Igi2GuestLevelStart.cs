@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Formats.Ai;
 using ProjectIGI.Game.Ai;
@@ -60,5 +59,4 @@ public sealed record Igi2GuestLevelStart(Igi2CollisionWorld World, IgiRandom Ran
     public IReadOnlyList<IBakedLight> Light { get; init; } = [];
 
     /// <summary>Gets where diagnostics go.</summary>
-    public IProjectIGILogger Logger { get; init; } = NullLogger.Instance;
 }

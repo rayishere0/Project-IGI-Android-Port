@@ -66,10 +66,7 @@ public sealed record PhysicsObjectType(
 /// <param name="taskTypes">The task types the scripts name, as constant and type name.</param>
 /// <param name="constants">The constants the type-specific arguments name.</param>
 /// <param name="logger">Where the load reports.</param>
-public sealed class PhysicsObjectTypes(
-    IReadOnlyList<(string Constant, string Type)> taskTypes,
-    IReadOnlyList<(string Name, int Value)> constants,
-    IProjectIGILogger? logger = null)
+public sealed class PhysicsObjectTypes(IReadOnlyList<(string Constant, string Type)> taskTypes, IReadOnlyList<(string Name, int Value)> constants)
 {
     /// <summary>The directory the scripts are read from.</summary>
     public const string Directory = "LOCAL:physicsobj";
@@ -83,14 +80,12 @@ public sealed class PhysicsObjectTypes(
     /// <summary>The arguments each contact point takes.</summary>
     private const int PointArguments = 6;
 
-    private const string LogCategory = "PhysicsObj";
 
     private readonly IReadOnlyList<(string Constant, string Type)> _taskTypes = taskTypes ?? throw new ArgumentNullException(nameof(taskTypes));
     private readonly IReadOnlyList<(string Name, int Value)> _constants = constants ?? throw new ArgumentNullException(nameof(constants));
     private readonly List<PhysicsObjectType> _types = [];
     private readonly Dictionary<string, int> _typeIds = new(StringComparer.Ordinal);
     private readonly Dictionary<int, string> _typeNames = [];
-    private readonly IProjectIGILogger _logger = logger ?? NullLogger.Instance;
 
     /// <summary>Gets the types, in the order they were defined.</summary>
     public IReadOnlyList<PhysicsObjectType> Types => _types;
@@ -135,8 +130,7 @@ public sealed class PhysicsObjectTypes(
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
         _types.Clear();
-        int scripts = ScriptTableLoader.WalkAndRun(fileSystem, resources, natives, Directory, "*.qvm", _logger);
-        _logger.Information(LogCategory, $"{_types.Count} physics object types read from {scripts} scripts.");
+        int scripts = ScriptTableLoader.WalkAndRun(fileSystem, resources, natives, Directory, "*.qvm");
     }
 
     /// <summary>Finds the type of a model (<c>PhysicsObjType_FindType</c>, <c>igi2 0x43C050</c>): the first defined for it.</summary>

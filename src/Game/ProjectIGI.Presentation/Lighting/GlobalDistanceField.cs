@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
 using ProjectIGI.Rendering;
@@ -47,7 +46,6 @@ namespace ProjectIGI.Presentation.Lighting;
 /// </remarks>
 public sealed class GlobalDistanceField : IDisposable
 {
-    private const string LogCategory = "DistanceField";
 
     /// <summary>How many floats one instance record occupies. Seven <c>vec4</c>s.</summary>
     /// <remarks>
@@ -58,7 +56,6 @@ public sealed class GlobalDistanceField : IDisposable
     private const int FloatsPerInstance = 28;
 
     private readonly IGraphicsDevice _device;
-    private readonly IProjectIGILogger _logger;
     private readonly GlobalDistanceFieldSettings _settings;
     private readonly SceneDistanceField _scene;
     private readonly Vector3d _levelOrigin;
@@ -74,21 +71,9 @@ public sealed class GlobalDistanceField : IDisposable
     private readonly bool[] _built;
     private bool _disposed;
 
-    private GlobalDistanceField(
-        IGraphicsDevice device,
-        IProjectIGILogger logger,
-        GlobalDistanceFieldSettings settings,
-        SceneDistanceField scene,
-        Vector3d levelOrigin,
-        TextureHandle atlasTexture,
-        TextureHandle clipmaps,
-        ComputeShaderHandle build,
-        StorageBufferHandle instances,
-        StorageBufferHandle cellOffsets,
-        StorageBufferHandle cellIndices)
+    private GlobalDistanceField(IGraphicsDevice device, GlobalDistanceFieldSettings settings, SceneDistanceField scene, Vector3d levelOrigin, TextureHandle atlasTexture, TextureHandle clipmaps, ComputeShaderHandle build, StorageBufferHandle instances, StorageBufferHandle cellOffsets, StorageBufferHandle cellIndices)
     {
         _device = device;
-        _logger = logger;
         _settings = settings;
         _scene = scene;
         _levelOrigin = levelOrigin;
@@ -127,28 +112,20 @@ public sealed class GlobalDistanceField : IDisposable
     /// <param name="logger">Where to report what was allocated.</param>
     /// <returns>The clipmaps, or <see langword="null"/> when the device cannot build them.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public static GlobalDistanceField? Create(
-        IGraphicsDevice device,
-        SceneDistanceField scene,
-        DistanceFieldAtlas atlas,
-        GlobalDistanceFieldSettings settings,
-        IProjectIGILogger? logger = null)
+    public static GlobalDistanceField? Create(IGraphicsDevice device, SceneDistanceField scene, DistanceFieldAtlas atlas, GlobalDistanceFieldSettings settings)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(atlas);
 
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         if (!device.Capabilities.SupportsCompute)
         {
-            log.Information(LogCategory, "No compute on this context; the clipmaps will not be built.");
             return null;
         }
 
         if (!settings.Enabled || atlas.Slots.Length == 0)
         {
-            log.Information(LogCategory, "Nothing to build: no fields, or the settings ask for none.");
             return null;
         }
 
@@ -199,17 +176,11 @@ public sealed class GlobalDistanceField : IDisposable
 
             field.UploadInstances(atlas);
 
-            log.Information(
-                LogCategory,
-                $"Clipmaps: {settings.Levels} level(s) of {settings.Resolution} cubed, "
-                + $"{settings.NearExtent:0.#} m to {settings.ExtentOf(settings.Levels - 1):0.#} m, "
-                + $"atlas {atlas.Width}x{atlas.Height}x{atlas.Depth}.");
 
             return field;
         }
         catch (GraphicsDeviceException error)
         {
-            log.Error(LogCategory, $"The clipmaps could not be built: {error.Message}");
             return null;
         }
     }
@@ -231,10 +202,9 @@ public sealed class GlobalDistanceField : IDisposable
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="device"/> is <see langword="null"/>.</exception>
-    public static bool ValidateShader(IGraphicsDevice device, IProjectIGILogger? logger = null)
+    public static bool ValidateShader(IGraphicsDevice device)
     {
         ArgumentNullException.ThrowIfNull(device);
-        IProjectIGILogger log = logger ?? NullLogger.Instance;
 
         if (!device.Capabilities.SupportsCompute)
         {
@@ -247,12 +217,10 @@ public sealed class GlobalDistanceField : IDisposable
         {
             shader = device.CreateComputeShader(
                 ShaderModuleId.FieldClipmapBuild, ShaderVariant.Default, "sdf.clipmap.build");
-            log.Information(LogCategory, "The clipmap build shader compiles.");
             return true;
         }
         catch (GraphicsDeviceException error)
         {
-            log.Error(LogCategory, $"The clipmap build shader does not compile: {error.Message}");
             return false;
         }
         finally

@@ -1,5 +1,4 @@
 using System.IO;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Frontend;
@@ -107,13 +106,11 @@ public sealed partial class GameHost
                     (Bgra32[] px, int w, int h) = PngReader.Read(path);
                     TextureHandle handle = _device.CreateTexture(new TextureDescription(w, h), px);
                     _loadingBgTexture = new UiImage(handle.Id);
-                    _logger.Information("Mission", $"Loaded mission load splash texture from: {path} ({w}x{h})");
                     break;
                 }
             }
             catch (Exception ex)
             {
-                _logger.Warning("Mission", $"Failed to decode loading texture from {path}: {ex.Message}");
             }
         }
 
@@ -251,7 +248,6 @@ public sealed partial class GameHost
         // started, so it is not built behind the menu either.
         if (!_missions.TryGet(missionId, out _))
         {
-            _logger.Warning("Mission", $"Asked for a backdrop of mission {missionId}, which is not offered.");
             return;
         }
 
@@ -282,7 +278,6 @@ public sealed partial class GameHost
         }
 
         _startAwaitingFiles = missionId;
-        _logger.Information("Mission", $"Mission {missionId} waits for {waitingFor ?? "its files"}.");
     }
 
     /// <summary>Starts the command line's mission once its files are there. Call between frames.</summary>
@@ -312,7 +307,6 @@ public sealed partial class GameHost
             if (!string.Equals(waitingFor, _loadGateWaitingFor, StringComparison.Ordinal))
             {
                 _loadGateWaitingFor = waitingFor;
-                _logger.Information("Mission", $"Mission {_pendingLoadMission} waits for {waitingFor ?? "its files"}.");
             }
 
             return;
@@ -381,10 +375,6 @@ public sealed partial class GameHost
             _loadSequence.Begin(capturePicture: false);
         }
 
-        _logger.Information(
-            "Mission",
-            $"Holding the level until its lighting is built and settled ({FrameCVars.MissionWarmUp.Value} "
-            + "frame(s) once it is), so what appears is what it will look like.");
     }
 
     /// <summary>Tells the sequence the level has been built; the hold now only waits on its lighting.</summary>
@@ -454,16 +444,9 @@ public sealed partial class GameHost
 
                 if (_warmUp.GaveUp)
                 {
-                    _logger.Warning(
-                        "Mission",
-                        $"Showing the level after {MissionWarmUpGate.PatienceSeconds:0} s without its lighting "
-                        + "finished; it will cross over when it lands.");
                 }
                 else
                 {
-                    _logger.Information(
-                        "Mission",
-                        $"Revealed the level after {_warmUpFramesDrawn} withheld frame(s).");
                 }
             }
         }

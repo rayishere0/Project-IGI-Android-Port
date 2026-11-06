@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Formats.Animation;
@@ -32,7 +31,7 @@ namespace ProjectIGI.Presentation.Igi1;
 /// <param name="groups">The groups the renderer draws; shared, not copied.</param>
 /// <param name="sim">The soldiers' simulation.</param>
 /// <param name="logger">Where a ragdoll that cannot be seeded or has gone wrong is reported.</param>
-internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, SoldierSimulation sim, IProjectIGILogger logger)
+internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, SoldierSimulation sim)
 {
     // The one staged actor whose placement is traced each second, named by soldier id in
     // ProjectIGI_TRACE_CUTSCENE_ACTOR. Read once: the check runs for every soldier on every tick.
@@ -40,7 +39,6 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
 
     private readonly List<SoldierGroup> _groups = groups;
     private readonly SoldierSimulation _sim = sim;
-    private readonly IProjectIGILogger _logger = logger;
 
     // The frame alpha BeginFrame resolved, kept for the player's body, which draws once per frame.
     private float _frameAlpha = 1f;
@@ -148,11 +146,6 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
             && _sim.TickCount % 30 == 0)
         {
             BoneClip? clip = member.Agent.View.Bones.SourceOf(0);
-            _logger.Warning(SoldierRenderer.LogCategory + ".CutsceneActor",
-                $"tick={_sim.TickCount} actor={traceActor} active={ConditionalContainerGate.IsTaskActive(member.Agent.View.Soldier)} "
-                + $"scene={_sim.Cutscenes?.ActiveScene?.Id} staged={member.Agent.IsCutsceneActor} where={where} "
-                + $"view={member.Agent.View.Position} clip={member.Agent.View.CurrentAnimation} time={clip?.Time} "
-                + $"root={member.Agent.View.RootSample} delta={member.Agent.View.RootMotion()}");
         }
         float facing = SoldierSimulation.FacingOf(orientation);
 
@@ -338,7 +331,6 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
                     if (!corpse.IsValid)
                     {
                         member.Ragdoll = null;
-                        _logger.Warning(SoldierRenderer.LogCategory, "A ragdoll left its own level; falling back to the death clip.");
                     }
                 }
             }
@@ -395,7 +387,6 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
         }
         catch (ArgumentException ex)
         {
-            _logger.Warning(SoldierRenderer.LogCategory, $"Could not seed a ragdoll: {ex.Message}");
             return null;
         }
 

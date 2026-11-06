@@ -1,5 +1,4 @@
 using ProjectIGI.Game.Hosting;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Flow;
 using ProjectIGI.Engine.Resources;
@@ -111,7 +110,6 @@ public sealed class Igi1MissionSetup(
             modelPivot: name => CutsceneModelPivot(loaded, name),
             vehiclePhysics: mission.VehiclePhysics,
             terrain: loaded.Terrain,
-            logger: host.Logger,
             vehicleObstacleHit: (task, origin, end) =>
             {
                 if (mission.Solids?.TryCastIgnoring(
@@ -131,24 +129,6 @@ public sealed class Igi1MissionSetup(
             vehicleObstacleReleased: obstacle =>
                 mission.Doors?.Doors.FirstOrDefault(door => ReferenceEquals(door.Task, obstacle))?.State.IsFullyOpen == true,
             walker: walker);
-        bool collectDiagnostics = host.Logger.IsEnabled(LogLevel.Information);
-        if (collectDiagnostics && levelRoot.Tree.FromId(1608) is DeclaredTask levelTimer)
-        {
-            string parameters = string.Join(
-                ", ",
-                levelTimer.Type.Parameters.Select(
-                    (parameter, index) => $"{parameter.Name}={levelTimer.GetValue(index) ?? "<null>"}"));
-            host.Logger.Information("Mission.Timer", $"LevelTimer_1608 {parameters}");
-        }
-        if (collectDiagnostics && levelRoot.Tree.FromId(161) is DeclaredTask activation)
-        {
-            string parameters = string.Join(
-                ", ",
-                activation.Type.Parameters.Select(
-                    (parameter, index) => $"{parameter.Name}={activation.GetValue(index) ?? "<null>"}"));
-            host.Logger.Information("Mission.Timer", $"AreaActivate_161 {parameters}");
-        }
-
         return missionText;
     }
 
@@ -305,7 +285,6 @@ public sealed class Igi1MissionSetup(
         }
         if (mission.Ambience.Areas.Count > 0)
         {
-            host.Logger.Information("Audio", $"{mission.Ambience.Areas.Count} ambient area(s).");
         }
 
         // Doors: door_open_1 / door_close_1 / door_slide_1 in mission 1, all definition names.
@@ -314,7 +293,6 @@ public sealed class Igi1MissionSetup(
         mission.Elevators.SetSoundSink(audio.PlayElevatorSound);
         if (mission.Doors.Doors.Count > 0)
         {
-            host.Logger.Information("World", $"{mission.Doors.Doors.Count} door(s) available to players and AI.");
         }
 
         // The level's own soldiers, where the title has them to draw (a title without IGI1's has none).
@@ -423,10 +401,6 @@ public sealed class Igi1MissionSetup(
             : solids.Tracer();
         mission.SecurityCameras = SecurityCameraRegistry.Build(levelRoot, host.Game.Variables, worldTrace);
         mission.SecurityCameras.BindScene(scene.Placements);
-        host.Logger.Information(
-            "Ai",
-            $"{mission.SecurityCameras.Cameras.Count} security camera(s), "
-                + $"{mission.SecurityCameras.ControlCount} camera control(s) placed.");
 
         // Radar dishes and the authored Rotating tasks. Built here and handed to the presenter, which is
         // what turns them: the walk gives a placement, this gives it an angle per tick.
@@ -449,7 +423,6 @@ public sealed class Igi1MissionSetup(
         AiDifficulty difficulty,
         string difficultySource)
     {
-        host.Logger.Information("Ai", $"Difficulty {HumanAiConfigRegistry.NameOf(difficulty)} ({difficulty}) {difficultySource}");
         ArgumentNullException.ThrowIfNull(levelRoot);
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(worldTrace);
@@ -490,10 +463,9 @@ public sealed class Igi1MissionSetup(
             host.Game.Variables,
             () => soldiers.AnyAlarmOn);
         mission.AlarmSpeakers.BindScene(scene.Placements);
-        host.Logger.Information("Ai", $"{mission.AlarmSpeakers.Speakers.Count} alarm speaker(s) placed.");
 
         // A guard's round: it raised the trigger, the weapon's cadence let one out, and GuardRounds makes it a cast.
-        mission.GuardRounds = new GuardRounds(soldiers, worldTrace, mission, harm, blasts, sounds, impacts, host, host.Logger);
+        mission.GuardRounds = new GuardRounds(soldiers, worldTrace, mission, harm, blasts, sounds, impacts, host);
         soldiers.SetRoundHandler(mission.GuardRounds.Resolve);
 
         // The soldiers' guns march their rounds through the same world the soldiers see.
@@ -606,20 +578,15 @@ public sealed class Igi1MissionSetup(
         Dictionary<int, GraphFile> graphs;
         try
         {
-            graphs = NavGraphs.Read(graphDirectory, levelRoot, host.Logger, placements);
+            graphs = NavGraphs.Read(graphDirectory, levelRoot, placements);
         }
         catch (IOException ex)
         {
-            host.Logger.Warning("Ai", $"The nav graph could not be read: {ex.Message}");
             graphs = [];
         }
 
         if (graphs.Count > 0)
         {
-            host.Logger.Information(
-                "Ai",
-                $"Nav graphs: {graphs.Count} — " +
-                string.Join(", ", graphs.OrderBy(p => p.Key).Select(p => $"{p.Key}:{p.Value.Nodes.Count}n@{p.Value.CoverMidOffsetMetres:0.##}m")));
 
             // CarAI is a separate retail task family from HumanAI. Give the runtime the same graph
             // corpus the soldiers receive so every graph-driven vehicle -- Mission 7's checkpoint APC
@@ -631,7 +598,6 @@ public sealed class Igi1MissionSetup(
         {
             // A missing patrol graph only removes movement: retail still registers every HumanAI as a live human, which
             // can stand, be seen and be selected by the binocular detector.
-            host.Logger.Warning("Ai", $"No nav graph under '{graphDirectory}', so no soldier will patrol.");
         }
 
         return graphs;

@@ -4,7 +4,6 @@ using ProjectIGI.Audio.OpenAL;
 using ProjectIGI.Composition;
 using ProjectIGI.Core.Configuration;
 using ProjectIGI.Core.Configuration.Presets;
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Threading;
 using ProjectIGI.Core.Titles;
 using ProjectIGI.Engine.Configuration;
@@ -32,7 +31,6 @@ public static class AndroidHost
     private static ProjectIGI.Rendering.Pipeline.GraphicsDevice? _device;
     private static VulkanRhi? _vulkanRhi;
     private static WebGpuRhiDevice? _webGpuRhi;
-    private static LogRouter? _logger;
 
     // Which backend is presenting, so a surface rebind (tab-out / rotate) calls the right one.
     private static RendererBackend _activeBackend = RendererBackend.Vulkan;
@@ -74,8 +72,6 @@ public static class AndroidHost
             try { Directory.SetCurrentDirectory(AppContext.BaseDirectory); } catch { }
         }
 
-        _logger = new LogRouter().AddSink(new AndroidLogSink());
-        _logger.Information("AndroidHost", $"Booting ProjectIGI Android native host: {landscapeWidth}x{landscapeHeight}, dataDir: '{dataDir}'");
 
         // Configure OpenAL native library resolver
         try
@@ -106,13 +102,11 @@ public static class AndroidHost
                         {
                             if (NativeLibrary.TryLoad(candidate, assembly, searchPath, out nint handle))
                             {
-                                _logger.Information("AndroidHost", $"Resolved OpenAL via: {candidate}");
                                 return handle;
                             }
                         }
                         catch { }
                     }
-                    _logger.Warning("AndroidHost", $"Failed to resolve OpenAL from all candidates for library {libraryName}");
                 }
                 return nint.Zero;
             };
@@ -120,7 +114,6 @@ public static class AndroidHost
         }
         catch (Exception ex)
         {
-            _logger.Error("AndroidHost", "Error setting OpenAL resolver", ex);
         }
 
         try
@@ -132,7 +125,7 @@ public static class AndroidHost
             HostOptions options = HostOptions.Parse(args);
             IGameTitleRuntime runtime = TitleCatalog.Default;
 
-            VirtualFileSystem fileSystem = new(_logger);
+            VirtualFileSystem fileSystem = new();
             fileSystem.RegisterDevice(new LocalFileDevice(dataDir));
             FileSystemConfig
                 .LoadOrDefault(Path.Combine(dataDir, FileSystemConfig.DefaultFileName), runtime.Layout)
@@ -178,7 +171,6 @@ public static class AndroidHost
 
             AppDomain.CurrentDomain.FirstChanceException += (sender, args) =>
             {
-                _logger?.Information("AndroidHost", $"[FirstChanceException] {args.Exception.GetType().Name}: {args.Exception.Message}");
             };
 
             if (landscapeWidth <= 0) landscapeWidth = 1280;
@@ -186,7 +178,6 @@ public static class AndroidHost
 
             if (nativeWindow == nint.Zero)
             {
-                _logger.Error("AndroidHost", "ERROR: Native window handle is IntPtr.Zero!");
                 throw new InvalidOperationException("Native window handle is IntPtr.Zero!");
             }
 
@@ -196,7 +187,6 @@ public static class AndroidHost
             {
                 try
                 {
-                    _logger.Information("AndroidHost", "Initializing WebGPU device.");
                     _webGpuRhi = WebGpuRhiDevice.CreateForWindow(
                         new WebGpuWindowHandles(WebGpuWindowSystem.Android, nint.Zero, nativeWindow),
                         landscapeWidth,
@@ -205,11 +195,9 @@ public static class AndroidHost
                     rhiDevice = _webGpuRhi;
                     chosenBackend = RendererBackend.WebGpu;
                     DisplayCVars.Renderer.Value = RendererBackend.WebGpu;
-                    _logger.Information("AndroidHost", $"WebGPU initialized on adapter: {rhiDevice.AdapterName}");
                 }
                 catch (Exception webGpuEx)
                 {
-                    _logger.Error("AndroidHost", "WebGPU could not start (is libwgpu_native.so in the APK?) — falling back to native Vulkan.", webGpuEx);
                     _webGpuRhi?.Dispose();
                     _webGpuRhi = null;
                     (rhiDevice, chosenBackend) = CreateVulkanRhi(nativeWindow, landscapeWidth, landscapeHeight);
@@ -223,8 +211,7 @@ public static class AndroidHost
             _device = new ProjectIGI.Rendering.Pipeline.GraphicsDevice(
                 rhiDevice,
                 new DisplayMode(landscapeWidth, landscapeHeight, 32, 60),
-                captureFrames: options.ScreenshotPath is not null,
-                logger: _logger);
+                captureFrames: options.ScreenshotPath is not null);
 
             _activeBackend = chosenBackend;
 
@@ -242,7 +229,6 @@ public static class AndroidHost
             ProjectIGI.Rendering.Generated.CVarRegistrations.RegisterAll();
             ProjectIGI.Game.Generated.CVarRegistrations.RegisterAll();
 
-            _logger.Information("AndroidHost", $"Using rendering API: {chosenBackend} (Settings exist: {settingsExist})");
 
             int exitCode;
             while (true)
@@ -258,12 +244,9 @@ public static class AndroidHost
                     runtime.Title,
                     fileSystem,
                     options with { Renderer = chosenBackend, FirstRunPreset = GraphicsPreset.Vanilla, VanillaMenu = true },
-                    dataDir,
-                    _logger);
+                    dataDir);
 
-                _logger.Information("AndroidHost", "Starting game loop...");
                 exitCode = _gameHost.Run();
-                _logger.Information("AndroidHost", $"Game loop finished with exit code {exitCode}");
                 _gameHost.Dispose();
                 _gameHost = null;
 
@@ -272,13 +255,11 @@ public static class AndroidHost
                     break;
                 }
 
-                _logger.Information("AndroidHost", "Restart requested: reloading GameHost with fresh configuration...");
             }
             return exitCode;
         }
         catch (Exception ex)
         {
-            _logger.Error("AndroidHost", "Fatal error during game execution", ex);
             return 1;
         }
         finally
@@ -298,9 +279,6 @@ public static class AndroidHost
 
     private static (IRhiDevice Device, RendererBackend Backend) CreateVulkanRhi(nint nativeWindow, int width, int height)
     {
-        LogRouter logger = _logger!;
-
-        logger.Information("AndroidHost", "Initializing native Vulkan 1.3 device.");
         DisplayCVars.Renderer.Value = RendererBackend.Vulkan;
 
         // The native window is the ANativeWindow* the JNI bridge obtained from the Surface;
@@ -311,12 +289,10 @@ public static class AndroidHost
             width,
             height,
             vsync: true,
-            logger,
             enableValidation: false,
             streamline: null);
 
         IRhiDevice device = _vulkanRhi.Device;
-        logger.Information("AndroidHost", $"Native Vulkan initialized on adapter: {device.AdapterName}");
         return (device, RendererBackend.Vulkan);
     }
 
@@ -404,7 +380,6 @@ public static class AndroidHost
             _vulkanRhi?.Device.NotifySurfaceLost();
         }
 
-        _logger?.Information("AndroidHost", "Surface lost (app backgrounded); loop will idle until a new surface arrives.");
     }
 
     /// <summary>A new native window arrived after the old one was destroyed. Queued for the game thread, which performs the rebind.</summary>
@@ -443,12 +418,10 @@ public static class AndroidHost
                     width,
                     height,
                     vsync: true);
-                _logger?.Information("AndroidHost", "WebGPU surface rebound to the new window; resuming in place.");
             }
             else if (_vulkanRhi is { } vulkan)
             {
                 vulkan.RebindSurface(nativeWindow, width, height, vsync: true);
-                _logger?.Information("AndroidHost", "Vulkan surface rebound to the new window; resuming in place.");
             }
             else
             {
@@ -459,7 +432,6 @@ public static class AndroidHost
         }
         catch (Exception ex)
         {
-            _logger?.Error("AndroidHost", "Surface rebind failed; will retry, and a restart recovers.", ex);
             return false;
         }
     }

@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -21,20 +20,14 @@ internal sealed class GunPickupRenderer : IGunPickupPresenter
     private readonly IGraphicsDevice _device;
     private readonly ResourceRegistry _resources;
     private readonly MagicObjectRegistry _magic;
-    private readonly IProjectIGILogger _logger;
     private readonly List<Entry> _entries = [];
     private bool _disposed;
 
-    public GunPickupRenderer(
-        IGraphicsDevice device,
-        ResourceRegistry resources,
-        MagicObjectRegistry magic,
-        IProjectIGILogger? logger = null)
+    public GunPickupRenderer(IGraphicsDevice device, ResourceRegistry resources, MagicObjectRegistry magic)
     {
         _device = device ?? throw new ArgumentNullException(nameof(device));
         _resources = resources ?? throw new ArgumentNullException(nameof(resources));
         _magic = magic ?? throw new ArgumentNullException(nameof(magic));
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Gets or sets the modern surface descriptions applied to pickup models.</summary>
@@ -60,7 +53,7 @@ internal sealed class GunPickupRenderer : IGunPickupPresenter
         ArgumentNullException.ThrowIfNull(pickup);
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        HeldWeaponRenderer weapon = new(_device, _resources, _magic, _logger) { Materials = Materials };
+        HeldWeaponRenderer weapon = new(_device, _resources, _magic) { Materials = Materials };
         if (!weapon.Load(mission, pickup.Weapon.GunModel))
         {
             weapon.Dispose();

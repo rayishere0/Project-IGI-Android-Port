@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.Igi2.Systems;
@@ -24,12 +23,12 @@ public sealed class Igi2HostedLevelPresenter : ITaskPresenter
     /// <param name="content">Where the models and their textures are read from.</param>
     /// <param name="level">The hosted level, whose soldiers are drawn.</param>
     /// <param name="logger">Where problems go.</param>
-    public Igi2HostedLevelPresenter(IGraphicsDevice device, Igi2GuestContent content, Igi2HostedLevel level, IProjectIGILogger logger)
+    public Igi2HostedLevelPresenter(IGraphicsDevice device, Igi2GuestContent content, Igi2HostedLevel level)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(content);
         _level = level ?? throw new ArgumentNullException(nameof(level));
-        _renderer = new Igi2ViewModelRenderer(device, content.Guest.Resources, logger);
+        _renderer = new Igi2ViewModelRenderer(device, content.Guest.Resources);
         _renderer.Load(content.Packs);
     }
 

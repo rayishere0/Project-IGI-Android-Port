@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.World;
@@ -19,9 +18,7 @@ internal static class SurfaceCacheDebugDumps
     /// Runs the screen probe gather once and writes its probe atlas to a PNG, to verify the gather reads
     /// the G-buffer and reconstructs world positions before it is wired into the frame.
     /// </summary>
-    public static void ScreenGather(
-        IGraphicsDevice device, SurfaceCacheLighting cards, GlobalDistanceField field, Camera3D eye,
-        Matrix4f projection, float farPlane, int width, int height, string into, IProjectIGILogger logger)
+    public static void ScreenGather(IGraphicsDevice device, SurfaceCacheLighting cards, GlobalDistanceField field, Camera3D eye, Matrix4f projection, float farPlane, int width, int height, string into)
     {
         try
         {
@@ -65,14 +62,11 @@ internal static class SurfaceCacheDebugDumps
             Directory.CreateDirectory(into);
             string path = Path.Combine(into, "screen-indirect.png");
             PngWriter.Write(path, pixels, gridW, gridH);
-            logger.Information(
-                "SurfaceCache", $"Wrote {path}: {gridW}x{gridH} probe(s), {lit} carry indirect.");
 
             device.DestroyTexture(output);
         }
         catch (GraphicsDeviceException error)
         {
-            logger.Warning("SurfaceCache", $"The screen gather dump failed: {error.Message}");
         }
     }
 
@@ -87,9 +81,7 @@ internal static class SurfaceCacheDebugDumps
     /// <param name="logger">The log the statistics are reported to.</param>
     /// <param name="probe">A non-zero probe index switches the report to min/mean/max per channel.</param>
     /// <param name="name">The file name for the direct-lighting atlas.</param>
-    public static void CardLighting(
-        IGraphicsDevice device, SurfaceCacheLighting lighting, string into, IProjectIGILogger logger,
-        int probe = 0, string name = "cards-direct.png")
+    public static void CardLighting(IGraphicsDevice device, SurfaceCacheLighting lighting, string into, int probe = 0, string name = "cards-direct.png")
     {
         try
         {
@@ -114,7 +106,6 @@ internal static class SurfaceCacheDebugDumps
                     (lighting.FinalLighting, "cards-final.png"),
                 })
                 {
-                    logger.Information("SurfaceCache", $"Reading {file} from {source}.");
                     device.ReadStorageTexture(source, extra);
                     string other = Path.Combine(into, file);
                     PngWriter.Write(other, extra, lighting.Width, lighting.Height);
@@ -129,12 +120,10 @@ internal static class SurfaceCacheDebugDumps
                         }
                     }
 
-                    logger.Information("SurfaceCache", $"Wrote {other}: {carrying} texel(s) carry light.");
                 }
             }
             catch (Exception error)
             {
-                logger.Warning("SurfaceCache", $"The bounce atlases could not be written: {error.Message}");
             }
 
             string path = Path.Combine(into, name);
@@ -173,12 +162,6 @@ internal static class SurfaceCacheDebugDumps
                 }
 
                 long n = Math.Max(covered, 1);
-                logger.Information(
-                    "SurfaceCache",
-                    $"Probe {probe} over {covered} texel(s), {inside * 100.0 / n:0.#}% inside a "
-                    + $"clipmap: R {minR}..{maxR} mean {sumR / (double)n:0.#}, "
-                    + $"G {minG}..{maxG} mean {sumG / (double)n:0.#}, "
-                    + $"B {minB}..{maxB} mean {sumB / (double)n:0.#}.");
                 return;
             }
 
@@ -204,15 +187,10 @@ internal static class SurfaceCacheDebugDumps
                 }
             }
 
-            logger.Information(
-                "SurfaceCache",
-                $"Wrote {path}: {bright * 100.0 / Math.Max(written, 1):0.#}% of {written} lit texel(s) "
-                + "are in sunlight.");
         }
         catch (Exception error)
             when (error is IOException or UnauthorizedAccessException or GraphicsDeviceException)
         {
-            logger.Warning("SurfaceCache", $"The card lighting could not be written: {error.Message}");
         }
     }
 
@@ -221,8 +199,7 @@ internal static class SurfaceCacheDebugDumps
     /// <param name="cards">The captured card atlas whose layout sizes the images.</param>
     /// <param name="into">The directory the images are written to.</param>
     /// <param name="logger">The log the writes are reported to.</param>
-    public static void CardAtlas(
-        IGraphicsDevice device, SurfaceCacheCapture.Result cards, string into, IProjectIGILogger logger)
+    public static void CardAtlas(IGraphicsDevice device, SurfaceCacheCapture.Result cards, string into)
     {
         try
         {
@@ -240,13 +217,11 @@ internal static class SurfaceCacheDebugDumps
 
                 string path = Path.Combine(into, $"cards-{names[attachment]}.png");
                 PngWriter.Write(path, pixels, width, height);
-                logger.Information("SurfaceCache", $"Wrote {path}.");
             }
         }
         catch (Exception error)
             when (error is IOException or UnauthorizedAccessException or GraphicsDeviceException)
         {
-            logger.Warning("SurfaceCache", $"The card atlas could not be written: {error.Message}");
         }
     }
 }

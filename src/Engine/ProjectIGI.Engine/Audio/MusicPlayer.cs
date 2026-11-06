@@ -1,5 +1,4 @@
 using ProjectIGI.Audio;
-using ProjectIGI.Core.Diagnostics;
 
 namespace ProjectIGI.Engine.Audio;
 
@@ -33,10 +32,8 @@ public sealed class MusicPlayer
     /// <summary>The track the menus play.</summary>
     public const string MenuMusic = "menu_music";
 
-    private const string LogCategory = "Audio";
 
     private readonly SoundSystem _sounds;
-    private readonly IProjectIGILogger _logger;
 
     private AudioVoiceHandle _current;
     private AudioVoiceHandle _fading;
@@ -54,11 +51,10 @@ public sealed class MusicPlayer
     /// <param name="sounds">Where tracks are found and played.</param>
     /// <param name="logger">Where to report a track that is not there.</param>
     /// <exception cref="ArgumentNullException"><paramref name="sounds"/> is <see langword="null"/>.</exception>
-    public MusicPlayer(SoundSystem sounds, IProjectIGILogger? logger = null)
+    public MusicPlayer(SoundSystem sounds)
     {
         ArgumentNullException.ThrowIfNull(sounds);
         _sounds = sounds;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Gets or sets how long a change of track takes to cross over. Zero is the original's hard cut.</summary>
@@ -144,7 +140,6 @@ public sealed class MusicPlayer
         AudioVoiceHandle voice = _sounds.Play(track, Parameters(FadeSeconds > 0f ? 0f : _volume));
         if (!voice.IsValidHandle)
         {
-            _logger.Debug(LogCategory, $"No music track '{track}'.");
             _currentTrack = string.Empty;
             return false;
         }

@@ -39,15 +39,13 @@ public sealed class Igi2WeaponTables
     /// <summary>The weapon id that registers nothing.</summary>
     public const string UndefinedWeapon = "WEAPON_ID_UNDEFINED";
 
-    private const string LogCategory = "Weapons";
 
-    private readonly IProjectIGILogger _logger;
     private readonly List<Igi2AmmoTypeTask> _ammo = [];
     private readonly List<Igi2WeaponTypeTask> _weapons = [];
 
     /// <summary>Initializes a new instance of the <see cref="Igi2WeaponTables"/> class.</summary>
     /// <param name="logger">Where the load reports.</param>
-    public Igi2WeaponTables(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public Igi2WeaponTables() { }
 
     /// <summary>Gets the ammunition, by its number.</summary>
     public IReadOnlyList<Igi2AmmoTypeTask> AmmoTypes => _ammo;
@@ -86,7 +84,6 @@ public sealed class Igi2WeaponTables
         Collect(tree.Root, _weapons);
         RegisterIds(natives, _weapons, before, static w => w.WeaponId, UndefinedWeapon);
 
-        _logger.Information(LogCategory, $"{_ammo.Count} ammunition types and {_weapons.Count} weapon types read.");
     }
 
     /// <summary>Gathers the tasks of one type in the order they were made, which is their order in the tree.</summary>

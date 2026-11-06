@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Audio;
 using ProjectIGI.Engine.Flow;
@@ -13,7 +12,6 @@ public interface IMissionSoundHost
     GameLoop Game { get; }
 
     /// <summary>Gets the log.</summary>
-    IProjectIGILogger Logger { get; }
 
     /// <summary>Gets a value indicating whether the level's weather is on, which wets every footstep.</summary>
     bool IsRaining { get; }

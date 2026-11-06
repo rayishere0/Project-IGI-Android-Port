@@ -410,7 +410,7 @@ public sealed class Igi2GuestLevel
         if (services.TryGet(out PhysicsObjectTypes? physicsTypes))
         {
             Physics.Igi2PhysicsWorld flight = new(start.World, materials, static owner => !Collision.Igi2ObjectCollision.PassesThrough(owner));
-            grenades = new Igi2Grenades(physicsTypes, _content.Models, flight, dynamic, start.Logger)
+            grenades = new Igi2Grenades(physicsTypes, _content.Models, flight, dynamic)
             {
                 Effects = explosions,
                 Explosions = explosions,
@@ -592,7 +592,6 @@ public sealed class Igi2GuestLevel
             FireTaskTypes = services.TryGet(out Igi2HumanWeapons? armoury) ? armoury.FireTaskTypes : null,
             Config = services.TryGet(out Igi2HumanAiConfig? config) ? config : null,
             Difficulty = (int)start.Difficulty,
-            Logger = start.Logger,
             World = services.Require<Igi2AiWorld>(),
             Graphs = graphs,
         });

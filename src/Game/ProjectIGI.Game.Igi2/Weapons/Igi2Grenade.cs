@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Formats.World;
 using ProjectIGI.Game.Igi2.Physics;
@@ -346,17 +345,11 @@ public sealed class Igi2Grenade : IDynamicTask
 /// <param name="world">What the grenades fly through.</param>
 /// <param name="dynamic">The level's dynamic tasks the grenades run in.</param>
 /// <param name="logger">Where a grenade with no physics type is reported.</param>
-public sealed class Igi2Grenades(
-    PhysicsObjectTypes types,
-    Func<string, MefModel?> models,
-    Igi2PhysicsWorld world,
-    DynamicTasks dynamic,
-    IProjectIGILogger? logger = null) : IIgi2GrenadeWorld
+public sealed class Igi2Grenades(PhysicsObjectTypes types, Func<string, MefModel?> models, Igi2PhysicsWorld world, DynamicTasks dynamic) : IIgi2GrenadeWorld
 {
     /// <summary>The weapon tag that names a grenade's model, <c>ProjectileModel</c>.</summary>
     public const string ProjectileModelTag = "ProjectileModel";
 
-    private readonly IProjectIGILogger _logger = logger ?? NullLogger.Instance;
 
     /// <summary>Gets what the grenades fly through.</summary>
     public Igi2PhysicsWorld World { get; } = world;
@@ -409,7 +402,6 @@ public sealed class Igi2Grenades(
         if (Explosions is not { } explosions || !types.TryFind(model, out PhysicsObjectType type)
             || !types.IsMovedBy(type, "Missile") || MissileTypeDefinition.Of<Fpu>(type) is not { } missile)
         {
-            _logger.Warning("Missile", $"No missile physics type for {model}: the missile is not fired.");
             return;
         }
 
@@ -476,7 +468,6 @@ public sealed class Igi2Grenades(
         }
         else
         {
-            _logger.Warning("Grenade", $"No physics object type for {weapon.FixedModel}: the grenade does not fly.");
         }
 
         Dynamic.Add(new Igi2Grenade(grenade, model, body, kind, this));

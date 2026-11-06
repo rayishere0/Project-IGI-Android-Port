@@ -27,7 +27,6 @@ namespace ProjectIGI.Game.Weapons;
 /// </remarks>
 public sealed class WeaponTypeRegistry
 {
-    private const string LogCategory = "Weapons";
 
     /// <summary>The native each weapon's script calls.</summary>
     public const string DefineNative = "DefineWeaponType";
@@ -48,11 +47,10 @@ public sealed class WeaponTypeRegistry
     private readonly List<WeaponType> _weapons = [];
     private readonly Dictionary<int, WeaponType> _byId = [];
     private readonly Config.TaskTypeConstants _taskTypes = new();
-    private readonly IProjectIGILogger _logger;
 
     /// <summary>Initializes a new instance of the <see cref="WeaponTypeRegistry"/> class.</summary>
     /// <param name="logger">The logger for load diagnostics; defaults to a sink that discards them.</param>
-    public WeaponTypeRegistry(IProjectIGILogger? logger = null) => _logger = logger ?? NullLogger.Instance;
+    public WeaponTypeRegistry() { }
 
     /// <summary>Gets the weapons, in load order — the original's array order.</summary>
     public IReadOnlyList<WeaponType> Weapons => _weapons;
@@ -157,7 +155,6 @@ public sealed class WeaponTypeRegistry
             }
         }
 
-        _logger.Information(LogCategory, $"Registered {_weapons.Count} weapon(s).");
         return _weapons.Count;
     }
 

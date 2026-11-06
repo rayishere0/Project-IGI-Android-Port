@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Formats.World;
 using ProjectIGI.Game.Ai;
@@ -18,16 +17,11 @@ namespace ProjectIGI.Presentation.Igi1;
 /// <param name="sim">The soldiers' simulation, whose brains learn whether a grenade is carried.</param>
 /// <param name="meshes">What builds the weapon models.</param>
 /// <param name="logger">Where a weapon missing from the table, and every armed gunner, is reported.</param>
-internal sealed class SoldierArmoury(
-    List<SoldierGroup> groups,
-    SoldierSimulation sim,
-    SoldierMeshBuilder meshes,
-    IProjectIGILogger logger)
+internal sealed class SoldierArmoury(List<SoldierGroup> groups, SoldierSimulation sim, SoldierMeshBuilder meshes)
 {
     private readonly List<SoldierGroup> _groups = groups;
     private readonly SoldierSimulation _sim = sim;
     private readonly SoldierMeshBuilder _meshes = meshes;
-    private readonly IProjectIGILogger _logger = logger;
 
     private readonly Dictionary<string, SoldierHeldWeapon> _heldWeaponsByModel = new(StringComparer.OrdinalIgnoreCase);
 
@@ -87,9 +81,6 @@ internal sealed class SoldierArmoury(
                 {
                     gun.BindWeapon(null);
                     _stationaryWeaponVisuals[gun] = null;
-                    _logger.Warning(
-                        SoldierRenderer.LogCategory + ".Gunner",
-                        $"task={gun.TaskId} weapon={gun.WeaponId} is not in the weapon table.");
                     continue;
                 }
 
@@ -111,11 +102,6 @@ internal sealed class SoldierArmoury(
                 }
 
                 _stationaryWeaponVisuals[gun] = held;
-                _logger.Information(
-                    SoldierRenderer.LogCategory + ".Gunner",
-                    $"task={gun.TaskId} weapon={weapon.ScriptId} model={weapon.GunModel} "
-                        + $"position=({gun.Position.X:0.##},{gun.Position.Y:0.##},{gun.Position.Z:0.##}) "
-                        + $"visual={(held is null ? "missing" : "ready")}");
             }
         }
 
@@ -146,7 +132,6 @@ internal sealed class SoldierArmoury(
                 string weaponId = carried[0].WeaponId;
                 if (!roster.TryGetByScriptId(weaponId, out WeaponType weapon))
                 {
-                    _logger.Warning(SoldierRenderer.LogCategory, $"'{weaponId}' is not in the weapon table.");
                     continue;
                 }
 
@@ -175,10 +160,6 @@ internal sealed class SoldierArmoury(
             }
         }
 
-        _logger.Information(
-            SoldierRenderer.LogCategory,
-            $"{armed} of {count} soldier(s) hold a weapon model, over {cache.Values.Count(w => w is not null)} " +
-            $"distinct model(s).");
         return armed;
     }
 

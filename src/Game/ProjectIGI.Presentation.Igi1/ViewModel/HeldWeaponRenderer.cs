@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -34,6 +33,7 @@ namespace ProjectIGI.Presentation.Igi1.World;
 public enum WeaponAttachSlot
 {
     /// <summary>The gun body — bone 3, <c>0x4600C0</c>. Everything without a part class of its own.</summary>
+
     Primary,
 
     /// <summary>The magazine — bone 52, <c>0x4601A0</c>.</summary>
@@ -83,6 +83,7 @@ public enum WeaponAttachSlot
 /// </remarks>
 internal sealed class HeldWeaponRenderer : IHeldWeaponPresenter
 {
+
     private const string LogCategory = "Weapon";
     private const string GunFlameTaskType = "TASKTYPE_GUNFLAME";
 
@@ -116,7 +117,6 @@ internal sealed class HeldWeaponRenderer : IHeldWeaponPresenter
     private readonly IGraphicsDevice _device;
     private readonly ResourceRegistry _resources;
     private readonly MagicObjectRegistry _magic;
-    private readonly IProjectIGILogger _logger;
     private TexTextureCache? _textureCache;
     private readonly List<Part> _parts = [];
 
@@ -132,11 +132,7 @@ internal sealed class HeldWeaponRenderer : IHeldWeaponPresenter
     /// <param name="magic">The retail attachment-name table used to assemble multipart weapons.</param>
     /// <param name="logger">Where to report problems.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public HeldWeaponRenderer(
-        IGraphicsDevice device,
-        ResourceRegistry resources,
-        MagicObjectRegistry magic,
-        IProjectIGILogger? logger = null)
+    public HeldWeaponRenderer(IGraphicsDevice device, ResourceRegistry resources, MagicObjectRegistry magic)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(resources);
@@ -145,7 +141,6 @@ internal sealed class HeldWeaponRenderer : IHeldWeaponPresenter
         _device = device;
         _resources = resources;
         _magic = magic;
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Gets the model currently in hand, or an empty string.</summary>
@@ -229,18 +224,15 @@ internal sealed class HeldWeaponRenderer : IHeldWeaponPresenter
         if (!WorldObject.TryBuild(gunModel, mission.TryGetModel, _magic, out WorldObject? root)
             || root is null)
         {
-            _logger.Warning(LogCategory, $"The mission's packs do not hold the gun model '{gunModel}'.");
             return false;
         }
 
         AddParts(mission, root, PartFrame.Root, PartFrame.Root, WeaponAttachSlot.Primary);
         if (_parts.Count == 0)
         {
-            _logger.Warning(LogCategory, $"Gun model '{gunModel}' has nothing to draw.");
             return false;
         }
 
-        _logger.Information(LogCategory, $"Gun model '{gunModel}' draws as {_parts.Count} attached part(s).");
         return true;
     }
 
@@ -328,7 +320,6 @@ internal sealed class HeldWeaponRenderer : IHeldWeaponPresenter
                 }
                 catch (Exception ex) when (ex is ArgumentException or GraphicsDeviceException)
                 {
-                    _logger.Warning(LogCategory, $"Gun part '{part.Name}' did not upload: {ex.Message}");
                     continue;
                 }
             }
@@ -600,5 +591,5 @@ internal sealed class HeldWeaponRenderer : IHeldWeaponPresenter
     }
 
     // The textures the models name, loaded on first use.
-    private TexTextureCache Textures => _textureCache ??= new(_device, _resources, _logger, LogCategory);
+    private TexTextureCache Textures => _textureCache ??= new(_device, _resources, LogCategory);
 }

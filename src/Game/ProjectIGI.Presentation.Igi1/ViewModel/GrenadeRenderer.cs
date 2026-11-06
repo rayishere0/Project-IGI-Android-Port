@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -31,22 +30,16 @@ internal sealed class GrenadeRenderer : IGrenadePresenter
     private readonly IGraphicsDevice _device;
     private readonly ResourceRegistry _resources;
     private readonly MagicObjectRegistry _magic;
-    private readonly IProjectIGILogger _logger;
     private HeldWeaponRenderer? _frag;
     private HeldWeaponRenderer? _mine;
     private HeldWeaponRenderer? _flashbang;
     private bool _disposed;
 
-    public GrenadeRenderer(
-        IGraphicsDevice device,
-        ResourceRegistry resources,
-        MagicObjectRegistry magic,
-        IProjectIGILogger? logger = null)
+    public GrenadeRenderer(IGraphicsDevice device, ResourceRegistry resources, MagicObjectRegistry magic)
     {
         _device = device ?? throw new ArgumentNullException(nameof(device));
         _resources = resources ?? throw new ArgumentNullException(nameof(resources));
         _magic = magic ?? throw new ArgumentNullException(nameof(magic));
-        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>Loads the two grenade models out of a mission's packs.</summary>
@@ -121,13 +114,12 @@ internal sealed class GrenadeRenderer : IGrenadePresenter
 
     private HeldWeaponRenderer? LoadModel(LoadedMission mission, string model)
     {
-        HeldWeaponRenderer renderer = new(_device, _resources, _magic, _logger);
+        HeldWeaponRenderer renderer = new(_device, _resources, _magic);
         if (renderer.Load(mission, model))
         {
             return renderer;
         }
 
-        _logger.Warning("Grenade", $"The packs hold no grenade model '{model}'; those grenades fly unseen.");
         renderer.Dispose();
         return null;
     }

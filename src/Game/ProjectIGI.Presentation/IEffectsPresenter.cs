@@ -1,4 +1,3 @@
-using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Resources;
@@ -80,7 +79,4 @@ public interface ICameraStatusLightPresenter : IDisposable
 /// construction — so they ignore <see cref="Resources"/>. One request for two presenters rather than two
 /// requests differing by a field one of them never reads.
 /// </remarks>
-public readonly record struct EffectsPresentationRequest(
-    IGraphicsDevice Device,
-    ResourceRegistry Resources,
-    IProjectIGILogger Logger);
+public readonly record struct EffectsPresentationRequest(IGraphicsDevice Device, ResourceRegistry Resources);
