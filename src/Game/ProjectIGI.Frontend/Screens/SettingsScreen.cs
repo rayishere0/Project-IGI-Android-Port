@@ -23,6 +23,10 @@ public sealed class SettingsScreen : ShellScreen
     private static readonly int[] FpsCapValues = [30, 60, 90, 120, 0];
     private static readonly string[] FpsCapLabels = ["30 FPS", "60 FPS", "90 FPS", "120 FPS", "UNCAPPED"];
     private static readonly string[] RenderScaleLabels = ["540P (ULTRA)", "720P (PERFORMANCE)", "900P (BALANCED)", "NATIVE (MAX)"];
+    private static readonly int[] DynamicTargetValues = [30, 45, 60];
+    private static readonly string[] DynamicTargetLabels = ["30 FPS", "45 FPS", "60 FPS"];
+    private static readonly float[] ViewDistanceValues = [1f, 0.1f, 0.025f];
+    private static readonly string[] ViewDistanceLabels = ["FAR", "MEDIUM", "NEAR"];
     private static readonly string[] ShadowLabels = ["OFF", "LOW", "HIGH"];
 
     private readonly float _initialOpacity;
@@ -34,6 +38,9 @@ public sealed class SettingsScreen : ShellScreen
     private readonly float _initialUiScale;
     private readonly float _initialTextScale;
     private readonly int _initialRenderScale;
+    private readonly bool _initialDynamicResolution;
+    private readonly int _initialDynamicTargetFps;
+    private readonly float _initialViewDistance;
     private readonly bool _initialShowFps;
     private readonly float _initialGamma;
     private readonly float _initialMotionBlur;
@@ -64,6 +71,9 @@ public sealed class SettingsScreen : ShellScreen
         _initialUiScale = LayoutContext.GlobalUiScale;
         _initialTextScale = LayoutContext.GlobalTextScale;
         _initialRenderScale = context.Host.RenderScaleMode;
+        _initialDynamicResolution = ReconstructionCVars.DynamicResolution.Value;
+        _initialDynamicTargetFps = ReconstructionCVars.DynamicTargetFps.Value;
+        _initialViewDistance = ReconstructionCVars.ViewDistance.Value;
         _initialShowFps = DisplayCVars.ShowFps.Value;
         _initialGamma = PostCVars.Gamma.Value;
         _initialMotionBlur = PostCVars.MotionBlur.Value;
@@ -240,6 +250,76 @@ public sealed class SettingsScreen : ShellScreen
         };
         configStack.AddChild(resCycler);
 
+        // ── Dynamic Resolution: the picture shrinks itself to hold the frame rate ──
+        // The PS2 trick, done live: when the frame rate falls below the target below, the game steps
+        // the render scale down its own ladder until the rate holds, and steps back up slowly when it
+        // holds comfortably, so the picture does not flicker. Your Resolution Quality above is the
+        // ceiling -- it never renders above that -- and the archived render scale is never written,
+        // so your tier survives a relaunch exactly as picked. Off by default: a capable device
+        // renders exactly as before.
+        bool dynamicState = ReconstructionCVars.DynamicResolution.Value;
+        var dynamicToggle = new Toggle(theme, "Dynamic Resolution", dynamicState)
+        {
+            Width = 980f,
+            Height = 56f,
+            Tooltip = "Let the game lower the render resolution itself when the frame rate falls, to hold the target below. Your Resolution Quality is the ceiling -- it never renders above that. Off renders exactly as before.",
+        };
+        dynamicToggle.ValueChanged += val =>
+        {
+            ReconstructionCVars.DynamicResolution.Value = val;
+        };
+        configStack.AddChild(dynamicToggle);
+
+        // ── Dynamic Target FPS: the rate dynamic resolution holds ────────────────
+        int currentDynamicTarget = ReconstructionCVars.DynamicTargetFps.Value;
+        int selectedDynamicTargetIndex = Array.IndexOf(DynamicTargetValues, currentDynamicTarget);
+        if (selectedDynamicTargetIndex < 0)
+        {
+            selectedDynamicTargetIndex = 0;
+        }
+
+        var dynamicTargetCycler = new OptionCycler(theme, "Dynamic Target FPS", DynamicTargetLabels, selectedDynamicTargetIndex)
+        {
+            Width = 980f,
+            Height = 56f,
+            ContentWidth = 320f,
+            Tooltip = "The frame rate dynamic resolution holds. Held to your Max Frame Rate above: on a fresh install that cap is 30, so 45 and 60 hold at 30 until you raise it.",
+        };
+        dynamicTargetCycler.SelectionChanged += index =>
+        {
+            ReconstructionCVars.DynamicTargetFps.Value = DynamicTargetValues[index];
+        };
+        configStack.AddChild(dynamicTargetCycler);
+
+        // ── View Distance: how far the world draws ──────────────────────────────
+        // Shortens the far plane: Far is the original's 100 km, Medium 10 km, Near 2.5 km. The
+        // original's own fog hides everything past about two and a half kilometres anyway, so Near
+        // loses almost nothing visible and skips drawing what the fog would have hidden. The sky dome
+        // sizes itself to the far plane, so it stays put, and the held weapon sits centimetres away,
+        // so a 2.5 km far plane still contains it entirely.
+        float currentViewDistance = ReconstructionCVars.ViewDistance.Value;
+        int selectedViewDistanceIndex = 0;
+        for (int i = 0; i < ViewDistanceValues.Length; i++)
+        {
+            if (Math.Abs(ViewDistanceValues[i] - currentViewDistance) < Math.Abs(ViewDistanceValues[selectedViewDistanceIndex] - currentViewDistance))
+            {
+                selectedViewDistanceIndex = i;
+            }
+        }
+
+        var viewDistanceCycler = new OptionCycler(theme, "View Distance", ViewDistanceLabels, selectedViewDistanceIndex)
+        {
+            Width = 980f,
+            Height = 56f,
+            ContentWidth = 320f,
+            Tooltip = "How far the world draws. Near (2.5 km) skips what the original's fog hides anyway; Far is the original's 100 km.",
+        };
+        viewDistanceCycler.SelectionChanged += index =>
+        {
+            ReconstructionCVars.ViewDistance.Value = ViewDistanceValues[index];
+        };
+        configStack.AddChild(viewDistanceCycler);
+
         // ── Gamma: how bright the picture reads ─────────────────────────────
         // A display-space power curve applied after the tone map. Above 1 the sun-lit
         // models and mid-tones read brighter; below 1 they read darker. 1 is no change.
@@ -415,6 +495,9 @@ public sealed class SettingsScreen : ShellScreen
             DisplayCVars.ShowFps.Value = _initialShowFps;
             PostCVars.Gamma.Value = _initialGamma;
             PostCVars.MotionBlur.Value = _initialMotionBlur;
+            ReconstructionCVars.DynamicResolution.Value = _initialDynamicResolution;
+            ReconstructionCVars.DynamicTargetFps.Value = _initialDynamicTargetFps;
+            ReconstructionCVars.ViewDistance.Value = _initialViewDistance;
             // Siblings first, r_shadows last: restoring r_shadows re-derives the capture path and
             // the lighting model, and the frame after that reads the whole tier at once.
             ShadowCVars.ShadowCascades.Value = _initialShadowCascades;

@@ -231,6 +231,43 @@ public static class ReconstructionCVars
         CVarOptions.Archive,
         "Cap the frame rate through NVIDIA Reflex, in frames per second. 0 for no cap. Needs the NVIDIA runtime.");
 
+    /// <summary>Whether the game lowers the render scale itself to hold the target frame rate.</summary>
+    /// <remarks>
+    /// The PS2 trick, done live: when the frame rate falls below <see cref="DynamicTargetFps"/>, the
+    /// game steps the render scale down its own ladder until the rate holds, and steps back up slowly
+    /// when it holds comfortably. The manual Resolution Quality is the ceiling -- the scale never rises
+    /// above what the player picked -- and the archived render scale itself is never written, so the
+    /// player's tier survives a relaunch exactly as picked.
+    /// </remarks>
+    public static readonly BoolCVar DynamicResolution = CVar.Bool(
+        "r_dynamic_resolution",
+        false,
+        CVarOptions.Archive,
+        "Let the game lower the render scale itself when the frame rate falls, to hold the target below. The manual Resolution Quality is the ceiling.");
+
+    /// <summary>The frame rate dynamic resolution holds, in frames per second.</summary>
+    public static readonly NumericCVar<int> DynamicTargetFps = CVar.Int(
+        "r_dynamic_target_fps",
+        30,
+        15,
+        60,
+        CVarOptions.Archive,
+        "The frame rate dynamic resolution holds, in frames per second.");
+
+    /// <summary>How far the world draws, as a fraction of the original's far plane.</summary>
+    /// <remarks>
+    /// The original's far plane stands at 100 km; the fog it ships already hides everything past about
+    /// two and a half kilometres, so a shorter far plane loses almost nothing visible and skips drawing
+    /// what the fog would have hidden. The sky dome sizes itself to the far plane, so it stays put.
+    /// </remarks>
+    public static readonly NumericCVar<float> ViewDistance = CVar.Float(
+        "r_view_distance",
+        1.0f,
+        0.025f,
+        1.0f,
+        CVarOptions.Archive,
+        "How far the world draws, as a fraction of the original's 100 km far plane. The original's fog hides what it cuts.");
+
     /// <summary>Whether frame generation interpolates the picture and the interface separately.</summary>
     public static readonly BoolCVar FrameGenerationUiRecomposition = CVar.Bool(
         "r_dlssg_ui_recomposition",

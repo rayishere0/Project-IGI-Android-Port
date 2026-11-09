@@ -788,5 +788,12 @@ public static class GraphicsMenu
         "r_weather_force",
         "r_weather_speed",
         "r_storm_intensity",
+
+        // Dynamic resolution and view distance have their player-facing rows on the Configuration
+        // screen (SettingsScreen), next to the Resolution Quality tier they steer; a second copy
+        // here would be a second switch for the same three values.
+        "r_dynamic_resolution",
+        "r_dynamic_target_fps",
+        "r_view_distance",
     ];
 }
