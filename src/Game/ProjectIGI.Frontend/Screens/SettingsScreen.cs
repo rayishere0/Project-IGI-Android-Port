@@ -208,7 +208,7 @@ public sealed class SettingsScreen : ShellScreen
         };
         configStack.AddChild(fpsCycler);
 
-        // ── Option 6: Render Resolution Quality (720p / 900p / Native) ───
+        // ── Option 6: Render Resolution Quality (540p / 720p / 900p / Native) ───
         int currentRes = Context.Host.RenderScaleMode;
         var resCycler = new OptionCycler(theme, "Resolution Quality", RenderScaleLabels, Math.Clamp(currentRes, 0, 3))
         {

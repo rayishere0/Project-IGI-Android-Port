@@ -551,10 +551,20 @@ public sealed partial class GameHost : IDisposable
             {
                 if (_window.Mode == WindowMode.BorderlessFullscreen)
                 {
+                    // A borderless window is the desktop's size by definition, so there is
+                    // nothing to resize — and on Android it is the only mode there is. What the
+                    // player asked for is a smaller picture, not a smaller window: render at
+                    // the chosen height over the window's height and let the temporal upscaler
+                    // present it. That is what the synthetic entries in the resolution list
+                    // are (see MenuConfigHost.GetDisplayModes), and the tier shown in Settings
+                    // is re-synced so the two controls agree.
+                    float windowHeight = _window.Height > 0 ? _window.Height : h;
+                    float scale = Math.Clamp(h / windowHeight, 0.25f, 1f);
+                    ReconstructionCVars.RenderScale.Value = scale;
+                    _window.SyncRenderScaleMode();
                     _logger.Information(
                         "Config",
-                        $"Resolution {w}x{h} was chosen but the window is borderless fullscreen, whose size "
-                            + "is the desktop's. Run with -window or -fullscreen for it to take effect.");
+                        $"Render scale set to {scale:0.###} for resolution {w}x{h} (borderless fullscreen renders at the window size).");
                     return;
                 }
 

@@ -151,6 +151,18 @@ public readonly record struct HostOptions(
     public GraphicsPreset FirstRunPreset { get; init; } = GraphicsPreset.Enhanced;
 
     /// <summary>
+    /// Gets the render scale tier a player with no saved settings starts on (0 = 540p, 1 = 720p,
+    /// 2 = 900p, 3 = native), or <see langword="null"/> for no first-run tier.
+    /// </summary>
+    /// <remarks>
+    /// A property of the platform rather than a command-line option: Android renders at 720p on a
+    /// first run, and the tier has to be re-applied after the console reads the settings, because
+    /// the first-run preset it applies on a fresh install resets the render scale to native.
+    /// Only a first run reads it: once there is a settings file, the file decides.
+    /// </remarks>
+    public int? FirstRunRenderScaleMode { get; init; }
+
+    /// <summary>
     /// Gets the one graphics preset this build allows, or <see langword="null"/> to let the player choose.
     /// </summary>
     /// <remarks>

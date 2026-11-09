@@ -47,7 +47,10 @@ public sealed class MenuConfigHost(
     /// <remarks>
     /// The distinct sizes the monitor reports, smallest first, de-duplicated across refresh rates —
     /// the menu's list is of resolutions, not of modes, so two entries differing only in Hz would
-    /// read as a repeat. The id is the index, which is what the profile stores.
+    /// read as a repeat. The id is the index, which is what the profile stores. After the real modes
+    /// come the render scale tiers as synthetic sizes at the native aspect (900/720/540 high):
+    /// a borderless window cannot change size, so without them the list would offer only its
+    /// native mode, which is what issue #40 reports.
     /// </remarks>
     public IEnumerable<MenuListItem> GetDisplayModes(int device)
     {
@@ -57,6 +60,33 @@ public sealed class MenuConfigHost(
                 .Distinct()
                 .OrderBy(mode => mode.Width)
                 .ThenBy(mode => mode.Height));
+
+            // A borderless window cannot change size, so on Android the monitor reports exactly
+            // one mode — the native one — and the list would offer nothing to pick. Offer the
+            // render scale tiers as resolutions instead: the same aspect at a smaller height,
+            // rendered small and upscaled to the window (see the apply handler in GameHost).
+            // Derived from the largest mode so the aspect is preserved, largest first, and
+            // appended after the real modes so a profile that stored 0 for native keeps
+            // pointing at native. The cache is built once, so the indices stay stable.
+            if (_modes.Count > 0)
+            {
+                (int Width, int Height) native = _modes[^1];
+                foreach (int height in new[] { 900, 720, 540 })
+                {
+                    if (height >= native.Height)
+                    {
+                        continue;
+                    }
+
+                    (int Width, int Height) scaled = (
+                        (int)Math.Round((double)native.Width * height / native.Height),
+                        height);
+                    if (!_modes.Contains(scaled))
+                    {
+                        _modes.Add(scaled);
+                    }
+                }
+            }
         }
 
         return _modes.Select((mode, index) => new MenuListItem(
