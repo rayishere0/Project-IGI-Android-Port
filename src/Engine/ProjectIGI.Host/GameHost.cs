@@ -42,7 +42,21 @@ public sealed partial class GameHost : IDisposable
     // ViewPlanes. The far one is shared with the sky, which sizes its dome to four fifths of it exactly
     // as sub_52CC40 does, and with the first-person layer's shallower projection.
     private const float NearPlane = ViewPlanes.NearMetres;
-    private const float FarPlane = ViewPlanes.FarMetres;
+
+    // The far plane, scaled by the view-distance setting: Far is the original's 100 km, Near is
+    // 2.5 km, which the original's own fog already hides everything past. A shorter far plane culls
+    // the placements the fog would have hidden, and the sky dome scales with it, so it stays put.
+    // The first-person rig takes the same far plane, but the held weapon sits centimetres away, so
+    // a 2.5 km far plane still contains it entirely and it never moves.
+    private float FarPlane => ViewPlanes.FarMetres * ReconstructionCVars.ViewDistance.Value;
+
+    // The render scale in force: the manual tier's, unless dynamic resolution is on and has stepped
+    // the picture down to hold its target. The archived render scale is never written -- the manual
+    // tier stays exactly as the player picked it, and turning dynamic resolution off restores it.
+    private float EffectiveRenderScale() =>
+        ReconstructionCVars.DynamicResolution.Value
+            ? Math.Min(ReconstructionCVars.RenderScale.Value, _dynamicResolution.Scale)
+            : ReconstructionCVars.RenderScale.Value;
 
     // How long a load will hold for the lighting before giving up and letting the player in anyway. A
     // level that somehow never finishes tracing must not become a game that never starts.
@@ -268,6 +282,10 @@ public sealed partial class GameHost : IDisposable
 
     // How the level's models give up detail with distance, or none.
     private ModelLodPolicy? _modelLod;
+
+    // The dynamic-resolution ladder: steps the render scale down to hold its target frame rate, and
+    // back up when the rate holds comfortably. Fed once per presented frame, in a mission only.
+    private readonly DynamicResolution _dynamicResolution = new();
 
     // The camera the last frame was drawn from, which the ear follows; null before a level has drawn one.
     private Camera3D? _earCamera;
