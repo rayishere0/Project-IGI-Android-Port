@@ -35,6 +35,7 @@ public sealed class SettingsScreen : ShellScreen
     private readonly int _initialRenderScale;
     private readonly bool _initialShowFps;
     private readonly float _initialGamma;
+    private readonly float _initialMotionBlur;
 
     private ScrollView? _scroll;
     private UiVec2? _touchDragStart;
@@ -58,6 +59,7 @@ public sealed class SettingsScreen : ShellScreen
         _initialRenderScale = context.Host.RenderScaleMode;
         _initialShowFps = DisplayCVars.ShowFps.Value;
         _initialGamma = PostCVars.Gamma.Value;
+        _initialMotionBlur = PostCVars.MotionBlur.Value;
     }
 
     /// <inheritdoc/>
@@ -237,6 +239,26 @@ public sealed class SettingsScreen : ShellScreen
         };
         configStack.AddChild(gammaSlider);
 
+        // ── Motion Blur: how much a frame's movement smears ──────────────────
+        // A camera shutter: 0 is off and the picture stays crisp; 100% is a full
+        // smear. Turning it on opens the offscreen path the blur reads from — the
+        // capture flags follow the setting, so the row is never a dead control — and
+        // turning it off closes that path again. It costs frame rate on low-end
+        // phones: the 540P tier is the honest first try. The weapon stays crisp
+        // while the world smears; the rig's motion is zeroed where it is drawn.
+        float initialMotionBlur = PostCVars.MotionBlur.Value;
+        var motionBlurSlider = new Slider(theme, "Motion Blur", 0f, 100f, (int)Math.Round(initialMotionBlur * 100f), 5f)
+        {
+            Width = 980f,
+            Height = 56f,
+            Tooltip = "Smears movement like a camera shutter. 0 is off.\n\nNeeds the offscreen path, so it costs frame rate — try it at 540P first on a low-end phone.",
+        };
+        motionBlurSlider.ValueChanged += value =>
+        {
+            PostCVars.MotionBlur.Value = Math.Clamp(value / 100f, 0f, 1f);
+        };
+        configStack.AddChild(motionBlurSlider);
+
         // ── Option 7: Invert Mouse / Look Pitch ───────────────────────────
         bool invertState = Context.Config.Active?.InvertMouse ?? false;
         var invertToggle = new Toggle(theme, "Invert Look / Mouse", invertState)
@@ -351,6 +373,7 @@ public sealed class SettingsScreen : ShellScreen
             LayoutContext.GlobalTextScale = _initialTextScale;
             DisplayCVars.ShowFps.Value = _initialShowFps;
             PostCVars.Gamma.Value = _initialGamma;
+            PostCVars.MotionBlur.Value = _initialMotionBlur;
             if (Context.Config.Active is { } profile)
             {
                 profile.InvertMouse = _initialInvert;
