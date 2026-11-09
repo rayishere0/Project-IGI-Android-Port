@@ -45,10 +45,12 @@ public sealed class RagdollLimits
 {
     /// <summary>How much wider than the measured range a joint is allowed to be.</summary>
     /// <remarks>
-    /// Half as much again. The clips show a living body's working range; a corpse exceeds it, and a limit
-    /// set exactly at what was demonstrated would make every fall look braced.
+    /// A fifth again. The clips show a living body's working range; a corpse exceeds it, and a limit
+    /// set exactly at what was demonstrated would make every fall look braced. Tightened from 1.5 in
+    /// Step 1: at one and a half times, the free-travel ball per joint was wide enough to fold a limb
+    /// double.
     /// </remarks>
-    public const float Margin = 1.5f;
+    public const float Margin = 1.2f;
 
     /// <summary>The narrowest cone a measurement may produce, in radians — 8°.</summary>
     /// <remarks>
@@ -58,8 +60,8 @@ public sealed class RagdollLimits
     /// </remarks>
     public const float MinimumSwing = 8f * MathF.PI / 180f;
 
-    /// <summary>The widest, in radians — 100°.</summary>
-    public const float MaximumSwing = 100f * MathF.PI / 180f;
+    /// <summary>The widest, in radians — 80°.</summary>
+    public const float MaximumSwing = 80f * MathF.PI / 180f;
 
     /// <summary>The widest a twist may be, in radians — 90° either way.</summary>
     public const float MaximumTwist = 90f * MathF.PI / 180f;

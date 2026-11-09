@@ -52,7 +52,7 @@ public static class RagdollImpulse
     /// <summary>How much of the momentum moves the whole body rather than the part that was hit.</summary>
     /// <remarks>
     /// <para>
-    /// Seven tenths. A round genuinely does two things to a body — it moves all of it, and it snaps the
+    /// Eighty-five hundredths, tuned in Step 1 from seven tenths. A round genuinely does two things to a body — it moves all of it, and it snaps the
     /// bit it went through — and the split matters because the two behave completely differently under
     /// the rig's masses. The body-wide share is applied as a <em>velocity</em>, so every particle gets
     /// the same one and the corpse travels as a piece; the local share is applied as a
@@ -64,7 +64,7 @@ public static class RagdollImpulse
     /// speed nothing about the shot justifies.
     /// </para>
     /// </remarks>
-    public const double BodyShare = 0.7;
+    public const double BodyShare = 0.85;
 
     /// <summary>The momentum a weapon's projectile carries, in newton-seconds.</summary>
     /// <param name="category">The weapon type that fired.</param>
