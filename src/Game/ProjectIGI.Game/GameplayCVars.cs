@@ -120,14 +120,14 @@ public static class GameplayCVars
     /// is deliberate. Zero makes bodies simply fall.
     /// </para>
     /// <para>
-    /// One and a half, measured: a rifle round carries a body about 1.6 m, a shotgun about 3, a pistol
-    /// about half. At 1 the knock is real but easy to miss, because a guard is standing <em>on</em> the
+    /// One, tuned in Step 1 from one and a half. At the old 1.5 a rifle round carried a body about 1.6 m, a shotgun about 3, a pistol
+    /// about half; at 1 the throw is shorter. At 1 the knock is real but easy to miss, because a guard is standing <em>on</em> the
     /// floor when he is shot and the contact takes most of it back straight away.
     /// </para>
     /// </remarks>
     public static readonly NumericCVar<float> RagdollForce = CVar.Float(
         "g_ragdoll_force",
-        1.5f,
+        1.0f,
         0f,
         8f,
         CVarOptions.Archive,
@@ -136,7 +136,7 @@ public static class GameplayCVars
     /// <summary>What fraction of real gravity a corpse falls at.</summary>
     /// <remarks>
     /// <para>
-    /// Seven tenths. <b>The one number in the ragdoll that is a look rather than a measurement</b>, and
+    /// One - full gravity, tuned in Step 1 from seven tenths. <b>The gravity scale is a look rather than a measurement</b>, and
     /// it is a variable rather than a constant for exactly that reason. The solver already falls at the
     /// original's own 9.8 m/s² — see <c>Gravity</c>, which deliberately picks
     /// that over the 18.6 the player jumps under — so this is not correcting anything.
@@ -150,7 +150,7 @@ public static class GameplayCVars
     /// </remarks>
     public static readonly NumericCVar<float> RagdollGravity = CVar.Float(
         "g_ragdoll_gravity",
-        0.7f,
+        1.0f,
         0.1f,
         2f,
         CVarOptions.Archive,

@@ -28,7 +28,7 @@ public sealed partial class RagdollBody
     // most accurately, and a hip that has come apart is far worse than a wrist that has -- so the joints
     // near the root get the final word. The skeleton being topologically sorted means walking the list
     // backwards is already leaf-first.
-    private void SolveJoints()
+    private void SolveJoints(double poseHold)
     {
         for (int pass = 0; pass < JointIterations; pass++)
         {
@@ -36,6 +36,7 @@ public sealed partial class RagdollBody
             {
                 RagdollJoint link = _links[i];
                 SolveDeviation(link);
+                SolvePoseHold(link, poseHold);
                 SolveAttachment(link);
             }
         }
@@ -119,6 +120,80 @@ public sealed partial class RagdollBody
         // anything -- the constraint acts on world orientations.
         Vector3f axis = Direction(link.Parent, vector / sine);
         ApplyAngular(link.Parent, link.Child, axis, over * JointStiffness, repair: true);
+    }
+
+    /// <summary>
+    /// Eases a bone back toward the local rotation it had when the body died — the one term in the
+    /// solver that says where a limb <em>should</em> be, rather than where it may not go.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="SolveDeviation"/> is a one-sided wall: inside the cone it does nothing, so a limb
+    /// is a free pendulum over most of its travel and nothing defines a preferred shape. That is the
+    /// Euphoria gap — a muscle holds a body toward a pose, and this solver had no such term. This is
+    /// that term, in its smallest form: the same computation as <see cref="SolveDeviation"/>, with the
+    /// target moved from the identity to the seeded local rotation and the dead zone removed.
+    /// </para>
+    /// <para>
+    /// The target is the <em>seeded</em> pose, not the bind pose: driving every corpse toward identity
+    /// would straighten bodies that died bent or crouched into mannequins. The seeded pose preserves
+    /// the death shape, which is why seeding from the drawn pose exists.
+    /// </para>
+    /// <para>
+    /// Applied as a repair, exactly like the limit: the correction is accumulated in
+    /// <c>_repairSpin</c> and excluded from the velocity readback in <c>Recover</c>, so a corpse does
+    /// not read its own spring back as spin and dance. The existing <c>DampJoints</c> supplies the
+    /// damping half of the muscle model, so no new damper is added here.
+    /// </para>
+    /// <para>
+    /// <paramref name="strength"/> is the settle fade (1 while falling, 0 once settled): a spring
+    /// toward a fixed dead pose at full strength forever would fight gravity and contacts and hang the
+    /// corpse in its death shape instead of letting it collapse onto the floor.
+    /// </para>
+    /// </remarks>
+    private void SolvePoseHold(RagdollJoint link, double strength)
+    {
+        // The carried body has no seeded target — it is simulated alongside the bones, not part of
+        // the pose — so its grip joint gets the limit and the attachment only.
+        if (strength <= 0.0 || link.Child >= _boneCount)
+        {
+            return;
+        }
+
+        Quaternion32 target = _seedLocal[link.Child];
+
+        // The child's orientation expressed in its parent's frame, as in SolveDeviation.
+        Quaternion32 relative =
+            (_orientation[link.Parent].Conjugate() * _orientation[link.Child]).Normalized();
+
+        // A quaternion and its negation are the same orientation but opposite halves of a turn; taking
+        // the near half is what makes the angle below the SHORT way round.
+        if (relative.W < 0f)
+        {
+            relative = new Quaternion32(-relative.X, -relative.Y, -relative.Z, -relative.W);
+        }
+
+        // The rotation that carries the seeded local pose into the current one: relative is
+        // target * error, so turning the joint back by error returns it to the seeded pose.
+        Quaternion32 error = (target.Conjugate() * relative).Normalized();
+        if (error.W < 0f)
+        {
+            error = new Quaternion32(-error.X, -error.Y, -error.Z, -error.W);
+        }
+
+        Vector3f vector = error.Vector;
+        float sine = vector.Length;
+        if (sine <= RagdollSolver.ParallelEpsilon)
+        {
+            return;
+        }
+
+        float angle = 2f * MathF.Atan2(sine, error.W);
+
+        // The axis is in the parent's frame, so it has to be carried into the world before it can turn
+        // anything -- the constraint acts on world orientations.
+        Vector3f axis = Direction(link.Parent, vector / sine);
+        ApplyAngular(link.Parent, link.Child, axis, angle * PoseHoldStiffness * strength, repair: true);
     }
 
     /// <summary>The XPBD angular projection: turn two bodies so a rotation violation is closed.</summary>

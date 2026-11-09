@@ -61,7 +61,7 @@ public sealed partial class RagdollBody
     /// keep spinning long after the torso has stopped moving, and nothing else in the solver takes that
     /// energy out — the joints only say where a limb may be, not how fast it may get there.
     /// </remarks>
-    public const double AngularDamping = 0.88;
+    public const double AngularDamping = 0.80;
 
     /// <summary>How strongly a joint resists its two bones turning relative to one another.</summary>
     /// <remarks>
@@ -69,7 +69,7 @@ public sealed partial class RagdollBody
     /// <see cref="AngularDamping"/>, which slows a limb against the world: this slows it against the
     /// limb it hangs off, so a whole body can tumble freely while its elbows stay quiet.
     /// </remarks>
-    public const double JointDamping = 0.25;
+    public const double JointDamping = 0.4;
 
     /// <summary>How much of a bone's speed into a surface comes back out of it.</summary>
     /// <remarks>Nothing. A body is not a ball, and restitution on a ragdoll only ever makes it twitch.</remarks>
@@ -207,12 +207,30 @@ public sealed partial class RagdollBody
 
     /// <summary>How much of a joint's excursion past what it allows is taken out each substep.</summary>
     /// <remarks>
-    /// Two fifths. See <see cref="SolveDeviation"/> for what this holds and why it is a spring rather
+    /// Seven tenths. See <see cref="SolveDeviation"/> for what this holds and why it is a spring rather
     /// than a stop. It is paired with the substep count — the spring acts once per pass, so halving the
     /// substeps halves how much it removes per tick — and this is the value at which a joint driven to
-    /// its limit settles back onto it rather than resting outside it.
+    /// its limit settles back onto it rather than resting outside it. Raised from 0.4 in Step 1: at
+    /// two fifths a joint under continuous load (gravity plus contacts) sagged at a non-zero
+    /// steady-state violation, which read as mush.
     /// </remarks>
-    public const double JointStiffness = 0.4;
+    public const double JointStiffness = 0.7;
+
+    /// <summary>How much of a joint's drift from the pose it died in is taken out each application.</summary>
+    /// <remarks>
+    /// <para>
+    /// The pose-hold spring's stiffness, in the same units as <see cref="JointStiffness"/>: the
+    /// fraction of the angular error removed per application. Deliberately weak — three hundredths.
+    /// The spring acts once per pass, so at eight substeps and two passes it is applied sixteen times
+    /// a tick: 1 − 0.97<sup>16</sup> ≈ 39% of the error is removed per tick at full strength, which
+    /// is enough to hold a body's death shape through the fall without welding it to that shape.
+    /// </para>
+    /// <para>
+    /// It is a spring toward the <em>seeded</em> pose, not the bind pose: a guard shot mid-stride keeps
+    /// a mid-stride shape, a crouching guard keeps a crouch. See <see cref="SolvePoseHold"/>.
+    /// </para>
+    /// </remarks>
+    public const double PoseHoldStiffness = 0.03;
 
     /// <summary>How many times each pass projects the joint list.</summary>
     /// <remarks>
@@ -258,6 +276,7 @@ public sealed partial class RagdollBody
     private readonly Matrix3f[] _inverseInertia;
     private readonly Vector3d[] _tickStart;
     private readonly Quaternion32[] _local;
+    private readonly Quaternion32[] _seedLocal;
     private readonly Vector3d[] _repair;
     private readonly Vector3d[] _repairSpin;
     private readonly Matrix3f[] _rotation;
@@ -302,6 +321,21 @@ public sealed partial class RagdollBody
         // bones but is no part of the pose, and BonePose.Evaluate rightly refuses a rotation per body
         // when it was given a bone count.
         _local = new Quaternion32[_boneCount];
+
+        // The pose the body died in, per bone, as a LOCAL rotation (parent⁻¹·child) — the target the
+        // pose-hold spring pulls each joint back toward. The seed pose carries WORLD rotations
+        // (BonePose.Rotations), so the local form is derived here with the same formula Pose() reads
+        // back with, not taken from the pose. The root has no joint and the carried body has no
+        // target; both entries exist but are never sprung toward.
+        _seedLocal = new Quaternion32[_boneCount];
+        for (int bone = 0; bone < _boneCount; bone++)
+        {
+            int parent = rig.Skeleton.Parents[bone];
+            Quaternion32 above = parent == BoneSkeleton.NoParent
+                ? Quaternion32.Identity
+                : orientation[parent];
+            _seedLocal[bone] = (above.Conjugate() * orientation[bone]).Normalized();
+        }
 
         // Three probes a bone -- both caps and the middle -- is the most contacts a substep can find.
         _rotation = new Matrix3f[count];
@@ -615,6 +649,11 @@ public sealed partial class RagdollBody
         double linear = Math.Pow(LinearDamping * settle, step);
         double angular = Math.Pow(AngularDamping * settle, step);
         double joint = Math.Pow(1.0 - JointDamping, step);
+        // The pose-hold spring fades with the same ramp, in the opposite direction: full strength
+        // while the body is falling or freshly landed, fading out as it settles so the corpse drapes
+        // onto the floor instead of hanging in its death shape. A spring toward a fixed dead pose at
+        // full strength forever would fight gravity and contacts.
+        double poseHold = 1.0 - stubborn;
 
         for (int i = 0; i < substeps; i++)
         {
@@ -630,7 +669,7 @@ public sealed partial class RagdollBody
             {
                 SolveContacts(step, record: pass == 0);
                 SolveSelfCollision(step);
-                SolveJoints();
+                SolveJoints(poseHold);
             }
 
             Recover(step, linear, angular);
