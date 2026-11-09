@@ -16,6 +16,10 @@ public sealed class AndroidGameWindow : IGameWindow
 {
     private readonly ConcurrentQueue<AndroidInputEvent> _eventQueue = new();
     private readonly ConcurrentQueue<string> _textQueue = new();
+    // A Return press synthesized from a soft-keyboard newline (see PumpEvents): the
+    // key stays down until the next pump so the console's WasPressed edge check can
+    // see it, then it is released before the next frame's shadow is taken.
+    private bool _returnKeyDownFromText;
     // A new native window after the old one was destroyed (tab-out / rotate). Drained on the
     // game thread by PumpEvents, which invokes SurfaceRecreated so the host can rebind the
     // presentation surface to it. Attempts counts rebind retries for the same surface.
@@ -136,6 +140,17 @@ public sealed class AndroidGameWindow : IGameWindow
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        // Release a Return synthesized from a soft-keyboard newline on the previous
+        // pump before the shadow is taken, so a newline in this pump is still a fresh
+        // rising edge for WasPressed: BeginFrame copies the current state into the
+        // shadow, and releasing after it would leave the shadow holding the key down
+        // and hide the next edge.
+        if (_returnKeyDownFromText)
+        {
+            Input.Keyboard.SetKey(KeyCode.Return, false);
+            _returnKeyDownFromText = false;
+        }
+
         Input.BeginFrame();
 
         PumpSurfaceEvents();
@@ -178,11 +193,25 @@ public sealed class AndroidGameWindow : IGameWindow
 
         // Typed text from the Android soft keyboard (hidden EditText): feed the
         // platform's decoded-character queue, which the shell's focused TextBox drains.
+        // A newline is not a character the console can use — PromptEditor drops it —
+        // it is the soft keyboard's Enter key, committed as text because the field has
+        // no IME action. Turn it into the Return press the console's submit trigger
+        // reads (DeveloperConsole checks WasPressed(Return)). The press is held until
+        // the next pump: a down+up in the same pump would leave the key up before the
+        // console reads the edge.
         while (_textQueue.TryDequeue(out string? text))
         {
             foreach (char c in text)
             {
-                Input.Keyboard.EnqueueCharacter(c);
+                if (c is '\n' or '\r')
+                {
+                    Input.Keyboard.SetKey(KeyCode.Return, true);
+                    _returnKeyDownFromText = true;
+                }
+                else
+                {
+                    Input.Keyboard.EnqueueCharacter(c);
+                }
             }
         }
     }
@@ -262,6 +291,14 @@ public sealed class AndroidGameWindow : IGameWindow
         else if (keyCode == 68) // KEYCODE_GRAVE: the backtick key that toggles the dev console
         {
             Input.Keyboard.SetKey(KeyCode.Grave, down);
+        }
+        else if (keyCode == 66) // KEYCODE_ENTER: the Enter key that submits the dev console
+        {
+            Input.Keyboard.SetKey(KeyCode.Return, down);
+        }
+        else if (keyCode == 160) // KEYCODE_NUMPAD_ENTER
+        {
+            Input.Keyboard.SetKey(KeyCode.NumpadEnter, down);
         }
     }
 
