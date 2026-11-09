@@ -74,6 +74,14 @@ public sealed partial class GameHost
             _window.RenderScaleMode = firstRunTier;
         }
 
+        // The same shape, for motion blur: the saved r_motion_blur is only in force once the
+        // console has read settings.cfg, and the Vanilla preset holds r_hdr and r_deferred at 0
+        // on a fresh install. The two capture flags cannot carry the choice across a restart
+        // themselves — both default to 1, so the settings file, which only records differences
+        // from the default, never writes them — so they are re-derived from the blur here, and
+        // kept in step with it by the subscription in BindDeviceVariables.
+        ApplyMotionBlurCapture();
+
         // The scan LoadTitleResources ran: taken off the field because the scan now happens wherever the
         // resources are loaded, and that is a method a title switch calls too.
         _contentLayers.Report(_overrideScan);
@@ -128,6 +136,12 @@ public sealed partial class GameHost
         // the history -- the peaks after switching it back on should belong to the run being watched.
         _device.SetStageTiming(FrameCVars.PerformanceLog.Value);
         WhenChanged(FrameCVars.PerformanceLog, () => _device.SetStageTiming(FrameCVars.PerformanceLog.Value));
+
+        // The blur owns the offscreen path: turning it on opens the capture the resolve reads from,
+        // turning it off closes it again, so the Motion Blur row in Settings is never a dead control
+        // and the direct path is untouched while the blur is off. The startup value is settled in
+        // SetUpConsole, after the settings file has been read; this keeps it live after that.
+        WhenChanged(PostCVars.MotionBlur, ApplyMotionBlurCapture);
 
         _flowHost = new HostFlowHost(_logger);
     }
