@@ -603,6 +603,20 @@ internal sealed class PlayerShotResolver
                 WorldTraceHit richHit = default;
                 bool struckWall = Walls is not null
                     && Walls.TryTrace(new WorldTraceRequest(origin, end, WorldTraceMask.World), out richHit);
+
+                // The terrain is no placed object, so the index above never meets it -- and
+                // neither did the round: a shot at open ground flew to its range end and left
+                // nothing at all, no mark, no dust, no sound. The terrain caster answers the
+                // same segment, and the nearer of the two is the surface the round met. The
+                // march below needs nothing else: a terrain hit names no object, so it stops
+                // the round, and its material row is the Ground one the impact effects read.
+                if (TerrainTrace is { } ground
+                    && ground(new WorldTraceRequest(origin, end, WorldTraceMask.Terrain), out WorldTraceHit groundHit)
+                    && (!struckWall || groundHit.Distance < richHit.Distance))
+                {
+                    struckWall = true;
+                    richHit = groundHit;
+                }
                 WorldRayHit hit = struckWall ? richHit.RayHit : default;
 
                 // The wall first, then the guards short of it. A guard in front of a wall takes the round
@@ -787,7 +801,7 @@ internal sealed class PlayerShotResolver
         {
             if (_pendingMarks.Count < GunShotBallistics.MaximumRecordedImpacts)
             {
-                _pendingMarks.Add(new PendingMark(surface, BulletMarks.SurfaceOf(contact), exitCrossing, contact.Placement));
+                _pendingMarks.Add(new PendingMark(surface, BulletMarks.SurfaceOf(contact), exitCrossing, contact.Placement, contact.Kind is WorldTraceHitKind.Terrain));
             }
         }
     }
@@ -810,7 +824,7 @@ internal sealed class PlayerShotResolver
         {
             PendingMark pending = _pendingMarks[i];
             bool isEntry = !deflected && (i < _pendingMarks.Count - 1 || !pending.Hit.IsExit);
-            Marks.TryAdd(pending.Hit, pending.Surface, table, isEntry, pending.ExitCrossing, MarkProbe, pending.Placement);
+            Marks.TryAdd(pending.Hit, pending.Surface, table, isEntry, pending.ExitCrossing, MarkProbe, pending.Placement, pending.OnTerrain);
         }
 
         _pendingMarks.Clear();
@@ -918,7 +932,8 @@ internal sealed class PlayerShotResolver
         WorldRayHit Hit,
         object? Surface,
         bool ExitCrossing,
-        WorldPlacement? Placement);
+        WorldPlacement? Placement,
+        bool OnTerrain);
 
     /// <summary>Mirrors a direction about a surface normal, as the deflection at <c>0x47BC8E</c> does.</summary>
     internal static Vector3d Reflect(Vector3d direction, Vector3f normal)
