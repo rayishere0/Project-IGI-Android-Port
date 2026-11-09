@@ -317,6 +317,14 @@ public sealed partial class Igi1MissionAudio(MissionWorld mission, IMissionSound
             && AmmoPickupCatalog.TryResolve(pickup, ammoTypes, out AmmoType ammo))
         {
             weapons.Ammunition.Add(ammo.AmmoId, AmmoPickupCatalog.Amount(pickup, ammo.AmmoId));
+
+            // A world ammo box was the one way M203 rounds could enter the pool without ever
+            // associating the M203 type, so the rounds sat in the inventory while HasM203Round()
+            // still said no. Associate the type with the rounds themselves.
+            if (string.Equals(ammo.ScriptId, PlayerWeapons.M203AmmoScriptId, StringComparison.Ordinal))
+            {
+                weapons.SetM203Ammunition(ammo);
+            }
         }
 
         host.SoundOutput?.PlayDefinition(ammunition ? "weaponpickup_1" : "pickup", priority: 180);

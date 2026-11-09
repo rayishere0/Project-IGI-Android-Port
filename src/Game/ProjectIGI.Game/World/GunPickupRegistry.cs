@@ -285,6 +285,16 @@ public sealed class GunPickupRegistry
             // GunPickup::Update forwards its configured clip size. The human handler deliberately
             // leaves an existing weapon in place and turns the same payload into loose reserve ammo.
             inventory.PickUp(pickup.Weapon, pickup.Ammo, pickup.Weapon.RoundsPerClip);
+
+            // A picked-up M16A2 only ever brings its primary calibre: the pickup carries no M203
+            // record to hand over, so without this the grenade gates never see the gun. Associate
+            // the M203 type here so a world-found M16A2 can launch grenades once its rounds are
+            // picked up — or at once under Infinite Ammo.
+            if (string.Equals(pickup.Weapon.ScriptId, PlayerWeapons.M16A2WeaponScriptId, StringComparison.Ordinal))
+            {
+                inventory.AssociateM203Ammunition(_ammunition);
+            }
+
             pickup.IsCollected = true;
             if (pickup.Task is { } task)
             {

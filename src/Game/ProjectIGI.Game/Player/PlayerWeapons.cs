@@ -50,6 +50,9 @@ public sealed class PlayerWeapons
     /// <summary>The retail weapon id used by the M16A2/M203 alternate-fire callback.</summary>
     public const string M16A2WeaponScriptId = "WEAPON_ID_M16A2";
 
+    /// <summary>The script id of the M203 grenade ammunition the M16A2's alternate fire consumes.</summary>
+    public const string M203AmmoScriptId = "AMMO_ID_M203";
+
     /// <summary>The roster id for the retail two-Uzi weapon whose model owns the dual-hand child task.</summary>
     public const string DualUziWeaponScriptId = "WEAPON_ID_UZIX2";
 
@@ -310,6 +313,28 @@ public sealed class PlayerWeapons
     {
         ArgumentNullException.ThrowIfNull(ammunition);
         _m203Ammunition = ammunition;
+    }
+
+    /// <summary>Associates the M203 ammunition type from the ammunition table, if the table has one.</summary>
+    /// <param name="ammunition">The ammunition table the M203 type is resolved from.</param>
+    /// <remarks>
+    /// The association used to be made in exactly one place — the mission-loadout path, only when the
+    /// level declared an <c>AddAmmo(AMMO_ID_M203)</c> child. Every other way the M16A2 or its grenades
+    /// reach the player (a world ammo box, a world gun pickup, the All Weapons cheat, a loadout that
+    /// grants the gun without its grenades) left <c>_m203Ammunition</c> null, and both grenade gates
+    /// (<see cref="HasM203Round"/> and <c>ResolveFire</c>) then failed silently: no animation, no
+    /// sound, no projectile — including under Infinite Ammo, which still requires the association.
+    /// Call this whenever the M16A2 or M203 rounds enter the inventory instead. A table with no M203
+    /// type leaves the association untouched, and associating the type grants no rounds: the count
+    /// gate in <see cref="HasM203Round"/> still applies unless Infinite Ammo is on.
+    /// </remarks>
+    public void AssociateM203Ammunition(AmmoTypeRegistry ammunition)
+    {
+        ArgumentNullException.ThrowIfNull(ammunition);
+        if (ammunition.TryGetByScriptId(M203AmmoScriptId, out AmmoType m203))
+        {
+            _m203Ammunition = m203;
+        }
     }
 
     /// <summary>Applies a <c>GunPickup</c> to this inventory.</summary>
