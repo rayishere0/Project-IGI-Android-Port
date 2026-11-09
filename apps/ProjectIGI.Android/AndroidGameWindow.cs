@@ -259,6 +259,10 @@ public sealed class AndroidGameWindow : IGameWindow
         {
             Input.Keyboard.SetKey(KeyCode.Backspace, down);
         }
+        else if (keyCode == 68) // KEYCODE_GRAVE: the backtick key that toggles the dev console
+        {
+            Input.Keyboard.SetKey(KeyCode.Grave, down);
+        }
     }
 
     /// <summary>Maps an Android gamepad key code onto <see cref="GamepadState"/>, if it is one.</summary>
