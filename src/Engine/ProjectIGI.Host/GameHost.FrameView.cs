@@ -253,7 +253,8 @@ public sealed partial class GameHost
         // uniform lift, 0% normal and bright from 1% up. The resolve has to match what the shading
         // actually produced, not what was asked for. When the GI does become Ready under a genuinely
         // dynamic request, the pin releases and the dynamic tone map and exposure apply to a
-        // genuinely dynamic frame -- that look is intended, not flattened. Gamma is
+        // genuinely dynamic frame -- that look is intended, not flattened -- but only where the capture
+        // is open for the lighting rather than for the blur: see the blur-only arm below. Gamma is
         // deliberately not pinned -- it is a live slider on the Configuration screen, default 1,
         // and it working with the blur on is intended.
         // The same pin covers effective hybrid while shadows are on -- the only way Android
@@ -265,11 +266,23 @@ public sealed partial class GameHost
         // shadowed frame. Effective hybrid without shadows -- a console choice, not this row --
         // keeps the tone map it had, once the GI is Ready; before that it is baked, and the Baked
         // arm above pins it.
-        bool bakedIdentity = _gi.EffectiveLighting == LightingModel.Baked
-            || (_gi.EffectiveLighting == LightingModel.Hybrid && ShadowCVars.Shadows.Value > 0);
-        ToneMapOperator toneMap = bakedIdentity ? ToneMapOperator.None : ExposureCVars.ToneMap.Value;
-        float exposure = bakedIdentity ? 1f : ExposureCVars.EffectiveExposure;
-        bool autoExposure = bakedIdentity ? false : ExposureCVars.AutoExposure.Value;
+        // The blur-only arm: when motion blur is the only reason the capture is open, the resolve
+        // must not grade the picture. Blur-off always shows the baked forward picture -- the forward
+        // path has no lighting model to choose -- so the resolve adding the exposure and tone map the
+        // direct path never applies is a brightness the slider itself invents. On an install running
+        // Dynamic that is the ~15% uniform lift (x1.414, then Reinhard or ACES) reported after #50,
+        // whose pin releases exactly there, by design, because the frame IS genuinely dynamic. The
+        // shading stays dynamic -- the lighting the player asked for is not flattened -- only the grade
+        // goes, so the blur-on frame is the dynamic picture ungraded rather than re-exposed. Shadows-on
+        // frames are not this arm: with shadows the capture is open for the lighting, blur-off shows
+        // the same dynamic picture, and the grade stays. The shadow reading matches ApplyShadowCapture,
+        // which derives the capture flags from the blur and the shadows together.
+        bool resolveIdentity = _gi.EffectiveLighting == LightingModel.Baked
+            || (_gi.EffectiveLighting == LightingModel.Hybrid && ShadowCVars.Shadows.Value > 0)
+            || (PostCVars.MotionBlur.Value > 0f && ShadowCVars.Shadows.Value <= 0);
+        ToneMapOperator toneMap = resolveIdentity ? ToneMapOperator.None : ExposureCVars.ToneMap.Value;
+        float exposure = resolveIdentity ? 1f : ExposureCVars.EffectiveExposure;
+        bool autoExposure = resolveIdentity ? false : ExposureCVars.AutoExposure.Value;
 
         PostProcessSettings postProcess = new(
             toneMap,
