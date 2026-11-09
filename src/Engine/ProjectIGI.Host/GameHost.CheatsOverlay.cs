@@ -74,9 +74,11 @@ public sealed partial class GameHost
                 input.Mouse.SetButton(MouseButton.Left, down: false);
             }
 
-            // Keyboard icon just under the gear: taps toggle the soft keyboard so the
-            // player can type names and other menu text even when the automatic
-            // focus detection does not fire. Same generous hit area as the gear.
+            // Console icon just under the gear: taps toggle the developer console
+            // (the same open state the Grave key flips). The soft keyboard follows
+            // the console: GameHost derives KeyboardRequested from Console.IsOpen
+            // once per frame, so opening the console summons the IME for typing
+            // commands. Same generous hit area as the gear.
             // (The icon is 28 units, centred on the gear; see DrawCheatsOverlay.)
             float kbW = 28f * scale;
             float kbH = 28f * scale;
@@ -86,7 +88,7 @@ public sealed partial class GameHost
             float kbHitY = kbY + (kbH * 0.5f) - (hit * 0.5f);
             if (click && clickX >= kbHitX && clickX <= kbHitX + hit && clickY >= kbHitY && clickY <= kbHitY + hit)
             {
-                KeyboardRequested = !KeyboardRequested;
+                state.Console.Model.IsOpen = !state.Console.Model.IsOpen;
                 input.Mouse.SetButton(MouseButton.Left, down: false);
             }
             return;
@@ -223,38 +225,30 @@ public sealed partial class GameHost
         painter.FillRect(new UiRect(gCenterX - gRadius, gCenterY - gRadius, gRadius * 2f, gRadius * 2f), brightGreen);
         painter.FillRect(new UiRect(gCenterX - (gRadius * 0.4f), gCenterY - (gRadius * 0.4f), gRadius * 0.8f, gRadius * 0.8f), darkBg);
 
-        // ── 1b. Keyboard icon just under the gear ────────────────────────────
-        // Tapping it toggles the soft keyboard so player names and other menu text
-        // can be typed even when the automatic focus detection does not fire.
-        // It is drawn highlighted while the keyboard is requested. It is deliberately
+        // ── 1b. Console icon just under the gear ────────────────────────────
+        // Tapping it toggles the developer console (the same open state the Grave
+        // key flips). It is drawn highlighted while the console is open. It is deliberately
         // bigger and brighter than the gear (28 units, lighter green fill) so it
         // cannot be missed against the dark menu background.
         float kbW = 28f * scale;
         float kbH = 28f * scale;
         float kbX = gearX + ((gearW - kbW) * 0.5f);
         float kbY = gearY + gearH + (8f * scale);
-        painter.FillRect(new UiRect(kbX, kbY, kbW, kbH), KeyboardRequested ? brightGreen : Bgra32.FromRgba(16, 44, 22, 245));
+        painter.FillRect(new UiRect(kbX, kbY, kbW, kbH), state.Console.IsOpen ? brightGreen : Bgra32.FromRgba(16, 44, 22, 245));
         painter.StrokeRect(new UiRect(kbX, kbY, kbW, kbH), 2f * scale, brightGreen);
-        // Two rows of keys and a spacebar. Dark keys when highlighted, bright green otherwise.
-        Bgra32 keyColor = KeyboardRequested ? Bgra32.FromRgb(10, 24, 14) : brightGreen;
-        float key = 3f * scale;
-        float keyGap = 2f * scale;
-        float keysW = (4f * key) + (3f * keyGap);
-        float keysX = kbX + ((kbW - keysW) * 0.5f);
-        float row1Y = kbY + (5.5f * scale);
-        for (int i = 0; i < 4; i++)
+        // Console prompt glyph ">_", centred by measurement. Dark glyph when
+        // highlighted, bright green otherwise. (The console's own prompt sigil is
+        // "›"; ">_" reads as a terminal prompt at 28 units.)
+        Bgra32 glyphColor = state.Console.IsOpen ? Bgra32.FromRgb(10, 24, 14) : brightGreen;
+        if (_shellType is { } type)
         {
-            painter.FillRect(new UiRect(keysX + (i * (key + keyGap)), row1Y, key, key), keyColor);
+            const string prompt = ">_";
+            float promptSize = 16f * scale;
+            UiVec2 promptExtent = type.Mono.Measure(prompt, promptSize);
+            painter.DrawText(type.Mono, prompt,
+                new UiVec2(kbX + ((kbW - promptExtent.X) * 0.5f), kbY + ((kbH - promptExtent.Y) * 0.5f)),
+                promptSize, glyphColor);
         }
-        float row2Y = row1Y + key + keyGap;
-        for (int i = 0; i < 4; i++)
-        {
-            painter.FillRect(new UiRect(keysX + (i * (key + keyGap)), row2Y, key, key), keyColor);
-        }
-        float spaceW = keysW * 0.6f;
-        float spaceX = kbX + ((kbW - spaceW) * 0.5f);
-        float spaceY = row2Y + key + keyGap;
-        painter.FillRect(new UiRect(spaceX, spaceY, spaceW, key), keyColor);
 
         // ── 2. Cheats Modal Overlay ───────────────────────────────────────
         if (_cheatsModalOpen)

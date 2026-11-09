@@ -1489,7 +1489,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     @Override
     public void onBackPressed() {
         // If the soft keyboard is showing, the first Back dismisses it (and clears the
-        // keyboard-icon request) instead of navigating — standard Android behaviour.
+        // keyboard request) instead of navigating — standard Android behaviour.
         if (isGameStarted && imeShown) {
             hideSoftKeyboard();
             NativeEngine.nativeSetKeyboardRequested(false);
@@ -1521,10 +1521,12 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         }
         lastGyroTimestampNs = 0;
         hideSoftKeyboard();
-        // Clear the keyboard-icon request and the hidden field's focus, or the IME
-        // poller (or a focused EditText) pops the keyboard up again the moment the
-        // app returns to the foreground. The keyboard only comes back when the player
-        // taps the keyboard icon again or focuses a text field.
+        // Clear the soft-keyboard request (derived from the console's open state)
+        // and the hidden field's focus, or the IME poller (or a focused EditText)
+        // pops the keyboard up again the moment the app returns to the foreground.
+        // The keyboard only comes back when the console is opened again or a text
+        // field is focused; the managed side also closes the console on return,
+        // since this clear while it is open means "close the console".
         NativeEngine.nativeSetKeyboardRequested(false);
         if (hiddenInput != null) {
             hiddenInput.clearFocus();
@@ -1747,10 +1749,12 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     }
 
     private void updateImeVisibility() {
-        // Show the keyboard when a text field is focused OR when the player asked for it
-        // via the keyboard icon in the main menu (under the cheats gear), so player names
-        // and other menu text can be typed even when the automatic focus detection does
-        // not fire. The icon toggles the request; Back clears it.
+        // Show the keyboard when a text field is focused OR when the developer console
+        // is open: the managed side derives the keyboard request from the console's
+        // open state, so opening the console (main-menu icon, Grave key, toggleconsole)
+        // summons the IME for typing commands, and closing it hides the IME again.
+        // Back clears the request while the console is open, and the managed side
+        // treats that clear as "close the console" — one Back closes both together.
         boolean focused = isGameStarted && (NativeEngine.nativeIsTextFieldFocused()
             || NativeEngine.nativeIsKeyboardRequested());
         InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);

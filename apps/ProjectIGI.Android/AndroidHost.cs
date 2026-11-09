@@ -387,14 +387,14 @@ public static class AndroidHost
         return _gameHost is { } host && host.IsTextFieldFocused ? 1 : 0;
     }
 
-    /// <summary>Whether the player asked for the soft keyboard via the main-menu keyboard icon.</summary>
+    /// <summary>Whether the Android soft keyboard is wanted: derived from the developer console's open state (GameHost derives KeyboardRequested from Console.IsOpen once per frame).</summary>
     [UnmanagedCallersOnly(EntryPoint = "IsKeyboardRequested")]
     public static int IsKeyboardRequested()
     {
         return _gameHost is { } host && host.KeyboardRequested ? 1 : 0;
     }
 
-    /// <summary>Sets the soft-keyboard request flag (the Android side clears it when Back dismisses the keyboard).</summary>
+    /// <summary>Sets the soft-keyboard request flag. The Android side only ever clears it — when Back dismisses the keyboard, or the app backgrounds. The managed side treats that clear while the console is open as "close the console", so one Back closes both together.</summary>
     [UnmanagedCallersOnly(EntryPoint = "SetKeyboardRequested")]
     public static void SetKeyboardRequested(int value)
     {
