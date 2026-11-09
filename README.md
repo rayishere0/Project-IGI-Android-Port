@@ -70,6 +70,9 @@ For copyright compliance, this APK contains **no copyrighted game data**. To pla
 - **Responsive Touch HUD & Controls**:
   - Full multi-touch overlay with dual-stick movement, aiming, crouch, jump, reload, scope, and weapon selection.
   - Interactive **Pause Button (`||`)** that instantly halts game simulation, AI, and level updates.
+- **Gamepad / Controller Support**:
+  - Xbox, PlayStation and generic Android controllers work in menus and in missions — see [Controller Support](#controller-support) below.
+  - While a controller is connected the on-screen touch controls hide; unplug it and they come straight back.
 - **Clean Cutscene Audio & Skip Rules**:
   - Mission background music automatically pauses during cutscenes for crisp dialogue playback.
   - Interactive hold-to-skip ring for mid-mission cutscenes; post-mission completion cutscenes run unprompted for clean cinematic transitions.
@@ -77,6 +80,30 @@ For copyright compliance, this APK contains **no copyrighted game data**. To pla
   - **Infinite Health** (zero damage from bullets, falls, explosions, electric fences)
   - **Infinite Ammunition** (reserves never deplete)
   - **All Weapons** (unlocks full arsenal for the mission)
+
+---
+
+## Controller Support
+
+Connect any Xbox, PlayStation or generic Android controller — in menus and in missions. The left stick moves a virtual pointer in menus (A clicks, B goes back). While a controller is connected, the on-screen touch controls hide; unplug it mid-mission and they come straight back, no restart. If two controllers are connected, the first one wins.
+
+| Input | Action |
+|---|---|
+| Left stick | Move |
+| Right stick | Look (dead zone 0.18; follows Mouse Sensitivity and Invert Mouse; slows while scoped) |
+| RT / LT | Fire / Aim |
+| RB / LB | Next weapon / Previous weapon |
+| A | Jump (hold to skip cutscenes) |
+| B | Crouch toggle |
+| X / Y | Reload / Use |
+| Start | Pause |
+| Back / Select | Map computer |
+| D-pad Up / Down | Binoculars / Flashlight (zoom in/out while scoped or in binoculars) |
+| D-pad Left / Right | Peek (hold) |
+| L3 | Walk/run toggle |
+| R3 (hold) | Weapon wheel (steer with right stick) |
+
+Weapon categories 1–9, the cheats gear and the on-screen layout customizer stay touch-only, and there is no remap UI yet.
 
 ---
 
