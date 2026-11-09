@@ -559,7 +559,12 @@ public sealed class DeveloperConsole : IDisposable
         // composing a command. Escape and Return both hand the keyboard back to the prompt.
         if (_panels.FindFocused && _panels.Body is { } body)
         {
-            if (keyboard.WasPressed(KeyCode.Return) || keyboard.WasPressed(KeyCode.NumpadEnter))
+            // Both reads are evaluated eagerly, not || short-circuit: a held key is both
+            // down at the level and queued from its rising edge, and consuming only one
+            // of the two would hand the prompt back twice for one press (see below).
+            bool findReturnPressed = keyboard.WasPressed(KeyCode.Return) || keyboard.WasPressed(KeyCode.NumpadEnter);
+            bool findReturnQueued = keyboard.TryDequeueReturnPress(out _);
+            if (findReturnPressed || findReturnQueued)
             {
                 _panels.FindFocused = false;
                 return;
@@ -573,7 +578,16 @@ public sealed class DeveloperConsole : IDisposable
             return;
         }
 
-        if (keyboard.WasPressed(KeyCode.Return) || keyboard.WasPressed(KeyCode.NumpadEnter))
+        // WasPressed is a level comparison against the per-frame shadow: a Return press
+        // whose down and up both land in one pump (~17 ms in the menu) leaves the key up
+        // by the time this runs, so it never submits — even though SetKey queued the press
+        // on its rising edge. Also consume the queued press. Both reads are evaluated
+        // eagerly, not || short-circuit: a held key is both down at the level AND queued
+        // from its rising edge, and consuming only one of the two would submit the same
+        // physical press twice — once now from the level, once next frame from the queue.
+        bool returnPressed = keyboard.WasPressed(KeyCode.Return) || keyboard.WasPressed(KeyCode.NumpadEnter);
+        bool returnQueued = keyboard.TryDequeueReturnPress(out _);
+        if (returnPressed || returnQueued)
         {
             if (_model.SuggestionIndex >= 0)
             {

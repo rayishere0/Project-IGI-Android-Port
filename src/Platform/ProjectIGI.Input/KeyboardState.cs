@@ -176,6 +176,54 @@ public sealed class KeyboardState
         return found;
     }
 
+    /// <summary>Takes the oldest queued Return/NumpadEnter press while preserving unrelated key presses.</summary>
+    /// <param name="key">Receives the key.</param>
+    /// <returns><see langword="true"/> when a Return or NumpadEnter press was waiting.</returns>
+    /// <remarks>
+    /// <para>
+    /// The developer console's submit trigger reads this as well as <see cref="WasPressed"/>:
+    /// <see cref="WasPressed"/> compares the key level against a shadow taken once per pump, so a
+    /// press whose down and up both land in one pump is invisible to it even though
+    /// <see cref="SetKey"/> queued the press on its rising edge. Only Return/NumpadEnter are
+    /// taken here — other queued presses (history arrows, Backspace, gameplay keys) keep their
+    /// order for their own readers.
+    /// </para>
+    /// </remarks>
+    public bool TryDequeueReturnPress(out KeyCode key)
+    {
+        if (Captured || _presses.Count == 0
+            || (!_presses.Contains(KeyCode.Return) && !_presses.Contains(KeyCode.NumpadEnter)))
+        {
+            key = default;
+            return false;
+        }
+
+        int count = _presses.Count;
+        KeyCode[] remaining = new KeyCode[count];
+        int remainingCount = 0;
+        bool found = false;
+        key = default;
+        for (int i = 0; i < count; i++)
+        {
+            KeyCode candidate = _presses.Dequeue();
+            if (!found && candidate is KeyCode.Return or KeyCode.NumpadEnter)
+            {
+                key = candidate;
+                found = true;
+                continue;
+            }
+
+            remaining[remainingCount++] = candidate;
+        }
+
+        for (int i = 0; i < remainingCount; i++)
+        {
+            _presses.Enqueue(remaining[i]);
+        }
+
+        return found;
+    }
+
     /// <summary>Records a typed character.</summary>
     /// <param name="character">The character the platform decoded.</param>
     /// <remarks>
