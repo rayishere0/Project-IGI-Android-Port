@@ -56,6 +56,7 @@ import androidx.documentfile.provider.DocumentFile;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -64,13 +65,28 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private static final String TAG = "ProjectIGI";
     private static final String ASSET_VERSION = "v22_perm_on_start";
     private static final int REQUEST_SELECT_GAME_FOLDER = 2001;
+    private static final int REQUEST_SELECT_CONTENT_PACK = 2002;
     private static final int REQUEST_STORAGE_PERMISSIONS = 1002;
     private static final String PREFS_NAME = "projectigi_prefs";
     private static final String PREF_RENDERER_BACKEND = "renderer_backend";
+
+    // Content packs live in app-private storage, next to the game data: the engine only ever does
+    // plain System.IO, so a pack has to be a real directory, and a folder beside the picked retail
+    // folder on shared storage is unreadable to it. The profile is handed to the engine through the
+    // options string (-contentprofile); it lives directly under getFilesDir() rather than inside
+    // "Project IGI" because that name has a space in it and the options string splits on spaces.
+    private static final String CONTENT_DIR_NAME = "content";
+    private static final String CONTENT_PROFILE_NAME = "content-profile.json";
+    private static final String LOCAL_LAYER_ID = "local";
+    private static final String LOCAL_LAYER_NAME = "Local overrides (game folder)";
 
     private SurfaceView surfaceView;
     private FrameLayout rootLayout;
@@ -81,7 +97,12 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private Button playBtn;
     private Button vulkanBtn;
     private Button webGpuBtn;
+    private Button installPackBtn;
+    private Button disableContentBtn;
     private String rendererBackend = "vulkan";
+
+    // Which install the progress bar is reporting, so a pack install does not claim to install game files.
+    private String copyStatusLabel = "INSTALLING GAME FILES... ";
 
     private boolean isExtracted = false;
     private boolean isGameFolderVerified = false;
@@ -361,6 +382,52 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         btnRow.addView(playBtn, playLp);
 
         cardLayout.addView(btnRow);
+
+        // Content row: install a pack, or switch every pack off. Neither needs the game folder: packs
+        // live in their own folder, and switching them off is the recovery when a pack breaks the menu.
+        LinearLayout contentBtnRow = new LinearLayout(this);
+        contentBtnRow.setOrientation(LinearLayout.HORIZONTAL);
+        contentBtnRow.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams contentRowParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        contentRowParams.topMargin = (int)(12 * density);
+        cardLayout.addView(contentBtnRow, contentRowParams);
+
+        installPackBtn = new Button(this);
+        installPackBtn.setText("INSTALL CONTENT PACK");
+        installPackBtn.setTextSize(11);
+        installPackBtn.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        installPackBtn.setTextColor(Color.WHITE);
+
+        GradientDrawable installBg = new GradientDrawable();
+        installBg.setColor(Color.rgb(20, 52, 28));
+        installBg.setStroke((int)(1.5f * density), Color.rgb(57, 227, 101));
+        installBg.setCornerRadius(6 * density);
+        installPackBtn.setBackground(installBg);
+
+        LinearLayout.LayoutParams installLp = new LinearLayout.LayoutParams(
+            (int)(220 * density), (int)(44 * density));
+        installLp.rightMargin = (int)(12 * density);
+        installPackBtn.setOnClickListener(v -> openContentPackPicker());
+        contentBtnRow.addView(installPackBtn, installLp);
+
+        disableContentBtn = new Button(this);
+        disableContentBtn.setText("DISABLE ALL CONTENT");
+        disableContentBtn.setTextSize(11);
+        disableContentBtn.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        disableContentBtn.setTextColor(Color.WHITE);
+
+        GradientDrawable disableBg = new GradientDrawable();
+        disableBg.setColor(Color.rgb(20, 52, 28));
+        disableBg.setStroke((int)(1.5f * density), Color.rgb(57, 227, 101));
+        disableBg.setCornerRadius(6 * density);
+        disableContentBtn.setBackground(disableBg);
+
+        LinearLayout.LayoutParams disableLp = new LinearLayout.LayoutParams(
+            (int)(160 * density), (int)(44 * density));
+        disableContentBtn.setOnClickListener(v -> disableAllContent());
+        contentBtnRow.addView(disableContentBtn, disableLp);
+
         splashLayout.addView(cardLayout, cardParams);
 
         rootLayout.addView(splashLayout, new FrameLayout.LayoutParams(
@@ -499,6 +566,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
         isExtracted = true;
 
+        // The content profile the engine is handed on launch: created here, on first run, with just the
+        // game folder's own overrides in it, so the game never depends on a pack having been installed.
+        ensureContentProfile();
+
         // Check if game folder already exists and is verified
         boolean hasExistingGame = checkExistingGameFolder();
         runOnUiThread(() -> {
@@ -551,6 +622,20 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         }
     }
 
+    // A pack is a folder mirroring the game's paths, picked the same way the game folder is: the
+    // system picker hands back a tree, and the tree is copied into app-private storage, because the
+    // engine reads plain files and a SAF URI is not a path.
+    private void openContentPackPicker() {
+        try {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+            startActivityForResult(intent, REQUEST_SELECT_CONTENT_PACK);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to open folder picker", e);
+            Toast.makeText(this, "Failed to open storage folder picker", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -565,6 +650,19 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 statusText.setText("VERIFYING GAME FOLDER STRUCTURE...");
                 progressBar.setVisibility(View.VISIBLE);
                 new Thread(() -> processAndCopyGameFolder(treeUri)).start();
+            }
+        }
+        if (requestCode == REQUEST_SELECT_CONTENT_PACK && resultCode == RESULT_OK && data != null) {
+            Uri treeUri = data.getData();
+            if (treeUri != null) {
+                try {
+                    getContentResolver().takePersistableUriPermission(
+                        treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                } catch (Exception ignored) {}
+
+                statusText.setText("VERIFYING CONTENT PACK...");
+                progressBar.setVisibility(View.VISIBLE);
+                new Thread(() -> processAndCopyContentPack(treeUri)).start();
             }
         }
     }
@@ -610,6 +708,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         // First count the total bytes (a metadata-only traversal, no byte transfer),
         // so the progress bar can show real percent instead of spinning.
         runOnUiThread(() -> statusText.setText("COUNTING GAME FILES..."));
+        copyStatusLabel = "INSTALLING GAME FILES... ";
         copyTotalBytes = countTreeBytes(rootDoc);
         copyDoneBytes = 0;
         lastProgressUiMs = 0;
@@ -673,9 +772,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         final int p = pct;
         final long done = copyDoneBytes;
         final long total = copyTotalBytes;
+        final String label = copyStatusLabel;
         runOnUiThread(() -> {
             progressBar.setProgress(p);
-            statusText.setText("INSTALLING GAME FILES... " + p + "% (" + formatMb(done) + " / " + formatMb(total) + ")");
+            statusText.setText(label + p + "% (" + formatMb(done) + " / " + formatMb(total) + ")");
         });
     }
 
@@ -716,6 +816,317 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 }
             }
         }
+    }
+
+    // ── Content packs ──────────────────────────────────────────────────────────────
+    // Packs are folders mirroring the game's paths, installed here and listed in the content profile
+    // (content-profile.json), which the game is handed with -contentprofile on launch. The launcher
+    // owns install and the recovery switch; the game owns the load order and the on/off switches, in
+    // Configuration > Content, because only it can see what each pack holds and wins.
+
+    private File getContentProfileFile() {
+        return new File(getFilesDir(), CONTENT_PROFILE_NAME);
+    }
+
+    private static String readFileToString(File file) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+            char[] buffer = new char[8192];
+            int read;
+            while ((read = reader.read(buffer)) != -1) {
+                sb.append(buffer, 0, read);
+            }
+        }
+        return sb.toString();
+    }
+
+    // Writes the profile whole or not at all, so a game starting at the same moment never reads half.
+    private static void writeProfileJsonAtomic(File profile, JSONObject root) throws IOException {
+        File tmp = new File(profile.getParentFile(), profile.getName() + ".tmp");
+        try (FileOutputStream out = new FileOutputStream(tmp)) {
+            out.write(root.toString(2).getBytes(StandardCharsets.UTF_8));
+        }
+        if (!tmp.renameTo(profile)) {
+            if (profile.exists()) {
+                profile.delete();
+            }
+            if (!tmp.renameTo(profile)) {
+                throw new IOException("Could not write " + profile.getName());
+            }
+        }
+    }
+
+    // Creates the profile on first run with just the game folder's own overrides in it, and makes sure
+    // an existing one still names that folder — the profile is what decides the load order, and a
+    // profile that never mentions the local folder silently drops it. Returns null only when the
+    // profile cannot be ensured at all; the game then launches without -contentprofile and runs on the
+    // local overrides alone. A profile that is there but is not valid JSON is left alone: the engine
+    // falls back to local-only for it, and clobbering it here would lose the player's pack list.
+    private File ensureContentProfile() {
+        File profile = getContentProfileFile();
+        try {
+            JSONObject root;
+            boolean changed = false;
+            if (!profile.exists()) {
+                root = new JSONObject();
+                changed = true;
+            } else {
+                try {
+                    root = new JSONObject(readFileToString(profile));
+                } catch (JSONException e) {
+                    Log.w(TAG, "Content profile is not valid JSON; leaving it alone (the game falls back to local overrides).");
+                    return profile;
+                }
+            }
+
+            JSONObject titles = root.optJSONObject("titles");
+            if (titles == null) {
+                titles = new JSONObject();
+                root.put("titles", titles);
+                changed = true;
+            }
+            JSONArray igi1 = titles.optJSONArray("igi1");
+            if (igi1 == null) {
+                igi1 = new JSONArray();
+                titles.put("igi1", igi1);
+                changed = true;
+            }
+            boolean hasLocal = false;
+            for (int i = 0; i < igi1.length(); i++) {
+                JSONObject layer = igi1.optJSONObject(i);
+                if (layer != null && LOCAL_LAYER_ID.equals(layer.optString("id"))) {
+                    hasLocal = true;
+                    break;
+                }
+            }
+            if (!hasLocal) {
+                JSONObject local = new JSONObject();
+                local.put("id", LOCAL_LAYER_ID);
+                local.put("name", LOCAL_LAYER_NAME);
+                local.put("kind", "local");
+                local.put("enabled", true);
+                igi1.put(local);
+                changed = true;
+            }
+
+            if (changed) {
+                root.put("schema", 1);
+                writeProfileJsonAtomic(profile, root);
+            }
+            return profile;
+        } catch (Exception e) {
+            Log.w(TAG, "Could not ensure content profile", e);
+            return null;
+        }
+    }
+
+    private static String sanitizePackId(String name) {
+        String id = name.toLowerCase(Locale.US).replaceAll("[^a-z0-9]+", "-").replaceAll("^-+|-+$", "");
+        return id.isEmpty() ? "pack" : id;
+    }
+
+    private static int countFiles(File dir) {
+        int count = 0;
+        File[] children = dir.listFiles();
+        if (children == null) {
+            return 0;
+        }
+        for (File child : children) {
+            count += child.isDirectory() ? countFiles(child) : 1;
+        }
+        return count;
+    }
+
+    // Records a pack in the profile, at the top: highest priority wins. A reinstall replaces the
+    // earlier entry rather than stacking a second one for the same folder. Returns false when the
+    // pack was copied but the profile could not be written, so the caller does not claim success.
+    private boolean addPackToProfile(String packId, String packName, File packDir) {
+        File profile = ensureContentProfile();
+        if (profile == null) {
+            runOnUiThread(() -> Toast.makeText(this,
+                "Pack copied but the profile could not be written, so it will not load.",
+                Toast.LENGTH_LONG).show());
+            return false;
+        }
+        try {
+            JSONObject root = new JSONObject(readFileToString(profile));
+            JSONObject titles = root.optJSONObject("titles");
+            if (titles == null) {
+                titles = new JSONObject();
+                root.put("titles", titles);
+            }
+            JSONArray igi1 = titles.optJSONArray("igi1");
+            if (igi1 == null) {
+                igi1 = new JSONArray();
+                titles.put("igi1", igi1);
+            }
+            for (int i = igi1.length() - 1; i >= 0; i--) {
+                JSONObject layer = igi1.optJSONObject(i);
+                if (layer != null && packId.equals(layer.optString("id"))) {
+                    igi1.remove(i);
+                }
+            }
+
+            JSONObject spec = new JSONObject();
+            spec.put("id", packId);
+            spec.put("name", packName);
+            spec.put("kind", "pack");
+            spec.put("path", packDir.getAbsolutePath());
+            spec.put("enabled", true);
+
+            JSONArray reordered = new JSONArray();
+            reordered.put(spec);
+            for (int i = 0; i < igi1.length(); i++) {
+                reordered.put(igi1.get(i));
+            }
+            titles.put("igi1", reordered);
+            root.put("schema", 1);
+            writeProfileJsonAtomic(profile, root);
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to record content pack in profile", e);
+            runOnUiThread(() -> Toast.makeText(this,
+                "Pack copied but the profile could not be written, so it will not load.",
+                Toast.LENGTH_LONG).show());
+            return false;
+        }
+    }
+
+    private void processAndCopyContentPack(Uri treeUri) {
+        DocumentFile rootDoc = DocumentFile.fromTreeUri(this, treeUri);
+        if (rootDoc == null || !rootDoc.exists() || !rootDoc.isDirectory()) {
+            runOnUiThread(() -> {
+                statusText.setText("INVALID FOLDER SELECTED");
+                Toast.makeText(this, "Could not access selected folder", Toast.LENGTH_SHORT).show();
+            });
+            return;
+        }
+
+        String displayName = rootDoc.getName() != null ? rootDoc.getName() : "pack";
+        String packId = sanitizePackId(displayName);
+        File targetDir = new File(new File(getFilesDir(), CONTENT_DIR_NAME), packId);
+
+        runOnUiThread(() -> statusText.setText("COUNTING CONTENT PACK FILES..."));
+        copyStatusLabel = "INSTALLING CONTENT PACK... ";
+        copyTotalBytes = countTreeBytes(rootDoc);
+        copyDoneBytes = 0;
+        lastProgressUiMs = 0;
+        runOnUiThread(() -> {
+            progressBar.setIndeterminate(false);
+            progressBar.setMax(100);
+            progressBar.setProgress(0);
+            statusText.setText("INSTALLING CONTENT PACK... 0%");
+        });
+
+        try {
+            // A reinstall replaces the pack outright, so files the new version dropped do not linger.
+            if (targetDir.exists()) {
+                deleteRecursively(targetDir);
+            }
+            targetDir.mkdirs();
+            copyDocumentTree(rootDoc, targetDir);
+
+            int files = countFiles(targetDir);
+            if (files == 0) {
+                deleteRecursively(targetDir);
+                runOnUiThread(() -> {
+                    statusText.setText("EMPTY CONTENT PACK");
+                    Toast.makeText(this, "That folder has no files in it.", Toast.LENGTH_LONG).show();
+                });
+                return;
+            }
+
+            boolean recorded = addPackToProfile(packId, displayName, targetDir);
+            Log.i(TAG, "Content pack installed: " + packId + " (" + files + " files)");
+            if (!recorded) {
+                runOnUiThread(() -> statusText.setText("PACK INSTALL ERROR"));
+                return;
+            }
+            runOnUiThread(() -> {
+                progressBar.setProgress(100);
+                statusText.setText("CONTENT PACK INSTALLED");
+                Toast.makeText(this, "Pack '" + displayName + "' installed. Manage it in Configuration > Content.", Toast.LENGTH_LONG).show();
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to install content pack", e);
+            runOnUiThread(() -> {
+                statusText.setText("PACK INSTALL ERROR: " + e.getMessage());
+                Toast.makeText(this, "Failed to install content pack: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            });
+        } finally {
+            copyStatusLabel = "INSTALLING GAME FILES... ";
+        }
+    }
+
+    // Out-of-game recovery: when a pack breaks the menu itself, the in-game switches are unreachable,
+    // so the launcher switches everything off in the profile — every pack, and the game folder's own
+    // overrides too. Nothing is deleted: the pack folders stay on disk and the packs are re-enabled
+    // from Configuration > Content. A corrupt profile is replaced rather than read, so this still works
+    // when the profile itself is what broke.
+    private void disableAllContent() {
+        new Thread(() -> {
+            try {
+                File profile = getContentProfileFile();
+                JSONObject root;
+                if (profile.exists()) {
+                    try {
+                        root = new JSONObject(readFileToString(profile));
+                    } catch (JSONException e) {
+                        Log.w(TAG, "Content profile is not valid JSON; replacing it with everything off.");
+                        root = new JSONObject();
+                    }
+                } else {
+                    root = new JSONObject();
+                }
+
+                root.put("schema", 1);
+                JSONObject titles = root.optJSONObject("titles");
+                if (titles == null) {
+                    titles = new JSONObject();
+                    root.put("titles", titles);
+                }
+
+                boolean hasIgi1 = titles.has("igi1");
+                java.util.Iterator<String> keys = titles.keys();
+                while (keys.hasNext()) {
+                    JSONArray layers = titles.optJSONArray(keys.next());
+                    if (layers == null) {
+                        continue;
+                    }
+                    for (int i = 0; i < layers.length(); i++) {
+                        JSONObject layer = layers.optJSONObject(i);
+                        if (layer != null) {
+                            layer.put("enabled", false);
+                        }
+                    }
+                }
+
+                // A profile that never mentioned this game still leaves the local overrides folder live,
+                // so name it here, off, rather than leaving the broken art in place.
+                if (!hasIgi1) {
+                    JSONArray igi1 = new JSONArray();
+                    JSONObject local = new JSONObject();
+                    local.put("id", LOCAL_LAYER_ID);
+                    local.put("name", LOCAL_LAYER_NAME);
+                    local.put("kind", "local");
+                    local.put("enabled", false);
+                    igi1.put(local);
+                    titles.put("igi1", igi1);
+                }
+
+                writeProfileJsonAtomic(profile, root);
+                Log.i(TAG, "All content disabled via launcher recovery.");
+                runOnUiThread(() -> {
+                    statusText.setText("ALL CONTENT DISABLED");
+                    Toast.makeText(this, "All content packs and overrides are off. Re-enable them in Configuration > Content.", Toast.LENGTH_LONG).show();
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to disable all content", e);
+                runOnUiThread(() -> Toast.makeText(this,
+                    "Failed to disable content: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        }).start();
     }
 
     private void onPlayButtonClicked() {
@@ -892,8 +1303,18 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         String filesDir = getFilesDir().getAbsolutePath();
         String nativeLibDir = getApplicationInfo().nativeLibraryDir;
 
-        Log.i(TAG, "Calling nativeStartGame: " + landscapeWidth + "x" + landscapeHeight);
-        boolean started = NativeEngine.nativeStartGame(holder.getSurface(), landscapeWidth, landscapeHeight, filesDir, nativeLibDir, "-" + rendererBackend);
+        // The content profile rides the options string the engine already parses (-contentprofile):
+        // the profile lives directly under getFilesDir(), whose path has no spaces, because the
+        // options string splits on spaces. A launch with no usable profile runs on the game folder's
+        // overrides alone.
+        String options = "-" + rendererBackend;
+        File contentProfile = ensureContentProfile();
+        if (contentProfile != null) {
+            options += " -contentprofile " + contentProfile.getAbsolutePath();
+        }
+
+        Log.i(TAG, "Calling nativeStartGame: " + landscapeWidth + "x" + landscapeHeight + " with options: " + options);
+        boolean started = NativeEngine.nativeStartGame(holder.getSurface(), landscapeWidth, landscapeHeight, filesDir, nativeLibDir, options);
         if (started) {
             startQuitWatcher();
             // The native delegates only exist once the game has started, so a pad

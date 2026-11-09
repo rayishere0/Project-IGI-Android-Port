@@ -740,7 +740,16 @@ public sealed partial class GameHost
                 {
                     Presentation.Hud.Remastered.Touch.TouchControls.TouchSensitivity = sens;
                     Presentation.Hud.Remastered.Touch.TouchControls.SaveLayout();
-                });
+                },
+                contentSupported: () => true,
+                contentLayers: () => ContentLayers(),
+                setContentLayerEnabled: (id, enabled) => SetContentLayerEnabled(id, enabled),
+                moveContentLayer: (id, up) => MoveContentLayer(id, up),
+                contentConflicts: () => ContentConflicts(),
+                getContentBypassed: () => ContentBypassed,
+                setContentBypassed: value => ContentBypassed = value,
+                rescanContent: () => RescanContent(),
+                contentProfilePath: () => ContentProfilePath);
 
             state.ShellHostForEntryCam = state.ShellHost;
 

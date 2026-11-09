@@ -235,6 +235,62 @@ public sealed class ResourceOverrides : IFileOverlay
         }
     }
 
+    /// <summary>Reorders the layers, highest first, re-resolving every path from the indexes already held.</summary>
+    /// <param name="ids">The layer ids in their new order, highest first; every layer exactly once.</param>
+    /// <param name="result">Receives what changed after resolution.</param>
+    /// <returns><see langword="true"/> when the order was taken.</returns>
+    /// <remarks>
+    /// The same live reordering <see cref="SetEnabled"/> does for one layer, for the whole stack: no disk
+    /// is touched and no layer is rescanned, so a pack moved above another wins its shared paths at once.
+    /// Whoever already holds bytes is brought up to date by its own reapply, exactly as after a switch.
+    /// </remarks>
+    public bool SetOrder(IReadOnlyList<string> ids, out ScanResult result)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+
+        result = default;
+        if (ids.Count != _layers.Length)
+        {
+            return false;
+        }
+
+        int[] order = new int[ids.Count];
+        for (int at = 0; at < ids.Count; at++)
+        {
+            int found = Find(ids[at]);
+            if (found < 0)
+            {
+                return false;
+            }
+
+            // Only the slots already filled count: the array starts full of zeroes, and zero is a
+            // layer of its own.
+            for (int seen = 0; seen < at; seen++)
+            {
+                if (order[seen] == found)
+                {
+                    return false;
+                }
+            }
+
+            order[at] = found;
+        }
+
+        lock (_gate)
+        {
+            Layer[] reordered = [.. order.Select(index => _layers[index])];
+            Dictionary<string, Candidate> previous = _files;
+            for (int at = 0; at < reordered.Length; at++)
+            {
+                _layers[at] = reordered[at];
+            }
+
+            _files = Merge();
+            result = Compare(previous, _files);
+            return true;
+        }
+    }
+
     /// <summary>Finds a layer by id or by 1-based position.</summary>
     /// <param name="layer">The id, or the position as text.</param>
     /// <returns>The 0-based index, or -1 when there is no such layer.</returns>
@@ -533,35 +589,45 @@ public sealed class ResourceOverrides : IFileOverlay
 
         List<(string Relative, string Path)> archives = [];
 
-        foreach (string path in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+        // The walk is lazy, so an unreadable folder under the pack throws halfway through it. A pack
+        // that cannot be fully read is skipped in part, not fatal to the title load: what was indexed
+        // before the failure stands, and the reason is in the log.
+        try
         {
-            string relative = ResourcePath.Normalize(Path.GetRelativePath(root, path));
-
-            if (relative.Length == 0)
+            foreach (string path in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
             {
-                continue;
-            }
+                string relative = ResourcePath.Normalize(Path.GetRelativePath(root, path));
 
-            if (relative.EndsWith(ArchiveExtension, StringComparison.OrdinalIgnoreCase))
-            {
-                // Held back and indexed after the loose files, so that a hand-placed file already holds
-                // its path by the time the archive's copy of that name is offered.
-                archives.Add((relative, path));
-                continue;
-            }
+                if (relative.Length == 0)
+                {
+                    continue;
+                }
 
-            FileInfo info;
+                if (relative.EndsWith(ArchiveExtension, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Held back and indexed after the loose files, so that a hand-placed file already holds
+                    // its path by the time the archive's copy of that name is offered.
+                    archives.Add((relative, path));
+                    continue;
+                }
 
-            try
-            {
-                info = new FileInfo(path);
-            }
-            catch (IOException)
-            {
-                continue;
-            }
+                FileInfo info;
 
-            index.TryAdd(relative, new Candidate(path, info.Length, info.LastWriteTimeUtc) { Layer = layer });
+                try
+                {
+                    info = new FileInfo(path);
+                }
+                catch (IOException)
+                {
+                    continue;
+                }
+
+                index.TryAdd(relative, new Candidate(path, info.Length, info.LastWriteTimeUtc) { Layer = layer });
+            }
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            _logger.Warning(LogCategory, $"'{_layers[layer].Name}': could not finish reading the folder, so only what was indexed before the failure is used: {error.Message}");
         }
 
         // Sorted, because the directory walk's order is the file system's and two archives may carry the
