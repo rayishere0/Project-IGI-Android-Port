@@ -236,6 +236,18 @@ internal sealed class BulletMarkRenderer : IBulletMarkPresenter
             return;
         }
 
+        // A mark holds full opacity for its first thirty seconds, then fades over thirty more:
+        // the forward fragment multiplies the texture alpha by this vertex alpha, so an old
+        // hole thins out rather than popping, and one past its lifetime draws nothing at all.
+        float alpha = BulletMarks.AlphaAtAge(BulletMarks.AgeSeconds(mark.AddedTicks, Environment.TickCount64));
+        if (alpha <= 0f)
+        {
+            return;
+        }
+
+        Bgra32 colour = alpha >= 1f
+            ? Bgra32.White
+            : new Bgra32(255, 255, 255, (byte)(alpha * 255f));
         bool anchored = mark.TryResolve(
             _framePoses is null ? null : _cachedPose,
             out Vector3d position,
@@ -267,10 +279,10 @@ internal sealed class BulletMarkRenderer : IBulletMarkPresenter
             (position.Y / WorldScene.UnitsPerMetre) + (normal.Y * DepthBiasInMetres) - eye.Y,
             (position.Z / WorldScene.UnitsPerMetre) + (normal.Z * DepthBiasInMetres) - eye.Z);
 
-        _vertices[_used] = Corner(centre, right, up, normal, -half, -half, 0f, 1f);
-        _vertices[_used + 1] = Corner(centre, right, up, normal, half, -half, 1f, 1f);
-        _vertices[_used + 2] = Corner(centre, right, up, normal, half, half, 1f, 0f);
-        _vertices[_used + 3] = Corner(centre, right, up, normal, -half, half, 0f, 0f);
+        _vertices[_used] = Corner(centre, right, up, normal, -half, -half, 0f, 1f, colour);
+        _vertices[_used + 1] = Corner(centre, right, up, normal, half, -half, 1f, 1f, colour);
+        _vertices[_used + 2] = Corner(centre, right, up, normal, half, half, 1f, 0f, colour);
+        _vertices[_used + 3] = Corner(centre, right, up, normal, -half, half, 0f, 0f, colour);
         _used += 4;
     }
 
@@ -282,7 +294,8 @@ internal sealed class BulletMarkRenderer : IBulletMarkPresenter
         float x,
         float y,
         float u,
-        float v) =>
+        float v,
+        Bgra32 colour) =>
         new(
             new Vector3f(
                 (float)centre.X + (right.X * x) + (up.X * y),
@@ -291,7 +304,7 @@ internal sealed class BulletMarkRenderer : IBulletMarkPresenter
             normal,
             u,
             v,
-            colour: Bgra32.White);
+            colour: colour);
 
     // The textures the models name, loaded on first use.
     private TexTextureCache Textures => _textureCache ??= new(_device, _resources, _logger, LogCategory, TextureAddressMode.Clamp, static name => [$"LOCAL:common/textures/{name}", LoadedPack.TextureResourceName(name)]);

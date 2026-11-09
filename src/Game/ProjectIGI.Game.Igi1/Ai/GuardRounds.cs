@@ -298,7 +298,8 @@ public sealed class GuardRounds
                     BulletMarks.SurfaceOf(surface),
                     table,
                     probe: player.MarkProbe,
-                    placement: surface.Placement);
+                    placement: surface.Placement,
+                    onTerrain: surface.Kind is WorldTraceHitKind.Terrain);
             }
 
             _sounds.PlayBulletImpact(
@@ -599,7 +600,8 @@ public sealed class GuardRounds
                     record.IsEntry,
                     record.ExitCrossing,
                     probe: player.MarkProbe,
-                    placement: surface.Placement);
+                    placement: surface.Placement,
+                    onTerrain: surface.Kind is WorldTraceHitKind.Terrain);
             }
 
             rounds._impacts.RunGunShotEffect(surface.Position, surface.Normal, record.Vector, record.Effect, struckHuman: false);
