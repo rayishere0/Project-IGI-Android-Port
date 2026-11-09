@@ -74,13 +74,13 @@ public sealed partial class GameHost
             _window.RenderScaleMode = firstRunTier;
         }
 
-        // The same shape, for motion blur: the saved r_motion_blur is only in force once the
-        // console has read settings.cfg, and the Vanilla preset holds r_hdr and r_deferred at 0
-        // on a fresh install. The two capture flags cannot carry the choice across a restart
-        // themselves — both default to 1, so the settings file, which only records differences
-        // from the default, never writes them — so they are re-derived from the blur here, and
-        // kept in step with it by the subscription in BindDeviceVariables.
-        ApplyMotionBlurCapture();
+        // The same shape, for motion blur and sun shadows: the saved r_motion_blur and r_shadows are
+        // only in force once the console has read settings.cfg, and the Vanilla preset holds r_hdr and
+        // r_deferred at 0 on a fresh install. The two capture flags cannot carry the choice across a
+        // restart themselves — both default to 1, so the settings file, which only records differences
+        // from the default, never writes them — so they are re-derived from the blur and the shadows
+        // here, and kept in step with them by the subscriptions in BindDeviceVariables.
+        ApplyShadowCapture();
 
         // The scan LoadTitleResources ran: taken off the field because the scan now happens wherever the
         // resources are loaded, and that is a method a title switch calls too.
@@ -137,11 +137,14 @@ public sealed partial class GameHost
         _device.SetStageTiming(FrameCVars.PerformanceLog.Value);
         WhenChanged(FrameCVars.PerformanceLog, () => _device.SetStageTiming(FrameCVars.PerformanceLog.Value));
 
-        // The blur owns the offscreen path: turning it on opens the capture the resolve reads from,
-        // turning it off closes it again, so the Motion Blur row in Settings is never a dead control
-        // and the direct path is untouched while the blur is off. The startup value is settled in
-        // SetUpConsole, after the settings file has been read; this keeps it live after that.
-        WhenChanged(PostCVars.MotionBlur, ApplyMotionBlurCapture);
+        // The blur and the shadows share the offscreen path: either one on opens the capture the
+        // resolve reads from, both off closes it again, so the Motion Blur row and the Shadows row
+        // in Settings are never dead controls and the direct path is untouched while both are off.
+        // One function derives the flags from both settings, so the two subscriptions cannot switch
+        // the path off under each other. The startup value is settled in SetUpConsole, after the
+        // settings file has been read; this keeps it live after that.
+        WhenChanged(PostCVars.MotionBlur, ApplyShadowCapture);
+        WhenChanged(ShadowCVars.Shadows, ApplyShadowCapture);
 
         _flowHost = new HostFlowHost(_logger);
     }
@@ -810,7 +813,7 @@ public sealed partial class GameHost
         _logger.Information(
             "Render",
             FormattableString.Invariant(
-                $"Camera effects: r_motion_blur {PostCVars.MotionBlur.Value:0.###}, r_hdr {FrameCVars.OffscreenScene.Value}, r_deferred {LightingCVars.Deferred.Value}, r_taa {ReconstructionCVars.TemporalFeedback.Value:0.###}, r_smooth {FrameCVars.SmoothPresentation.Value}, r_scale {ReconstructionCVars.RenderScale.Value:0.###}."));
+                $"Camera effects: r_motion_blur {PostCVars.MotionBlur.Value:0.###}, r_shadows {ShadowCVars.Shadows.Value}, r_lighting {LightingCVars.Lighting.Value}, r_hdr {FrameCVars.OffscreenScene.Value}, r_deferred {LightingCVars.Deferred.Value}, r_taa {ReconstructionCVars.TemporalFeedback.Value:0.###}, r_smooth {FrameCVars.SmoothPresentation.Value}, r_scale {ReconstructionCVars.RenderScale.Value:0.###}."));
 
         _window.CloseRequested += (_, _) => state.Running = false;
         _window.Show();

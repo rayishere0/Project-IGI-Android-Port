@@ -250,7 +250,16 @@ public sealed partial class GameHost
         // has to be a decision the player made, not a state the loader is in. Gamma is
         // deliberately not pinned -- it is a live slider on the Configuration screen, default 1,
         // and it working with the blur on is intended.
-        bool bakedIdentity = LightingCVars.Lighting.Value == LightingModel.Baked;
+        // The same pin covers hybrid while shadows are on -- the only way Android reaches
+        // hybrid. The hybrid sun is the level's own authored colour (a unit chromaticity:
+        // mission 1 is 1.0/0.96/0.88) dimmed by the air and the disc, at r_sun_scale 1, so
+        // the term it adds is at most ~1 and the whole composite is scaled by r_light_scale
+        // 0.875: nothing in it needs a tone map to stay unclipped, and letting the resolve
+        // tone map it would reintroduce the lift above (x1.414 exposure, Reinhard) on every
+        // shadowed frame. Hybrid without shadows -- a console choice, not this row -- keeps
+        // the tone map it had.
+        bool bakedIdentity = LightingCVars.Lighting.Value == LightingModel.Baked
+            || (LightingCVars.Lighting.Value == LightingModel.Hybrid && ShadowCVars.Shadows.Value > 0);
         ToneMapOperator toneMap = bakedIdentity ? ToneMapOperator.None : ExposureCVars.ToneMap.Value;
         float exposure = bakedIdentity ? 1f : ExposureCVars.EffectiveExposure;
         bool autoExposure = bakedIdentity ? false : ExposureCVars.AutoExposure.Value;
