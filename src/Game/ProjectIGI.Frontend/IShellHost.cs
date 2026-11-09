@@ -96,6 +96,55 @@ public interface IShellHost
     /// <summary>Gets the mods that change play the running title is played with, which a save slot records.</summary>
     IReadOnlyList<ProjectIGI.Core.Content.ModReference> PlayedMods => [];
 
+    /// <summary>One content layer as the settings screen shows it: a pack (or folder) and what it holds.</summary>
+    /// <param name="Id">The layer's id, as the profile and the console name it.</param>
+    /// <param name="Name">What the player sees it called.</param>
+    /// <param name="Kind">pack, local, directory, dev, mod or legacy.</param>
+    /// <param name="Enabled">Whether it takes part.</param>
+    /// <param name="Files">How many paths the layer holds.</param>
+    /// <param name="Wins">How many of those paths this layer supplies.</param>
+    public sealed record ContentLayerRow(string Id, string Name, string Kind, bool Enabled, int Files, int Wins);
+
+    /// <summary>Whether this host can manage content packs at all.</summary>
+    /// <remarks>
+    /// The desktop launcher owns the Content page there, so a host that has no profile to write answers
+    /// no; the Android host answers yes, because the launcher hands it the profile and nothing else does.
+    /// </remarks>
+    bool ContentSupported => false;
+
+    /// <summary>Gets the content layers for the running title, highest priority first.</summary>
+    IReadOnlyList<ContentLayerRow> ContentLayers() => [];
+
+    /// <summary>Switches one content layer on or off, live, and saves the choice in the profile.</summary>
+    /// <param name="id">The layer's id.</param>
+    /// <param name="enabled">Whether it should take part.</param>
+    /// <returns>A sentence on what changed, for the settings screen.</returns>
+    string SetContentLayerEnabled(string id, bool enabled) => string.Empty;
+
+    /// <summary>Moves one content layer up (towards winning) or down in the load order, live, and saves it.</summary>
+    /// <param name="id">The layer's id.</param>
+    /// <param name="up">Whether it moves towards the top.</param>
+    /// <returns>A sentence on what changed, for the settings screen.</returns>
+    string MoveContentLayer(string id, bool up) => string.Empty;
+
+    /// <summary>Gets the paths more than one enabled layer carries, as "path — winner wins over ..." lines.</summary>
+    IReadOnlyList<string> ContentConflicts() => [];
+
+    /// <summary>Gets or sets whether every content layer is bypassed (the touch equivalent of F8).</summary>
+    /// <remarks>
+    /// The comparison switch, not a deletion: the packs stay installed and switched on, and turning it
+    /// back off restores them. It is the <c>r_overrides</c> variable, which is not saved, so a relaunch
+    /// always starts with the packs on — a pack that breaks the menu is recovered from the launcher instead.
+    /// </remarks>
+    bool ContentBypassed { get => false; set { } }
+
+    /// <summary>Re-reads the content folders from disk and reloads what changed.</summary>
+    /// <returns>A sentence on what changed, for the settings screen.</returns>
+    string RescanContent() => string.Empty;
+
+    /// <summary>Gets where the content profile lives, or <see langword="null"/> when no profile is in force.</summary>
+    string? ContentProfilePath => null;
+
     /// <summary>Captures the current frame for a save-slot thumbnail.</summary>
     /// <param name="width">Receives the capture width.</param>
     /// <param name="height">Receives the capture height.</param>

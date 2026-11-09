@@ -57,6 +57,11 @@ public sealed class SettingsScreen : ShellScreen
     private bool _isDragging;
     private Control? _pendingTapTarget;
 
+    // The Content section's rows, rebuilt whenever a pack is switched, moved or rescanned, and the line
+    // the last change reports on.
+    private StackPanel? _contentSection;
+    private Label? _contentStatus;
+
     /// <summary>Initializes a new instance of the <see cref="SettingsScreen"/> class.</summary>
     /// <param name="context">The shared shell context.</param>
     public SettingsScreen(ShellContext context)
@@ -448,6 +453,50 @@ public sealed class SettingsScreen : ShellScreen
         };
         configStack.AddChild(fpsToggle);
 
+        // ── Content packs: data mods (folders of replacement art) ─────────
+        // The engine already resolves packs and the game folder's own overrides folder; this section is
+        // the touch path to them. It appears on the host that owns the content profile (Android); a host
+        // without one (the desktop launcher owns the Content page there) shows nothing, rather than rows
+        // that cannot do anything. Pack changes apply at once and are kept even if this screen is left
+        // with Cancel: a toggle IS the choice, and the profile is its record, not these rows.
+        if (Context.Host.ContentSupported)
+        {
+            var contentHeader = new Label(theme.Heading, "CONTENT PACKS", 24f, Bgra32.White)
+            {
+                Width = 980f,
+            };
+            configStack.AddChild(contentHeader);
+
+            var contentNote = new Label(
+                theme.Body,
+                "Packs replace the game's art — textures, sounds, models — file for file. Top of the list wins. "
+                + "Changes apply at once in a mission and are kept even if you Cancel; menu art refreshes when you next enter a mission.",
+                17f,
+                UiPalette.TextBody)
+            {
+                Wrap = true,
+                Width = 980f,
+            };
+            configStack.AddChild(contentNote);
+
+            _contentSection = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                Spacing = 8f,
+                Width = 980f,
+            };
+            configStack.AddChild(_contentSection);
+
+            _contentStatus = new Label(theme.Body, string.Empty, 17f, UiPalette.TextBody)
+            {
+                Wrap = true,
+                Width = 980f,
+            };
+            configStack.AddChild(_contentStatus);
+
+            RebuildContentRows();
+        }
+
         frame.AddChild(_scroll);
 
         // ── Bottom Buttons: OK & Cancel ──────────────────────────────────
@@ -558,6 +607,194 @@ public sealed class SettingsScreen : ShellScreen
                 ShadowCVars.ShadowAccumulate.Value = 1f;
                 ShadowCVars.Shadows.Value = 0;
                 break;
+        }
+    }
+
+    /// <summary>Rebuilds the Content section's rows from the host's live layer list.</summary>
+    /// <remarks>
+    /// Rows are rebuilt, not patched: a switch or a move changes the counts and the order of every row
+    /// below it, and the list is short. The toggles are constructed with their values, which does not fire
+    /// their change events, so rebuilding never re-applies a change.
+    /// </remarks>
+    private void RebuildContentRows()
+    {
+        if (_contentSection is null)
+        {
+            return;
+        }
+
+        UiTheme theme = Context.Theme;
+        _contentSection.ClearChildren();
+
+        IReadOnlyList<IShellHost.ContentLayerRow> layers = Context.Host.ContentLayers();
+        if (layers.Count == 0)
+        {
+            _contentSection.AddChild(new Label(
+                theme.Body,
+                "No content packs installed. Install one from the launcher, or drop files in the game folder's overrides folder.",
+                17f,
+                UiPalette.TextBody)
+            {
+                Wrap = true,
+                Width = 980f,
+            });
+        }
+
+        for (int index = 0; index < layers.Count; index++)
+        {
+            IShellHost.ContentLayerRow layer = layers[index];
+            string kind = layer.Kind switch
+            {
+                "local" => "Local overrides",
+                "pack" => "Pack",
+                "dev" => "Development folder",
+                "mod" => "Mod data",
+                "legacy" => "Legacy folder",
+                _ => "Folder",
+            };
+
+            _contentSection.AddChild(new Label(
+                theme.Body,
+                $"{layer.Name} - {kind}: {layer.Files} file(s), {layer.Wins} win(s)",
+                17f,
+                UiPalette.TextBody)
+            {
+                Wrap = true,
+                Width = 980f,
+            });
+
+            var row = new FlexPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Gap = 12f,
+                Width = 980f,
+            };
+
+            var enabledToggle = new Toggle(theme, "Enabled", layer.Enabled)
+            {
+                Width = 560f,
+                Height = 56f,
+            };
+            enabledToggle.ValueChanged += enabled =>
+            {
+                SetContentStatus(Context.Host.SetContentLayerEnabled(layer.Id, enabled));
+                RebuildContentRows();
+            };
+            row.Add(enabledToggle);
+
+            var upBtn = new Button(theme, "UP")
+            {
+                Width = 190f,
+                Height = 56f,
+                IsEnabled = index > 0,
+            };
+            upBtn.Activated += _ =>
+            {
+                SetContentStatus(Context.Host.MoveContentLayer(layer.Id, up: true));
+                RebuildContentRows();
+            };
+            row.Add(upBtn);
+
+            var downBtn = new Button(theme, "DOWN")
+            {
+                Width = 190f,
+                Height = 56f,
+                IsEnabled = index < layers.Count - 1,
+            };
+            downBtn.Activated += _ =>
+            {
+                SetContentStatus(Context.Host.MoveContentLayer(layer.Id, up: false));
+                RebuildContentRows();
+            };
+            row.Add(downBtn);
+
+            _contentSection.AddChild(row);
+        }
+
+        // Conflicts: the same file in two packs, and which one wins.
+        IReadOnlyList<string> conflicts = Context.Host.ContentConflicts();
+        if (conflicts.Count == 0)
+        {
+            _contentSection.AddChild(new Label(
+                theme.Body,
+                "No conflicts - no file is claimed by two packs.",
+                17f,
+                UiPalette.TextBody)
+            {
+                Wrap = true,
+                Width = 980f,
+            });
+        }
+        else
+        {
+            _contentSection.AddChild(new Label(theme.Body, "Conflicts (top wins):", 17f, UiPalette.TextBody)
+            {
+                Wrap = true,
+                Width = 980f,
+            });
+
+            foreach (string conflict in conflicts)
+            {
+                _contentSection.AddChild(new Label(theme.Body, conflict, 17f, UiPalette.TextBody)
+                {
+                    Wrap = true,
+                    Width = 980f,
+                });
+            }
+        }
+
+        // The touch equivalent of F8: every pack and override off without deleting a file. The variable
+        // is not saved, so a relaunch always starts with the packs on; a pack that breaks the menu is
+        // recovered from the launcher instead.
+        var bypassToggle = new Toggle(theme, "Disable all content", Context.Host.ContentBypassed)
+        {
+            Width = 980f,
+            Height = 56f,
+            Tooltip = "The touch equivalent of F8 - every pack and override off, without deleting a file. Turn it back on to restore them.",
+        };
+        bypassToggle.ValueChanged += bypassed =>
+        {
+            Context.Host.ContentBypassed = bypassed;
+            SetContentStatus(bypassed
+                ? "All content bypassed - the game's own art is showing."
+                : "Content restored.");
+            RebuildContentRows();
+        };
+        _contentSection.AddChild(bypassToggle);
+
+        var rescanBtn = new Button(theme, "RESCAN CONTENT")
+        {
+            Accent = ButtonAccent.Ghost,
+            Width = 980f,
+            Height = 56f,
+            TextSize = 24f,
+        };
+        rescanBtn.Activated += _ =>
+        {
+            SetContentStatus(Context.Host.RescanContent());
+            RebuildContentRows();
+        };
+        _contentSection.AddChild(rescanBtn);
+
+        string? profilePath = Context.Host.ContentProfilePath;
+        _contentSection.AddChild(new Label(
+            theme.Body,
+            profilePath is null
+                ? "No content profile in force - the game folder's overrides alone."
+                : $"Profile: {profilePath}",
+            17f,
+            UiPalette.TextBody)
+        {
+            Wrap = true,
+            Width = 980f,
+        });
+    }
+
+    private void SetContentStatus(string report)
+    {
+        if (_contentStatus is not null && report.Length > 0)
+        {
+            _contentStatus.Text = report;
         }
     }
 

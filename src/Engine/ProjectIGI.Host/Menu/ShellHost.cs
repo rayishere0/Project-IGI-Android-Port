@@ -38,6 +38,15 @@ namespace ProjectIGI.Host.Menu;
 /// <param name="setRenderScale">Sets current render scale mode.</param>
 /// <param name="getTouchSensitivity">Gets current touch sensitivity.</param>
 /// <param name="setTouchSensitivity">Sets current touch sensitivity.</param>
+/// <param name="contentSupported">Whether this host manages content packs.</param>
+/// <param name="contentLayers">The content layers for the running title, highest priority first.</param>
+/// <param name="setContentLayerEnabled">Switches one content layer on or off, live, and saves it.</param>
+/// <param name="moveContentLayer">Moves one content layer up or down in the load order, live, and saves it.</param>
+/// <param name="contentConflicts">The paths more than one enabled layer carries, as display lines.</param>
+/// <param name="getContentBypassed">Gets whether every content layer is bypassed.</param>
+/// <param name="setContentBypassed">Sets whether every content layer is bypassed.</param>
+/// <param name="rescanContent">Re-reads the content folders from disk and reloads what changed.</param>
+/// <param name="contentProfilePath">Where the content profile lives, or null when none is in force.</param>
 public sealed class ShellHost(
     Action<int, int> startMission,
     Action<MissionConditions> setMissionConditions,
@@ -62,7 +71,16 @@ public sealed class ShellHost(
     Func<int>? getRenderScale = null,
     Action<int>? setRenderScale = null,
     Func<float>? getTouchSensitivity = null,
-    Action<float>? setTouchSensitivity = null) : IShellHost
+    Action<float>? setTouchSensitivity = null,
+    Func<bool>? contentSupported = null,
+    Func<IReadOnlyList<IShellHost.ContentLayerRow>>? contentLayers = null,
+    Func<string, bool, string>? setContentLayerEnabled = null,
+    Func<string, bool, string>? moveContentLayer = null,
+    Func<IReadOnlyList<string>>? contentConflicts = null,
+    Func<bool>? getContentBypassed = null,
+    Action<bool>? setContentBypassed = null,
+    Func<string>? rescanContent = null,
+    Func<string?>? contentProfilePath = null) : IShellHost
 {
     /// <inheritdoc/>
     public void CustomizeTouchControls() => customizeTouchControls?.Invoke();
@@ -89,6 +107,34 @@ public sealed class ShellHost(
     }
     /// <inheritdoc/>
     public IReadOnlyList<ProjectIGI.Core.Content.ModReference> PlayedMods => playedMods?.Invoke() ?? [];
+
+    /// <inheritdoc/>
+    public bool ContentSupported => contentSupported?.Invoke() ?? false;
+
+    /// <inheritdoc/>
+    public IReadOnlyList<IShellHost.ContentLayerRow> ContentLayers() => contentLayers?.Invoke() ?? [];
+
+    /// <inheritdoc/>
+    public string SetContentLayerEnabled(string id, bool enabled) => setContentLayerEnabled?.Invoke(id, enabled) ?? string.Empty;
+
+    /// <inheritdoc/>
+    public string MoveContentLayer(string id, bool up) => moveContentLayer?.Invoke(id, up) ?? string.Empty;
+
+    /// <inheritdoc/>
+    public IReadOnlyList<string> ContentConflicts() => contentConflicts?.Invoke() ?? [];
+
+    /// <inheritdoc/>
+    public bool ContentBypassed
+    {
+        get => getContentBypassed?.Invoke() ?? false;
+        set => setContentBypassed?.Invoke(value);
+    }
+
+    /// <inheritdoc/>
+    public string RescanContent() => rescanContent?.Invoke() ?? string.Empty;
+
+    /// <inheritdoc/>
+    public string? ContentProfilePath => contentProfilePath?.Invoke();
 
     /// <inheritdoc/>
     public ProjectIGI.Game.Player.ITitleSaveGames? MissionSaves => missionSaves?.Invoke();

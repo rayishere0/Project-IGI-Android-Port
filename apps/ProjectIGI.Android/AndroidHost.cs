@@ -132,6 +132,11 @@ public static class AndroidHost
             HostOptions options = HostOptions.Parse(args);
             IGameTitleRuntime runtime = TitleCatalog.Default;
 
+            // The launcher hands the content profile over in the options string (-contentprofile); a
+            // missing profile is not fatal — the game runs on the game folder's overrides alone — but a
+            // "my packs disappeared" report is undiagnosable without the path in the log.
+            _logger.Information("AndroidHost", $"Content profile: '{options.ContentProfilePath ?? "(none)"}'");
+
             VirtualFileSystem fileSystem = new(_logger);
             fileSystem.RegisterDevice(new LocalFileDevice(dataDir));
             FileSystemConfig

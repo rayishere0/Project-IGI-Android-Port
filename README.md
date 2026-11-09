@@ -22,6 +22,32 @@ For copyright compliance, this APK contains **no copyrighted game data**. To pla
 
 ---
 
+## Content packs (data mods)
+
+The game can replace its own art — textures, sounds, models — file for file, from folders that mirror the installation. A pack is a folder, not a download: the APK ships no game data and no mod store, and packs are supplied by the player.
+
+**Where packs live** (app-private storage, so the engine can read them with plain file access):
+
+- Packs: `<app files>/content/<pack-id>/` — e.g. `content/my-pack/common/textures/000_04_1.tex`
+- Profile (the load order): `<app files>/content-profile.json`
+- The game folder's own overrides: `<app files>/Project IGI/overrides/` — files here work with no profile at all, and are listed as the "Local overrides" layer once a profile exists
+
+**Installing a pack:** on the launcher splash screen, tap **INSTALL CONTENT PACK** and pick the pack's folder. It is copied into `content/<pack-id>/` and added at the top of the load order. A reinstall replaces the pack outright.
+
+**Replacement rule:** a file in a pack stands in for the asset at the same path — an archived texture by the directory its archive sits in (`content/my-pack/common/textures/000_04_1.tex` replaces the shared texture), a loose file by its own path. A `.res` archive inside a pack works the same way: every entry in it is registered at the path it would have been overridden at individually.
+
+**Load order:** top wins. The first enabled layer that has a file supplies it; the layers below fill whatever it leaves out; a file no enabled layer has is the game's own. Within one layer a loose file beats an archived entry.
+
+**Enable / disable / reorder:** in the game, **Configuration > Content** lists the layers with what each holds and wins, an on/off switch and up/down order buttons per layer, and the files two packs both claim. Changes apply at once in a mission (textures reload) and are kept even if you leave Configuration with Cancel; menu art refreshes when you next enter a mission. The same screen has **RESCAN CONTENT** (picks up files added while the game runs) and **Disable all content** — the touch equivalent of F8 — which switches every pack off without deleting a file.
+
+**Failure behaviour:** a pack that fails to load never kills the game. A corrupt `.res` archive in a pack is skipped with a warning in the log; a corrupt replacement texture is logged and the texture stays missing rather than crashing the level; an unreadable file falls back to the game's own bytes; a profile that cannot be read falls back to the local overrides folder alone. A save made with mods on carries no mod info: removing a pack mid-campaign changes the art back to retail, and the save still loads.
+
+**Recovery:** if a pack breaks the menu itself, the in-game switches are unreachable — on the launcher splash screen, tap **DISABLE ALL CONTENT**. It switches every pack and the local overrides folder off in the profile (nothing is deleted) so the game starts on retail art; re-enable packs from Configuration > Content.
+
+**Out of scope:** code mods are not loaded — there is no mod loader call, no trust/consent flow and no published SDK in this port, so a folder with `mod.json` and an assembly does nothing. Packs are data only.
+
+---
+
 ## Architecture: How It's Made & How It Runs
 
 ```
