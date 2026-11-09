@@ -52,13 +52,16 @@ public static class GameplayCVars
     /// </para>
     /// <para>Applies to guards and to the player alike; both die through the same rig.</para>
     /// <para>
-    /// Off by default, and no profile turns it on: the canned deaths are the game as shipped, and the
-    /// simulation is something a player asks for.
+    /// TEMP: on by default for the Step 0 device test (see below); normally off, and no profile turns it on:
+    /// The canned deaths are the game as shipped, and the simulation is something a player asks for.
     /// </para>
     /// </remarks>
+    // TEMP: hardcoded ON for the ragdoll Step 0 device test - console Enter is broken, so
+    // g_ragdoll 1 cannot be typed. Revert the default below to false once Step 0 passes
+    // (or once the console works).
     public static readonly BoolCVar Ragdoll = CVar.Bool(
         "g_ragdoll",
-        false,
+        true,
         CVarOptions.Archive,
         "Simulate the dead instead of playing the original's canned death animations.");
 
