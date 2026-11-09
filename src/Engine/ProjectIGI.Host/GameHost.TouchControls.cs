@@ -1,7 +1,9 @@
 using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
+using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.Config;
 using ProjectIGI.Game.Player;
+using ProjectIGI.Game.World;
 using ProjectIGI.Input;
 using ProjectIGI.Presentation;
 using ProjectIGI.Presentation.Hud.Remastered;
@@ -59,6 +61,27 @@ public sealed partial class GameHost
 
     /// <summary>The turn rate at full right-stick deflection: one full turn a second.</summary>
     private const float GamepadMaxTurnRadiansPerSecond = MathF.Tau;
+
+    /// <summary>How far off the crosshair a guard may sit and still draw the aim assist: five degrees, half-angle.</summary>
+    private const float GamepadAimAssistConeRadians = 0.0872665f;
+
+    /// <summary>How far away a guard may be and still draw the aim assist, in metres.</summary>
+    private const float GamepadAimAssistRangeMetres = 60f;
+
+    /// <summary>How fast the assist closes the angle to its target, as a fraction of that angle per second.</summary>
+    private const float GamepadAimAssistGainPerSecond = 2.5f;
+
+    /// <summary>The fastest the assist ever turns the view on its own, in radians a second: about seventeen degrees.</summary>
+    private const float GamepadAimAssistMaxRadiansPerSecond = 0.30f;
+
+    /// <summary>The share of the stick's own turn rate on an axis the assist may add on that axis: half, so the stick always wins.</summary>
+    private const float GamepadAimAssistStickShare = 0.5f;
+
+    /// <summary>How far short of a guard a wall contact may sit and still count as the guard itself: about three centimetres.</summary>
+    private const double GamepadAimAssistLosToleranceUnits = 128.0;
+
+    /// <summary>The team the binoculars mark hostile red: the guards. Anything else is the player's own side.</summary>
+    private const int GamepadAimAssistEnemyTeam = 1;
 
     /// <summary>How fast the virtual pointer crosses the screen, in pixels a second.</summary>
     private const float GamepadPointerSpeedPixelsPerSecond = 900f;
@@ -680,6 +703,154 @@ public sealed partial class GameHost
         _window.Input.Mouse.AddMotion(
             x * GamepadMaxTurnRadiansPerSecond * elapsed * countsPerRadian,
             y * GamepadMaxTurnRadiansPerSecond * elapsed * countsPerRadian);
+
+        // The stick is turning, so the assist may lean the view with it; a centred
+        // stick pulls nothing, and letting go stops the pull at once.
+        ApplyGamepadAimAssist(pad, profile, elapsed, x, y);
+    }
+
+    /// <summary>Leans the controller's look toward the nearest visible guard near the crosshair, slightly.</summary>
+    /// <remarks>
+    /// <para>
+    /// Magnetism, not a snap: the pull is proportional to how far off the guard the crosshair sits, fades to nothing at the
+    /// cone's edge, and on each axis never adds more than half of what the stick itself is turning on that axis — so a player
+    /// steering away always out-turns it, and it can only ever help a turn the player is already making. It runs only while
+    /// the right stick is deflected in play, through the same mouse counts the stick uses, so the Mouse Sensitivity slider,
+    /// the invert setting and the zoom scaling all govern it exactly as they govern the stick.
+    /// </para>
+    /// <para>
+    /// A guard counts when it is alive, on the hostile team, within sixty metres and five degrees of the crosshair, with a
+    /// clear line from the eye to its chest: the world's own terrain-and-placed-collision cast, so a wall between the player
+    /// and the guard blocks the pull outright. No target is tracked once it leaves the cone or the line of sight, and
+    /// nothing is remembered between frames — each frame re-picks the nearest guard in the cone, so the pull lets go
+    /// cleanly the moment the player looks away.
+    /// </para>
+    /// <para>
+    /// What it costs: one pass over the level's soldiers per frame while the stick moves, and one wall cast per guard that
+    /// is already inside the cone and the range — usually none or one. The soldier list itself is the frame's existing
+    /// roster, not a fresh query.
+    /// </para>
+    /// </remarks>
+    private void ApplyGamepadAimAssist(GamepadState pad, PlayerProfile? profile, float elapsed, float stickX, float stickY)
+    {
+        if (elapsed <= 0f || _soldiers is null || HostedPlayer is not { } hosted)
+        {
+            return;
+        }
+
+        // The wheel steers with the right stick, the binoculars scan rather than aim, and a mounted gun, a ladder or an
+        // interaction turns the view by its own rules: the assist stays out of all of them. Menus and the map computer
+        // never reach here — only Play calls the look — and touch and mouse look never pass through this method at all.
+        if (pad.IsDown(GamepadButton.RightStick) || hosted.IsBinocularsOpen || hosted.IsMountedStationaryGun
+            || hosted.IsOnLadder || hosted.IsInWorldInteraction)
+        {
+            return;
+        }
+
+        // No wall cast, no visibility proof, no pull: guessing through a wall is exactly what the assist must never do.
+        WorldRayCast? walls = hosted.GrenadeWalls;
+        if (walls is null)
+        {
+            return;
+        }
+
+        Vector3d eye = hosted.EyeUnits;
+        float yaw = hosted.Body.Yaw;
+        float pitch = hosted.Body.Pitch;
+        double rangeUnits = GamepadAimAssistRangeMetres * WorldScene.UnitsPerMetre;
+
+        // The nearest guard in the cone, by total angle off the crosshair: the one the player is already closest to aiming at.
+        // The aim point is the soldier's origin, about chest height, which is what the mission runtime counts as the human.
+        bool found = false;
+        double bestAngle = GamepadAimAssistConeRadians;
+        double bestYawError = 0.0;
+        double bestPitchError = 0.0;
+        foreach (HumanOccupant occupant in _soldiers.LiveOccupants())
+        {
+            if (occupant.Team != GamepadAimAssistEnemyTeam || occupant.IsDead)
+            {
+                continue;
+            }
+
+            Vector3d delta = occupant.Position - eye;
+            double distance = delta.Length;
+            if (distance <= 0.0 || distance > rangeUnits)
+            {
+                continue;
+            }
+
+            // The view's own yaw/pitch for this direction: LookRotation's forward is
+            // (sin yaw · cos pitch, cos yaw · cos pitch, sin pitch), so the inverse is atan2 and asin.
+            double desiredYaw = Math.Atan2(delta.X, delta.Y);
+            double desiredPitch = Math.Asin(Math.Clamp(delta.Z / distance, -1.0, 1.0));
+            double yawError = WrapAngle(desiredYaw - yaw);
+            double pitchError = desiredPitch - pitch;
+            double angle = Math.Sqrt((yawError * yawError) + (pitchError * pitchError));
+            if (angle >= bestAngle)
+            {
+                continue;
+            }
+
+            // The wall cast ends at the guard's chest; a contact meaningfully short of that is a wall, the ground or a
+            // crate in between, and the guard is left alone. Glass and fences count as cover here — the binoculars'
+            // see-through rule is not repeated, so the assist never pulls at what it cannot prove is in the open.
+            if (walls(eye, occupant.Position, out WorldRayHit hit)
+                && hit.Distance < distance - GamepadAimAssistLosToleranceUnits)
+            {
+                continue;
+            }
+
+            found = true;
+            bestAngle = angle;
+            bestYawError = yawError;
+            bestPitchError = pitchError;
+        }
+
+        if (!found)
+        {
+            return;
+        }
+
+        // Proportional to the error and faded toward the cone's edge, so the pull is strongest near the middle, settles
+        // rather than overshoots as the crosshair arrives, and lets go without a step when the guard leaves the cone.
+        float fade = 1f - (float)(bestAngle / GamepadAimAssistConeRadians);
+        float yawRate = Math.Clamp((float)(bestYawError * GamepadAimAssistGainPerSecond) * fade,
+            -GamepadAimAssistMaxRadiansPerSecond, GamepadAimAssistMaxRadiansPerSecond);
+        float pitchRate = Math.Clamp((float)(bestPitchError * GamepadAimAssistGainPerSecond) * fade,
+            -GamepadAimAssistMaxRadiansPerSecond, GamepadAimAssistMaxRadiansPerSecond);
+
+        // Per axis, never more than half of what the stick is turning on that axis: the player's hand always wins, and
+        // an axis the stick is not driving gets no pull at all.
+        yawRate = Math.Clamp(yawRate,
+            -GamepadAimAssistStickShare * MathF.Abs(stickX) * GamepadMaxTurnRadiansPerSecond,
+            GamepadAimAssistStickShare * MathF.Abs(stickX) * GamepadMaxTurnRadiansPerSecond);
+        pitchRate = Math.Clamp(pitchRate,
+            -GamepadAimAssistStickShare * MathF.Abs(stickY) * GamepadMaxTurnRadiansPerSecond,
+            GamepadAimAssistStickShare * MathF.Abs(stickY) * GamepadMaxTurnRadiansPerSecond);
+
+        // The stick's own conversion back into mouse counts, with its sign rules: yaw counts turn right, and the pitch
+        // counts carry the profile's invert, so the assist leans exactly the way the stick would.
+        MouseLookSettings look = MouseLookSettings.FromProfile(profile);
+        float countsPerRadian = 1f / MathF.Max(0.00001f, look.RadiansPerCount);
+        _window.Input.Mouse.AddMotion(
+            yawRate * elapsed * countsPerRadian,
+            (look.InvertPitch ? pitchRate : -pitchRate) * elapsed * countsPerRadian);
+    }
+
+    /// <summary>Wraps an angle into [-π, π], so a guard just across the ±π seam is a small turn away, not a full turn.</summary>
+    private static double WrapAngle(double angle)
+    {
+        while (angle > Math.PI)
+        {
+            angle -= Math.Tau;
+        }
+
+        while (angle < -Math.PI)
+        {
+            angle += Math.Tau;
+        }
+
+        return angle;
     }
 
     /// <summary>Moves the virtual pointer by the left stick, clamped to the window.</summary>
