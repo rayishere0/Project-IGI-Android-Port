@@ -97,6 +97,7 @@ public sealed partial class GameHost
 
         _window.PumpEvents();
         ApplyTouchControls(state);
+        ApplyGamepadControls(state);
         UpdateCheatsOverlay(state);
 
         // Whatever the detail-map workers finished since the last pass, uploaded a few at a time.

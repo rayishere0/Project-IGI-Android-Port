@@ -34,6 +34,8 @@ public final class NativeEngine {
     public static native void nativeOnTouch(int action, int pointerId, float x, float y);
     public static native void nativeOnKey(int keyCode, boolean down);
     public static native void nativeOnGyro(float yawRadians, float pitchRadians);
+    public static native void nativeOnGamepadAxis(float leftX, float leftY, float rightX, float rightY, float leftTrigger, float rightTrigger);
+    public static native void nativeOnGamepadConnected(boolean connected);
     public static native void nativeOnText(String text);
     public static native boolean nativeIsTextFieldFocused();
     public static native boolean nativeIsKeyboardRequested();
