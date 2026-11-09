@@ -60,6 +60,15 @@ internal static class PlayerArsenal
 
             bool hasAmmo = ammunition.TryGetByCalibre(weapon.CalibreId, out AmmoType ammo);
             weapons.Carry(weapon, hasAmmo ? ammo : null);
+
+            // The All Weapons cheat grants the M16A2 with only its primary calibre, exactly like
+            // a world pickup, so without this the grenade gates stayed dead for a cheated-in gun
+            // too - including under Infinite Ammo, which still requires the association.
+            if (string.Equals(weapon.ScriptId, PlayerWeapons.M16A2WeaponScriptId, StringComparison.Ordinal))
+            {
+                weapons.AssociateM203Ammunition(ammunition);
+            }
+
             weapons.EnsureCycleContains(weapon.WeaponId);
             added++;
         }

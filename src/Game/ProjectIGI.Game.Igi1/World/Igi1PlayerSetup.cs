@@ -622,6 +622,15 @@ public sealed class Igi1PlayerSetup(
             // none at all, which is exactly why a knife never runs out.
             bool hasAmmo = ammunition.TryGetByCalibre(weapon.CalibreId, out AmmoType ammo);
             candidate.Carry(weapon, hasAmmo ? ammo : null);
+
+            // The M203 type is not the gun's calibre, so granting the M16A2 alone never associated
+            // it: a loadout that grants the gun without declaring M203 rounds left the grenade gates
+            // dead, including under Infinite Ammo. Associate the type with the gun itself; the
+            // AddAmmo loop below still supplies the rounds.
+            if (string.Equals(weapon.ScriptId, PlayerWeapons.M16A2WeaponScriptId, StringComparison.Ordinal))
+            {
+                candidate.Weapons?.AssociateM203Ammunition(ammunition);
+            }
         }
 
         foreach (LoadoutAmmo declared in loadout.Ammunition)
@@ -632,7 +641,7 @@ public sealed class Igi1PlayerSetup(
             if (pool is not null)
             {
                 candidate.Weapons?.Ammunition.Add(pool.AmmoId, declared.Count);
-                if (string.Equals(declared.AmmoId, "AMMO_ID_M203", StringComparison.Ordinal))
+                if (string.Equals(declared.AmmoId, PlayerWeapons.M203AmmoScriptId, StringComparison.Ordinal))
                 {
                     candidate.Weapons?.SetM203Ammunition(pool);
                 }
