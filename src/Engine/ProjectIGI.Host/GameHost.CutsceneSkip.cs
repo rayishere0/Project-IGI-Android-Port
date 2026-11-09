@@ -33,7 +33,9 @@ public sealed partial class GameHost
         bool hostCutscene = free && (_mission.Cutscenes?.IsPlaying == true || _mission.Cutscenes?.ActiveScene != null);
         bool titleCutscene = free && TitlePlayer is { IsCutscenePlaying: true };
         // On a touch screen the whole screen is the key: a finger held anywhere fills the ring.
-        bool held = _window.Input.Keyboard.IsDown(Input.KeyCode.Escape) || _window.Input.Touch.AnyDown;
+        // A controller's South button (A) is the pad's equivalent hold.
+        bool held = _window.Input.Keyboard.IsDown(Input.KeyCode.Escape) || _window.Input.Touch.AnyDown
+            || _window.Input.Gamepad.IsDown(Input.GamepadButton.South);
 
         if (_cutsceneSkip.Update(hostCutscene || titleCutscene, held, seconds)
             && hostCutscene)

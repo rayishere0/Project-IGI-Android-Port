@@ -14,6 +14,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.hardware.input.InputManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
@@ -34,6 +35,7 @@ import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -97,6 +99,16 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private Sensor gyroSensor;
     private SensorEventListener gyroListener;
     private long lastGyroTimestampNs = 0;
+    // Gamepad: hot-plug detection and stick/trigger axes. The first gamepad found
+    // wins: with two pads connected only its buttons and axes reach the game.
+    private InputManager inputManager;
+    private InputManager.InputDeviceListener gamepadListener;
+    private int activeGamepadId = -1;
+    private boolean gamepadConnected = false;
+    // Last D-pad-as-axes (HAT) position, for pads that report the D-pad as axes
+    // instead of keys: transitions are synthesised into DPAD key events below.
+    private int prevHatX = 0;
+    private int prevHatY = 0;
     // Soft keyboard: a hidden, zero-size EditText the IME types into, and a poller
     // that shows/hides the keyboard when the game focuses a text field.
     private EditText hiddenInput;
@@ -187,6 +199,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
         setupGyroAndKeyboard();
+        setupGamepad();
 
         // Authentic Project I.G.I. Launcher Splash
         splashLayout = new FrameLayout(this);
@@ -883,6 +896,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         boolean started = NativeEngine.nativeStartGame(holder.getSurface(), landscapeWidth, landscapeHeight, filesDir, nativeLibDir, "-" + rendererBackend);
         if (started) {
             startQuitWatcher();
+            // The native delegates only exist once the game has started, so a pad
+            // that was already connected at launch is reported here, not in onResume.
+            updateGamepadPresence();
         } else {
             isGameStarted = false;
         }
@@ -984,6 +1000,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             // and immediately closed it again (or skipped past it).
             return true;
         }
+        if (isGamepadKeyCode(keyCode) && isSecondGamepad(event.getDeviceId())) {
+            return super.onKeyDown(keyCode, event);
+        }
         NativeEngine.nativeOnKey(keyCode, true);
         return super.onKeyDown(keyCode, event);
     }
@@ -991,8 +1010,59 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         if (!isGameStarted) return super.onKeyUp(keyCode, event);
+        if (isGamepadKeyCode(keyCode) && isSecondGamepad(event.getDeviceId())) {
+            return super.onKeyUp(keyCode, event);
+        }
         NativeEngine.nativeOnKey(keyCode, false);
         return super.onKeyUp(keyCode, event);
+    }
+
+    // Joystick axes never arrive in onTouchEvent: Android delivers them here, as
+    // MotionEvents from a SOURCE_JOYSTICK / SOURCE_GAMEPAD device. Buttons and the
+    // D-pad arrive as KeyEvents above; the sticks, triggers and (on some pads) the
+    // D-pad-as-axes arrive here.
+    @Override
+    public boolean onGenericMotionEvent(MotionEvent event) {
+        if (!isGameStarted) return super.onGenericMotionEvent(event);
+        if ((event.getSource() & InputDevice.SOURCE_JOYSTICK) != InputDevice.SOURCE_JOYSTICK
+                && (event.getSource() & InputDevice.SOURCE_GAMEPAD) != InputDevice.SOURCE_GAMEPAD) {
+            return super.onGenericMotionEvent(event);
+        }
+        if (isSecondGamepad(event.getDeviceId())) {
+            return super.onGenericMotionEvent(event);
+        }
+        if (activeGamepadId == -1) {
+            updateGamepadPresence();
+        }
+        float lx = event.getAxisValue(MotionEvent.AXIS_X);
+        float ly = event.getAxisValue(MotionEvent.AXIS_Y);
+        float rx = event.getAxisValue(MotionEvent.AXIS_Z);
+        float ry = event.getAxisValue(MotionEvent.AXIS_RZ);
+        float lt = event.getAxisValue(MotionEvent.AXIS_LTRIGGER);
+        float rt = event.getAxisValue(MotionEvent.AXIS_RTRIGGER);
+        NativeEngine.nativeOnGamepadAxis(lx, ly, rx, ry, lt, rt);
+
+        // D-pad-as-axes fallback: some pads report the D-pad on HAT_X/HAT_Y
+        // instead of sending DPAD key events. Synthesise the key transitions so
+        // the C# side sees one D-pad either way; pads that send both keep working
+        // because setting the same button twice is idempotent.
+        int hatX = (int) Math.signum(event.getAxisValue(MotionEvent.AXIS_HAT_X));
+        int hatY = (int) Math.signum(event.getAxisValue(MotionEvent.AXIS_HAT_Y));
+        if (hatX != prevHatX) {
+            if (prevHatX == -1) NativeEngine.nativeOnKey(KeyEvent.KEYCODE_DPAD_LEFT, false);
+            if (prevHatX == 1) NativeEngine.nativeOnKey(KeyEvent.KEYCODE_DPAD_RIGHT, false);
+            if (hatX == -1) NativeEngine.nativeOnKey(KeyEvent.KEYCODE_DPAD_LEFT, true);
+            if (hatX == 1) NativeEngine.nativeOnKey(KeyEvent.KEYCODE_DPAD_RIGHT, true);
+            prevHatX = hatX;
+        }
+        if (hatY != prevHatY) {
+            if (prevHatY == -1) NativeEngine.nativeOnKey(KeyEvent.KEYCODE_DPAD_UP, false);
+            if (prevHatY == 1) NativeEngine.nativeOnKey(KeyEvent.KEYCODE_DPAD_DOWN, false);
+            if (hatY == -1) NativeEngine.nativeOnKey(KeyEvent.KEYCODE_DPAD_UP, true);
+            if (hatY == 1) NativeEngine.nativeOnKey(KeyEvent.KEYCODE_DPAD_DOWN, true);
+            prevHatY = hatY;
+        }
+        return true;
     }
 
     @Override
@@ -1025,6 +1095,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         if (sensorManager != null && gyroListener != null) {
             sensorManager.unregisterListener(gyroListener);
         }
+        if (inputManager != null && gamepadListener != null) {
+            inputManager.unregisterInputDeviceListener(gamepadListener);
+        }
         lastGyroTimestampNs = 0;
         hideSoftKeyboard();
         // Clear the keyboard-icon request and the hidden field's focus, or the IME
@@ -1053,6 +1126,104 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         isResumed = true;
         if (sensorManager != null && gyroSensor != null && gyroListener != null) {
             sensorManager.registerListener(gyroListener, gyroSensor, SensorManager.SENSOR_DELAY_GAME);
+        }
+        if (inputManager != null && gamepadListener != null) {
+            inputManager.registerInputDeviceListener(gamepadListener, null);
+        }
+        // Re-scan on every resume: a pad plugged in while the app was backgrounded
+        // (or before the game started, when the native side was not listening yet)
+        // is picked up here, and a pad unplugged while away is cleared.
+        updateGamepadPresence();
+    }
+
+    // Gamepad hot-plug: the listener reports add/remove/change, and every resume
+    // re-scans, so a pad connected at launch, mid-mission or while backgrounded
+    // is found, and unplugging one mid-mission is noticed at once. The native
+    // call is a no-op until the game has started (its delegate is not bound yet),
+    // so the launch scan is repeated after nativeStartGame returns.
+    private void setupGamepad() {
+        inputManager = (InputManager) getSystemService(INPUT_SERVICE);
+        gamepadListener = new InputManager.InputDeviceListener() {
+            @Override
+            public void onInputDeviceAdded(int deviceId) {
+                updateGamepadPresence();
+            }
+
+            @Override
+            public void onInputDeviceRemoved(int deviceId) {
+                if (deviceId == activeGamepadId) {
+                    activeGamepadId = -1;
+                    prevHatX = 0;
+                    prevHatY = 0;
+                }
+                updateGamepadPresence();
+            }
+
+            @Override
+            public void onInputDeviceChanged(int deviceId) {
+                updateGamepadPresence();
+            }
+        };
+    }
+
+    private static boolean isGamepadKeyCode(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_BUTTON_A:
+            case KeyEvent.KEYCODE_BUTTON_B:
+            case KeyEvent.KEYCODE_BUTTON_X:
+            case KeyEvent.KEYCODE_BUTTON_Y:
+            case KeyEvent.KEYCODE_BUTTON_L1:
+            case KeyEvent.KEYCODE_BUTTON_R1:
+            case KeyEvent.KEYCODE_BUTTON_L2:
+            case KeyEvent.KEYCODE_BUTTON_R2:
+            case KeyEvent.KEYCODE_BUTTON_THUMBL:
+            case KeyEvent.KEYCODE_BUTTON_THUMBR:
+            case KeyEvent.KEYCODE_BUTTON_START:
+            case KeyEvent.KEYCODE_BUTTON_SELECT:
+            case KeyEvent.KEYCODE_DPAD_UP:
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    // First gamepad wins: input from any other gamepad device is ignored while
+    // one is tracked. With no pad tracked, nothing is filtered.
+    private boolean isSecondGamepad(int deviceId) {
+        return activeGamepadId != -1 && deviceId != activeGamepadId;
+    }
+
+    private static boolean isGamepadDevice(InputDevice device) {
+        if (device == null) {
+            return false;
+        }
+        int sources = device.getSources();
+        return (sources & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
+                || (sources & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK;
+    }
+
+    private void updateGamepadPresence() {
+        int foundId = -1;
+        int[] ids = InputDevice.getDeviceIds();
+        if (ids != null) {
+            for (int id : ids) {
+                if (isGamepadDevice(InputDevice.getDevice(id))) {
+                    foundId = id;
+                    break;
+                }
+            }
+        }
+        activeGamepadId = foundId;
+        boolean connected = foundId != -1;
+        if (connected != gamepadConnected) {
+            gamepadConnected = connected;
+            Log.i(TAG, "Gamepad " + (connected ? "connected" : "disconnected") + " (device " + foundId + ")");
+        }
+        if (isGameStarted) {
+            NativeEngine.nativeOnGamepadConnected(connected);
         }
     }
 

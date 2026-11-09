@@ -346,6 +346,18 @@ public static class AndroidHost
         _window?.EnqueueGyro(yawRadians, pitchRadians);
     }
 
+    [UnmanagedCallersOnly(EntryPoint = "OnGamepadAxis")]
+    public static void OnGamepadAxis(float leftX, float leftY, float rightX, float rightY, float leftTrigger, float rightTrigger)
+    {
+        _window?.EnqueueGamepadAxis(leftX, leftY, rightX, rightY, leftTrigger, rightTrigger);
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "OnGamepadConnected")]
+    public static void OnGamepadConnected(int connected)
+    {
+        _window?.EnqueueGamepadConnected(connected != 0);
+    }
+
     [UnmanagedCallersOnly(EntryPoint = "OnText")]
     public static void OnText(IntPtr textPtr)
     {

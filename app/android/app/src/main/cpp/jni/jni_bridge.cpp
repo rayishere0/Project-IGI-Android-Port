@@ -46,6 +46,8 @@ typedef void (*KeyFn)(int keyCode, int down);
 typedef void (*ResizeFn)(int width, int height);
 typedef void (*StopFn)();
 typedef void (*GyroFn)(float yawRadians, float pitchRadians);
+typedef void (*GamepadAxisFn)(float leftX, float leftY, float rightX, float rightY, float leftTrigger, float rightTrigger);
+typedef void (*GamepadConnectedFn)(int connected);
 typedef void (*TextFn)(const char* text);
 typedef int (*TextFocusFn)();
 typedef int (*KeyboardRequestedFn)();
@@ -63,6 +65,8 @@ static KeyFn g_key_fn = nullptr;
 static ResizeFn g_resize_fn = nullptr;
 static StopFn g_stop_fn = nullptr;
 static GyroFn g_gyro_fn = nullptr;
+static GamepadAxisFn g_gamepad_axis_fn = nullptr;
+static GamepadConnectedFn g_gamepad_connected_fn = nullptr;
 static TextFn g_text_fn = nullptr;
 static TextFocusFn g_text_focus_fn = nullptr;
 static KeyboardRequestedFn g_keyboard_requested_fn = nullptr;
@@ -197,8 +201,10 @@ static bool initialize_coreclr(const std::string& filesDir, const std::string& n
     int res10 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnSurfaceRecreated", (void**)&g_surface_recreated_fn);
     int res11 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "IsKeyboardRequested", (void**)&g_keyboard_requested_fn);
     int res12 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "SetKeyboardRequested", (void**)&g_set_keyboard_requested_fn);
+    int res13 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnGamepadAxis", (void**)&g_gamepad_axis_fn);
+    int res14 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnGamepadConnected", (void**)&g_gamepad_connected_fn);
 
-    LOGI("Delegate binding results: Run=0x%08X, OnTouch=0x%08X, OnKey=0x%08X, OnResize=0x%08X, Stop=0x%08X, OnGyro=0x%08X, OnText=0x%08X, IsTextFieldFocused=0x%08X, OnSurfaceLost=0x%08X, OnSurfaceRecreated=0x%08X, IsKeyboardRequested=0x%08X, SetKeyboardRequested=0x%08X", res1, res2, res3, res4, res5, res6, res7, res8, res9, res10, res11, res12);
+    LOGI("Delegate binding results: Run=0x%08X, OnTouch=0x%08X, OnKey=0x%08X, OnResize=0x%08X, Stop=0x%08X, OnGyro=0x%08X, OnText=0x%08X, IsTextFieldFocused=0x%08X, OnSurfaceLost=0x%08X, OnSurfaceRecreated=0x%08X, IsKeyboardRequested=0x%08X, SetKeyboardRequested=0x%08X, OnGamepadAxis=0x%08X, OnGamepadConnected=0x%08X", res1, res2, res3, res4, res5, res6, res7, res8, res9, res10, res11, res12, res13, res14);
 
     if (res1 < 0 || !g_run_fn) {
         LOGE("Failed to bind AndroidHost.Run: 0x%08X", res1);
@@ -392,6 +398,20 @@ JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnGyro
   (JNIEnv *env, jclass clazz, jfloat yawRadians, jfloat pitchRadians) {
     if (g_gyro_fn) {
         g_gyro_fn(yawRadians, pitchRadians);
+    }
+}
+
+JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnGamepadAxis
+  (JNIEnv *env, jclass clazz, jfloat leftX, jfloat leftY, jfloat rightX, jfloat rightY, jfloat leftTrigger, jfloat rightTrigger) {
+    if (g_gamepad_axis_fn) {
+        g_gamepad_axis_fn(leftX, leftY, rightX, rightY, leftTrigger, rightTrigger);
+    }
+}
+
+JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeOnGamepadConnected
+  (JNIEnv *env, jclass clazz, jboolean connected) {
+    if (g_gamepad_connected_fn) {
+        g_gamepad_connected_fn(connected ? 1 : 0);
     }
 }
 
