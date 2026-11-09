@@ -234,13 +234,36 @@ public sealed partial class GameHost
         // A little extra edge fringing while the optics are up, on top of the ordinary value, so
         // the lens carries chromatic aberration that ramps in with the glass.
         float binocularAberration = binocularDisplay.Amount * 2f;
+
+        // The baked model is the original's picture, and the direct path never tone maps or
+        // exposes it -- so the resolve must not either, or opening the capture path brightens the
+        // whole frame. The Vanilla preset pins r_exposure to 1 and r_tonemap to none, but a preset
+        // only applies when no settings file exists, and the file only records values that differ
+        // from their default -- so an existing install runs the defaults instead: r_exposure
+        // 1.414 and r_tonemap Neutral, which the resolve multiplies in (x1.414 in linear, then
+        // Reinhard) while the direct path ignores them outright. That is the brightness motion
+        // blur was reported to add: the blur only opens the path, the resolve does the lifting.
+        // Pinning the resolve to the identity here restores the Vanilla promise for every
+        // install, not just fresh ones, and costs nothing: under baked lighting neither knob was
+        // ever part of the look. The requested model, not the effective one: the effective one
+        // reports Baked until the real-time structures finish building, and what the resolve does
+        // has to be a decision the player made, not a state the loader is in. Gamma is
+        // deliberately not pinned -- it is a live slider on the Configuration screen, default 1,
+        // and it working with the blur on is intended.
+        bool bakedIdentity = LightingCVars.Lighting.Value == LightingModel.Baked;
+        ToneMapOperator toneMap = bakedIdentity ? ToneMapOperator.None : ExposureCVars.ToneMap.Value;
+        float exposure = bakedIdentity ? 1f : ExposureCVars.EffectiveExposure;
+        bool autoExposure = bakedIdentity ? false : ExposureCVars.AutoExposure.Value;
+
         PostProcessSettings postProcess = new(
-            ExposureCVars.ToneMap.Value,
+            toneMap,
 
             // The player's brightness less whatever the night is taking off it; see
             // ExposureCVars.EffectiveExposure. Never r_exposure directly -- the night must not be
-            // able to edit, and then have to put back, the setting the player chose.
-            ExposureCVars.EffectiveExposure,
+            // able to edit, and then have to put back, the setting the player chose. Under baked
+            // lighting this is 1: the direct path never exposed the picture, so neither may the
+            // resolve.
+            exposure,
             PostCVars.Bloom.Value,
             PostCVars.BloomThreshold.Value,
             ExposureCVars.WhitePoint.Value,
@@ -260,7 +283,7 @@ public sealed partial class GameHost
             SpatialAa: PostCVars.SpatialAa.Value,
             SpatialAaThreshold: PostCVars.SpatialAaThreshold.Value,
             ColourLookup: PostCVars.ColourLookup.Value,
-            AutoExposure: ExposureCVars.AutoExposure.Value,
+            AutoExposure: autoExposure,
             GreenPhosphor: false,
             Tactical: computerDisplay,
             Binocular: binocularDisplay,
