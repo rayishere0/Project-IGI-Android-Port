@@ -178,7 +178,9 @@ public sealed class HostConsole : IDisposable
                 + $"r_deferred={Rendering.LightingCVars.Deferred.Value}, "
                 + $"r_taa={Rendering.ReconstructionCVars.TemporalFeedback.Value:0.###}, "
                 + $"r_scale={Rendering.ReconstructionCVars.RenderScale.Value:0.###}, "
-                + $"r_motion_blur={Rendering.PostCVars.MotionBlur.Value:0.###}.");
+                + $"r_motion_blur={Rendering.PostCVars.MotionBlur.Value:0.###}, "
+                + $"r_exposure={Rendering.ExposureCVars.EffectiveExposure:0.###}, "
+                + $"r_tonemap={Rendering.ExposureCVars.ToneMap.Value}.");
 
         System.Variables.AnyChanged += OnVariableChanged;
         GraphicsPresetRegistry.Default.PresetChanged += OnPresetChanged;
