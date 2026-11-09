@@ -149,17 +149,19 @@ public static class AndroidHost
             // refuses), it falls back to native Vulkan so the game still starts.
             bool wantsWebGpu = optionsStr.Contains("webgpu", StringComparison.OrdinalIgnoreCase);
 
-            // Enforce maximum speed profile on Android mobile unconditionally:
-            LightingCVars.Deferred.Value = false;
-            FrameCVars.OffscreenScene.Value = false;
-            LightingCVars.Lighting.Value = LightingModel.Baked;
-
             // Force the original classic IGI HUD (disables Remastered overlays)
             HudCVars.RemasteredHud.Value = false;
 
             if (!settingsExist)
             {
                 // Enforce maximum speed profile on Android mobile by default on initial launch:
+                // the direct path, baked lighting, no capture. First run only: an existing install
+                // keeps whatever it saved, and GameHost.SetUpConsole re-derives the capture flags
+                // from the loaded settings — forcing them here on every launch would stomp a saved
+                // shadows-on (or blur-on) choice before the settings file is even read.
+                LightingCVars.Deferred.Value = false;
+                FrameCVars.OffscreenScene.Value = false;
+                LightingCVars.Lighting.Value = LightingModel.Baked;
                 GraphicsPresetRegistry.Default.Apply(GraphicsPreset.Vanilla);
                 FrameCVars.MissionWarmUp.Value = 25;
                 DisplayCVars.Renderer.Value = RendererBackend.Vulkan;

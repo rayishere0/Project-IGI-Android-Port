@@ -23,6 +23,7 @@ public sealed class SettingsScreen : ShellScreen
     private static readonly int[] FpsCapValues = [30, 60, 90, 120, 0];
     private static readonly string[] FpsCapLabels = ["30 FPS", "60 FPS", "90 FPS", "120 FPS", "UNCAPPED"];
     private static readonly string[] RenderScaleLabels = ["540P (ULTRA)", "720P (PERFORMANCE)", "900P (BALANCED)", "NATIVE (MAX)"];
+    private static readonly string[] ShadowLabels = ["OFF", "LOW", "HIGH"];
 
     private readonly float _initialOpacity;
     private readonly float _initialSensitivity;
@@ -36,6 +37,12 @@ public sealed class SettingsScreen : ShellScreen
     private readonly bool _initialShowFps;
     private readonly float _initialGamma;
     private readonly float _initialMotionBlur;
+    private readonly int _initialShadows;
+    private readonly int _initialShadowCascades;
+    private readonly float _initialShadowDistance;
+    private readonly float _initialContactShadows;
+    private readonly float _initialShadowSoftness;
+    private readonly float _initialShadowAccumulate;
 
     private ScrollView? _scroll;
     private UiVec2? _touchDragStart;
@@ -60,6 +67,15 @@ public sealed class SettingsScreen : ShellScreen
         _initialShowFps = DisplayCVars.ShowFps.Value;
         _initialGamma = PostCVars.Gamma.Value;
         _initialMotionBlur = PostCVars.MotionBlur.Value;
+        // StoredValue, not Value: the menu backdrop's lite profile holds r_shadows at 0 through an
+        // override while the menu is up, and Cancel must put back the player's real choice, not the
+        // override's 0. The same applies to the row's initial selection below.
+        _initialShadows = ShadowCVars.Shadows.StoredValue;
+        _initialShadowCascades = ShadowCVars.ShadowCascades.StoredValue;
+        _initialShadowDistance = ShadowCVars.ShadowDistance.StoredValue;
+        _initialContactShadows = ShadowCVars.ContactShadows.StoredValue;
+        _initialShadowSoftness = ShadowCVars.ShadowSoftness.StoredValue;
+        _initialShadowAccumulate = ShadowCVars.ShadowAccumulate.StoredValue;
     }
 
     /// <inheritdoc/>
@@ -259,6 +275,31 @@ public sealed class SettingsScreen : ShellScreen
         };
         configStack.AddChild(motionBlurSlider);
 
+        // ── Shadows: the sun's shadows, from the cascaded map ──────────────────
+        // Off is the shipped picture, exactly as before. Low is the desktop Enhanced tier
+        // (1024², 2 cascades, 150 m) and High the desktop High tier (2048², 3 cascades,
+        // 220 m, contact shadows) — the same numbers the "Shadow Quality" group in
+        // GraphicsMenu sets, so the row and the presets cannot drift apart. Turning it on
+        // opens the offscreen path and promotes the lighting to hybrid, so the sun is added
+        // shadowed on top of the bakes; turning it off returns to baked. It costs frame rate
+        // on low-end phones — the cascade pass redraws the scene once per cascade, and the
+        // hybrid switch builds the surface cache and the distance field first — so try it at
+        // 540P first. The gun in your hands casts and catches no shadow: the viewmodel is
+        // drawn forward, outside the G-buffer the shadows are sampled from, by design.
+        // The initial selection reads the stored value, not the live one: behind the menu the
+        // backdrop's lite profile overrides r_shadows to 0, which is not the player's choice.
+        int initialShadows = ShadowCVars.Shadows.StoredValue;
+        int selectedShadowIndex = initialShadows <= 0 ? 0 : initialShadows <= 1024 ? 1 : 2;
+        var shadowCycler = new OptionCycler(theme, "Shadows", ShadowLabels, selectedShadowIndex)
+        {
+            Width = 980f,
+            Height = 56f,
+            ContentWidth = 320f,
+            Tooltip = "Sun shadows from the cascaded shadow map. Off is the shipped picture.\n\nLow is 1024², 2 cascades; High is 2048², 3 cascades with contact shadows. Costs frame rate — try it at 540P first on a low-end phone.",
+        };
+        shadowCycler.SelectionChanged += ApplyShadowTier;
+        configStack.AddChild(shadowCycler);
+
         // ── Option 7: Invert Mouse / Look Pitch ───────────────────────────
         bool invertState = Context.Config.Active?.InvertMouse ?? false;
         var invertToggle = new Toggle(theme, "Invert Look / Mouse", invertState)
@@ -374,6 +415,14 @@ public sealed class SettingsScreen : ShellScreen
             DisplayCVars.ShowFps.Value = _initialShowFps;
             PostCVars.Gamma.Value = _initialGamma;
             PostCVars.MotionBlur.Value = _initialMotionBlur;
+            // Siblings first, r_shadows last: restoring r_shadows re-derives the capture path and
+            // the lighting model, and the frame after that reads the whole tier at once.
+            ShadowCVars.ShadowCascades.Value = _initialShadowCascades;
+            ShadowCVars.ShadowDistance.Value = _initialShadowDistance;
+            ShadowCVars.ContactShadows.Value = _initialContactShadows;
+            ShadowCVars.ShadowSoftness.Value = _initialShadowSoftness;
+            ShadowCVars.ShadowAccumulate.Value = _initialShadowAccumulate;
+            ShadowCVars.Shadows.Value = _initialShadows;
             if (Context.Config.Active is { } profile)
             {
                 profile.InvertMouse = _initialInvert;
@@ -388,6 +437,45 @@ public sealed class SettingsScreen : ShellScreen
         root.Add(frame, new Anchor(UiVec2.Zero, UiVec2.One, Thickness.Zero));
 
         return root;
+    }
+
+    /// <summary>Applies one Shadows tier: the resolution and its sibling variables, exactly as the desktop "Shadow Quality" group in GraphicsMenu sets them.</summary>
+    /// <param name="index">0 for Off, 1 for Low (Enhanced), 2 for High.</param>
+    /// <remarks>
+    /// Siblings first, r_shadows last: the shadows handler promotes the lighting model the moment
+    /// r_shadows goes above 0, and the frame after that reads the whole tier at once. A resolution
+    /// the console set outside these tiers (4096, say) reads as High in the row, and picking High
+    /// then steps it down to 2048.
+    /// </remarks>
+    private static void ApplyShadowTier(int index)
+    {
+        switch (index)
+        {
+            case 1: // Low = Enhanced
+                ShadowCVars.ShadowCascades.Value = 2;
+                ShadowCVars.ShadowDistance.Value = 150f;
+                ShadowCVars.ContactShadows.Value = 0f;
+                ShadowCVars.ShadowSoftness.Value = 1f;
+                ShadowCVars.ShadowAccumulate.Value = 8f;
+                ShadowCVars.Shadows.Value = 1024;
+                break;
+            case 2: // High
+                ShadowCVars.ShadowCascades.Value = 3;
+                ShadowCVars.ShadowDistance.Value = 220f;
+                ShadowCVars.ContactShadows.Value = 0.35f;
+                ShadowCVars.ShadowSoftness.Value = 1.5f;
+                ShadowCVars.ShadowAccumulate.Value = 16f;
+                ShadowCVars.Shadows.Value = 2048;
+                break;
+            default: // Off
+                ShadowCVars.ShadowCascades.Value = 1;
+                ShadowCVars.ShadowDistance.Value = 220f;
+                ShadowCVars.ContactShadows.Value = 0f;
+                ShadowCVars.ShadowSoftness.Value = 1f;
+                ShadowCVars.ShadowAccumulate.Value = 1f;
+                ShadowCVars.Shadows.Value = 0;
+                break;
+        }
     }
 
     private void CloseConfig()
