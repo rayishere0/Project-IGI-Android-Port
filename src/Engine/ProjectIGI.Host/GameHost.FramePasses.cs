@@ -97,6 +97,18 @@ public sealed partial class GameHost
                 && _mission.Cutscenes?.IsPlaying != true);
         _device.BeginLatencyFrame();
 
+        // Back-close detector for the console: the soft-keyboard request is derived
+        // from Console.IsOpen (see below), so the only way it can go true -> false
+        // while the console is open is Java clearing it — Back dismissing the IME
+        // (MainActivity.onBackPressed) or the app backgrounding (onPause). Either way
+        // the console closes, so one Back closes the console and the keyboard
+        // together instead of the derivation re-showing the IME within 250 ms.
+        // Runs before PumpEvents so the close lands before this frame's input is read.
+        if (state.Console.IsOpen && !KeyboardRequested && _prevKeyboardRequested)
+        {
+            state.Console.Model.IsOpen = false;
+        }
+
         _window.PumpEvents();
         ApplyTouchControls(state);
         ApplyGamepadControls(state);
@@ -169,6 +181,13 @@ public sealed partial class GameHost
         int consoleNow = _loop.TimeSource.Milliseconds;
         state.Console.Update(_window.Input, Math.Clamp((consoleNow - state.LastConsoleMilliseconds) / 1000f, 0f, 0.25f));
         state.LastConsoleMilliseconds = consoleNow;
+
+        // The soft keyboard follows the console: opening it by any path (main-menu
+        // icon, Grave key, toggleconsole, command palette) shows the IME for typing,
+        // closing it by any path hides it again. The Java poller reads this via
+        // IsKeyboardRequested; text-field auto-focus (IsTextFieldFocused) is untouched.
+        KeyboardRequested = state.Console.IsOpen;
+        _prevKeyboardRequested = KeyboardRequested;
     }
 
     /// <summary>Runs the shell over its own input, or lets the game's binds have the keys when it is not up.</summary>

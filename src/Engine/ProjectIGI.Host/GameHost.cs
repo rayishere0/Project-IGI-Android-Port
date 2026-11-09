@@ -70,12 +70,20 @@ public sealed partial class GameHost : IDisposable
     public bool IsTextFieldFocused { get; private set; }
 
     /// <summary>
-    /// Whether the player asked for the soft keyboard via the keyboard icon in the main menu
-    /// (under the cheats gear). The Android side polls this and shows the IME while it is set,
-    /// so player names and other menu text can be typed even when the automatic focus
-    /// detection does not fire. Toggled by the icon; cleared by Back.
+    /// Whether the Android soft keyboard is wanted right now. This is a derivation, not a
+    /// toggle: BeginFramePass sets it from the developer console's open state once per frame,
+    /// so the IME follows the console however it was opened (main-menu icon, Grave key,
+    /// toggleconsole). The Android side polls this and shows the IME while it is set. The
+    /// only other writer is Java, which clears it when Back dismisses the keyboard or the
+    /// app backgrounds — BeginFramePass treats that clear while the console is open as
+    /// "close the console", so one Back closes both together.
     /// </summary>
     public bool KeyboardRequested { get; set; }
+
+    // The previous frame's KeyboardRequested, for the Back-close detector in
+    // BeginFramePass: a true -> false transition while the console is open can only
+    // mean Java cleared the flag (Back, or backgrounding), so the console closes.
+    private bool _prevKeyboardRequested;
 
     // --- Environment, supplied by the composition root ---
     private readonly IPlatformHost _platform;
