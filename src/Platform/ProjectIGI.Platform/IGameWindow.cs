@@ -58,8 +58,11 @@ public interface IGameWindow : IDisposable
     /// <summary>Gets or sets a value indicating whether the system cursor is shown over the window.</summary>
     bool CursorVisible { get; set; }
 
-    /// <summary>Gets or sets the internal graphics rendering scale (0 = Performance 720p, 1 = Balanced 900p, 2 = Native).</summary>
+    /// <summary>Gets or sets the internal graphics rendering scale tier (0 = 540p, 1 = 720p, 2 = 900p, 3 = native).</summary>
     int RenderScaleMode { get => 0; set { } }
+
+    /// <summary>Sets the render scale tier to the one matching the render scale already in force (loaded from settings), so the menu shows the tier actually being rendered. A window with no tiers leaves this empty.</summary>
+    void SyncRenderScaleMode() { }
 
     /// <summary>Gets or sets a value indicating whether the cursor is held inside the window.</summary>
     /// <remarks>

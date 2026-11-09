@@ -61,6 +61,19 @@ public sealed partial class GameHost
             useSavedSettings: !_options.Lockstep,
             _options.FirstRunPreset,
             _options.LockedPreset);
+
+        // The saved render scale is only in force once the console has read settings.cfg, and
+        // the first-run preset it applies on a fresh install resets it to native — which silently
+        // undid the host's first-run tier. Sync the tier to the scale actually loaded, then
+        // re-apply the host's first-run tier only when no settings file was loaded, so an
+        // existing install keeps the scale it saved.
+        _window.SyncRenderScaleMode();
+        if (!state.Console.IsolatedFromSavedSettings && !state.Console.SettingsLoaded
+            && _options.FirstRunRenderScaleMode is { } firstRunTier)
+        {
+            _window.RenderScaleMode = firstRunTier;
+        }
+
         // The scan LoadTitleResources ran: taken off the field because the scan now happens wherever the
         // resources are loaded, and that is a method a title switch calls too.
         _contentLayers.Report(_overrideScan);

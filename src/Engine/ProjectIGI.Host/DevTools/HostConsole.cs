@@ -86,6 +86,13 @@ public sealed class HostConsole : IDisposable
     /// <summary>Gets the full path of the settings file this console reads and writes.</summary>
     public string SettingsPath => _settingsPath;
 
+    /// <summary>Gets a value indicating whether <see cref="Start"/> loaded a saved settings file.</summary>
+    /// <remarks>
+    /// The host reads this after <see cref="Start"/> to tell a first run - no file, so the first-run
+    /// defaults apply - from an existing install, whose saved scale must not be overwritten.
+    /// </remarks>
+    public bool SettingsLoaded { get; private set; }
+
     /// <summary>
     /// Brings the console up: registers every declaration, applies the settings file, then the command line.
     /// </summary>
@@ -130,6 +137,7 @@ public sealed class HostConsole : IDisposable
         else if (SettingsFile.Load(System, _settingsPath))
         {
             settingsLoaded = true;
+            SettingsLoaded = true;
             _logger.Information(LogCategory, $"Loaded settings from {_settingsPath}.");
         }
 

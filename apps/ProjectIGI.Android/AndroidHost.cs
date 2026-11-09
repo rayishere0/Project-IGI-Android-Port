@@ -172,8 +172,10 @@ public static class AndroidHost
                 _window?.RenderScaleMode = 1;
             }
 
-            // Show the tier actually being rendered (the r_scale loaded from settings), so
-            // the menu does not claim 720p while the frame is native, or the reverse.
+            // The tier the first-run default above sets (or the default scale on an existing
+            // install, whose saved scale is not loaded yet). The sync that matters runs after
+            // the settings load, in GameHost.SetUpConsole — this one only keeps the field
+            // consistent with the scale set above.
             _window?.SyncRenderScaleMode();
 
             AppDomain.CurrentDomain.FirstChanceException += (sender, args) =>
@@ -257,7 +259,7 @@ public static class AndroidHost
                     TitleCatalog.Rooted(runtime, dataDir),
                     runtime.Title,
                     fileSystem,
-                    options with { Renderer = chosenBackend, FirstRunPreset = GraphicsPreset.Vanilla, VanillaMenu = true },
+                    options with { Renderer = chosenBackend, FirstRunPreset = GraphicsPreset.Vanilla, FirstRunRenderScaleMode = settingsExist ? null : 1, VanillaMenu = true },
                     dataDir,
                     _logger);
 
