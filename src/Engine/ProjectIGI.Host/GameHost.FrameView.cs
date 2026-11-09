@@ -245,21 +245,28 @@ public sealed partial class GameHost
         // blur was reported to add: the blur only opens the path, the resolve does the lifting.
         // Pinning the resolve to the identity here restores the Vanilla promise for every
         // install, not just fresh ones, and costs nothing: under baked lighting neither knob was
-        // ever part of the look. The requested model, not the effective one: the effective one
-        // reports Baked until the real-time structures finish building, and what the resolve does
-        // has to be a decision the player made, not a state the loader is in. Gamma is
+        // ever part of the look. The EFFECTIVE model, not the requested one: the shading follows
+        // _gi.EffectiveLighting (GlobalIllumination.cs), which reports Baked until the real-time
+        // structures are Ready -- and Baked forever on a device without compute -- so a requested
+        // Dynamic/Hybrid the GI never caught up with is still a baked picture. The old pin read
+        // the request, so it let the resolve tone map and expose that baked picture: the ~15%
+        // uniform lift, 0% normal and bright from 1% up. The resolve has to match what the shading
+        // actually produced, not what was asked for. When the GI does become Ready under a genuinely
+        // dynamic request, the pin releases and the dynamic tone map and exposure apply to a
+        // genuinely dynamic frame -- that look is intended, not flattened. Gamma is
         // deliberately not pinned -- it is a live slider on the Configuration screen, default 1,
         // and it working with the blur on is intended.
-        // The same pin covers hybrid while shadows are on -- the only way Android reaches
-        // hybrid. The hybrid sun is the level's own authored colour (a unit chromaticity:
+        // The same pin covers effective hybrid while shadows are on -- the only way Android
+        // reaches hybrid. The hybrid sun is the level's own authored colour (a unit chromaticity:
         // mission 1 is 1.0/0.96/0.88) dimmed by the air and the disc, at r_sun_scale 1, so
         // the term it adds is at most ~1 and the whole composite is scaled by r_light_scale
         // 0.875: nothing in it needs a tone map to stay unclipped, and letting the resolve
         // tone map it would reintroduce the lift above (x1.414 exposure, Reinhard) on every
-        // shadowed frame. Hybrid without shadows -- a console choice, not this row -- keeps
-        // the tone map it had.
-        bool bakedIdentity = LightingCVars.Lighting.Value == LightingModel.Baked
-            || (LightingCVars.Lighting.Value == LightingModel.Hybrid && ShadowCVars.Shadows.Value > 0);
+        // shadowed frame. Effective hybrid without shadows -- a console choice, not this row --
+        // keeps the tone map it had, once the GI is Ready; before that it is baked, and the Baked
+        // arm above pins it.
+        bool bakedIdentity = _gi.EffectiveLighting == LightingModel.Baked
+            || (_gi.EffectiveLighting == LightingModel.Hybrid && ShadowCVars.Shadows.Value > 0);
         ToneMapOperator toneMap = bakedIdentity ? ToneMapOperator.None : ExposureCVars.ToneMap.Value;
         float exposure = bakedIdentity ? 1f : ExposureCVars.EffectiveExposure;
         bool autoExposure = bakedIdentity ? false : ExposureCVars.AutoExposure.Value;
