@@ -45,6 +45,17 @@ public readonly record struct RagdollBone(
 /// <param name="SwingLimit">The cone's half-angle, in radians.</param>
 /// <param name="TwistLow">How far the child may twist one way about its own axis, in radians.</param>
 /// <param name="TwistHigh">And the other way.</param>
+/// <param name="PlaneAxis">
+/// The normal of the joint's dominant swing plane, in the parent's frame — the hinge axis for a hinge
+/// joint, and the lateral axis a ball joint splays sideways around. Zero when the joint has no dominant
+/// plane.
+/// </param>
+/// <param name="IsHinge">Whether the joint's swing stays in its plane well enough to be a hinge.</param>
+/// <param name="HingeLow">The furthest the hinge angle goes one way, in radians — only for a hinge.</param>
+/// <param name="HingeHigh">And the other way — only for a hinge.</param>
+/// <param name="HingePlaneLimit">
+/// How far the swing may stray out of the hinge's plane, in radians — only for a hinge.
+/// </param>
 public readonly record struct RagdollJoint(
     int Parent,
     int Child,
@@ -53,7 +64,12 @@ public readonly record struct RagdollJoint(
     Vector3f SwingAxis,
     float SwingLimit,
     float TwistLow,
-    float TwistHigh);
+    float TwistHigh,
+    Vector3f PlaneAxis,
+    bool IsHinge,
+    float HingeLow,
+    float HingeHigh,
+    float HingePlaneLimit);
 
 /// <summary>Two bones far enough apart in the rig that they are kept from passing through each other.</summary>
 /// <param name="First">The lower bone index.</param>
