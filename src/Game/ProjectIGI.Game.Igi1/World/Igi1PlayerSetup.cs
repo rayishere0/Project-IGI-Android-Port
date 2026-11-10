@@ -674,6 +674,10 @@ public sealed class Igi1PlayerSetup(
                 alreadyHeard,
                 struck => new Igi1WeaponHit(struck, origin, end, damageFactor, category, Shooter: null, FromPlayer: true, candidate.Shots).ToShared(),
                 out hit);
+        // The corpses ride beside the living: the march offers the round to them first, as a
+        // pure test, and pushes only the corpse that wins the pass.
+        candidate.Corpses = guards.CorpseShooter();
+        candidate.CorpseImpulse = guards.CorpseImpulser();
         candidate.HumanProbes = guards.Simulation.Probe();
         HumanProximityCast soldierProximity = guards.Simulation.ProximityProbe();
         candidate.HumanProximityTargets = (Vector3d center, float radiusUnits, out HumanProximityTarget target) =>

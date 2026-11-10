@@ -122,6 +122,52 @@ internal sealed class BepuRagdollCorpse
         }
     }
 
+    /// <summary>Gets where a bone's joint sits in the world, in engine units — the Bepu mirror of <see cref="RagdollBody.PositionOf"/>.</summary>
+    /// <param name="bone">The bone index.</param>
+    /// <returns>The joint position — the bone's own origin, not its centre of mass.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="bone"/> is not a bone of this rig.</exception>
+    /// <remarks>
+    /// The body's centre of mass less its rotated COM offset, the same subtraction
+    /// <see cref="Pose"/> does for the root — read straight from the simulation bodies, so a
+    /// sleeping corpse answers exactly as an awake one does.
+    /// </remarks>
+    public Vector3d JointOf(int bone)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(bone);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(bone, Rig.BoneCount);
+        Simulation simulation = _world.Simulation;
+        Quaternion32 rotation = (BepuRagdollConversions.ToEngineQuaternion(simulation.Bodies[Bodies[bone]].Pose.Orientation) * _alignmentInverse[bone]).Normalized();
+        Vector3d centre = BepuRagdollConversions.ToEnginePosition(simulation.Bodies[Bodies[bone]].Pose.Position);
+        Vector3f offset = RagdollSolver.Rotate(BonePose.ToMatrix(rotation), _centres[bone]);
+        return centre - new Vector3d(offset.X, offset.Y, offset.Z);
+    }
+
+    /// <summary>Gets one bone's capsule in world space, for the corpse queries — the Bepu mirror of <see cref="RagdollBody.CapsuleOf"/>.</summary>
+    /// <param name="bone">The bone index.</param>
+    /// <param name="axisA">One end of the capsule's central axis, in engine units.</param>
+    /// <param name="axisB">The other end of the capsule's central axis, in engine units.</param>
+    /// <param name="radius">The capsule's radius, in engine units.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="bone"/> is not a bone of this rig.</exception>
+    /// <remarks>
+    /// The same capsule the shapes were built from: centred on the body's centre of mass, along
+    /// its rotated aim for half its length either way, radius the rig's — read straight from the
+    /// simulation bodies, asleep or awake.
+    /// </remarks>
+    public void CapsuleOf(int bone, out Vector3d axisA, out Vector3d axisB, out double radius)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(bone);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(bone, Rig.BoneCount);
+        Simulation simulation = _world.Simulation;
+        Quaternion32 rotation = (BepuRagdollConversions.ToEngineQuaternion(simulation.Bodies[Bodies[bone]].Pose.Orientation) * _alignmentInverse[bone]).Normalized();
+        Vector3d centre = BepuRagdollConversions.ToEnginePosition(simulation.Bodies[Bodies[bone]].Pose.Position);
+        RagdollBone shape = Rig.BoneAt(bone);
+        Vector3f along = RagdollSolver.Rotate(BonePose.ToMatrix(rotation), shape.Aim) * shape.HalfLength;
+        Vector3d step = new(along.X, along.Y, along.Z);
+        axisA = centre - step;
+        axisB = centre + step;
+        radius = shape.Radius;
+    }
+
     /// <summary>Marks the corpse invalid: it has run away and the death clip takes over the drawing.</summary>
     internal void MarkInvalid() => IsValid = false;
 

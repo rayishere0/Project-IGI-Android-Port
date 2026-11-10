@@ -73,3 +73,52 @@ public delegate bool HumanShot(
     double stopDistance,
     bool alreadyHeard,
     out HumanHit hit);
+
+/// <summary>Offers a round to the corpses in the world, as a pure test: it applies nothing.</summary>
+/// <param name="origin">Where the round starts, in world units.</param>
+/// <param name="end">Where it stops.</param>
+/// <param name="stopDistance">
+/// How far from <paramref name="origin"/>, in world units, the round may reach: the distance to the
+/// nearest surface or living human the caller's own trace met, or
+/// <see cref="double.PositiveInfinity"/> when it met none. A corpse at or beyond it is behind that
+/// surface or human and is never struck.
+/// </param>
+/// <param name="hit">
+/// The nearest crossing of a corpse's bone capsules, when there is one. An exit
+/// (<see cref="HumanHit.IsExit"/>) is the round leaving a capsule it went into, and is reported
+/// without a push. <see cref="HumanHit.Material"/> is <c>-1</c>: the presenter has no materials
+/// table, so the caller substitutes the flesh row where the penetration branch needs it.
+/// </param>
+/// <param name="corpse">
+/// The struck corpse, when there is one: the XPBD <c>RagdollBody</c> or the Bepu
+/// <c>BepuRagdollCorpse</c>, as an opaque token. Pass it to <see cref="CorpseImpulse"/> together
+/// with <see cref="HumanHit.Bone"/> — and only once the caller has established this corpse is the
+/// nearest of wall, living human and corpse, so a guard behind the corpse is never damaged by the
+/// test and a corpse behind a guard never takes a push.
+/// </param>
+/// <returns><see langword="false"/> when the round meets no corpse short of <paramref name="stopDistance"/>.</returns>
+public delegate bool CorpseShot(
+    Vector3d origin,
+    Vector3d end,
+    double stopDistance,
+    out HumanHit hit,
+    out object? corpse);
+
+/// <summary>Applies a round's push to a corpse a <see cref="CorpseShot"/> test returned.</summary>
+/// <param name="corpse">The token the test returned.</param>
+/// <param name="bone">The bone the round went through, from the hit.</param>
+/// <param name="travel">The round's own line, from the muzzle towards where it ended.</param>
+/// <param name="category">
+/// The firing weapon's category, which decides how hard the body is thrown — the same
+/// <c>MomentumOf</c> the death seed uses, so a shot corpse takes the same push a fresh one does.
+/// </param>
+/// <remarks>
+/// The push clears the rest latch / wakes the bodies it touches, so a settled corpse jolts and
+/// re-settles; applying it through anything but this delegate would leave a latched corpse holding
+/// a velocity it never spends.
+/// </remarks>
+public delegate void CorpseImpulse(
+    object? corpse,
+    int bone,
+    Vector3d travel,
+    ProjectIGI.Game.Weapons.WeaponCategory category);

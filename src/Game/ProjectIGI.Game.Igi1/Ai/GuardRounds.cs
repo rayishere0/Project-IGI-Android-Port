@@ -497,6 +497,9 @@ public sealed class GuardRounds
     /// <summary>What a contact on the player's body carries to the strike.</summary>
     private sealed record PlayerContact(HumanHit Hit);
 
+    /// <summary>What a contact on a corpse carries to the strike: the test's token and the struck bone, so the strike can push it.</summary>
+    private sealed record CorpseContact(object? Corpse, int Bone);
+
     /// <summary>The world a soldier's marched round is cast through: placed objects and terrain, the soldiers, the player.</summary>
     private sealed class MarchedWorld(GuardRounds rounds) : IGunShotWorld
     {
@@ -539,6 +542,20 @@ public sealed class GuardRounds
                 found = true;
             }
 
+            // The corpses, as a pure test: a corpse in front of a soldier takes the round, so
+            // the soldier behind it is never struck — the test only runs against the best
+            // contact so far, and the push lands in Strike, for the winning contact alone.
+            // The hit carries no material row (the presenter has no table); BodyContact falls
+            // back to the flesh row by name, as it already does for a body hit without one.
+            if (rounds._mission.SoldierPresenter?.CorpseShooter() is { } corpseShot
+                && corpseShot(start, limit, best, out HumanHit corpseHit, out object? corpseToken)
+                && corpseHit.Distance < best)
+            {
+                contact = BodyContact(corpseHit, new CorpseContact(corpseToken, corpseHit.Bone));
+                best = corpseHit.Distance;
+                found = true;
+            }
+
             // The player is visible to a round only from another side, and only through the evaluate's two rolls of the
             // shooter's probability: the visit's gate and the narrow contact's (0x45F53D, 0x4D76DA).
             if (mission.Player is { } player
@@ -570,6 +587,16 @@ public sealed class GuardRounds
                     break;
                 case PlayerContact player:
                     rounds.StrikePlayerWith(player.Hit, round.Origin, end, round.Weapon, round.DamageFactor, round.Shooter as SoldierView);
+                    break;
+                case CorpseContact corpse:
+                    // The push, not damage: a corpse has no health and no task to send a hit to.
+                    // The same seed-time push as the player's march, so a guard's round jolts a
+                    // corpse exactly as the player's does.
+                    rounds._mission.SoldierPresenter?.CorpseImpulser()?.Invoke(
+                        corpse.Corpse,
+                        corpse.Bone,
+                        new Vector3d(travel.X, travel.Y, travel.Z),
+                        round.Weapon.Category);
                     break;
                 case WorldTraceHit surface:
                     rounds._blasts.ApplyRoundContact(surface.Position, surface.Owner, surface.Placement, round.DamageFactor);

@@ -353,7 +353,35 @@ public sealed partial class ObjectCollisionIndex
         _humanBodies = copy;
     }
 
-    /// <summary>Casts the retail-human object trace, plus every living human body.</summary>
+    /// <summary>Replaces the set of corpse collision bodies.</summary>
+    /// <param name="bodies">The capsule bodies, in world units, for every solid corpse.</param>
+    /// <remarks>
+    /// A mission re-supplies this on every tick after the corpses step, beside the living bodies
+    /// above. Each body's <see cref="RayCapsule"/> test is folded into the player cast below, so
+    /// the existing human wall sweep treats a corpse as a wall and the player cannot walk through
+    /// one. Kept apart from the living list so the two populations stay separable — a corpse's
+    /// capsules are coarse and prone, a soldier's is one upright cylinder — and so the distance
+    /// filter that bounds the corpse list lives in one place, at publication.
+    /// </remarks>
+    public void SetCorpseBodies(IReadOnlyList<HumanBody> bodies)
+    {
+        ArgumentNullException.ThrowIfNull(bodies);
+        if (bodies.Count == 0)
+        {
+            _corpseBodies = [];
+            return;
+        }
+
+        HumanBody[] copy = new HumanBody[bodies.Count];
+        for (int i = 0; i < bodies.Count; i++)
+        {
+            copy[i] = bodies[i];
+        }
+
+        _corpseBodies = copy;
+    }
+
+    /// <summary>Casts the retail-human object trace, plus every living human body and every corpse.</summary>
     /// <remarks>
     /// IGI1's <c>0x461A70</c> calls <c>0x4CDB20</c> with <c>iMesh = 1</c> at <c>0x461D71</c>.
     /// Human movement therefore follows collision mesh level one, not the default level-zero geometry
@@ -375,7 +403,7 @@ public sealed partial class ObjectCollisionIndex
     private bool CastHumanBodies(Vector3d origin, Vector3d end, out WorldRayHit hit)
     {
         hit = default;
-        if (_humanBodies.Length == 0)
+        if (_humanBodies.Length == 0 && _corpseBodies.Length == 0)
         {
             return false;
         }
@@ -393,6 +421,16 @@ public sealed partial class ObjectCollisionIndex
         Vector3f normal = default;
         foreach (HumanBody body in _humanBodies)
         {
+            Consider(body);
+        }
+
+        foreach (HumanBody body in _corpseBodies)
+        {
+            Consider(body);
+        }
+
+        void Consider(HumanBody body)
+        {
             if (!RayCapsule.Intersect(
                     origin,
                     direction,
@@ -403,7 +441,7 @@ public sealed partial class ObjectCollisionIndex
                     out Vector3d capsuleNormal)
                 || t >= nearest)
             {
-                continue;
+                return;
             }
 
             nearest = t;

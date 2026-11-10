@@ -425,6 +425,20 @@ public sealed partial class SoldierSimulation : IHumanEvents
         _bodies.SyncCollisionBodies();
     }
 
+    /// <summary>Publishes the corpses' collision bodies where they lie now.</summary>
+    /// <remarks>
+    /// The presenter owns the corpses, so it builds the list from the members' frozen poses and
+    /// hands it here, beside <see cref="PublishCollisionBodies"/> for the living. Published after
+    /// the corpses step, in the renderer's <c>EndTick</c>, so the player moves against last tick's
+    /// poses - one tick stale, the same staleness the living bodies have between
+    /// <c>FinishTick</c> and the player's move.
+    /// </remarks>
+    public void PublishCorpseBodies(IReadOnlyList<HumanBody> bodies)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _bodies.SyncCorpseBodies(bodies);
+    }
+
     /// <summary>Puts the soldiers, their guard generators, the doors and the alarm controls into the level's walk.</summary>
     /// <param name="walker">The level walk.</param>
     /// <remarks>

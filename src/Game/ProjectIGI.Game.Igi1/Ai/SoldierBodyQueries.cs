@@ -312,6 +312,25 @@ internal sealed class SoldierBodyQueries(SoldierContext context)
         solids.SetHumanBodies(bodies);
     }
 
+    /// <summary>Replaces the set of corpse collision bodies with the presenter's latest list.</summary>
+    /// <param name="bodies">The coarse capsules per corpse, in world units.</param>
+    /// <remarks>
+    /// The presenter owns the corpses — the simulation never sees a <c>RagdollBody</c> — so it
+    /// builds the list from the members' frozen poses and hands it here, beside the living
+    /// bodies above. Settled corpses are published exactly like active ones: the query reads the
+    /// frozen pose, never the solver's active set, so the rest latch and Bepu sleep change
+    /// nothing about solidity.
+    /// </remarks>
+    public void SyncCorpseBodies(IReadOnlyList<HumanBody> bodies)
+    {
+        if (_context.Solids is not { } solids)
+        {
+            return;
+        }
+
+        solids.SetCorpseBodies(bodies);
+    }
+
     /// <summary>Every soldier where it stands at this moment, for an area counting as the level walk reaches it.</summary>
     public IEnumerable<HumanOccupant> LiveOccupants()
     {

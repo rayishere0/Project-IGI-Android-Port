@@ -11,6 +11,7 @@ namespace ProjectIGI.Game.Weapons.Ballistics;
 /// <param name="Position">Where the round stopped, or the end of its range when it met nothing.</param>
 /// <param name="StruckHuman">Whether a human took it.</param>
 /// <param name="Human">The human contact, when one was struck.</param>
+/// <param name="StruckCorpse">Whether a corpse took it — a body hit that counts no hit and takes no damage, only a push.</param>
 /// <param name="StruckWall">Whether the world stopped it.</param>
 /// <param name="Wall">The world contact, when a surface stopped it.</param>
 /// <param name="RangeInUnits">The weapon's whole range, carried for the impact record.</param>
@@ -26,7 +27,8 @@ public readonly record struct BallisticImpact(
     float RangeInUnits,
     Vector3f Direction = default,
     GameTask? Owner = null,
-    WorldPlacement? Placement = null);
+    WorldPlacement? Placement = null,
+    bool StruckCorpse = false);
 
 /// <summary>Decides what a flying round does at a surface or body it enters.</summary>
 /// <param name="round">The round.</param>
@@ -222,13 +224,27 @@ public sealed class BallisticSimulation
     /// <see cref="GunShotImpact.Penetrated"/> answer lets the round on; a glance ends it here, as it ends a
     /// guard's round, because a reflected leg would need a second flight.
     /// </param>
+    /// <param name="corpses">
+    /// What offers a round to the corpses, as a pure test — consulted before
+    /// <paramref name="humans"/> so a corpse in front of a guard shortens the stop the living
+    /// test is offered. <see langword="null"/> when the level has no corpses to offer.
+    /// </param>
+    /// <param name="corpseImpulse">What applies the push to a corpse that wins a segment.</param>
+    /// <param name="fleshMaterial">
+    /// The flesh material row's index, resolved by the caller where the table lives, or
+    /// <c>-1</c> when unknown — a corpse hit without it stops the round, as an unresolvable
+    /// material does in the hit-scan march.
+    /// </param>
     public void Tick(
         WorldRayCast? walls,
         HumanShot? humans,
         float gravityScale = 1f,
         float dragScale = 1f,
         WorldTraceCast? richWalls = null,
-        BallisticEntry? entry = null)
+        BallisticEntry? entry = null,
+        CorpseShot? corpses = null,
+        CorpseImpulse? corpseImpulse = null,
+        int fleshMaterial = -1)
     {
         _impacts.Clear();
 
@@ -350,8 +366,25 @@ public sealed class BallisticSimulation
                         richWallHit = default;
                     }
 
+                    // The corpses first, as a pure test: a corpse in front of a guard takes the
+                    // round, so the living test below must never be offered the guard behind it.
+                    HumanHit corpseHit = default;
+                    object? corpse = null;
+                    bool struckCorpse = corpses is not null
+                        && corpses(
+                            from,
+                            position,
+                            struckWall ? wallHit.Distance : double.PositiveInfinity,
+                            out corpseHit,
+                            out corpse)
+                        && (!struckWall || corpseHit.Distance < wallHit.Distance);
+
                     // The wall's distance goes in with the round: the callback damages as it is called,
                     // so a guard behind the wall must never be offered the hit in the first place.
+                    // A corpse in front shortens it the same way.
+                    double humanStop = struckCorpse
+                        ? Math.Min(struckWall ? wallHit.Distance : double.PositiveInfinity, corpseHit.Distance)
+                        : struckWall ? wallHit.Distance : double.PositiveInfinity;
                     HumanHit humanHit = default;
                     bool struckHuman = humans is not null
                         && humans(
@@ -359,10 +392,33 @@ public sealed class BallisticSimulation
                             position,
                             round.DamageFactor,
                             round.Category,
-                            struckWall ? wallHit.Distance : double.PositiveInfinity,
+                            humanStop,
                             alreadyHeard: pass > 0,
                             out humanHit)
                         && (!struckWall || humanHit.Distance < wallHit.Distance);
+
+                    // The corpse wins when it is nearer than the guard: the round reached it, so the
+                    // push lands now, and the body branch below reads the corpse hit — with the
+                    // flesh row substituted, since the test carries no material.
+                    if (struckCorpse && (!struckHuman || corpseHit.Distance < humanHit.Distance))
+                    {
+                        if (!corpseHit.IsExit && corpseImpulse is { } push)
+                        {
+                            push(corpse, corpseHit.Bone, heading, round.Category);
+                        }
+
+                        if (fleshMaterial >= 0)
+                        {
+                            corpseHit = corpseHit with { Material = fleshMaterial };
+                        }
+
+                        humanHit = corpseHit;
+                        struckHuman = true;
+                    }
+                    else
+                    {
+                        struckCorpse = false;
+                    }
 
                     if (!struckHuman && !struckWall)
                     {
@@ -391,18 +447,20 @@ public sealed class BallisticSimulation
                     }
 
                     // An exit off a body is no impact at all; a wall's exit still leaves its far-side mark.
+                    // A corpse impact is recorded as one, not as a human: it counts no hit.
                     if (!(struckHuman && exit))
                     {
                         _impacts.Add(new BallisticImpact(
                             contact,
-                            struckHuman,
+                            struckHuman && !struckCorpse,
                             humanHit,
                             !struckHuman,
                             wallHit,
                             RangeOf(round),
                             travel,
                             struckHuman ? null : richWallHit.Owner,
-                            struckHuman ? null : richWallHit.Placement));
+                            struckHuman ? null : richWallHit.Placement,
+                            StruckCorpse: struckCorpse));
                     }
 
                     if (!passes)

@@ -426,6 +426,199 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
         }
     }
 
+    /// <summary>Publishes every corpse's coarse collision bodies for the player's wall sweep.</summary>
+    /// <remarks>
+    /// <para>
+    /// Called from the renderer's <c>EndTick</c>, after <see cref="StepRagdolls"/> stepped the
+    /// corpses, so the published capsules are this tick's poses — one tick stale to the player's
+    /// next move, the same staleness the living bodies have between <c>FinishTick</c> and the
+    /// player's move. Published from the member fields, settled or not: the query reads the
+    /// frozen pose, never the solver's active set, so the rest latch and Bepu sleep change
+    /// nothing about solidity. With <c>g_ragdoll</c> off no <c>Ragdoll</c> objects exist, so
+    /// nothing is published and no corpse blocks — free. The player's own corpse is never in
+    /// these groups (it lives in the player-body renderer), so it is never published either.
+    /// </para>
+    /// <para>
+    /// Three capsules per corpse, from the solver pose — never the living upright capsule, which
+    /// would stand an invisible 1.8 m post over every prone body. One is the body's long axis
+    /// (the two joints farthest apart, at the widest bone's radius), and two are the largest
+    /// bone capsules, which cover the bulk where the body folds. The bone roles were never
+    /// measured, so nothing here names a pelvis or a head: the layout is derived from the
+    /// joints and the bone sizes alone.
+    /// </para>
+    /// <para>
+    /// Only corpses within ~50 m of the player's feet are published: a corpse further away
+    /// cannot be reached this tick, and the player cast scans the list linearly. With 3
+    /// capsules per corpse and the sweep's 2 typical / 30 worst-case casts per tick, that is 60
+    /// typical / 900 worst-case analytic capsule tests per tick at 10 corpses — noise against
+    /// the 2–30 placed-mesh ray casts the same tick already performs — so no nearest-N cap is
+    /// needed beyond the distance filter.
+    /// </para>
+    /// </remarks>
+    public void SyncCorpseBodies()
+    {
+        Vector3d? playerFeet = PlayerFeetNow();
+        List<HumanBody> bodies = [];
+        foreach (SoldierGroup group in _groups)
+        {
+            foreach (SoldierMember member in group.Soldiers)
+            {
+                if (member.Ragdoll is { IsValid: true } ragdoll)
+                {
+                    AddCorpseBodies(bodies, ragdoll, playerFeet);
+                }
+                else if (member.BepuRagdoll is { IsValid: true, Removed: false } bepu)
+                {
+                    AddCorpseBodies(bodies, bepu, playerFeet);
+                }
+            }
+        }
+
+        _sim.PublishCorpseBodies(bodies);
+    }
+
+    /// <summary>How far from the player's feet a corpse is published, in engine units — 50 m.</summary>
+    private const double CorpsePublishRadiusInUnits = 50.0 * WorldScene.UnitsPerMetre;
+
+    /// <summary>One bone's capsule plus its size rank, for the coarse-capsule layout.</summary>
+    private readonly record struct CoarseBone(Vector3d AxisA, Vector3d AxisB, double Radius, double Size);
+
+    /// <summary>Gets where the player stands this tick, for the corpse publish filter.</summary>
+    /// <remarks>
+    /// The feet the soldiers were given at <c>BeginTick</c>, falling back to the eye when no
+    /// feet were supplied; <see langword="null"/> when no tick has opened yet (a menu backdrop
+    /// or a test), in which case the publish runs unfiltered — the list is small either way.
+    /// </remarks>
+    private Vector3d? PlayerFeetNow()
+    {
+        if (_sim.Enemy?.Invoke() is not { } enemy)
+        {
+            return null;
+        }
+
+        if (enemy.Feet is { } feet)
+        {
+            return feet;
+        }
+
+        return enemy.Eye == default ? null : enemy.Eye;
+    }
+
+    private static void AddCorpseBodies(List<HumanBody> into, RagdollBody ragdoll, Vector3d? playerFeet)
+    {
+        Vector3d centre = ragdoll.Centre;
+        if (playerFeet is { } feet
+            && (centre - feet).LengthSquared > CorpsePublishRadiusInUnits * CorpsePublishRadiusInUnits)
+        {
+            return;
+        }
+
+        int count = ragdoll.BoneCount;
+        Span<Vector3d> joints = stackalloc Vector3d[count];
+        Span<CoarseBone> bones = stackalloc CoarseBone[count];
+        for (int bone = 0; bone < count; bone++)
+        {
+            joints[bone] = ragdoll.PositionOf(bone);
+            ragdoll.CapsuleOf(bone, out Vector3d axisA, out Vector3d axisB, out double radius);
+            RagdollBone shape = ragdoll.Rig.BoneAt(bone);
+            bones[bone] = new CoarseBone(axisA, axisB, radius, shape.HalfLength + shape.Radius);
+        }
+
+        AddCoarseBodies(into, joints, bones);
+    }
+
+    private static void AddCorpseBodies(List<HumanBody> into, BepuRagdollCorpse bepu, Vector3d? playerFeet)
+    {
+        Vector3d centre = bepu.Centre;
+        if (playerFeet is { } feet
+            && (centre - feet).LengthSquared > CorpsePublishRadiusInUnits * CorpsePublishRadiusInUnits)
+        {
+            return;
+        }
+
+        int count = bepu.Rig.BoneCount;
+        Span<Vector3d> joints = stackalloc Vector3d[count];
+        Span<CoarseBone> bones = stackalloc CoarseBone[count];
+        for (int bone = 0; bone < count; bone++)
+        {
+            joints[bone] = bepu.JointOf(bone);
+            bepu.CapsuleOf(bone, out Vector3d axisA, out Vector3d axisB, out double radius);
+            RagdollBone shape = bepu.Rig.BoneAt(bone);
+            bones[bone] = new CoarseBone(axisA, axisB, radius, shape.HalfLength + shape.Radius);
+        }
+
+        AddCoarseBodies(into, joints, bones);
+    }
+
+    private static void AddCoarseBodies(List<HumanBody> into, ReadOnlySpan<Vector3d> joints, ReadOnlySpan<CoarseBone> bones)
+    {
+        if (joints.Length == 0 || bones.Length == 0)
+        {
+            return;
+        }
+
+        // The long axis: the two joints farthest apart, at the widest bone's radius, so a
+        // player approaching along the body meets it at the head or the feet, not halfway
+        // through the torso.
+        double maxRadius = 0.0;
+        foreach (CoarseBone bone in bones)
+        {
+            if (bone.Radius > maxRadius)
+            {
+                maxRadius = bone.Radius;
+            }
+        }
+
+        int first = 0;
+        int second = 0;
+        double farthest = -1.0;
+        for (int i = 0; i < joints.Length; i++)
+        {
+            for (int j = i + 1; j < joints.Length; j++)
+            {
+                double distanceSquared = (joints[i] - joints[j]).LengthSquared;
+                if (distanceSquared > farthest)
+                {
+                    farthest = distanceSquared;
+                    first = i;
+                    second = j;
+                }
+            }
+        }
+
+        if (farthest >= 0.0)
+        {
+            into.Add(new HumanBody(joints[first], joints[second], maxRadius));
+        }
+
+        // The two largest bone capsules, for the bulk where the body folds away from its long
+        // axis — a bent knee, an outflung arm.
+        int largest = -1;
+        int secondLargest = -1;
+        for (int bone = 0; bone < bones.Length; bone++)
+        {
+            if (largest < 0 || bones[bone].Size > bones[largest].Size)
+            {
+                secondLargest = largest;
+                largest = bone;
+            }
+            else if (secondLargest < 0 || bones[bone].Size > bones[secondLargest].Size)
+            {
+                secondLargest = bone;
+            }
+        }
+
+        if (largest >= 0)
+        {
+            into.Add(new HumanBody(bones[largest].AxisA, bones[largest].AxisB, bones[largest].Radius));
+        }
+
+        if (secondLargest >= 0)
+        {
+            into.Add(new HumanBody(bones[secondLargest].AxisA, bones[secondLargest].AxisB, bones[secondLargest].Radius));
+        }
+    }
+
     /// <summary>Records where each body stands and faces this tick, once the poses are settled.</summary>
     public void CaptureTickStates()
     {
