@@ -165,14 +165,14 @@ public static class GameplayCVars
     /// constraint in the body is projected this many times a tick.
     /// </para>
     /// <para>
-    /// Eight, measured. Sixteen costs three times as much and buys nothing that can be seen — at both
+    /// Twelve, raised from eight in the human-joints round. Sixteen buys nothing that can be seen — at both
     /// counts every body settles, and the joint drift left at rest is around a centimetre either way.
     /// Below about six the drift starts to show on impact.
     /// </para>
     /// </remarks>
     public static readonly NumericCVar<int> RagdollSubsteps = CVar.Int(
         "g_ragdoll_substeps",
-        8,
+        12,
         1,
         64,
         CVarOptions.Archive,

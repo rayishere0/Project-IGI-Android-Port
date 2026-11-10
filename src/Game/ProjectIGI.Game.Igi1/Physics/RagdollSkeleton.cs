@@ -407,18 +407,28 @@ public sealed class RagdollSkeleton
             float swing = DefaultSwingLimit;
             float twistLow = -DefaultTwistLimit;
             float twistHigh = DefaultTwistLimit;
+            Vector3f plane = Vector3f.Zero;
+            bool hinge = false;
+            float hingeLow = 0f;
+            float hingeHigh = 0f;
+            float hingePlane = 0f;
 
             if (limits is not null && limits.TryGet(bone, out RagdollJointRange range))
             {
                 centre = range.SwingAxis;
                 twistLow = range.TwistLow;
                 twistHigh = range.TwistHigh;
+                plane = range.PlaneAxis;
+                hinge = range.IsHinge;
+                hingeLow = range.HingeLow;
+                hingeHigh = range.HingeHigh;
+                hingePlane = range.HingePlaneLimit;
 
-                // The allowance is ONE angle, because the solver holds one -- see
-                // RagdollBody.SolveDeviation. It is measured as one too: the widest the clips ever turn
-                // this bone from its rest, however they turn it. Taking the wider of a separate swing
-                // and twist measurement instead let a joint that does 60 of each deviate by 60 in a
-                // direction that is both, which is how a spine came out bent double.
+                // The cone's half-angle is ONE angle, measured from the cone's own centre — see
+                // RagdollLimits.Measure. It is at least the centre's offset from rest, so the bind
+                // pose is always legal, and it is the spread around the middle of the range rather
+                // than the widest the clips ever turn this bone from its rest: a knee's cone is narrow
+                // and half-bent, not a ball around straight.
                 swing = range.SwingLimit;
             }
 
@@ -430,7 +440,12 @@ public sealed class RagdollSkeleton
                 centre,
                 swing,
                 twistLow,
-                twistHigh));
+                twistHigh,
+                plane,
+                hinge,
+                hingeLow,
+                hingeHigh,
+                hingePlane));
         }
 
         return [.. joints];

@@ -9,14 +9,33 @@ namespace ProjectIGI.Game.Igi1.Physics;
 /// The direction the child bone's own axis points, in its parent's frame, at the middle of the joint's
 /// range — the cone's centre line, which for a knee is not the rest direction.
 /// </param>
-/// <param name="SwingLimit">The cone's half-angle, in radians.</param>
+/// <param name="SwingLimit">
+/// The cone's half-angle, in radians — measured from the cone's centre, not from rest, so a knee's cone
+/// is the spread around its half-bent middle rather than a ball around straight.
+/// </param>
 /// <param name="TwistLow">The furthest the joint twists one way about its own axis, in radians.</param>
 /// <param name="TwistHigh">And the other way.</param>
+/// <param name="PlaneAxis">
+/// The normal of the joint's dominant swing plane, in the parent's frame — the hinge axis for a hinge
+/// joint, and the lateral axis a ball joint splays sideways around. Zero when the joint has no dominant
+/// plane, which is a joint whose range is centred on its rest direction.
+/// </param>
+/// <param name="IsHinge">Whether the joint's swing stays in its plane well enough to be a hinge.</param>
+/// <param name="HingeLow">The furthest the hinge angle goes one way, in radians — only for a hinge.</param>
+/// <param name="HingeHigh">And the other way — only for a hinge.</param>
+/// <param name="HingePlaneLimit">
+/// How far the swing may stray out of the hinge's plane, in radians — only for a hinge.
+/// </param>
 public readonly record struct RagdollJointRange(
     Vector3f SwingAxis,
     float SwingLimit,
     float TwistLow,
-    float TwistHigh);
+    float TwistHigh,
+    Vector3f PlaneAxis,
+    bool IsHinge,
+    float HingeLow,
+    float HingeHigh,
+    float HingePlaneLimit);
 
 /// <summary>
 /// The range each joint of a rig actually moves through, measured from the animations the game ships
@@ -76,6 +95,51 @@ public sealed class RagdollLimits
     /// </remarks>
     public const float MinimumTwist = 8f * MathF.PI / 180f;
 
+    /// <summary>
+    /// How far a joint's swing may stray out of its dominant plane and still count as a hinge, in
+    /// radians — 20°.
+    /// </summary>
+    /// <remarks>
+    /// A hinge is a joint whose motion IS a plane. The clips are retail animation, not a metrology lab,
+    /// so a knee's swing wanders a few degrees out of its plane; twenty degrees is the line between
+    /// that wander and a joint that genuinely moves in two directions. A joint over the line stays a
+    /// ball joint and keeps its cone — it loses the hinge term, not its limits.
+    /// </remarks>
+    public const float HingePlaneThreshold = 20f * MathF.PI / 180f;
+
+    /// <summary>How far past straight a hinge may go before the solver objects, in radians — 5°.</summary>
+    /// <remarks>
+    /// A hinge measured from the clips never shows hyperextension, so its measured low end sits at
+    /// straight. A corpse is not a precision instrument, and a joint exactly at its limit every substep
+    /// is a joint that jitters — the allowance is the difference between a limit and a weld. Five
+    /// degrees is a knee that has settled, not a knee that has bent the wrong way.
+    /// </remarks>
+    public const float HingeExtensionAllowance = 5f * MathF.PI / 180f;
+
+    /// <summary>The furthest a leg may splay sideways, in radians — 54°.</summary>
+    /// <remarks>
+    /// A stated anatomical constant, not a measurement: the clips cannot distinguish sideways from
+    /// forwards, which is exactly why the cone alone cannot bound a split. The American Academy of
+    /// Orthopaedic Surgeons' normative hip abduction is 45° (AAOS, <i>Joint Motion: Method of Measuring
+    /// and Recording</i>, 1965); a dead body goes further than a living one, so the corpse Margin
+    /// (×1.2) is applied to it, as it is to every measured limit. The boundary this sets is a leg
+    /// spread of 108°, two legs at 54° each, against today's 160° — two legs at the 80° cone cap.
+    /// </remarks>
+    public const float MaximumAbduction = 54f * MathF.PI / 180f;
+
+    /// <summary>
+    /// How far the cone's centre must sit from the rest direction before a joint is treated as having a
+    /// dominant swing plane, in radians — 10°.
+    /// </summary>
+    /// <remarks>
+    /// The plane is the one the rest direction and the cone's centre both sit in, and it only exists
+    /// when the two are far enough apart for their cross product to mean something. A joint whose range
+    /// is symmetric about rest — a shoulder, a spine segment — has its centre on its rest direction and
+    /// no dominant plane, and the cone alone is its limit. Ten degrees is the line: a knee's centre
+    /// sits a half-bend off straight, a shoulder's does not.
+    /// </remarks>
+    public const float PlaneMinimumOffset = 10f * MathF.PI / 180f;
+
     private readonly RagdollJointRange[] _ranges;
     private readonly bool[] _measured;
 
@@ -122,6 +186,13 @@ public sealed class RagdollLimits
     /// sits half-bent and the cone around it excludes straight and excludes forwards — which is a hinge,
     /// arrived at by measurement, with no bone named and no axis assumed.
     /// </para>
+    /// <para>
+    /// The measurement also records whether the swing stays in one plane — a hinge — and, for a ball
+    /// joint with a plane, which direction sideways is, so the solver can bound a split the cone alone
+    /// cannot see. The hinge's range is the signed angle about the plane's normal, measured the same way
+    /// the twist is, and its plane is the one the rest direction and the cone's centre both sit in. A
+    /// joint whose range is symmetric about rest has no dominant plane and keeps its cone only.
+    /// </para>
     /// </remarks>
     public static RagdollLimits Measure(BoneAnimationSet set)
     {
@@ -151,8 +222,6 @@ public sealed class RagdollLimits
             axis[bone] = kids > 0 && reach.LengthSquared > 0f ? reach.Normalized() : Vector3f.UnitZ;
         }
 
-        float[] widest = new float[count];
-
         foreach (BoneAnimation clip in set.Animations)
         {
             int shared = Math.Min(clip.BoneCount, count);
@@ -165,15 +234,6 @@ public sealed class RagdollLimits
                     twistLow[bone] = Math.Min(twistLow[bone], twist);
                     twistHigh[bone] = Math.Max(twistHigh[bone], twist);
                     samples[bone]++;
-
-                    // The TOTAL angle the clip turns this bone from its rest, which is the one quantity
-                    // the solver actually bounds -- see RagdollBody.SolveDeviation. Measuring a swing
-                    // and a twist separately and then taking the wider of the two was letting a joint
-                    // that swings 60 and twists 60 deviate by 60 in a direction that is both, which is
-                    // how a spine ended up bent double.
-                    Quaternion32 q = key.Rotation.Normalized();
-                    float half = MathF.Abs(q.W);
-                    widest[bone] = MathF.Max(widest[bone], 2f * MathF.Acos(Math.Clamp(half, -1f, 1f)));
                 }
             }
         }
@@ -190,6 +250,24 @@ public sealed class RagdollLimits
             centre[bone] = measured[bone] ? swungSum[bone].Normalized() : axis[bone];
         }
 
+        // The dominant swing plane, where the joint has one: the plane the rest direction and the
+        // cone's centre both sit in. Its normal is the hinge axis for a joint whose motion stays in
+        // that plane, and the lateral axis — the direction a leg splays sideways in — for a ball joint
+        // with a plane. A joint whose centre sits on its rest direction has no dominant plane: its
+        // motion is symmetric about rest, and no single plane describes it.
+        Vector3f[] plane = new Vector3f[count];
+        bool[] hasPlane = new bool[count];
+        for (int bone = 0; bone < count; bone++)
+        {
+            Vector3f cross = Vector3f.Cross(axis[bone], centre[bone]);
+            hasPlane[bone] = cross.Length >= MathF.Sin(PlaneMinimumOffset);
+            plane[bone] = hasPlane[bone] ? cross.Normalized() : Vector3f.Zero;
+        }
+
+        float[] maxOut = new float[count];
+        float[] hingeLow = new float[count];
+        float[] hingeHigh = new float[count];
+
         foreach (BoneAnimation clip in set.Animations)
         {
             int shared = Math.Min(clip.BoneCount, count);
@@ -205,6 +283,28 @@ public sealed class RagdollLimits
                     (_, Vector3f swung) = Decompose(key.Rotation, axis[bone]);
                     float angle = MathF.Acos(Math.Clamp(Vector3f.Dot(centre[bone], swung), -1f, 1f));
                     swing[bone] = MathF.Max(swing[bone], angle);
+
+                    // How far this key's swing strays out of the joint's dominant plane, and the
+                    // signed angle it makes about the plane's normal — the two numbers a hinge is made
+                    // of. Both are measured only where the joint has a plane at all.
+                    if (hasPlane[bone])
+                    {
+                        float outOfPlane = MathF.Asin(Math.Clamp(MathF.Abs(Vector3f.Dot(swung, plane[bone])), -1f, 1f));
+                        maxOut[bone] = MathF.Max(maxOut[bone], outOfPlane);
+
+                        // The swung direction projected back into the plane, so the signed angle about
+                        // the plane's normal is the hinge angle and nothing else.
+                        Vector3f flat = swung - (plane[bone] * Vector3f.Dot(swung, plane[bone]));
+                        if (flat.LengthSquared > 0f)
+                        {
+                            flat = flat.Normalized();
+                            float hinge = MathF.Atan2(
+                                Vector3f.Dot(Vector3f.Cross(axis[bone], flat), plane[bone]),
+                                Vector3f.Dot(axis[bone], flat));
+                            hingeLow[bone] = Math.Min(hingeLow[bone], hinge);
+                            hingeHigh[bone] = Math.Max(hingeHigh[bone], hinge);
+                        }
+                    }
                 }
             }
         }
@@ -212,11 +312,30 @@ public sealed class RagdollLimits
         RagdollJointRange[] ranges = new RagdollJointRange[count];
         for (int bone = 0; bone < count; bone++)
         {
+            // The cone's half-angle is measured from its own centre, not from rest: the cone is the
+            // range the joint actually moves through, and the rest direction is inside it by
+            // construction — the half-angle is at least the centre's offset from rest, so the bind pose
+            // is always legal and the solver never fights the pose the rig was built in.
+            float offset = MathF.Acos(Math.Clamp(Vector3f.Dot(centre[bone], axis[bone]), -1f, 1f));
+            float halfAngle = MathF.Max(swing[bone], offset);
+
+            // A hinge is a joint whose swing stays in its plane: the out-of-plane stray is small
+            // enough that the plane is the motion, not an approximation of it. The hinge's own range
+            // is the signed angle about the plane's normal, widened by the margin like every other
+            // limit, with a few degrees of grace past straight so a joint exactly at its limit every
+            // substep is not a joint that jitters.
+            bool hinge = hasPlane[bone] && maxOut[bone] <= HingePlaneThreshold;
+
             ranges[bone] = new RagdollJointRange(
                 centre[bone],
-                Math.Clamp(widest[bone] * Margin, MinimumSwing, MaximumSwing),
+                Math.Clamp(halfAngle * Margin, MinimumSwing, MaximumSwing),
                 Math.Clamp(twistLow[bone] * Margin, -MaximumTwist, -MinimumTwist),
-                Math.Clamp(twistHigh[bone] * Margin, MinimumTwist, MaximumTwist));
+                Math.Clamp(twistHigh[bone] * Margin, MinimumTwist, MaximumTwist),
+                plane[bone],
+                hinge,
+                hinge ? hingeLow[bone] * Margin - HingeExtensionAllowance : 0f,
+                hinge ? hingeHigh[bone] * Margin : 0f,
+                hinge ? Math.Clamp(maxOut[bone] * Margin, MinimumSwing, MaximumSwing) : 0f);
         }
 
         return new RagdollLimits(ranges, measured);

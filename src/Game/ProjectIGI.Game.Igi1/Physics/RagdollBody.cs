@@ -109,8 +109,8 @@ public sealed partial class RagdollBody
     /// <b>The single most important number in the contact solve, and leaving it out is what makes a
     /// ragdoll dance.</b> Velocities here are not stored, they are read back out of how far things
     /// moved — so a positional correction of <c>d</c> over a substep of <c>h</c> <em>is</em> a velocity
-    /// of <c>d/h</c>. Pushing a bone out of eight centimetres of floor in one sixteenth of a tick
-    /// therefore hands it sixteen times that in upward speed, and the corpse launches, cartwheels and
+    /// of <c>d/h</c>. Pushing a bone out of eight centimetres of floor in one twenty-fourth of a tick
+    /// therefore hands it twenty-four times that in upward speed, and the corpse launches, cartwheels and
     /// never settles.
     /// </para>
     /// <para>
@@ -128,7 +128,7 @@ public sealed partial class RagdollBody
     /// Separate from <see cref="MaximumDepenetrationSpeed"/> on purpose, and twice its rate: that cap
     /// exists to stop a corpse launching off the floor, and there is no floor between two bones — and
     /// the corrections here are repairs, excluded from the velocity readback, so they cannot launch
-    /// anything. At the default 8 substeps one pair separates by up to 820 units (20 cm) a tick
+    /// anything. At the default 12 substeps one pair separates by up to 820 units (20 cm) a tick
     /// unopposed, against a limb-inside-a-torso penetration of ~330–1730 units, so deep overlap
     /// clears in ~1–4 ticks of unopposed separation instead of never. The shared cap is untouched:
     /// raising it would also raise floor depenetration and risk the launch failure it exists to
@@ -244,22 +244,25 @@ public sealed partial class RagdollBody
 
     /// <summary>How much of a joint's excursion past what it allows is taken out each substep.</summary>
     /// <remarks>
-    /// Seven tenths. See <see cref="SolveDeviation"/> for what this holds and why it is a spring rather
+    /// Eight tenths. See <see cref="SolveDeviation"/> for what this holds and why it is a spring rather
     /// than a stop. It is paired with the substep count — the spring acts once per pass, so halving the
     /// substeps halves how much it removes per tick — and this is the value at which a joint driven to
-    /// its limit settles back onto it rather than resting outside it. Raised from 0.4 in Step 1: at
-    /// two fifths a joint under continuous load (gravity plus contacts) sagged at a non-zero
-    /// steady-state violation, which read as mush.
+    /// its limit settles back onto it rather than resting outside it. Raised from 0.7 in the
+    /// human-joints round, with the substep count raised alongside it: at seven tenths a joint under
+    /// continuous load (gravity plus contacts) still sagged at a non-zero steady-state violation, which
+    /// read as mush, and the new hinge and abduction terms add two more springs per joint that the same
+    /// stiffness has to hold. Never nine tenths on eight substeps: a spring that strong with that few
+    /// steps overshoots, and the overshoot is read back as velocity.
     /// </remarks>
-    public const double JointStiffness = 0.7;
+    public const double JointStiffness = 0.8;
 
     /// <summary>How much of a joint's drift from the pose it died in is taken out each application.</summary>
     /// <remarks>
     /// <para>
     /// The pose-hold spring's stiffness, in the same units as <see cref="JointStiffness"/>: the
     /// fraction of the angular error removed per application. Deliberately weak — three hundredths.
-    /// The spring acts once per pass, so at eight substeps and two passes it is applied sixteen times
-    /// a tick: 1 − 0.97<sup>16</sup> ≈ 39% of the error is removed per tick at full strength, which
+    /// The spring acts once per pass, so at twelve substeps and two passes it is applied twenty-four times
+    /// a tick: 1 − 0.97<sup>24</sup> ≈ 52% of the error is removed per tick at full strength, which
     /// is enough to hold a body's death shape through the fall without welding it to that shape.
     /// </para>
     /// <para>
@@ -399,7 +402,12 @@ public sealed partial class RagdollBody
                 carried.Aim,
                 RagdollWeapon.GripAllowance,
                 -RagdollWeapon.GripAllowance,
-                RagdollWeapon.GripAllowance));
+                RagdollWeapon.GripAllowance,
+                Vector3f.Zero,
+                false,
+                0f,
+                0f,
+                0f));
 
             // Against every bone but the hand itself and whatever that hand hangs from -- the two it is
             // always touching, and which the grip already holds it against.
@@ -735,9 +743,22 @@ public sealed partial class RagdollBody
             // the separation just opened, undoing the push-apart in the same pass. The loop comment
             // above appeals to the slop deadband to absorb that — but PenetrationSlop is never applied
             // to bone-vs-bone penetration, only to ground/wall depth, so without this sweep the overlap
-            // the joints reintroduced is what the player sees. One extra sweep per substep (8 × 496
+            // the joints reintroduced is what the player sees. One extra sweep per substep (12 × 496
             // cheap pair checks a tick per corpse) and no new world queries.
             SolveSelfCollision(step);
+
+            // And the world contacts once more AFTER the joints, for the same reason and the same trade:
+            // the joints run last in the passes above, and SolveAttachment re-closes the anchor gaps the
+            // push-out just opened, re-sinking what the contacts pushed out — up to one projection's
+            // worth (17.1 units) a pass — and the pull-back is read back as velocity by Recover, which
+            // is the push-out/pull-in loop that reads as ground jitter. The sweep is recorded as NOT
+            // recording: the survey runs once a tick, and re-recording the same contacts would
+            // double-count them in the resting and friction accounting. Whichever runs last is
+            // satisfied — the contacts here, the joints in the passes — and there is no free winner: if
+            // the device shows joint gaps opening where the contacts push last, the sweep comes out and
+            // the ordering goes back to joints-last. One extra sweep per substep and no new world
+            // queries: the survey is hoisted, so the contacts are the same ones, resolved once more.
+            SolveContacts(step, record: false);
 
             Recover(step, linear, angular);
             SolveContactVelocities();

@@ -37,6 +37,8 @@ public sealed partial class RagdollBody
                 RagdollJoint link = _links[i];
                 SolveDeviation(link);
                 SolveTwist(link);
+                SolveHinge(link);
+                SolveAbduction(link);
                 SolvePoseHold(link, poseHold);
                 SolveAttachment(link);
             }
@@ -61,19 +63,25 @@ public sealed partial class RagdollBody
     }
 
     /// <summary>
-    /// Eases a bone back toward its parent whenever it has turned further from it than the joint allows —
-    /// in any direction at all, roll included.
+    /// Eases a bone back toward the middle of its joint's range whenever it has swung further from that
+    /// middle than the joint allows.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>One constraint on the whole relative rotation, rather than a swing limit and a twist limit
-    /// solved separately, and that is a correction rather than a simplification.</b> Splitting a rotation
-    /// into a swing and a twist needs an axis to split about, and on a joint that is already heavily
-    /// swung — every joint of a corpse on the ground — the split moves part of the swing into the twist
-    /// and part of the twist into the swing. Two constraints then each measure a quantity the other is
-    /// changing, and neither converges: measured one way a joint would read 45°, measured the other 83°,
-    /// on the same body at the same instant. The total angle between two orientations needs no axis and
-    /// has no such ambiguity.
+    /// The cone is centred on the middle of the joint's range, not on its rest direction. A knee's range
+    /// is a half-bent middle with the swing spreading around it, so a cone centred there excludes
+    /// straight and excludes backwards — the two directions a knee must not go. A cone centred on rest
+    /// with the same half-angle allows the same excursion backwards as forwards, which is how a knee
+    /// ended up bending the wrong way: the old term measured HOW FAR a joint had rotated, and a knee
+    /// bending backwards and a knee bending forwards counted the same.
+    /// </para>
+    /// <para>
+    /// The swing is measured as the angle between the child's current long axis and the cone's centre,
+    /// in the parent's frame. That needs no decomposition of the relative rotation — the axis is where
+    /// it is, whatever the twist is — so the split objection that used to rule out a swing term does not
+    /// apply here: the twist is measured about that same current axis, the hinge about the plane's
+    /// normal, and each of those terms acts only inside this cone, where this term is idle. The terms
+    /// are mutually exclusive, so they never measure a quantity another is changing.
     /// </para>
     /// <para>
     /// It is also what fixes the limbs going thin. Nothing else in the solver constrains a bone's roll
@@ -89,11 +97,11 @@ public sealed partial class RagdollBody
     /// where the violation is worst, and cannot snap.
     /// </para>
     /// <para>
-    /// The twist half of the limit now lives in <see cref="SolveTwist"/>, and the split above no
-    /// longer applies to it the way it would have: the twist term measures about the child's
-    /// <em>current</em> long axis, so its correction cannot change the swing, and it acts only
-    /// inside this cone — the regime where this term is idle. The two terms are mutually exclusive,
-    /// so they never measure a quantity the other is changing.
+    /// The twist half of the limit now lives in <see cref="SolveTwist"/>, the hinge half in
+    /// <see cref="SolveHinge"/>, and the sideways half in <see cref="SolveAbduction"/>: each measures
+    /// about the child's <em>current</em> long axis or its plane, so its correction cannot change the
+    /// swing, and each acts only inside this cone — the regime where this term is idle. The terms are
+    /// mutually exclusive, so they never measure a quantity another is changing.
     /// </para>
     /// </remarks>
     private void SolveDeviation(RagdollJoint link)
@@ -110,24 +118,39 @@ public sealed partial class RagdollBody
             relative = new Quaternion32(-relative.X, -relative.Y, -relative.Z, -relative.W);
         }
 
-        Vector3f vector = relative.Vector;
-        float sine = vector.Length;
-        if (sine <= RagdollSolver.ParallelEpsilon)
-        {
-            return;
-        }
+        // The child's long axis in the parent's frame, as in SolveTwist: the direction the joint has
+        // actually swung, whatever the twist is.
+        Vector3f swung = relative.Rotate(_aim[link.Child]);
 
-        float angle = 2f * MathF.Atan2(sine, relative.W);
+        float angle = MathF.Acos(Math.Clamp(Vector3f.Dot(link.SwingAxis, swung), -1f, 1f));
         float over = angle - link.SwingLimit;
         if (over <= 0f)
         {
             return;
         }
 
-        // The axis is in the parent's frame, so it has to be carried into the world before it can turn
-        // anything -- the constraint acts on world orientations.
-        Vector3f axis = Direction(link.Parent, vector / sine);
-        ApplyAngular(link.Parent, link.Child, axis, over * JointStiffness, repair: true);
+        // The axis taking the swung direction onto the cone's centre, in the parent's frame: rotating
+        // about it by the overshoot carries the swing back onto the cone. The axis is in the parent's
+        // frame, so it has to be carried into the world before it can turn anything — the constraint
+        // acts on world orientations.
+        Vector3f axis = Vector3f.Cross(link.SwingAxis, swung);
+        if (axis.Length <= RagdollSolver.ParallelEpsilon)
+        {
+            // The swing is at the far side of the cone, where the cross product has no direction: fall
+            // back on the total rotation's own axis, which is the short way round and cannot be
+            // degenerate while the swing is outside its limit.
+            Vector3f vector = relative.Vector;
+            float sine = vector.Length;
+            if (sine <= RagdollSolver.ParallelEpsilon)
+            {
+                return;
+            }
+
+            axis = vector / sine;
+        }
+
+        Vector3f axisWorld = Direction(link.Parent, axis.Normalized());
+        ApplyAngular(link.Parent, link.Child, axisWorld, over * JointStiffness, repair: true);
     }
 
     /// <summary>
@@ -136,21 +159,22 @@ public sealed partial class RagdollBody
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <see cref="SolveDeviation"/> bounds the total angle, so a joint twisted 60° about its own axis
+    /// <see cref="SolveDeviation"/> bounds the swing from the cone's centre, so a joint twisted 60°
+    /// about its own axis
     /// with no swing at all is inside its cone and entirely unconstrained — while the measured twist
     /// range for an elbow-class joint is near zero. This term fills that dead zone: it measures the
     /// twist about the child's CURRENT long axis in the parent's frame
     /// (<c>relative.Rotate(_aim[child])</c>), so a twist correction cannot move that axis and therefore
-    /// cannot change the swing, and it acts only while the joint is INSIDE its total-angle cone — the
+    /// cannot change the swing, and it acts only while the joint is INSIDE its swing cone — the
     /// regime where <see cref="SolveDeviation"/> is idle. The two terms are mutually exclusive, which
     /// is what keeps them from fighting each other the way the swing-twist split warned about above:
-    /// outside the cone only the total-angle spring acts, inside it only the twist spring (and the weak
+    /// outside the cone only the cone spring acts, inside it only the twist spring (and the weak
     /// pose-hold) act. The twist is NOT measured about the fixed rest axis, and NOT about
     /// <c>link.SwingAxis</c> — that is a swing datum (the cone's centre), not a twist axis.
     /// </para>
     /// <para>
     /// A soft spring at <see cref="JointStiffness"/>, not a hard wall: the same fraction-per-application
-    /// as the total-angle term, applied through <c>ApplyAngular(repair: true)</c> so the correction is
+    /// as the cone term, applied through <c>ApplyAngular(repair: true)</c> so the correction is
     /// excluded from the velocity readback. It does NOT fade with the settle ramp — twist that develops
     /// after the pose-hold has faded is exactly the residual this term exists to fix.
     /// </para>
@@ -183,18 +207,19 @@ public sealed partial class RagdollBody
             return;
         }
 
-        // The gate: inside the total-angle cone SolveDeviation is idle and the twist term owns the
-        // roll; outside it the total-angle term owns the joint and the twist term stands down, so the
-        // two never demand different corrections of the same rotation at once.
-        float angle = 2f * MathF.Atan2(sine, relative.W);
-        if (angle > link.SwingLimit)
+        // The child's CURRENT long axis in the parent's frame. A rotation about this axis cannot move
+        // it, so the twist correction is swing-neutral by construction.
+        Vector3f aNow = relative.Rotate(_aim[link.Child]);
+
+        // The gate: inside the swing cone SolveDeviation is idle and the twist term owns the roll;
+        // outside it the cone term owns the joint and the twist term stands down, so the two never
+        // demand different corrections of the same rotation at once.
+        float swingAngle = MathF.Acos(Math.Clamp(Vector3f.Dot(link.SwingAxis, aNow), -1f, 1f));
+        if (swingAngle > link.SwingLimit)
         {
             return;
         }
 
-        // The child's CURRENT long axis in the parent's frame. A rotation about this axis cannot move
-        // it, so the twist correction is swing-neutral by construction.
-        Vector3f aNow = relative.Rotate(_aim[link.Child]);
         float twist = RagdollLimits.Decompose(relative, aNow).Twist;
 
         float over = twist > link.TwistHigh ? twist - link.TwistHigh
@@ -209,6 +234,160 @@ public sealed partial class RagdollBody
         // anything -- the constraint acts on world orientations.
         Vector3f axis = Direction(link.Parent, aNow);
         ApplyAngular(link.Parent, link.Child, axis, over * JointStiffness, repair: true);
+    }
+
+    /// <summary>
+    /// Eases a hinge joint's swing back inside the one direction it bends — the counterpart to
+    /// <see cref="SolveDeviation"/> for joints whose motion stays in a plane.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A knee bends one way. The centre-cone bounds how <em>far</em> a joint swings from the middle of
+    /// its range, but a cone is a circle: it allows the same excursion backwards as forwards, and the
+    /// backwards half is exactly the hyperextension the cone's centre was meant to exclude. The hinge
+    /// term bounds the signed angle about the joint's plane normal instead — the one number a hinge
+    /// actually has — measured the same way <see cref="SolveTwist"/> measures roll, about the child's
+    /// current long axis, and gated to act only inside the cone, where <see cref="SolveDeviation"/> is
+    /// idle. The terms are mutually exclusive, so they never measure a quantity another is changing.
+    /// </para>
+    /// <para>
+    /// The out-of-plane half of the hinge is enforced here too: a hinge joint's swing may stray out of
+    /// its plane only as far as the clips ever strayed it. A knee displaced sideways is the same class
+    /// of wrong as a knee bent backwards, and the cone alone allows both up to its half-angle.
+    /// </para>
+    /// </remarks>
+    private void SolveHinge(RagdollJoint link)
+    {
+        if (!link.IsHinge || link.Child >= _boneCount)
+        {
+            return;
+        }
+
+        Quaternion32 relative =
+            (_orientation[link.Parent].Conjugate() * _orientation[link.Child]).Normalized();
+        if (relative.W < 0f)
+        {
+            relative = new Quaternion32(-relative.X, -relative.Y, -relative.Z, -relative.W);
+        }
+
+        // The child's current long axis in the parent's frame, as in SolveTwist.
+        Vector3f swung = relative.Rotate(_aim[link.Child]);
+
+        // The gate, as in SolveTwist: inside the cone the deviation spring is idle and this term owns
+        // the joint; outside it the cone owns the joint and this term stands down.
+        float swingAngle = MathF.Acos(Math.Clamp(Vector3f.Dot(link.SwingAxis, swung), -1f, 1f));
+        if (swingAngle > link.SwingLimit)
+        {
+            return;
+        }
+
+        // The signed hinge angle: the angle of the swung direction about the plane's normal, measured
+        // from the rest direction. The rest direction is perpendicular to the normal by construction,
+        // and the swung direction is projected back into the plane first, so the angle is the hinge
+        // angle and nothing else.
+        Vector3f flat = swung - (link.PlaneAxis * Vector3f.Dot(swung, link.PlaneAxis));
+        if (flat.Length <= RagdollSolver.ParallelEpsilon)
+        {
+            return;
+        }
+
+        flat = flat.Normalized();
+        Vector3f rest = _aim[link.Child];
+        float hinge = MathF.Atan2(
+            Vector3f.Dot(Vector3f.Cross(rest, flat), link.PlaneAxis),
+            Vector3f.Dot(rest, flat));
+
+        float over = hinge > link.HingeHigh ? hinge - link.HingeHigh
+            : hinge < link.HingeLow ? hinge - link.HingeLow
+            : 0f;
+        if (over != 0f)
+        {
+            // The hinge angle is the rotation about the plane's normal, so the correction is a rotation
+            // about that normal — the same signed-angle application as SolveTwist.
+            Vector3f axis = Direction(link.Parent, link.PlaneAxis);
+            ApplyAngular(link.Parent, link.Child, axis, over * JointStiffness, repair: true);
+        }
+
+        ClampOutOfPlane(link, swung, link.HingePlaneLimit);
+    }
+
+    /// <summary>
+    /// Eases a ball joint's swing back inside the sideways boundary a human hip has — the leg-spread
+    /// cap the directionless cone cannot express.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A cone is a circle: it bounds how far a joint swings from the middle of its range, but it cannot
+    /// say that a hip may flex far and may only abduct a little. The measured clips cannot say it
+    /// either — they do not distinguish sideways from forwards — so the sideways boundary is a stated
+    /// anatomical constant, not a measurement: the AAOS normative hip abduction of 45°, widened by the
+    /// corpse Margin to 54° (see <see cref="RagdollLimits.MaximumAbduction"/>). The cap is enforced as
+    /// the out-of-plane angle against the joint's dominant swing plane — for a hip, the sagittal plane,
+    /// whose normal is the lateral axis a leg splays sideways around.
+    /// </para>
+    /// <para>
+    /// Hinge joints are excluded: their plane is bounded by <see cref="SolveHinge"/> instead, from the
+    /// measured stray rather than the anatomical cap. Joints with no dominant plane — a shoulder, whose
+    /// range is symmetric about rest — keep the cone alone, which for them is the right limit: a shoulder
+    /// genuinely does swing sideways as far as it swings forwards.
+    /// </para>
+    /// </remarks>
+    private void SolveAbduction(RagdollJoint link)
+    {
+        if (link.IsHinge || link.Child >= _boneCount || link.PlaneAxis == Vector3f.Zero)
+        {
+            return;
+        }
+
+        Quaternion32 relative =
+            (_orientation[link.Parent].Conjugate() * _orientation[link.Child]).Normalized();
+        if (relative.W < 0f)
+        {
+            relative = new Quaternion32(-relative.X, -relative.Y, -relative.Z, -relative.W);
+        }
+
+        Vector3f swung = relative.Rotate(_aim[link.Child]);
+
+        float swingAngle = MathF.Acos(Math.Clamp(Vector3f.Dot(link.SwingAxis, swung), -1f, 1f));
+        if (swingAngle > link.SwingLimit)
+        {
+            return;
+        }
+
+        ClampOutOfPlane(link, swung, RagdollLimits.MaximumAbduction);
+    }
+
+    // Shared by SolveHinge and SolveAbduction: eases a swing that has strayed out of its plane back
+    // toward the plane, by the overshoot past the given limit. The correction rotates the swung
+    // direction onto its own in-plane projection — a rotation about the axis taking the one onto the
+    // other — so it changes the out-of-plane angle and nothing else.
+    private void ClampOutOfPlane(RagdollJoint link, Vector3f swung, float planeLimit)
+    {
+        float outOfPlane = MathF.Asin(Math.Clamp(MathF.Abs(Vector3f.Dot(swung, link.PlaneAxis)), -1f, 1f));
+        float planeOver = outOfPlane - planeLimit;
+        if (planeOver <= 0f)
+        {
+            return;
+        }
+
+        Vector3f flat = swung - (link.PlaneAxis * Vector3f.Dot(swung, link.PlaneAxis));
+        if (flat.Length <= RagdollSolver.ParallelEpsilon)
+        {
+            return;
+        }
+
+        flat = flat.Normalized();
+        Vector3f axisOut = Vector3f.Cross(swung, flat);
+        if (axisOut.Length <= RagdollSolver.ParallelEpsilon)
+        {
+            return;
+        }
+
+        // The rotation that carries the swung direction onto its in-plane projection is about
+        // cross(swung, flat) by the overshoot; ApplyAngular turns the relative rotation the other way
+        // round, so the axis is negated.
+        Vector3f axisWorld = Direction(link.Parent, -axisOut.Normalized());
+        ApplyAngular(link.Parent, link.Child, axisWorld, planeOver * JointStiffness, repair: true);
     }
 
     /// <summary>
