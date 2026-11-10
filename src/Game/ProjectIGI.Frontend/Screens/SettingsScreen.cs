@@ -46,6 +46,7 @@ public sealed class SettingsScreen : ShellScreen
     private readonly bool _initialRagdoll;
     private readonly float _initialGamma;
     private readonly float _initialMotionBlur;
+    private readonly float _initialFieldOfView;
     private readonly int _initialShadows;
     private readonly int _initialShadowCascades;
     private readonly float _initialShadowDistance;
@@ -85,6 +86,7 @@ public sealed class SettingsScreen : ShellScreen
         _initialRagdoll = GameplayCVars.Ragdoll.Value;
         _initialGamma = PostCVars.Gamma.Value;
         _initialMotionBlur = PostCVars.MotionBlur.Value;
+        _initialFieldOfView = GameplayCVars.FieldOfView.Value;
         // StoredValue, not Value: the menu backdrop's lite profile holds r_shadows at 0 through an
         // override while the menu is up, and Cancel must put back the player's real choice, not the
         // override's 0. The same applies to the row's initial selection below.
@@ -363,6 +365,25 @@ public sealed class SettingsScreen : ShellScreen
         };
         configStack.AddChild(motionBlurSlider);
 
+        // ── Field of View: how wide the camera sees ─────────────────────────
+        // Horizontal degrees; 90 is the original's. Applies at once — the
+        // projection is rebuilt every frame — and is ignored while the
+        // binoculars are up (their 70° opening is the weapon's own) and
+        // during cutscenes (each shot carries its own lens).
+        float initialFieldOfView = GameplayCVars.FieldOfView.Value;
+        var fieldOfViewSlider = new Slider(theme, "Field of View", 60f, 120f, initialFieldOfView, 1f)
+        {
+            Width = 980f,
+            Height = 56f,
+            Format = v => string.Create(CultureInfo.InvariantCulture, $"{v:0}°"),
+            Tooltip = "How wide the camera sees, in horizontal degrees. 90 is the original's.\n\nWider sees more at the sides; narrower zooms the view in. Binoculars and cutscenes keep their own lenses.",
+        };
+        fieldOfViewSlider.ValueChanged += value =>
+        {
+            GameplayCVars.FieldOfView.Value = Math.Clamp(value, 60f, 120f);
+        };
+        configStack.AddChild(fieldOfViewSlider);
+
         // ── Shadows: the sun's shadows, from the cascaded map ──────────────────
         // Off is the shipped picture, exactly as before. Low is the desktop Enhanced tier
         // (1024², 2 cascades, 150 m) and High the desktop High tier (2048², 3 cascades,
@@ -572,6 +593,7 @@ public sealed class SettingsScreen : ShellScreen
             DisplayCVars.ShowFps.Value = _initialShowFps;
             PostCVars.Gamma.Value = _initialGamma;
             PostCVars.MotionBlur.Value = _initialMotionBlur;
+            GameplayCVars.FieldOfView.Value = _initialFieldOfView;
             ReconstructionCVars.DynamicResolution.Value = _initialDynamicResolution;
             ReconstructionCVars.DynamicTargetFps.Value = _initialDynamicTargetFps;
             ReconstructionCVars.ViewDistance.Value = _initialViewDistance;

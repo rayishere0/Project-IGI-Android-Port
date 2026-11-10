@@ -1,6 +1,7 @@
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
+using ProjectIGI.Game;
 using ProjectIGI.Game.Config;
 using ProjectIGI.Game.Player;
 using ProjectIGI.Game.World;
@@ -198,12 +199,12 @@ public sealed partial class GameHost
                 CameraPose eye = CameraPose.FromCamera(subject.Camera);
 
                 // The field of view gameplay is being drawn at, which is where the climb leaves from.
-                // Taken at the default rather than from the live sight: a player who opens the map
+                // Taken at the player's chosen field of view rather than from the live sight: a player who opens the map
                 // down a scope is the one case it differs, and inheriting a scoped field of view
                 // there would start the shot already halfway zoomed in.
                 float gameplayFieldOfView = VerticalFieldOfView(
                     (float)_window.Width / Math.Max(1, _window.Height),
-                    HumanView.DefaultTanX);
+                    MathF.Tan(GameplayCVars.FieldOfView.Value * (MathF.PI / 360f)));
 
                 // Without the device there is no map to climb to: the pages come up over the player's own view.
                 tacticalComputer.MapAvailable = mapAvailable;

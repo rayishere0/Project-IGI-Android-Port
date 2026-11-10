@@ -2,6 +2,7 @@ using System.Diagnostics;
 using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Core.Numerics;
+using ProjectIGI.Game;
 using ProjectIGI.Game.Player;
 using ProjectIGI.Game.World;
 using ProjectIGI.Host.DevTools;
@@ -139,9 +140,15 @@ public sealed partial class GameHost
         // A pinned lens for side-by-side comparisons: -fov overrides the game's own ninety-degree
         // horizontal, so a capture can be framed exactly as an external render whose camera
         // differs. The sight zoom still governs ordinary play.
+        // The player's chosen field of view, as a half-angle tangent: 1.0 at the
+        // original's 90 degrees. Binoculars keep their own authored lens below, and
+        // -fov still wins above; a cutscene shot replaces this outright afterwards.
+        float baseTangent = MathF.Tan(GameplayCVars.FieldOfView.Value * (MathF.PI / 360f));
         float horizontalTangent = _options.FieldOfView is { } fixedFov
             ? MathF.Tan(fixedFov * (MathF.PI / 360f))
-            : sight.TanX;
+            : BinocularsOpen
+                ? sight.TanX
+                : sight.TanX * baseTangent;
         float verticalFieldOfView = VerticalFieldOfView(aspectRatio, horizontalTangent);
 
         // Kept for the developer inspector, which projects a selected entity to the screen and

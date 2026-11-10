@@ -320,6 +320,15 @@ public static class GameplayCVars
         CVarOptions.Archive,
         "How far behind the player the third-person camera sits, in metres.");
 
+    /// <summary>How wide the camera sees, in horizontal degrees. 90 is the original's.</summary>
+    public static readonly NumericCVar<float> FieldOfView = CVar.Float(
+        "g_fov",
+        90f,
+        60f,
+        120f,
+        CVarOptions.Archive,
+        "Horizontal field of view, in degrees. 90 is the original's.");
+
     /// <summary>How far to the player's right the third-person eye sits, in metres.</summary>
     /// <remarks>
     /// The shoulder offset is what keeps the character out of the middle of the frame. It costs a
@@ -381,6 +390,7 @@ public static class GameplayCVars
                 // The one gameplay-mutating option. Enhanced deliberately does NOT set it back: it is
                 // an opt-in on top of any profile, but vanilla means the 2000 build, full stop.
                 Ballistics.Value = false;
+                FieldOfView.Value = 90f;
                 break;
 
             default:
