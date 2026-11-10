@@ -165,7 +165,8 @@ internal sealed class BepuRagdollCorpse
         Simulation simulation = _world.Simulation;
         foreach (BodyHandle handle in Bodies)
         {
-            simulation.Bodies[handle].Awake = false;
+            BodyReference body = simulation.Bodies[handle];
+            body.Awake = false;
         }
     }
 
