@@ -180,15 +180,18 @@ public static class GameplayCVars
     /// <summary>Runs corpses on the BepuPhysics prototype solver instead of the XPBD one.</summary>
     /// <remarks>
     /// <para>
-    /// Prototype flag, default off: with it off the XPBD path runs exactly as today, and with it on
+    /// Prototype flag, TEMP on by default for the device test (see below); normally off: with it off the XPBD path runs exactly as today, and with it on
     /// deaths seed Bepu bodies and the Bepu simulation steps instead of (not as well as) the XPBD
     /// step for those corpses. Ray can A/B on device: same kill, XPBD vs Bepu. If Bepu fails, the
     /// XPBD path stays the fallback.
     /// </para>
     /// </remarks>
+    // TEMP: hardcoded ON for the Bepu prototype device test - Ray asked for Bepu on from the
+    // first mission entry, no console command. Revert the default below to false once the
+    // prototype is proven (or at the enablement decision).
     public static readonly BoolCVar RagdollBepu = CVar.Bool(
         "g_ragdoll_bepu",
-        false,
+        true,
         CVarOptions.Archive,
         "Run corpses on the BepuPhysics prototype solver instead of XPBD.");
 
