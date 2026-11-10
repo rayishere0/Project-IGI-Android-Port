@@ -85,7 +85,7 @@ internal sealed class SoldierPlayerBody
         bool backwards,
         bool paused,
         bool suppressRootHeight,
-        double visualLift)
+        double visualLift = 0.0)
     {
         Climbing = true;
         SuppressRootHeight = suppressRootHeight;

@@ -34,11 +34,16 @@ namespace ProjectIGI.Presentation.Igi1;
 /// <param name="device">The device the body is uploaded to and drawn with.</param>
 /// <param name="sim">The soldiers' simulation, which holds the body's pose and placement.</param>
 /// <param name="logger">Where load problems are reported.</param>
-internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice device, SoldierSimulation sim, IProjectIGILogger logger)
+/// <param name="state">What the body is doing: <see langword="null"/> for the player's own, which the soldiers' code shares; a co-op partner's its own.</param>
+internal sealed class PlayerBodyRenderer(
+    SoldierRenderer owner, IGraphicsDevice device, SoldierSimulation sim, IProjectIGILogger logger, SoldierPlayerBody? state = null)
 {
     private readonly SoldierRenderer _owner = owner;
     private readonly IGraphicsDevice _device = device;
     private readonly SoldierSimulation _sim = sim;
+
+    // What this body is doing: the simulation's own for the player, which the soldiers' code reads too; a co-op partner's its own.
+    private readonly SoldierPlayerBody _state = state ?? sim.PlayerBodyState;
     private readonly IProjectIGILogger _logger = logger;
 
     // The player's own third-person body -- Jones, the rig the first-person view never shows. It is NOT a
@@ -151,8 +156,8 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
             return false;
         }
 
-        _sim.PlayerBodyView = view;
-        _sim.PlayerBodyModel = group.Body;
+        _state.View = view;
+        _state.Model = group.Body;
         _group = group;
         _member = new Member(new SoldierAgent(view, default), own);
         _ground = _sim.MakeGroundQuery();
@@ -174,16 +179,15 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         WeaponCategory category = WeaponCategory.Gun,
         Vector3d velocity = default)
     {
-        if (_sim.PlayerBodyView is null)
+        if (_state.View is null)
         {
             return;
         }
 
         _facing = gamma;
-        _sim.PlayerBodySuppressRootHeight = false;
-        _sim.PlayerBodyVisualLift = 0.0;
-        _sim.PlayerBodyView.PlaceAt(feet, Matrix3f.FromEngineEulerAngles(0f, 0f, gamma));
-        _sim.PlayerBodyView.Kill(deathAnimation);
+        _state.SuppressRootHeight = false;
+        _state.View.PlaceAt(feet, Matrix3f.FromEngineEulerAngles(0f, 0f, gamma));
+        _state.View.Kill(deathAnimation);
         _active = true;
 
         // No death clip to play halfway through -- Kill kept the idle -- so seed at once, as
@@ -194,16 +198,16 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         // SnapToGround returns the feet unchanged when nothing is under them.
         double groundedFeetZ = _sim.SnapToGround(feet.X, feet.Y, feet.Z);
 
-        if (deathAnimation < 0 || _sim.PlayerBodyView.CurrentAnimation != deathAnimation)
+        if (deathAnimation < 0 || _state.View.CurrentAnimation != deathAnimation)
         {
             // Seeded before the tick state is captured, so the very first capture is already the corpse's
             // own placement rather than the clip's -- a death is a cut and there is nothing to blend from.
             if (_sim.UseBepuRagdolls)
             {
                 _bepuRagdoll = _owner.SeedBepuRagdoll(
-                    _sim.PlayerBodyView,
-                    new Vector3d(feet.X, feet.Y, groundedFeetZ + _sim.PlayerBodyView.RootSample.Z),
-                    _sim.PlayerBodyView.Orientation,
+                    _state.View,
+                    new Vector3d(feet.X, feet.Y, groundedFeetZ + _state.View.RootSample.Z),
+                    _state.View.Orientation,
                     bone,
                     travel,
                     category,
@@ -214,9 +218,9 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
             else
             {
                 _ragdoll = _owner.SeedRagdoll(
-                    _sim.PlayerBodyView,
-                    new Vector3d(feet.X, feet.Y, groundedFeetZ + _sim.PlayerBodyView.RootSample.Z),
-                    _sim.PlayerBodyView.Orientation,
+                    _state.View,
+                    new Vector3d(feet.X, feet.Y, groundedFeetZ + _state.View.RootSample.Z),
+                    _state.View.Orientation,
                     bone,
                     travel,
                     category,
@@ -241,13 +245,32 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
 
         // The fall clip has to resolve in the player's set, or Kill silently keeps the idle and the body
         // never falls; reported once so a wrong id is visible rather than a body that just stands there.
-        if (_sim.PlayerBodyView.CurrentAnimation != deathAnimation)
+        if (_state.View.CurrentAnimation != deathAnimation)
         {
             _logger.Warning(
                 SoldierRenderer.LogCategory,
                 $"The player's death clip {deathAnimation} is not in its set; the body keeps clip "
-                    + $"{_sim.PlayerBodyView.CurrentAnimation} and will not fall.");
+                    + $"{_state.View.CurrentAnimation} and will not fall.");
         }
+    }
+
+    /// <summary>Stands the fallen body up again, as a co-op player is brought back: no corpse, no ragdoll.</summary>
+    /// <remarks>
+    /// Port adaptation: upstream clears only the XPBD corpse; the port also clears the Bepu corpse, which
+    /// upstream never had, so a revived player does not keep a Bepu body lying where it fell.
+    /// </remarks>
+    public void Revive()
+    {
+        if (_state.View is not { } view)
+        {
+            return;
+        }
+
+        _ragdoll = null;
+        _bepuRagdoll = null;
+        _active = false;
+        view.Respawn();
+        CaptureTickState(snap: true);
     }
 
     /// <inheritdoc cref="ISoldierPresenter.TickPlayerBody"/>
@@ -255,14 +278,14 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
     {
         ObjectDisposedException.ThrowIf(_owner.IsDisposed, _owner);
         if (!_active
-            || _sim.PlayerBodyView is null
+            || _state.View is null
             || _member is null
             || _group?.Body.Model is not { } model)
         {
             return;
         }
 
-        _sim.PlayerBodyView.Tick();
+        _state.View.Tick();
 
         // The knock-back. A dying body is thrown -- the fall clip's own root-motion track carries it back
         // and down, and the retail mover consumes exactly that (0x4109A0 samples the body clip's root delta
@@ -270,26 +293,26 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         // Advancing the clip WITHOUT moving the body left it crumpling on the spot instead of being thrown,
         // which is the missing "knocked to the ground" feel. This is the corpse move a soldier already gets
         // (Igi1HumanAi.TickDeadBody): the horizontal root motion, rotated by the facing, plus a ground snap.
-        Vector3f rootMotion = _sim.PlayerBodyView.RootMotion();
+        Vector3f rootMotion = _state.View.RootMotion();
         Vector3d world = SoldierDeathFall.RotateAboutZ(
             new Vector3d(rootMotion.X, rootMotion.Y, rootMotion.Z), _facing);
 
-        double px = _sim.PlayerBodyView.Position.X + world.X;
-        double py = _sim.PlayerBodyView.Position.Y + world.Y;
-        double pz = _sim.PlayerBodyView.Position.Z + world.Z;
+        double px = _state.View.Position.X + world.X;
+        double py = _state.View.Position.Y + world.Y;
+        double pz = _state.View.Position.Z + world.Z;
         if (_ground is { } ground
             && ground(px, py, pz + SoldierSimulation.ProbeAboveInUnits, out double groundZ))
         {
             pz = groundZ;
         }
 
-        _sim.PlayerBodyView.PlaceAt(new Vector3d(px, py, pz), _sim.PlayerBodyView.Orientation);
+        _state.View.PlaceAt(new Vector3d(px, py, pz), _state.View.Orientation);
 
         // A seed held for the death clip's first half: the clip has advanced this tick already
         // (view.Tick() above) and the body has moved by it, so ClipProgress and the position
         // above are the current tick's. Seed once the clip is halfway through, or at once if
         // it is no longer the death clip.
-        if (_pendingRagdoll is { } pending && _sim.PlayerBodyView is { } view)
+        if (_pendingRagdoll is { } pending && _state.View is { } view)
         {
             if (!GameplayCVars.Ragdoll.Value)
             {
@@ -331,7 +354,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
             }
         }
 
-        Reskin(_sim.PlayerBodyView, model);
+        Reskin(_state.View, model);
         CaptureTickState(snap: false);
     }
 
@@ -383,15 +406,14 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
     {
         ObjectDisposedException.ThrowIf(_owner.IsDisposed, _owner);
         FeetUnits = feetUnits;
-        if (_sim.PlayerBodyView is not { } view)
+        if (_state.View is not { } view)
         {
             return;
         }
 
-        bool appearing = !_sim.PlayerBodyShown;
+        bool appearing = !_state.Shown;
         _facing = facing;
-        _sim.PlayerBodySuppressRootHeight = false;
-        _sim.PlayerBodyVisualLift = 0.0;
+        _state.SuppressRootHeight = false;
         view.PlaceAt(feetUnits, Matrix3f.FromEngineEulerAngles(0f, 0f, facing));
 
         // Its own stand clip, advanced so the body breathes rather than being a statue -- and re-skinned
@@ -416,7 +438,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
             return;
         }
 
-        _sim.PlayerBodyShown = true;
+        _state.Shown = true;
 
         // Appearing is a cut: nothing on screen is this body's history, so neither the interpolation pair
         // nor the temporal history may bridge from wherever it last stood.
@@ -435,15 +457,14 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
     {
         ObjectDisposedException.ThrowIf(_owner.IsDisposed, _owner);
         FeetUnits = feetUnits;
-        if (_sim.PlayerBodyView is not { } view)
+        if (_state.View is not { } view)
         {
             return;
         }
 
-        bool appearing = !_sim.PlayerBodyFollowing;
+        bool appearing = !_state.Following;
         _facing = facing;
-        _sim.PlayerBodySuppressRootHeight = false;
-        _sim.PlayerBodyVisualLift = 0.0;
+        _state.SuppressRootHeight = false;
 
         if (animation != HumanLocomotionStates.NoAnimation)
         {
@@ -454,9 +475,9 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
 
         // The torso, on bone 1. A new request is a new clip even when it names the one already playing,
         // because a second shot has to restart the fire animation -- so the SEQUENCE decides, not the id.
-        if (pose.UpperBodySequence != _sim.PlayerBodyUpperBodySequence)
+        if (pose.UpperBodySequence != _state.UpperBodySequence)
         {
-            _sim.PlayerBodyUpperBodySequence = pose.UpperBodySequence;
+            _state.UpperBodySequence = pose.UpperBodySequence;
             if (pose.UpperBodyAnimation < 0)
             {
                 view.StopUpperBodyAnimation();
@@ -464,7 +485,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
             else
             {
                 view.PlayUpperBodyAnimation(
-                    pose.UpperBodyAnimation, pose.UpperBodyLoops, pose.UpperBodyBlendSeconds);
+                    pose.UpperBodyAnimation, pose.UpperBodyLoops, pose.UpperBodyBlendSeconds, restart: true);
             }
         }
 
@@ -487,7 +508,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
             return;
         }
 
-        _sim.PlayerBodyFollowing = true;
+        _state.Following = true;
         CaptureTickState(snap: appearing);
         if (appearing && _member is { } fresh)
         {
@@ -499,7 +520,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
     public BoneAttachment? HandAttachment()
     {
         ObjectDisposedException.ThrowIf(_owner.IsDisposed, _owner);
-        if (!_sim.PlayerBodyFollowing || _sim.PlayerBodyView is not { } view || _member is not { } member)
+        if (!_state.Following || _state.View is not { } view || _member is not { } member)
         {
             return null;
         }
@@ -520,7 +541,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         }
 
         (Vector3d where, Matrix3f orientation) = Placement();
-        if (_owner.FrameSmooth && _hasTickState)
+        if (_owner.FrameSmooth && _hasTickState && !PlacedEveryFrame)
         {
             where = Vector3d.Lerp(_prevTickWhere, _tickWhere, _owner.FrameAlpha);
         }
@@ -536,6 +557,34 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
             orientation * handRotation);
     }
 
+    /// <summary>Gets where a name stands over this body's head as it is drawn this frame, in metres, or <see langword="null"/>.</summary>
+    /// <remarks>The head is the eye bone of the posed body, so a crouch or a climb carries the name with it.</remarks>
+    public Vector3d? HeadAnchorMetres()
+    {
+        ObjectDisposedException.ThrowIf(_owner.IsDisposed, _owner);
+        if (_state.View is not { } view || (!_state.Following && !_state.Climbing))
+        {
+            return null;
+        }
+
+        BonePose pose = view.UnrotatedPose();
+        Vector3f head = HumanAttachPoints.AiEye < pose.BoneCount ? pose.Positions[HumanAttachPoints.AiEye] : new Vector3f(0f, 0f, 1.7f * (float)WorldScene.UnitsPerMetre);
+        (Vector3d where, Matrix3f orientation) = Placement();
+        if (_owner.FrameSmooth && _hasTickState)
+        {
+            where = Vector3d.Lerp(_prevTickWhere, _tickWhere, _owner.FrameAlpha);
+        }
+
+        Vector3f turned = orientation.Transposed().Transform(head);
+        return new Vector3d(
+            where.X + (turned.X / WorldScene.UnitsPerMetre),
+            where.Y + (turned.Y / WorldScene.UnitsPerMetre),
+            where.Z + (turned.Z / WorldScene.UnitsPerMetre) + HeadTagLiftMetres);
+    }
+
+    // How far over the eye a name stands: clear of the head.
+    private const double HeadTagLiftMetres = 0.42;
+
     /// <inheritdoc cref="ISoldierPresenter.StartPlayerLadderAnimation"/>
     public void StartLadderAnimation(
         int animation,
@@ -544,13 +593,13 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         bool paused = false)
     {
         ObjectDisposedException.ThrowIf(_owner.IsDisposed, _owner);
-        if (_sim.PlayerBodyView is not { } view)
+        if (_state.View is not { } view)
         {
             return;
         }
 
-        _sim.StartPlayerTraversalAnimation(
-            view, animation, loops, backwards, paused, suppressRootHeight: true, visualLift: 0.0);
+        _state.StartTraversalAnimation(
+            view, animation, loops, backwards, paused, suppressRootHeight: true);
 
         // Mounting is a cut: the body appears on the rungs, so neither the interpolation pair nor the
         // temporal history may bridge from wherever it stood before.
@@ -560,35 +609,32 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
     /// <inheritdoc cref="ISoldierPresenter.StartPlayerInteractionAnimation"/>
     /// <remarks>
     /// <para>
-    /// Wire animations 172/173 carry a non-zero root-height track. IGI1 adds that sample when locating
-    /// the body; suppressing it as if the wire were a ladder leaves both hands visibly off the cable.
+    /// The exact-motion clips -- the fence's 171 and the wires' 172 and 173 -- are drawn like a ladder's: their task
+    /// position IS the Human's origin, which the root motion carries step by step (Z included), so the root height is
+    /// already in the position. Drawing it again put the vault 0.96 m in the air, and hung a level wire's rider with
+    /// both wrists a metre over the cable. Without it, the posed wrists of 172 under the 2150.4 hang and of 173 under
+    /// the 3686.4 one both sit within 0.08 m of the cable.
     /// </para>
     /// <para>
-    /// The fence's animation 171 is the other way round, like a ladder's: its task position IS the Human's
-    /// origin, which the root motion lifts over the fence step by step (Z included), so the root height is
-    /// already in the position and drawing it again put the vault 0.96 m in the air.
+    /// The computer, cabinet, door and charge clips are the walk's kind: the task position is the feet, and the root
+    /// height lifts the body onto them.
     /// </para>
     /// </remarks>
     public void StartInteractionAnimation(int animation, bool loops)
     {
         ObjectDisposedException.ThrowIf(_owner.IsDisposed, _owner);
-        if (_sim.PlayerBodyView is not { } view)
+        if (_state.View is not { } view)
         {
             return;
         }
 
-        _sim.StartPlayerTraversalAnimation(
+        _state.StartTraversalAnimation(
             view,
             animation,
             loops,
             backwards: false,
             paused: false,
-            suppressRootHeight: animation == HumanLocomotionStates.For(41).AnimationId,
-
-            // With the exact 3686.4-unit task anchor from sub_411F20, the posed wrist centres of both
-            // retail wire clips sit 375..567 units below the cable. Half a retail model grid cell puts
-            // the palms around the cable without moving the gameplay anchor, projection or end margins.
-            visualLift: SoldierSimulation.IsWireAnimation(animation) ? 512.0 : 0.0);
+            suppressRootHeight: !PlayerCamera.KeepsRootHeight(animation));
         ResetTraversalHistory();
     }
 
@@ -616,12 +662,12 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         rootDelta = default;
         rungEventTime = null;
         ended = false;
-        if (_sim.PlayerBodyView is not { } view || _group?.Body.Model is not { } model)
+        if (_state.View is not { } view || _group?.Body.Model is not { } model)
         {
             return;
         }
 
-        _sim.PlayerBodyClimbing = true;
+        _state.Climbing = true;
         _facing = facing;
         view.Tick();
 
@@ -635,16 +681,64 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         // tick state, so nothing is recorded here off a stale position.
     }
 
-    /// <inheritdoc cref="ISoldierPresenter.PlacePlayerBodyClimbing"/>
-    public void PlaceClimbing(Vector3d taskPosition, float facing)
+    /// <summary>
+    /// Poses a co-op partner exactly where the server's body is in a whole-body clip -- a ladder's, a computer's, a lock's,
+    /// a vault's -- its clip held at a time.
+    /// </summary>
+    /// <param name="animation">The clip.</param>
+    /// <param name="time">Where it is in the clip.</param>
+    /// <param name="feet">The partner's feet, in world units.</param>
+    /// <param name="facing">The clip's facing.</param>
+    /// <remarks>
+    /// Started as the player's own body starts the same clip: a ladder's with its root height in the feet, an interaction's
+    /// with the root height the clip's kind keeps (<see cref="PlayerCamera.KeepsRootHeight"/>). Posed through the ladder's
+    /// path, a computer or lock clip lost its root height and knelt a metre under the floor. And no gun is drawn in the hand,
+    /// as none is in the player's own.
+    /// </remarks>
+    public void PoseClip(int animation, float time, Vector3d feet, float facing)
     {
-        ObjectDisposedException.ThrowIf(_owner.IsDisposed, _owner);
-        if (_sim.PlayerBodyView is not { } view)
+        if (_state.View is not { } view)
         {
             return;
         }
 
-        _sim.PlayerBodyClimbing = true;
+        _state.HideFollowing();
+        if (!_state.Climbing || view.CurrentAnimation != animation)
+        {
+            if (PlayerCamera.IsLadderAnimation(animation))
+            {
+                StartLadderAnimation(animation, loops: animation != PlayerCamera.LadderTopAnimation);
+            }
+            else
+            {
+                StartInteractionAnimation(animation, loops: false);
+            }
+        }
+
+        view.HoldLadderClip(time);
+        AdvanceLadderAnimation(facing, out _, out _, out _);
+        PlaceClimbing(feet, facing);
+    }
+
+    /// <summary>Lets go of a climb, as a co-op partner steps off its ladder.</summary>
+    public void StopClimbing()
+    {
+        if (_state.Climbing)
+        {
+            _state.HideClimbing();
+        }
+    }
+
+    /// <inheritdoc cref="ISoldierPresenter.PlacePlayerBodyClimbing"/>
+    public void PlaceClimbing(Vector3d taskPosition, float facing)
+    {
+        ObjectDisposedException.ThrowIf(_owner.IsDisposed, _owner);
+        if (_state.View is not { } view)
+        {
+            return;
+        }
+
+        _state.Climbing = true;
         _facing = facing;
         view.PlaceAt(taskPosition, Matrix3f.FromEngineEulerAngles(0f, 0f, facing));
 
@@ -713,12 +807,12 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
             return (corpse.Origin / WorldScene.UnitsPerMetre, Matrix3f.Identity);
         }
 
-        if (_sim.PlayerBodyView is not { } view)
+        if (_state.View is not { } view)
         {
             return (default, Matrix3f.Identity);
         }
 
-        double lift = (_sim.PlayerBodySuppressRootHeight ? 0.0 : view.RootSample.Z) + _sim.PlayerBodyVisualLift;
+        double lift = _state.SuppressRootHeight ? 0.0 : view.RootSample.Z;
         return (
             new Vector3d(
                 view.Position.X / WorldScene.UnitsPerMetre,
@@ -734,7 +828,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
     /// </param>
     private void CaptureTickState(bool snap)
     {
-        if (_sim.PlayerBodyView is not { } view)
+        if (_state.View is not { } view)
         {
             return;
         }
@@ -756,7 +850,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         // The hand the third-person weapon rides, captured in the same pair and by the same rules a
         // soldier's is (ResolveTickState). Only the followed body needs it: the death and ladder paths
         // draw no weapon, and asking a posed rig for a bone it has costs one array read.
-        if (_sim.PlayerBodyFollowing
+        if (_state.Following
             && _member is { } member
             && HumanAttachPoints.ThirdPersonWeapon < view.UnrotatedPose().BoneCount)
         {
@@ -796,15 +890,21 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
     /// </para>
     /// </remarks>
     /// <summary>Resolves where the body is drawn this frame, between its last two ticks.</summary>
+    /// <summary>
+    /// Gets or sets whether the body is put where it stands every frame, not every tick: the co-op look held in front of
+    /// the menu's moving camera. Drawn between its last two ticks' places, it lagged the camera and caught up each tick.
+    /// </summary>
+    internal bool PlacedEveryFrame { get; set; }
+
     internal void ResolveFrameState()
     {
-        if (_sim.PlayerBodyView is null || _member is not { } member)
+        if (_state.View is null || _member is not { } member)
         {
             return;
         }
 
         (Vector3d where, Matrix3f orientation) = Placement();
-        if (_owner.FrameSmooth && _hasTickState)
+        if (_owner.FrameSmooth && _hasTickState && !PlacedEveryFrame)
         {
             where = Vector3d.Lerp(_prevTickWhere, _tickWhere, _owner.FrameAlpha);
         }
@@ -825,19 +925,19 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         ObjectDisposedException.ThrowIf(_owner.IsDisposed, _owner);
 
         bool visible = _active
-            || _sim.PlayerBodyClimbing
-            || _sim.PlayerBodyShown
-            || (_sim.PlayerBodyFollowing && FollowVisible);
+            || _state.Climbing
+            || _state.Shown
+            || (_state.Following && FollowVisible);
 
         // Drawn for nobody, but THERE for a ray. In first person the body is not drawn -- the camera
         // would be inside its head -- and until a reflection could shade a hit from the hit's own
         // material, that also meant it could never appear in a window, because the only geometry a ray
         // can strike is geometry something submitted. It can be shaded now, so it is submitted now: the
         // player gets a reflection of themselves, and a shadow, without their own legs in shot.
-        bool tracedOnly = !visible && _sim.PlayerBodyFollowing;
+        bool tracedOnly = !visible && _state.Following;
 
         if ((!visible && !tracedOnly)
-            || _sim.PlayerBodyView is null
+            || _state.View is null
             || _member is not { } member
             || _group is not { } group)
         {
@@ -950,20 +1050,19 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
             _device.DestroyMesh(member.Mesh);
         }
 
-        _sim.PlayerBodyView = null;
-        _sim.PlayerBodyModel = null;
+        _state.View = null;
+        _state.Model = null;
         _group = null;
         _member = null;
         _ragdoll = null;
         _bepuRagdoll = null;
         _pendingRagdoll = null;
         _active = false;
-        _sim.PlayerBodyClimbing = false;
-        _sim.PlayerBodyShown = false;
-        _sim.PlayerBodyFollowing = false;
-        _sim.PlayerBodyUpperBodySequence = -1;
-        _sim.PlayerBodyVisualLift = 0.0;
-        _sim.PlayerBodyRootHeightAtStart = 0.0;
+        _state.Climbing = false;
+        _state.Shown = false;
+        _state.Following = false;
+        _state.UpperBodySequence = -1;
+        _state.RootHeightAtStart = 0.0;
         _hasTickState = false;
         _captureTick = -1;
         _skinTick = -1;

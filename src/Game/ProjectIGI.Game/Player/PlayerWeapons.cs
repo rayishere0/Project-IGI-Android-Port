@@ -460,6 +460,9 @@ public sealed class PlayerWeapons
         _m203Shots.Clear();
     }
 
+    /// <summary>Takes the weapons out of death, ready with what they hold, as a co-op player is brought back.</summary>
+    public void Revive() => _machine.Revive();
+
     /// <summary>Refunds a projectile whose simulation could not accept the round.</summary>
     /// <returns><see langword="true"/> when one fired round was returned to its source.</returns>
     /// <remarks>

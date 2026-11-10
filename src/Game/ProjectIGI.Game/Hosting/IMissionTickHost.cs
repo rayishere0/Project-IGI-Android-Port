@@ -98,6 +98,12 @@ public interface IMissionTickHost
     /// <param name="centre">The body's centre.</param>
     void FollowCorpse(Vector3d centre);
 
+    /// <summary>Follows a teammate still standing, for a downed co-op player to watch through.</summary>
+    /// <param name="eye">The teammate's eye, in world units.</param>
+    /// <param name="yaw">The teammate's heading.</param>
+    /// <param name="pitch">The teammate's pitch, up positive.</param>
+    void FollowTeammate(Vector3d eye, float yaw, float pitch);
+
     /// <summary>Gets the keys and buttons held this tick.</summary>
     InputState Input { get; }
 

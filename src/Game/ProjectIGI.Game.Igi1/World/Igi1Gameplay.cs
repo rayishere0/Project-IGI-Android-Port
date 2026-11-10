@@ -1,5 +1,7 @@
 using ProjectIGI.Game.Hosting;
+using ProjectIGI.Game.Igi1.Multiplayer;
 using ProjectIGI.Game.Level;
+using ProjectIGI.Game.Multiplayer;
 using ProjectIGI.Game.World;
 using ProjectIGI.Game.Player;
 
@@ -9,7 +11,7 @@ namespace ProjectIGI.Game.Igi1.World;
 /// Project I.G.I.'s mission as the host runs it: its world, how it is brought up, how each tick runs, what hurts the player
 /// and how the blasts resolve.
 /// </summary>
-public sealed class Igi1Gameplay : IHostedMission, IShotTallySource
+public sealed class Igi1Gameplay : IHostedMission, IShotTallySource, IReplicatedTitle
 {
     private readonly IMissionHostServices _host;
 
@@ -92,7 +94,23 @@ public sealed class Igi1Gameplay : IHostedMission, IShotTallySource
     /// <inheritdoc/>
     public void AddMissionSystems(LevelSystems<MissionLevelBuild> systems) => Igi1MissionSystems.AddTo(systems, this, _host);
 
+    /// <inheritdoc/>
+    public string Map => World.MissionId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <inheritdoc/>
+    public object? Level => World.LevelRoot;
+
+    /// <inheritdoc/>
+    public IReplicatedWorld CreateReplicatedWorld(bool includesHost) =>
+        new Igi1ReplicatedWorld(this) { IncludesHost = includesHost };
+
+    /// <inheritdoc/>
+    public IReplicatedClientWorld CreateClientWorld() => new Igi1ClientWorld(this);
+
+    /// <summary>Gets the bring-up of the mission's player, once made, which a co-op session's other players are made by.</summary>
+    public Igi1PlayerSetup? PlayerSetup { get; private set; }
+
     /// <summary>Starts making a player for the mission being brought up.</summary>
     /// <returns>The player's setup.</returns>
-    public Igi1PlayerSetup NewPlayerSetup() => new(World, Harm, Audio, Sounds, _host);
+    public Igi1PlayerSetup NewPlayerSetup() => PlayerSetup = new(World, Harm, Audio, Sounds, _host);
 }

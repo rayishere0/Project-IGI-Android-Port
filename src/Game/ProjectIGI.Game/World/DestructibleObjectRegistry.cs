@@ -443,6 +443,42 @@ public sealed class DestructibleObjectRegistry
         return null;
     }
 
+    /// <summary>Whether a destructible has been struck for good: broken, dying, counting down, or already blowing up.</summary>
+    /// <param name="item">The object.</param>
+    /// <returns>Whether it is struck.</returns>
+    public static bool IsStruck(DestructibleObject item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        return item.IsDestroyed || item.IsDying || item.Countdown >= 0 || item.PendingExplosionTicks > 0 || item.ExplosionStarted;
+    }
+
+    /// <summary>Strikes a destructible for good, through the same paths a round or a blast would.</summary>
+    /// <param name="item">The object.</param>
+    /// <returns>The object when it broke outright, or <see langword="null"/> when it only started dying or counting down.</returns>
+    public static DestructibleObject? Strike(DestructibleObject item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (IsStruck(item))
+        {
+            return null;
+        }
+
+        if (item.Kind == DestructibleObjectKind.Vehicle)
+        {
+            item.IsDying = true;
+            return null;
+        }
+
+        if (item.ExplodesOnCountdown)
+        {
+            item.Countdown = 0;
+            return null;
+        }
+
+        item.IsDestroyed = true;
+        return item;
+    }
+
     /// <summary>
     /// Applies one native <c>Explosion0</c> contact to every authored destructible in its blast.
     /// </summary>

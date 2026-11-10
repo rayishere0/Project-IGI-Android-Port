@@ -6,6 +6,7 @@ using ProjectIGI.Game.Ai;
 using ProjectIGI.Game.Config;
 using ProjectIGI.Game.Igi1.Weapons;
 using ProjectIGI.Game.Igi1.World;
+using ProjectIGI.Game.Multiplayer;
 using ProjectIGI.Game.Player;
 using ProjectIGI.Game.Weapons;
 using ProjectIGI.Game.Weapons.Ballistics;
@@ -100,6 +101,27 @@ public sealed partial class PlayerCamera : IHostedPlayer, IPlayerInteractionHost
     /// <summary>Gets the body being driven.</summary>
     public PlayerBody Body => _body;
 
+    /// <summary>Gets the input frame the last tick ran on: on a co-op client, the command sent up for it.</summary>
+    public PlayerInputFrame LastFrame => _input.Current;
+
+    /// <summary>Gets the heading the last tick ran with, before anything in it turned the body.</summary>
+    /// <remarks>
+    /// What a co-op client sends with <see cref="LastFrame"/>: its server sets the heading and then runs the frame, so it must
+    /// be the heading the frame met. Getting on a ladder at its top turns the body round to face the ladder; sent that,
+    /// the server's copy faces away from the ladder's head as it takes the use key and never gets on.
+    /// </remarks>
+    public float FrameYaw { get; private set; }
+
+    /// <summary>Gets the view's pitch the last tick ran with; see <see cref="FrameYaw"/>.</summary>
+    public float FramePitch { get; private set; }
+
+    /// <summary>
+    /// Gets the crosshair's ray the last tick's rounds converged on, its origin as an offset from the eye the tick began at,
+    /// or <see langword="null"/> in first person; see <see cref="FrameYaw"/>. A co-op server's copy of the player has no
+    /// camera of its own to set <see cref="AimConvergenceRay"/>: sent this, its rounds go where this player's crosshair was.
+    /// </summary>
+    public (Vector3d EyeOffset, Vector3f Direction)? FrameAim { get; private set; }
+
     /// <summary>Uses the owning runtime's live player-health accumulator.</summary>
     public void UseHealth(HumanHealth health) => _body.UseHealth(health);
 
@@ -154,6 +176,26 @@ public sealed partial class PlayerCamera : IHostedPlayer, IPlayerInteractionHost
     {
         _optics.Reset();
         _firstPerson.ResetZoom();
+    }
+
+    /// <summary>Gets the difference a co-op server's correction left between the eye and the body, fading.</summary>
+    public PredictionErrorSmoothing ViewError { get; } = new();
+
+    /// <summary>Takes the held-weapon machine out of death, as a co-op player is brought back.</summary>
+    public void ReviveWeapons() => _weapons?.Revive();
+
+    /// <summary>
+    /// Advances what this player's weapons put in the world -- its grenades, mines, rockets and launcher rounds, and in the
+    /// mission's own player's pool the soldiers' lobs -- without the rest of its update: they are tasks of their own, and a
+    /// level runs on while this player lies dead or stands at the map computer.
+    /// </summary>
+    /// <remarks>
+    /// The rounds of its last update go first: nothing fires here, and its world contacts must not be handed on a second time.
+    /// </remarks>
+    internal void TickProjectilesAlone()
+    {
+        _shots.ClearImpacts();
+        _shots.TickProjectiles();
     }
 
     /// <inheritdoc cref="PlayerShotResolver.Grenades"/>
@@ -516,7 +558,14 @@ public sealed partial class PlayerCamera : IHostedPlayer, IPlayerInteractionHost
     }
 
     /// <inheritdoc cref="PlayerLocomotion.Use"/>
-    public void UseAnimations(BoneAnimationSet set) => _locomotion.Use(set);
+    public void UseAnimations(BoneAnimationSet set)
+    {
+        BodyAnimations = set;
+        _locomotion.Use(set);
+    }
+
+    /// <summary>Gets the body's animation set, skeleton 0, once given; a co-op partner's ladder climbs on it.</summary>
+    public BoneAnimationSet? BodyAnimations { get; private set; }
 
     /// <inheritdoc cref="PlayerShotResolver.MarkProbe"/>
     public WorldRayCast? MarkProbe => _shots.MarkProbe;
@@ -592,6 +641,14 @@ public sealed partial class PlayerCamera : IHostedPlayer, IPlayerInteractionHost
         ArgumentNullException.ThrowIfNull(pickups);
         _pickups.UseGeneric(pickups);
     }
+
+    /// <summary>Takes a gun the co-op server says this player took, as walking over it does.</summary>
+    /// <param name="pickup">The pickup.</param>
+    public void TakePickup(GunPickup pickup) => _pickups.Take(pickup, _weapons);
+
+    /// <summary>Takes an item the co-op server says this player took, as walking over it does.</summary>
+    /// <param name="pickup">The pickup.</param>
+    public void TakePickup(GenericPickup pickup) => _pickups.Take(pickup);
 
     /// <summary>Raised for each weapon collected from the world this tick.</summary>
     public event Action<GunPickup>? GunPickedUp
@@ -732,10 +789,21 @@ public sealed partial class PlayerCamera : IHostedPlayer, IPlayerInteractionHost
     public void Tick(InputState input, IGroundHeightField? terrain)
     {
         ArgumentNullException.ThrowIfNull(input);
+        TickFrame(PlayerInputSampler.SampleFrame(input, InputProfile), terrain);
+    }
 
+    /// <summary>Advances the body by one simulation tick on a frame of input already sampled.</summary>
+    /// <param name="frame">The tick's input frame: the host's own controls, or a client's command on a server.</param>
+    /// <param name="terrain">The level's terrain.</param>
+    /// <remarks>The rest of <see cref="Tick"/>: everything after the controls are read is the same for a player at the keyboard and one across the network.</remarks>
+    public void TickFrame(in PlayerInputFrame frame, IGroundHeightField? terrain)
+    {
         ApplyCheats(PlayerCheatOptions.Current);
 
-        _input.Accept(PlayerInputSampler.SampleFrame(input, InputProfile));
+        FrameYaw = _body.Yaw;
+        FramePitch = _body.Pitch;
+        FrameAim = _shots.AimConvergenceRay is { } aim ? (aim.OriginUnits - _body.Eye, aim.Direction) : null;
+        _input.Accept(frame);
         _locomotion.TakeToggle(_input);
         _interactions?.Tick();
 
@@ -816,6 +884,7 @@ public sealed partial class PlayerCamera : IHostedPlayer, IPlayerInteractionHost
         // After the fire has (possibly) started a new clip, so the pair describes what this tick
         // actually shows.
         CaptureViewTickState();
+        ViewError.Tick();
     }
 
     /// <summary>
@@ -930,6 +999,18 @@ public sealed partial class PlayerCamera : IHostedPlayer, IPlayerInteractionHost
 
     /// <inheritdoc cref="PlayerLadderController.MoveEntryFrame"/>
     public void MoveLadderEntryFrame(Vector3d rootDelta) => _ladder.MoveEntryFrame(rootDelta);
+
+    /// <summary>Moves the player by a correction from outside its own tick -- a co-op server's word -- ladder and all.</summary>
+    /// <param name="delta">The correction, in world units.</param>
+    public void Shift(Vector3d delta) => _ladder.Shift(delta);
+
+    /// <inheritdoc cref="PlayerBody.CatchUpHitShove"/>
+    /// <remarks>A climber's collision is off (0x463570 at the mount): the ladder takes each share whole, its climb with it.</remarks>
+    public List<Vector3d> CatchUpHitShove(Vector3f push, int ticks) =>
+        Body.CatchUpHitShove(push, ticks, _ladder.IsOnLadder ? delta => { _ladder.Shift(delta); return delta; } : null);
+
+    /// <inheritdoc cref="PlayerLadderController.Release"/>
+    public void ReleaseLadder() => _ladder.Release();
 
     /// <summary>Commits the rung whose clip has just completed, returning the climb to a boundary.</summary>
     public void CompleteLadderStep() => _ladder.CompleteStep();

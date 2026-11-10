@@ -39,7 +39,7 @@ public sealed partial class SoldierSimulation
 
     internal Action<int, bool, WeaponType?, Vector3d>? WeaponSound;
 
-    internal Action<Vector3d, float>? MeleeStrikeSink;
+    internal Action<World.IHarmedPlayer?, Vector3d, float>? MeleeStrikeSink;
 
     internal AnimTriggerRegistry? AnimationTriggers;
 
@@ -143,6 +143,9 @@ public sealed partial class SoldierSimulation
     /// <inheritdoc cref="SoldierGunShotRounds.GunShotTracers"/>
     public IEnumerable<GunShotTracer> GunShotTracers => _rounds.GunShotTracers;
 
+    /// <inheritdoc cref="SoldierGunShotRounds.FileTracer"/>
+    public void FileTracer(GunShotTracer tracer) => _rounds.FileTracer(tracer);
+
     /// <inheritdoc cref="SoldierDamage.BloodSpray"/>
     public Action<object, Vector3d, Vector3f>? BloodSpray { get => _damage.BloodSpray; set => _damage.BloodSpray = value; }
 
@@ -242,8 +245,17 @@ public sealed partial class SoldierSimulation
     /// <inheritdoc cref="SoldierPlayerBody.View"/>
     internal SoldierView? PlayerBodyView { get => _playerBody.View; set => _playerBody.View = value; }
 
+    /// <summary>Gets the player's body's ladder clip time, for a co-op session's other players to stand beside it.</summary>
+    public float? PlayerLadderClipTime => _playerBody.Climbing ? _playerBody.View?.LadderClipTime : null;
+
     /// <inheritdoc cref="SoldierPlayerBody.Model"/>
     internal SoldierBodyModel? PlayerBodyModel { get => _playerBody.Model; set => _playerBody.Model = value; }
+
+    /// <summary>Gets the radius a human of the player's body's model has, for a mine's reach and a blast's third.</summary>
+    public float PlayerHumanRadius => _playerBody.Model?.HumanRadius ?? (float)HumanSeparation.RadiusInUnits;
+
+    /// <inheritdoc cref="SoldierContext.HealthScale"/>
+    public float HealthScale { get => _context.HealthScale; set => _context.HealthScale = value; }
 
     /// <inheritdoc cref="SoldierPlayerBody.Climbing"/>
     internal bool PlayerBodyClimbing { get => _playerBody.Climbing; set => _playerBody.Climbing = value; }
@@ -370,7 +382,7 @@ public sealed partial class SoldierSimulation
     /// Strikes against non-player targets are consumed and discarded at the tick site: NPC-on-NPC
     /// melee has no victim pipeline yet (issue #235 follow-up).
     /// </remarks>
-    public void SetMeleeStrikeSink(Action<Vector3d, float>? report) => MeleeStrikeSink = report;
+    public void SetMeleeStrikeSink(Action<World.IHarmedPlayer?, Vector3d, float>? report) => MeleeStrikeSink = report;
 
     /// <summary>Supplies the authored animation triggers from <c>animtrigger/animtrigger.qvm</c>.</summary>
     public void SetAnimationTriggers(AnimTriggerRegistry? triggers) => AnimationTriggers = triggers;

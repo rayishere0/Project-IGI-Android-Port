@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Core\ProjectIGI.Core\ProjectIGI.Core.csproj" />
     <ProjectReference Include="..\..\Engine\ProjectIGI.Engine\ProjectIGI.Engine.csproj" />
+    <ProjectReference Include="..\..\Engine\ProjectIGI.Net\ProjectIGI.Net.csproj" />
     <ProjectReference Include="..\..\Core\ProjectIGI.Formats\ProjectIGI.Formats.csproj" />
     <ProjectReference Include="..\..\Core\ProjectIGI.Scripting\ProjectIGI.Scripting.csproj" />
     <ProjectReference Include="..\..\Platform\ProjectIGI.Input\ProjectIGI.Input.csproj" />

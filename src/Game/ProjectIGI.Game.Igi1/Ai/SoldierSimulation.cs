@@ -75,6 +75,9 @@ public sealed partial class SoldierSimulation : IHumanEvents
 
     private readonly SoldierPlayerBody _playerBody = new();
 
+    /// <summary>Gets the player's body's state, which its renderer and the soldiers' code share.</summary>
+    internal SoldierPlayerBody PlayerBodyState => _playerBody;
+
     private readonly HashSet<SoldierView> _combatClipMissing = [];
 
     private readonly HashSet<GameTask> _unwalkedSoldiers = new(ReferenceEqualityComparer.Instance);
@@ -117,6 +120,9 @@ public sealed partial class SoldierSimulation : IHumanEvents
     /// <summary>Gets or sets where the player is, read by each soldier as it updates (<see cref="BeginTick"/>).</summary>
     internal Func<SoldierEnemy>? Enemy { get; set; }
 
+    /// <summary>Gets where the soldier updating now stands, which its enemy is read for: of a co-op session's players, the nearest.</summary>
+    public Vector3d TickingSoldierPosition { get; private set; }
+
     /// <summary>Gets the bodies that have updated this tick, so none updates twice and the tick's close can find any the walk missed.</summary>
     internal HashSet<SoldierView> Ticked { get; } = new(ReferenceEqualityComparer.Instance);
 
@@ -137,7 +143,20 @@ public sealed partial class SoldierSimulation : IHumanEvents
             return;
         }
 
+        if (TickPuppet(view))
+        {
+            return;
+        }
+
+        // A client's soldier the server hasn't posed yet: still, its mind the server's to run.
+        if (PuppetsOnly)
+        {
+            view.Tick();
+            return;
+        }
+
         TickingSoldierId = view.Soldier.Id;
+        TickingSoldierPosition = view.Position;
 
         bool collectDiagnostics = CollectDiagnostics;
         SoldierEnemy enemy = Enemy?.Invoke() ?? default;
@@ -341,10 +360,9 @@ public sealed partial class SoldierSimulation : IHumanEvents
         _context.Sight = sight is null ? null : WorldTrace.AsRayCast(sight, WorldTraceMask.World);
         _context.SightTrace = sight;
         _sight.SightTraceForTesting = sight;
-        Brains.Clear();
+        _context.ClearBrains();
         _rounds.Clear();
         _damage.ClearPendingDeaths();
-        BrainsByRuntimeId.Clear();
         _generators.GuardGenerators.Clear();
         _generators.GuardExpressions = variables is null ? null : new LevelExpressionRuntime(variables);
         ScriptVariables = variables;
@@ -776,7 +794,8 @@ public sealed partial class SoldierSimulation : IHumanEvents
                 {
                     if (brain.PlayerIsEnemy)
                     {
-                        MeleeStrikeSink?.Invoke(brain.Position, damage);
+                        // The player this soldier is fighting: the one it was handed as it updated.
+                        MeleeStrikeSink?.Invoke(Enemy?.Invoke().Player, brain.Position, damage);
                     }
                 }
                 else if (SoldierById(brain.TargetId) is { } struck)

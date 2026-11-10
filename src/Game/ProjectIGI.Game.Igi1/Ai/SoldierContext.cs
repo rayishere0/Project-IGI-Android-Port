@@ -67,8 +67,43 @@ internal sealed class SoldierContext(IProjectIGILogger logger)
     // group instead, ticked and re-skinned from its own rig, which is what lets it fall.
     public Dictionary<SoldierView, Igi1HumanAi> Brains { get; } = [];
 
+    /// <summary>
+    /// Gets or sets whether these soldiers are a co-op client's, every one the server's puppet: their health and deaths
+    /// are the server's word, so a round that meets one here bleeds and nothing more.
+    /// </summary>
+    public bool PuppetsOnly { get; set; }
+
     /// <summary>Gets each brain by its runtime id.</summary>
     public Dictionary<int, Igi1HumanAi> BrainsByRuntimeId { get; } = [];
+
+    // The highest runtime id any soldier of this level has had, gone bodies' too.
+    private int _highestRuntimeId;
+
+    /// <summary>Gets a runtime id no soldier of this level has had, for a generator's replacement.</summary>
+    /// <remarks>
+    /// Never one a body that left the world had: a co-op client keeps every corpse under its id, since it runs no mind to take
+    /// one out, and a replacement given a corpse's id would be posed on that corpse -- lying dead and firing.
+    /// </remarks>
+    /// <returns>The id.</returns>
+    public int NewRuntimeId() => checked(_highestRuntimeId + 1);
+
+    /// <summary>Registers a soldier's brain, under its view and its runtime id.</summary>
+    /// <param name="view">The soldier.</param>
+    /// <param name="brain">Its brain, its runtime id already given.</param>
+    public void Register(SoldierView view, Igi1HumanAi brain)
+    {
+        Brains[view] = brain;
+        BrainsByRuntimeId[brain.RuntimeId] = brain;
+        _highestRuntimeId = Math.Max(_highestRuntimeId, brain.RuntimeId);
+    }
+
+    /// <summary>Forgets every brain, for the next level.</summary>
+    public void ClearBrains()
+    {
+        Brains.Clear();
+        BrainsByRuntimeId.Clear();
+        _highestRuntimeId = 0;
+    }
 
     /// <summary>Gets each soldier's view by its task, for the hit events the task receives.</summary>
     public Dictionary<HumanTask, SoldierView> ViewsByTask { get; } = [];
@@ -403,9 +438,43 @@ internal sealed class SoldierContext(IProjectIGILogger logger)
 
     /// <summary>
     /// A fresh damage state — <c>0x489C30</c> over the class's hit-zone table, with the settings row's
-    /// maximum health once <c>0x406F70</c> has configured the soldier.
+    /// maximum health once <c>0x406F70</c> has configured the soldier -- times <see cref="HealthScale"/>.
     /// </summary>
-    public HumanHealth NewHealth(SoldierView soldier) => new(
-        soldier.Soldier.Class.HitZones,
-        Combat.TryGetValue(soldier, out AiCombatParameters? row) ? row.MaximumHealth : HumanHitZoneTable.MaximumHealth);
+    public HumanHealth NewHealth(SoldierView soldier)
+    {
+        HumanHealth health = new(
+            soldier.Soldier.Class.HitZones,
+            Combat.TryGetValue(soldier, out AiCombatParameters? row) ? row.MaximumHealth : HumanHitZoneTable.MaximumHealth);
+        health.RescaleMaximumHealth(health.BaseMaximumHealth * _healthScale);
+        return health;
+    }
+
+    private float _healthScale = 1f;
+
+    /// <summary>Gets or sets how many times its own health every soldier has: a co-op squad's toughness, one alone.</summary>
+    /// <remarks>
+    /// Every soldier's, made now or later -- a health is made on a soldier's first hit, and a generator's replacement has
+    /// one of its own -- while each living one keeps the share of its health it has already lost. The players' own health
+    /// is no soldier's, and never scaled.
+    /// </remarks>
+    public float HealthScale
+    {
+        get => _healthScale;
+        set
+        {
+            if (value <= 0f || value == _healthScale)
+            {
+                return;
+            }
+
+            _healthScale = value;
+            foreach (HumanHealth health in Health.Values)
+            {
+                if (!health.IsDead)
+                {
+                    health.RescaleMaximumHealth(health.BaseMaximumHealth * value);
+                }
+            }
+        }
+    }
 }

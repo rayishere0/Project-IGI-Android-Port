@@ -187,14 +187,28 @@ public sealed class SoldierView
     /// arms and weapon, and bone 0's clip keeps the legs.
     /// </para>
     /// </remarks>
-    public bool PlayUpperBodyAnimation(int animation, bool loops, float blendSeconds = 0f)
+    public bool PlayUpperBodyAnimation(int animation, bool loops, float blendSeconds = 0f) =>
+        PlayUpperBodyAnimation(animation, loops, blendSeconds, restart: false);
+
+    /// <summary>Plays a clip on the torso, from its start when <paramref name="restart"/> even if it is the one playing.</summary>
+    /// <param name="animation">The clip.</param>
+    /// <param name="loops">Whether it repeats.</param>
+    /// <param name="blendSeconds">How long it eases in.</param>
+    /// <param name="restart">
+    /// Whether a request for the clip already playing starts it again: a player's second knife stab or shot asks for the same
+    /// clip, and <c>0x4137E0</c> plays it again (<c>0x489ED0</c>), where a soldier's mind asking for its stance every tick
+    /// must leave it running.
+    /// </param>
+    /// <returns><see langword="false"/> when the clip is not in the set or the body is dead.</returns>
+    public bool PlayUpperBodyAnimation(int animation, bool loops, float blendSeconds, bool restart)
     {
         if (IsDead || animation < 0 || !_bones.Set.TryGet(animation, out _))
         {
             return false;
         }
 
-        if (animation == UpperBodyAnimation
+        if (!restart
+            && animation == UpperBodyAnimation
             && _bones.SourceOf(HumanUpperBody.Bone) is { } current
             && current.Loops == loops)
         {
@@ -351,6 +365,22 @@ public sealed class SoldierView
     /// </remarks>
     public float? LadderBoundaryTime =>
         _bones.SourceOf(0) is { } clip && clip.TryGetCrossedEvent(8, out float time) ? time : null;
+
+    /// <summary>Gets the time of the clip on bone 0, or 0 when none is playing.</summary>
+    public float LadderClipTime => _bones.SourceOf(0)?.Time ?? 0f;
+
+    /// <summary>Holds the ladder clip on bone 0 at a time, stopped: a co-op partner's climb, posed by the server.</summary>
+    /// <param name="time">The clip time.</param>
+    public void HoldLadderClip(float time)
+    {
+        if (_bones.SourceOf(0) is { } clip)
+        {
+            clip.Rate = 0f;
+            clip.SetTime(time);
+            _pose = null;
+            _unrotatedPose = null;
+        }
+    }
 
     /// <summary>Gets how far through the clip on bone 0 the rig is, 0 at the start of the rung and 1 at its end.</summary>
     /// <remarks>Counts up whichever way the clip plays, so a backward (down) rung still runs 0 ? 1.</remarks>

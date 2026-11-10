@@ -140,6 +140,9 @@ public sealed class DoorState
     /// </remarks>
     public void CommandOpen() => _latch = true;
 
+    /// <summary>Gets whether the door is commanded open, whatever its swing is doing.</summary>
+    public bool IsCommandedOpen => _latch;
+
     /// <summary>Commands the door closed, however it stands.</summary>
     public void CommandClosed() => _latch = false;
 

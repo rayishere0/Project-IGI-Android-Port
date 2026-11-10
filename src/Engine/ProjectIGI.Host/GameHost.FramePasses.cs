@@ -113,6 +113,7 @@ public sealed partial class GameHost
         ApplyTouchControls(state);
         ApplyGamepadControls(state);
         UpdateCheatsOverlay(state);
+        FollowLoopbackSession(state);
 
         // Whatever the detail-map workers finished since the last pass, uploaded a few at a time.
         // The setting is read here rather than captured at construction so that turning
