@@ -104,7 +104,7 @@ internal sealed class SoldierRagdolls(SoldierContext context)
             return null;
         }
 
-        return (x, y, z, out TerrainGround ground) =>
+        return (double x, double y, double z, out TerrainGround ground) =>
         {
             // The same double.MinValue start MakeGroundQuery uses, so a terrain surface wins over
             // "nothing found" exactly as it does there.
