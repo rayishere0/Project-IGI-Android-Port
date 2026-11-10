@@ -405,6 +405,14 @@ public sealed partial class RagdollBody
     // rest latch while it is deeper than -RestPenetrationInUnits. Reset at the top of Step.
     private double _deepestPenetration;
 
+    // The worst WORLD penetration seen during this tick, in engine units (negative when sunk into
+    // the ground or a wall, 0 when clear), measured in SolveContacts before each push-out. Track
+    // refuses the rest latch while it is deeper than -RestPenetrationInUnits, mirroring the
+    // self-collision term: without it a body that settles sunk into a slope latches at rest and
+    // stays buried for the rest of the mission, because Step returns immediately once IsAtRest.
+    // Reset at the top of Step, beside _deepestPenetration.
+    private double _deepestWorldPenetration;
+
     private RagdollBody(
         RagdollSkeleton rig,
         Vector3d origin,
@@ -707,9 +715,58 @@ public sealed partial class RagdollBody
     private void DepenetrateAtSeed()
     {
         _deepestPenetration = 0.0;
+        _deepestWorldPenetration = 0.0;
         for (int i = 0; i < SeedDepenetrationSweeps; i++)
         {
             SolveSelfCollision(1.0);
+        }
+    }
+
+    /// <summary>Pushes bones buried under the world out along the ground normal, at seed time.</summary>
+    /// <param name="world">The geometry to depenetrate against.</param>
+    /// <remarks>
+    /// <para>
+    /// The seed-time half of what the tick-1 survey does: <see cref="DepenetrateAtSeed"/> clears
+    /// bone-vs-bone overlap only, and the seed origin is ground-snapped at a single point, so on a
+    /// slope or across stairs the uphill bones start buried under their local ground — up to ~1.8 m
+    /// on a 45° slope across a full body. The first <c>Step</c>'s survey would recover a burial up
+    /// to the recovery tiers, but only subject to the masking and depth holes those tiers close;
+    /// pushing the bones out here, before the first tick and before any velocity is added, removes
+    /// the burial at its source. Each bone is probed at both caps and the middle, like the survey,
+    /// and a buried probe pushes the bone's centre out along the recovered normal by the full
+    /// depth — full, not budgeted: there is no velocity yet for a push-out to launch, and the
+    /// corrections are repairs, so the next <c>Step</c>'s <c>Integrate</c> never reads them as motion.
+    /// </para>
+    /// <para>
+    /// Walls are not depenetrated here: a body seeded against a wall is caught by the outward wall
+    /// probe on the first tick, and a seed-time wall push would need a contact point and an arm the
+    /// ground branch does not. Only the ground — the burial the seed itself creates — is pushed out.
+    /// </para>
+    /// </remarks>
+    public void DepenetrateWorld(RagdollWorld world)
+    {
+        ArgumentNullException.ThrowIfNull(world);
+
+        for (int bone = 0; bone < _position.Length; bone++)
+        {
+            Vector3d along = Turned(bone, _aim[bone]) * _halfLength[bone];
+            for (int end = -1; end <= 1; end++)
+            {
+                Vector3d probe = _position[bone] + (along * end);
+                if (!GroundAt(world, probe, out double height, out Vector3d normal))
+                {
+                    continue;
+                }
+
+                Vector3d surfacePoint = new Vector3d(probe.X, probe.Y, height);
+                double depth = Vector3d.Dot(surfacePoint - probe, normal) + _radius[bone] - PenetrationSlop;
+                if (depth <= 0.0)
+                {
+                    continue;
+                }
+
+                _position[bone] += normal * depth;
+            }
         }
     }
 
@@ -775,6 +832,7 @@ public sealed partial class RagdollBody
         _position.CopyTo(_tickStart, 0);
         _orientation.CopyTo(_tickStartOrientation, 0);
         _deepestPenetration = 0.0;
+        _deepestWorldPenetration = 0.0;
         Survey(world);
 
         double step = 1.0 / substeps;
@@ -1119,7 +1177,11 @@ public sealed partial class RagdollBody
     private static Vector3f Perpendicular(Vector3f value, Vector3f axis) =>
         value - (axis * Vector3f.Dot(value, axis));
 
-    // Everything a corpse must still be: made of numbers, and near where it died.
+    // Everything a corpse must still be: made of numbers, and near where it died. Positions alone
+    // used to be checked, so a body whose orientation — or velocity, or spin — had gone NaN stayed
+    // valid and its garbage pose was fed straight through Pose() to the skinning upload. A
+    // non-finite orientation, velocity or spin is the same failed body as a non-finite position,
+    // and gets the same designed fallback: IsValid = false, and the retail death clip is drawn.
     private bool IsSane()
     {
         for (int bone = 0; bone < _position.Length; bone++)
@@ -1131,6 +1193,25 @@ public sealed partial class RagdollBody
             }
 
             if (Vector3d.DistanceSquared(at, Origin) > RunawayDistanceInUnits * RunawayDistanceInUnits)
+            {
+                return false;
+            }
+
+            Quaternion32 rotation = _orientation[bone];
+            if (!float.IsFinite(rotation.X) || !float.IsFinite(rotation.Y)
+                || !float.IsFinite(rotation.Z) || !float.IsFinite(rotation.W))
+            {
+                return false;
+            }
+
+            Vector3d velocity = _velocity[bone];
+            if (!double.IsFinite(velocity.X) || !double.IsFinite(velocity.Y) || !double.IsFinite(velocity.Z))
+            {
+                return false;
+            }
+
+            Vector3d spin = _spin[bone];
+            if (!double.IsFinite(spin.X) || !double.IsFinite(spin.Y) || !double.IsFinite(spin.Z))
             {
                 return false;
             }
@@ -1162,8 +1243,11 @@ public sealed partial class RagdollBody
             // But not while deeply penetrated: a settled-but-overlapped body barely moves, so the
             // latch would fire on schedule and freeze the overlap for the rest of the mission — Step
             // returns immediately once IsAtRest. _stillTicks keeps counting meanwhile, so the latch
-            // fires on the first tick after the overlap clears.
-            if (_stillTicks >= RestTicks && _deepestPenetration >= -RestPenetrationInUnits)
+            // fires on the first tick after the overlap clears. The same refusal covers a body sunk
+            // into the world (_deepestWorldPenetration, recorded in SolveContacts): a corpse that
+            // settles half-buried in a slope must not latch there either.
+            if (_stillTicks >= RestTicks && _deepestPenetration >= -RestPenetrationInUnits
+                && _deepestWorldPenetration >= -RestPenetrationInUnits)
             {
                 IsAtRest = true;
             }

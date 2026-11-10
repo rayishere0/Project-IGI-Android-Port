@@ -189,6 +189,11 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         // No death clip to play halfway through -- Kill kept the idle -- so seed at once, as
         // before. Otherwise hold the seed: the death clip plays its first half, and Tick seeds
         // the ragdoll from the mid-clip pose once the clip is halfway through.
+        // The soldier seed sites snap the origin to the ground; the player sites did not, so a
+        // player dying on a slope seeded with the same single-point burial exposure as a guard.
+        // SnapToGround returns the feet unchanged when nothing is under them.
+        double groundedFeetZ = _sim.SnapToGround(feet.X, feet.Y, feet.Z);
+
         if (deathAnimation < 0 || _sim.PlayerBodyView.CurrentAnimation != deathAnimation)
         {
             // Seeded before the tick state is captured, so the very first capture is already the corpse's
@@ -197,7 +202,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
             {
                 _bepuRagdoll = _owner.SeedBepuRagdoll(
                     _sim.PlayerBodyView,
-                    new Vector3d(feet.X, feet.Y, feet.Z + _sim.PlayerBodyView.RootSample.Z),
+                    new Vector3d(feet.X, feet.Y, groundedFeetZ + _sim.PlayerBodyView.RootSample.Z),
                     _sim.PlayerBodyView.Orientation,
                     bone,
                     travel,
@@ -210,7 +215,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
             {
                 _ragdoll = _owner.SeedRagdoll(
                     _sim.PlayerBodyView,
-                    new Vector3d(feet.X, feet.Y, feet.Z + _sim.PlayerBodyView.RootSample.Z),
+                    new Vector3d(feet.X, feet.Y, groundedFeetZ + _sim.PlayerBodyView.RootSample.Z),
                     _sim.PlayerBodyView.Orientation,
                     bone,
                     travel,
@@ -339,6 +344,9 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
     /// </remarks>
     private void SeedPendingRagdoll(SoldierView view, PendingRagdollSeed pending)
     {
+        // Same ground snap as the soldier held-seed path: the death-time position is stale by now
+        // and the body has kept moving under the clip, so snap where it stands now.
+        double groundedZ = _sim.SnapToGround(view.Position.X, view.Position.Y, view.Position.Z);
         Vector3f carried = view.RootMotion();
         Vector3d velocity = SoldierDeathFall.RotateAboutZ(
             new Vector3d(carried.X, carried.Y, carried.Z), _facing);
@@ -346,7 +354,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         {
             _bepuRagdoll = _owner.SeedBepuRagdoll(
                 view,
-                new Vector3d(view.Position.X, view.Position.Y, view.Position.Z + view.RootSample.Z),
+                new Vector3d(view.Position.X, view.Position.Y, groundedZ + view.RootSample.Z),
                 view.Orientation,
                 pending.Bone,
                 pending.Travel,
@@ -359,7 +367,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         {
             _ragdoll = _owner.SeedRagdoll(
                 view,
-                new Vector3d(view.Position.X, view.Position.Y, view.Position.Z + view.RootSample.Z),
+                new Vector3d(view.Position.X, view.Position.Y, groundedZ + view.RootSample.Z),
                 view.Orientation,
                 pending.Bone,
                 pending.Travel,

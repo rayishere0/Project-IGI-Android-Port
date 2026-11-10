@@ -525,6 +525,10 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
             return null;
         }
 
+        // Seed-time world depenetration: the seed origin is ground-snapped at one point, so on a
+        // slope or across stairs the uphill bones start buried under their local ground. Pushed out
+        // here, before any velocity is added, instead of leaving the burial to the tick-1 survey.
+        body.DepenetrateWorld(_sim.RagdollWorldForCorpses());
         body.AddVelocity(carriedVelocity);
         RagdollImpulse.Apply(
             body,
@@ -572,6 +576,21 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
                 orientation,
                 WeaponBody(weapon),
                 HumanAttachPoints.ThirdPersonWeapon);
+            if (corpse is null)
+            {
+                return null;
+            }
+
+            // Inside the try, not after it: AddVelocity/ApplyImpulse index the simulation bodies
+            // the seed just created, and a throw here — a degenerate or NaN impulse, a Bepu-side
+            // failure on first run — used to propagate uncaught up the tick and close the game.
+            // Contained here it degrades to the death clip, like a failed seed.
+            corpse.AddVelocity(carriedVelocity);
+            corpse.ApplyImpulse(
+                bone,
+                travel,
+                RagdollImpulse.MomentumOf(rig, category, GameplayCVars.RagdollForce.Value)
+                    * RagdollImpulse.TicksPerSecond / RagdollImpulse.UnitsPerMetre);
         }
         catch (Exception ex)
         {
@@ -579,17 +598,6 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
             return null;
         }
 
-        if (corpse is null)
-        {
-            return null;
-        }
-
-        corpse.AddVelocity(carriedVelocity);
-        corpse.ApplyImpulse(
-            bone,
-            travel,
-            RagdollImpulse.MomentumOf(rig, category, GameplayCVars.RagdollForce.Value)
-                * RagdollImpulse.TicksPerSecond / RagdollImpulse.UnitsPerMetre);
         return corpse;
     }
 
