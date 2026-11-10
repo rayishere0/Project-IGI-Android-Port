@@ -18,4 +18,12 @@
                       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- BepuPhysics: the ragdoll prototype (Physics/BepuRagdoll*.cs). Versions live in
+         Directory.Packages.props; both packages are referenced because the adapter uses BepuUtilities
+         types directly (BufferPool, Buffer&lt;T&gt;, Symmetric3x3). -->
+    <PackageReference Include="BepuPhysics" />
+    <PackageReference Include="BepuUtilities" />
+  </ItemGroup>
+
 </Project>

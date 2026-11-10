@@ -93,6 +93,14 @@ internal sealed class SoldierMember(SoldierAgent agent, MeshHandle mesh)
     public RagdollBody? Ragdoll { get; set; }
 
     /// <summary>
+    /// The Bepu simulated corpse this soldier is drawn as once it has been killed, or
+    /// <see langword="null"/> while it is alive, when <c>g_ragdoll_bepu</c> is off, or when the
+    /// Bepu world was not built. The XPBD <see cref="Ragdoll"/> and this are never both set: a
+    /// death seeds one or the other.
+    /// </summary>
+    public BepuRagdollCorpse? BepuRagdoll { get; set; }
+
+    /// <summary>
     /// The ragdoll seed held until the death clip has played halfway, or
     /// <see langword="null"/> when no seed is waiting.
     /// </summary>

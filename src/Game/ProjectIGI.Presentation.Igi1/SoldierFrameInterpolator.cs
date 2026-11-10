@@ -186,7 +186,12 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
                 // by the solver, which is what lets it come to rest on the floor rather than through it.
                 // It is written into the same pair the hand fills, so the draw path, the interpolation
                 // and the motion vectors all carry on unchanged.
-                if (member.Ragdoll is { HasAttachment: true } armed)
+                if (member.BepuRagdoll is { HasAttachment: true } bepuArmed)
+                {
+                    hand = bepuArmed.AttachmentPosition;
+                    rotation = bepuArmed.AttachmentRotation;
+                }
+                else if (member.Ragdoll is { HasAttachment: true } armed)
                 {
                     hand = armed.AttachmentPosition;
                     rotation = armed.AttachmentRotation;
@@ -216,6 +221,11 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
         // origin frozen at the moment it died, with the body's heading folded into the root bone's own
         // rotation, so it is drawn there with no turn applied. Reporting the same pair every tick is
         // also what makes the between-tick blend a no-op for it -- the motion is all in the pose.
+        if (member.BepuRagdoll is { } bepuCorpse)
+        {
+            return (bepuCorpse.Origin / WorldScene.UnitsPerMetre, Matrix3f.Identity);
+        }
+
         if (member.Ragdoll is { } corpse)
         {
             return (corpse.Origin / WorldScene.UnitsPerMetre, Matrix3f.Identity);
@@ -320,7 +330,7 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
     /// that feeds the temporal resolve are all untouched by it.
     /// </remarks>
     internal static BonePose PoseToDraw(SoldierMember member) =>
-        member.Ragdoll?.Pose() ?? member.Agent.View.UnrotatedPose();
+        member.BepuRagdoll?.Pose() ?? member.Ragdoll?.Pose() ?? member.Agent.View.UnrotatedPose();
 
     /// <summary>Steps every soldier's corpse one tick, dropping any whose solver has gone wrong.</summary>
     /// <remarks>
@@ -340,7 +350,7 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
                     continue;
                 }
 
-                if (!GameplayCVars.Ragdoll.Value || member.Ragdoll is not null)
+                if (!GameplayCVars.Ragdoll.Value || member.Ragdoll is not null || member.BepuRagdoll is not null)
                 {
                     // Ragdolls off, or a body seeded some other way already: drop the pending
                     // seed and let the death clip play fully, as before.
@@ -354,6 +364,35 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
                     // with no ragdoll coming.
                     member.PendingRagdoll = null;
                     SeedPendingRagdoll(member, pending);
+                }
+            }
+        }
+
+        // A Bepu corpse is stepped by its own world, and only while one is live — so a world with
+        // no corpses costs nothing here, and a corpse seeded while the flag was on keeps stepping
+        // if the flag is turned off mid-level instead of freezing mid-air. An XPBD corpse is
+        // stepped below, exactly as before; the two solvers never step the same body.
+        if (_sim.BepuWorld is { } bepuWorld && bepuWorld.CorpseCount > 0)
+        {
+            _sim.StepBepuRagdolls();
+            foreach (SoldierGroup group in _groups)
+            {
+                foreach (SoldierMember member in group.Soldiers)
+                {
+                    if (member.BepuRagdoll is not { } bepuCorpse)
+                    {
+                        continue;
+                    }
+
+                    // A corpse whose solver has gone wrong is dropped rather than drawn: the retail
+                    // death clip has been running underneath the whole time, so what the player sees is
+                    // the original's own fall, not a body that vanished.
+                    if (!bepuCorpse.IsValid)
+                    {
+                        member.BepuRagdoll = null;
+                        _sim.RemoveBepuCorpse(bepuCorpse);
+                        _logger.Warning(SoldierRenderer.LogCategory, "A Bepu ragdoll left its own level; falling back to the death clip.");
+                    }
                 }
             }
         }
@@ -416,16 +455,32 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
         float facing = MathF.Atan2(view.Orientation.M21, view.Orientation.M11);
         Vector3d velocity = SoldierDeathFall.RotateAboutZ(
             new Vector3d(carried.X, carried.Y, carried.Z), facing);
-        member.Ragdoll = SeedRagdoll(
-            view,
-            origin,
-            view.Orientation,
-            pending.Bone,
-            pending.Travel,
-            pending.Category,
-            velocity,
-            _sim.FindModel(view),
-            weapon: null);
+        if (_sim.UseBepuRagdolls)
+        {
+            member.BepuRagdoll = SeedBepuRagdoll(
+                view,
+                origin,
+                view.Orientation,
+                pending.Bone,
+                pending.Travel,
+                pending.Category,
+                velocity,
+                _sim.FindModel(view),
+                weapon: null);
+        }
+        else
+        {
+            member.Ragdoll = SeedRagdoll(
+                view,
+                origin,
+                view.Orientation,
+                pending.Bone,
+                pending.Travel,
+                pending.Category,
+                velocity,
+                _sim.FindModel(view),
+                weapon: null);
+        }
     }
 
     /// <summary>
@@ -477,6 +532,65 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
             travel,
             RagdollImpulse.MomentumOf(rig, category, GameplayCVars.RagdollForce.Value));
         return body;
+    }
+
+    /// <summary>
+    /// Starts a Bepu corpse from the pose a body was last drawn in, and pushes it with the round.
+    /// </summary>
+    /// <returns>The corpse, or <see langword="null"/> when the Bepu flag is off, the world was not built, or the rig cannot drive one.</returns>
+    /// <remarks>
+    /// The same seed as <see cref="SeedRagdoll"/>, in SI units: the impulse is
+    /// <see cref="RagdollImpulse.MomentumOf"/> with the engine-units round-trip removed
+    /// (× 30 ticks per second ÷ 4096 units per metre), so a Bepu corpse takes the same push an
+    /// XPBD corpse takes.
+    /// </remarks>
+    internal BepuRagdollCorpse? SeedBepuRagdoll(
+        SoldierView view,
+        Vector3d originInUnits,
+        Matrix3f orientation,
+        int bone,
+        Vector3d travel,
+        WeaponCategory category,
+        Vector3d carriedVelocity,
+        MefModel? model,
+        SoldierHeldWeapon? weapon)
+    {
+        if (!_sim.UseBepuRagdolls
+            || _sim.BepuWorld is not { } world
+            || _sim.RagdollRigFor(view.Bones.Set, model) is not { } rig)
+        {
+            return null;
+        }
+
+        BepuRagdollCorpse? corpse;
+        try
+        {
+            corpse = world.SeedCorpse(
+                rig,
+                view.UnrotatedPose(),
+                originInUnits,
+                orientation,
+                WeaponBody(weapon),
+                HumanAttachPoints.ThirdPersonWeapon);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning(SoldierRenderer.LogCategory, $"Could not seed a Bepu ragdoll: {ex.Message}");
+            return null;
+        }
+
+        if (corpse is null)
+        {
+            return null;
+        }
+
+        corpse.AddVelocity(carriedVelocity);
+        corpse.ApplyImpulse(
+            bone,
+            travel,
+            RagdollImpulse.MomentumOf(rig, category, GameplayCVars.RagdollForce.Value)
+                * RagdollImpulse.TicksPerSecond / RagdollImpulse.UnitsPerMetre);
+        return corpse;
     }
 
     /// <summary>The body a soldier's held weapon becomes once its hand is dead.</summary>
