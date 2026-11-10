@@ -66,6 +66,16 @@ public sealed class RagdollLimits
     /// <summary>The widest a twist may be, in radians — 90° either way.</summary>
     public const float MaximumTwist = 90f * MathF.PI / 180f;
 
+    /// <summary>The narrowest twist range a measurement may produce, in radians — 8° either way.</summary>
+    /// <remarks>
+    /// The twist mirror of <see cref="MinimumSwing"/>: a bone that never twists in any clip measures a
+    /// twist range of exactly zero, which would weld its roll if enforced literally. Some joints
+    /// genuinely barely twist and should be nearly welded; none should be exactly so, for the same
+    /// reason a cone is never exactly zero — a solver cannot satisfy an exact weld and a joint at its
+    /// limit every substep is a joint that jitters.
+    /// </remarks>
+    public const float MinimumTwist = 8f * MathF.PI / 180f;
+
     private readonly RagdollJointRange[] _ranges;
     private readonly bool[] _measured;
 
@@ -205,8 +215,8 @@ public sealed class RagdollLimits
             ranges[bone] = new RagdollJointRange(
                 centre[bone],
                 Math.Clamp(widest[bone] * Margin, MinimumSwing, MaximumSwing),
-                Math.Clamp(twistLow[bone] * Margin, -MaximumTwist, 0f),
-                Math.Clamp(twistHigh[bone] * Margin, 0f, MaximumTwist));
+                Math.Clamp(twistLow[bone] * Margin, -MaximumTwist, -MinimumTwist),
+                Math.Clamp(twistHigh[bone] * Margin, MinimumTwist, MaximumTwist));
         }
 
         return new RagdollLimits(ranges, measured);

@@ -36,6 +36,7 @@ public sealed partial class RagdollBody
             {
                 RagdollJoint link = _links[i];
                 SolveDeviation(link);
+                SolveTwist(link);
                 SolvePoseHold(link, poseHold);
                 SolveAttachment(link);
             }
@@ -87,6 +88,13 @@ public sealed partial class RagdollBody
     /// to pieces. Taking a fixed fraction of the excess every substep acts continuously, acts hardest
     /// where the violation is worst, and cannot snap.
     /// </para>
+    /// <para>
+    /// The twist half of the limit now lives in <see cref="SolveTwist"/>, and the split above no
+    /// longer applies to it the way it would have: the twist term measures about the child's
+    /// <em>current</em> long axis, so its correction cannot change the swing, and it acts only
+    /// inside this cone — the regime where this term is idle. The two terms are mutually exclusive,
+    /// so they never measure a quantity the other is changing.
+    /// </para>
     /// </remarks>
     private void SolveDeviation(RagdollJoint link)
     {
@@ -119,6 +127,87 @@ public sealed partial class RagdollBody
         // The axis is in the parent's frame, so it has to be carried into the world before it can turn
         // anything -- the constraint acts on world orientations.
         Vector3f axis = Direction(link.Parent, vector / sine);
+        ApplyAngular(link.Parent, link.Child, axis, over * JointStiffness, repair: true);
+    }
+
+    /// <summary>
+    /// Eases a bone's roll about its own length back inside what the joint allows — the twist half of
+    /// the limit <see cref="SolveDeviation"/> deliberately leaves alone.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="SolveDeviation"/> bounds the total angle, so a joint twisted 60° about its own axis
+    /// with no swing at all is inside its cone and entirely unconstrained — while the measured twist
+    /// range for an elbow-class joint is near zero. This term fills that dead zone: it measures the
+    /// twist about the child's CURRENT long axis in the parent's frame
+    /// (<c>relative.Rotate(_aim[child])</c>), so a twist correction cannot move that axis and therefore
+    /// cannot change the swing, and it acts only while the joint is INSIDE its total-angle cone — the
+    /// regime where <see cref="SolveDeviation"/> is idle. The two terms are mutually exclusive, which
+    /// is what keeps them from fighting each other the way the swing-twist split warned about above:
+    /// outside the cone only the total-angle spring acts, inside it only the twist spring (and the weak
+    /// pose-hold) act. The twist is NOT measured about the fixed rest axis, and NOT about
+    /// <c>link.SwingAxis</c> — that is a swing datum (the cone's centre), not a twist axis.
+    /// </para>
+    /// <para>
+    /// A soft spring at <see cref="JointStiffness"/>, not a hard wall: the same fraction-per-application
+    /// as the total-angle term, applied through <c>ApplyAngular(repair: true)</c> so the correction is
+    /// excluded from the velocity readback. It does NOT fade with the settle ramp — twist that develops
+    /// after the pose-hold has faded is exactly the residual this term exists to fix.
+    /// </para>
+    /// </remarks>
+    private void SolveTwist(RagdollJoint link)
+    {
+        // The carried body has no anatomical twist range — its grip joint is a hand holding a weapon,
+        // not a bone rolling in its socket — so it gets the limit and the attachment only, as in
+        // SolvePoseHold.
+        if (link.Child >= _boneCount)
+        {
+            return;
+        }
+
+        // The child's orientation expressed in its parent's frame, as in SolveDeviation.
+        Quaternion32 relative =
+            (_orientation[link.Parent].Conjugate() * _orientation[link.Child]).Normalized();
+
+        // A quaternion and its negation are the same orientation but opposite halves of a turn; taking
+        // the near half is what makes the angle below the SHORT way round.
+        if (relative.W < 0f)
+        {
+            relative = new Quaternion32(-relative.X, -relative.Y, -relative.Z, -relative.W);
+        }
+
+        Vector3f vector = relative.Vector;
+        float sine = vector.Length;
+        if (sine <= RagdollSolver.ParallelEpsilon)
+        {
+            return;
+        }
+
+        // The gate: inside the total-angle cone SolveDeviation is idle and the twist term owns the
+        // roll; outside it the total-angle term owns the joint and the twist term stands down, so the
+        // two never demand different corrections of the same rotation at once.
+        float angle = 2f * MathF.Atan2(sine, relative.W);
+        if (angle > link.SwingLimit)
+        {
+            return;
+        }
+
+        // The child's CURRENT long axis in the parent's frame. A rotation about this axis cannot move
+        // it, so the twist correction is swing-neutral by construction.
+        Vector3f aNow = relative.Rotate(_aim[link.Child]);
+        float twist = RagdollLimits.Decompose(relative, aNow).Twist;
+
+        float over = twist > link.TwistHigh ? twist - link.TwistHigh
+            : twist < link.TwistLow ? twist - link.TwistLow
+            : 0f;
+        if (over == 0f)
+        {
+            return;
+        }
+
+        // The axis is in the parent's frame, so it has to be carried into the world before it can turn
+        // anything -- the constraint acts on world orientations.
+        Vector3f axis = Direction(link.Parent, aNow);
         ApplyAngular(link.Parent, link.Child, axis, over * JointStiffness, repair: true);
     }
 

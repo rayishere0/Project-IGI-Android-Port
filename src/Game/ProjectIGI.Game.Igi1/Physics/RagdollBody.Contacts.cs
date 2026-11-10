@@ -206,7 +206,10 @@ public sealed partial class RagdollBody
     // than the two radii together.
     private void SolveSelfCollision(double step)
     {
-        double budget = MaximumDepenetrationSpeed * step;
+        // Its own budget, not the shared one: MaximumDepenetrationSpeed exists to stop a corpse
+        // launching off the floor, and there is no floor between two bones — and these corrections
+        // are repairs, excluded from the velocity readback, so they cannot launch anything.
+        double budget = SelfCollisionDepenetrationSpeed * step;
 
         for (int i = 0; i < _pairs.Length; i++)
         {
@@ -241,11 +244,43 @@ public sealed partial class RagdollBody
             Vector3d apart = onFirst - onSecond;
             double distance = apart.Length;
             double wanted = _radius[pair.First] + _radius[pair.Second];
-            if (distance >= wanted || distance <= 0.0)
+            if (distance >= wanted)
             {
                 continue;
             }
 
+            if (distance <= 0.0)
+            {
+                // The two closest points coincide, so apart has no direction — but the pair is
+                // penetrated by the full wanted depth, and skipping it leaves it unseparable for
+                // ever. Fall back to the centre offset, then to the cross of the two long axes,
+                // then to a fixed axis, and push by the full depth (capped by the budget).
+                Vector3d fallback = _position[pair.First] - _position[pair.Second];
+                if (fallback.LengthSquared <= 0.0)
+                {
+                    fallback = Vector3d.Cross(firstAlong, secondAlong);
+                }
+
+                if (fallback.LengthSquared <= 0.0)
+                {
+                    fallback = Vector3d.UnitX;
+                }
+
+                _deepestPenetration = Math.Min(_deepestPenetration, -wanted);
+                ApplyPositional(
+                    pair.First,
+                    pair.Second,
+                    onFirst - _position[pair.First],
+                    onSecond - _position[pair.Second],
+                    fallback / fallback.Length,
+                    -Math.Min(wanted, budget),
+                    repair: true);
+                continue;
+            }
+
+            // The worst penetration seen this tick, measured BEFORE this sweep's own push-apart:
+            // Track uses it to refuse the rest latch while a body is still deeply overlapped.
+            _deepestPenetration = Math.Min(_deepestPenetration, distance - wanted);
             ApplyPositional(
                 pair.First,
                 pair.Second,
