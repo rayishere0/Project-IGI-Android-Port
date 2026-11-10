@@ -227,16 +227,32 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
                 return;
             }
 
-            member.Ragdoll = SeedRagdoll(
-                fall.View,
-                fall.Origin,
-                fall.View.Orientation,
-                fall.Bone,
-                fall.Travel,
-                fall.Category,
-                fall.Velocity,
-                _sim.FindModel(fall.View),
-                weapon: null);
+            // No death clip to play halfway through — Choose() returned -1, or the clip is
+            // not in the set so Kill kept the old one — so seed at once, as before. There is
+            // no clip whose first half the body could play.
+            if (fall.DeathAnimation < 0 || fall.View.CurrentAnimation != fall.DeathAnimation)
+            {
+                member.Ragdoll = SeedRagdoll(
+                    fall.View,
+                    fall.Origin,
+                    fall.View.Orientation,
+                    fall.Bone,
+                    fall.Travel,
+                    fall.Category,
+                    fall.Velocity,
+                    _sim.FindModel(fall.View),
+                    weapon: null);
+            }
+            else
+            {
+                // Otherwise hold the seed: the death clip plays its first half, and StepRagdolls
+                // seeds the ragdoll from the mid-clip pose once the clip is halfway through. The
+                // origin and carried velocity are re-derived there — the authoritative body keeps
+                // sliding under the clip while this waits.
+                member.PendingRagdoll = new PendingRagdollSeed(
+                    fall.DeathAnimation, fall.Bone, fall.Travel, fall.Category);
+            }
+
             if (fall.DroppedWeapon)
             {
                 member.Weapon = null;
