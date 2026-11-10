@@ -91,19 +91,30 @@ public sealed class RagdollSkeleton
     /// <summary>How far a joint may swing off its rest direction by default, in radians.</summary>
     /// <remarks>
     /// <para>
-    /// Seventy degrees, and it is uniform because nothing has been measured that would justify anything
-    /// else. A knee and a shoulder get the same cone here.
+    /// Thirty degrees, and it is uniform because nothing has been measured that would justify
+    /// anything else. A joint falls back to this only when the animation corpus never moves it
+    /// at all — no rotation key in any clip — and a bone the game's own animation never moves is
+    /// a bone that is rigid in the game, not the loosest joint in the body. The old default was
+    /// seventy degrees, wider than any measured joint is allowed to be and nine times the
+    /// <see cref="RagdollLimits.MinimumSwing"/> floor the design itself uses for an immobile
+    /// bone, which is how a never-moving neck segment ended up able to pitch the head back
+    /// further than any joint the clips actually demonstrate.
     /// </para>
     /// <para>
-    /// <b>This is the honest weak point of the rig, and it is fixable by measurement rather than by
-    /// invention</b> — see <see cref="RagdollLimits"/>, which reads the real range out of the animation
-    /// corpus when one is available and leaves this as the fallback when it is not.
+    /// Thirty is a generous margin above that floor, not a weld: a bone that is genuinely
+    /// mobile but happens to have no keys in its set keeps a usable range, and a bone that is
+    /// rigid in the game stays nearly rigid in the ragdoll.
     /// </para>
     /// </remarks>
-    public const float DefaultSwingLimit = 70f * MathF.PI / 180f;
+    public const float DefaultSwingLimit = 30f * MathF.PI / 180f;
 
     /// <summary>How far a joint may twist about its own axis by default, in radians.</summary>
-    public const float DefaultTwistLimit = 45f * MathF.PI / 180f;
+    /// <remarks>
+    /// Twenty degrees, for the same reason as <see cref="DefaultSwingLimit"/>: a joint the
+    /// corpus never twists has no demonstrated twist range, and the old forty-five was wider
+    /// than the measured twist range of most joints that do twist.
+    /// </remarks>
+    public const float DefaultTwistLimit = 20f * MathF.PI / 180f;
 
     private readonly RagdollBone[] _bones;
     private readonly RagdollJoint[] _joints;
@@ -412,6 +423,8 @@ public sealed class RagdollSkeleton
             float hingeLow = 0f;
             float hingeHigh = 0f;
             float hingePlane = 0f;
+            float sagittalLow = 0f;
+            float sagittalHigh = 0f;
 
             if (limits is not null && limits.TryGet(bone, out RagdollJointRange range))
             {
@@ -423,6 +436,8 @@ public sealed class RagdollSkeleton
                 hingeLow = range.HingeLow;
                 hingeHigh = range.HingeHigh;
                 hingePlane = range.HingePlaneLimit;
+                sagittalLow = range.SagittalLow;
+                sagittalHigh = range.SagittalHigh;
 
                 // The cone's half-angle is ONE angle, measured from the cone's own centre — see
                 // RagdollLimits.Measure. It is at least the centre's offset from rest, so the bind
@@ -445,7 +460,9 @@ public sealed class RagdollSkeleton
                 hinge,
                 hingeLow,
                 hingeHigh,
-                hingePlane));
+                hingePlane,
+                sagittalLow,
+                sagittalHigh));
         }
 
         return [.. joints];

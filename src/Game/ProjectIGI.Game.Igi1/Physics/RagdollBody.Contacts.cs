@@ -9,6 +9,18 @@ namespace ProjectIGI.Game.Igi1.Physics;
 /// </content>
 public sealed partial class RagdollBody
 {
+    // The ground under a probe, with the recovery fallback: a bone that has got under a
+    // surface finds nothing through TryGround — its search starts only 0.4 m above the
+    // bone, so a bone more than that below a floor is invisible to it and falls for ever
+    // until the solver drops it back to the death clip. TryGroundRecovered starts a metre
+    // above the bone instead and finds the floor it is under, and the ordinary contact
+    // then pushes it back out at the usual budget. Only ever reached when the normal
+    // search found nothing, so a bone standing on a floor never pays for it and never
+    // sees a ceiling through it.
+    private static bool GroundAt(RagdollWorld world, Vector3d point, out double height, out Vector3d normal) =>
+        world.TryGround(point, out height, out normal)
+        || world.TryGroundRecovered(point, out height, out normal);
+
     /// <summary>Finds the ground under every probe, once for the whole tick.</summary>
     /// <remarks>
     /// <para>
@@ -88,7 +100,7 @@ public sealed partial class RagdollBody
             if (_halfLength[bone] <= _radius[bone])
             {
                 int only = bone * 3;
-                _grounded[only] = world.TryGround(_position[bone], out _surface[only], out _surfaceNormal[only]);
+                _grounded[only] = GroundAt(world, _position[bone], out _surface[only], out _surfaceNormal[only]);
                 _grounded[only + 1] = _grounded[only];
                 _grounded[only + 2] = _grounded[only];
                 _surface[only + 1] = _surface[only];
@@ -102,7 +114,7 @@ public sealed partial class RagdollBody
             {
                 int probe = (bone * 3) + end + 1;
                 _grounded[probe] =
-                    world.TryGround(_position[bone] + (along * end), out _surface[probe], out _surfaceNormal[probe]);
+                    GroundAt(world, _position[bone] + (along * end), out _surface[probe], out _surfaceNormal[probe]);
             }
         }
     }

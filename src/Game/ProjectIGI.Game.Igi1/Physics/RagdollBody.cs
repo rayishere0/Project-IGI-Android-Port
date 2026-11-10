@@ -474,6 +474,8 @@ public sealed partial class RagdollBody
                 false,
                 0f,
                 0f,
+                0f,
+                0f,
                 0f));
 
             // Against every bone but the hand itself and whatever that hand hangs from -- the two it is
