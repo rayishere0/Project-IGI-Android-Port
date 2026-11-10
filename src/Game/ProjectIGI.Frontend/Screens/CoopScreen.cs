@@ -107,6 +107,12 @@ public sealed class CoopScreen : ShellScreen
         var playBtn = new IgiMenuButton(theme, "Play co-op - Mission 1") { TextSize = 34f, Height = 64f, Width = 760f };
         playBtn.Activated += () =>
         {
+            // Leaving for a mission ends the retail-menu visit: if this screen was opened
+            // from the retail menu, the flag must not survive into a co-op screen opened
+            // later off the shell's own main menu, whose Back belongs there, not on the
+            // retail menu.
+            Context.CoopFromRetailMenu = false;
+
             if (!Context.Host.CoopLoopbackRunning)
             {
                 Context.Host.StartLoopbackCoop();
@@ -155,7 +161,7 @@ public sealed class CoopScreen : ShellScreen
         menuStack.AddChild(roomsNote);
 
         var backBtn = new IgiMenuButton(theme, "Back") { TextSize = 34f, Height = 64f, Width = 760f };
-        backBtn.Activated += () => Context.Stack.Reset(new MainMenuScreen(Context));
+        backBtn.Activated += CloseCoop;
         menuStack.AddChild(backBtn);
 
         frame.AddChild(menuStack);
@@ -169,11 +175,32 @@ public sealed class CoopScreen : ShellScreen
     {
         if (nav.Back)
         {
-            Context.Stack.Reset(new MainMenuScreen(Context));
+            CloseCoop();
             return false;
         }
 
         return base.HandleInput(nav, input);
+    }
+
+    /// <summary>Leaves the co-op screen: back to the retail menu it was opened from, or to the shell's main menu.</summary>
+    /// <remarks>
+    /// Mirrors <c>SettingsScreen.CloseConfig</c>: when opened from the retail main menu the player
+    /// never saw the shell's landing page, so going back resets the stack to it as the home sentinel
+    /// (which keeps the retail-menu overlay icons working) and puts the shell away over the retail
+    /// menu. Otherwise Back lands on the shell's main menu as usual.
+    /// </remarks>
+    private void CloseCoop()
+    {
+        if (Context.CoopFromRetailMenu)
+        {
+            Context.CoopFromRetailMenu = false;
+            Context.Stack.Reset(new MainMenuScreen(Context));
+            Context.Host.ReturnToRetailMenu();
+        }
+        else
+        {
+            Context.Stack.Reset(new MainMenuScreen(Context));
+        }
     }
 
     private void RefreshStatus()

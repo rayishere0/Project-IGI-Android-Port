@@ -10,7 +10,7 @@ namespace ProjectIGI.Frontend;
 
 /// <summary>
 /// The data and services every shell screen shares: the theme, the host, the game and mission lists, the
-/// CVar and preset registries, the profiles and the save slots — plus the stack, so a screen can push
+/// CVar and preset registries, the profiles and the save slots â€” plus the stack, so a screen can push
 /// the next one.
 /// </summary>
 /// <remarks>
@@ -72,8 +72,8 @@ public sealed class ShellContext
     /// <remarks>
     /// Set while the shell is being used as the pause menu, and the one thing that tells the screens the
     /// backdrop behind them is already the right picture: the level the player is standing in. They ask
-    /// for no preview while it is set — <see cref="IShellHost.PreviewMission"/> would stream a second
-    /// level over the one being played — and Back leads to the pause menu rather than to the landing page.
+    /// for no preview while it is set â€” <see cref="IShellHost.PreviewMission"/> would stream a second
+    /// level over the one being played â€” and Back leads to the pause menu rather than to the landing page.
     /// </remarks>
     public bool InGame { get; set; }
 
@@ -86,6 +86,16 @@ public sealed class ShellContext
     /// from the pause menu or the shell's own main menu leave it clear.
     /// </remarks>
     public bool SettingsFromRetailMenu { get; set; }
+
+    /// <summary>Gets or sets whether the co-op screen was opened from the retail main menu.</summary>
+    /// <remarks>
+    /// Set by <see cref="Shell.OpenCoopFromMainMenu"/> when the co-op icon on the retail menu
+    /// opens the co-op screen, and cleared when that screen closes. While it is set, closing
+    /// the co-op screen goes back to the retail menu (the shell is put away) rather than to the
+    /// shell's own main menu, which the player never saw. Only the retail-menu entry sets it;
+    /// co-op opened from the shell's own main menu leaves it clear.
+    /// </remarks>
+    public bool CoopFromRetailMenu { get; set; }
 
     /// <summary>Gets or sets the conditions the campaign is being played under.</summary>
     /// <remarks>
