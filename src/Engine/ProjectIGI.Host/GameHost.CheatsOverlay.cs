@@ -115,6 +115,31 @@ public sealed partial class GameHost
                     input.Mouse.SetButton(MouseButton.Left, down: false);
                 }
             }
+
+            // Co-op icon just under the settings icon: taps open the co-op screen over the
+            // retail menu, so the loopback session can be started before a mission starts.
+            // Same generous hit area as the gear. (The icon is 28 units, centred on the
+            // gear; see DrawCheatsOverlay.)
+            float coW = 28f * scale;
+            float coH = 28f * scale;
+            float coX = gearX + ((gearW - coW) * 0.5f);
+            float coY = stY + stH + (8f * scale);
+            float coHitX = coX + (coW * 0.5f) - (hit * 0.5f);
+            float coHitY = coY + (coH * 0.5f) - (hit * 0.5f);
+            if (click && clickX >= coHitX && clickX <= coHitX + hit && clickY >= coHitY && clickY <= coHitY + hit)
+            {
+                if (state.Shell is { } shell)
+                {
+                    // Menu mode is what lets the shell update and draw over the retail
+                    // menu; the retail menu's own tasks see idle input while it is set
+                    // (UpdateShell marks the frame captured), so the menu underneath
+                    // cannot react to taps on the co-op screen.
+                    shell.OpenCoopFromMainMenu();
+                    _menuFlow.MenuMode = true;
+                    input.Mouse.SetButton(MouseButton.Left, down: false);
+                }
+            }
+
             return;
         }
 
@@ -295,6 +320,26 @@ public sealed partial class GameHost
             painter.FillRect(new UiRect(trackX, trackY[i], trackW, trackH), brightGreen);
             painter.FillRect(new UiRect(knobX[i], trackY[i] - (1.5f * scale), knob, knob), brightGreen);
         }
+
+        // ── 1d. Co-op icon just under the settings icon ─────────────────────
+        // Two players side by side in the same 28-unit box as the console and
+        // settings icons: head and shoulders each. Tapping it opens the co-op
+        // screen over the retail menu (see UpdateCheatsOverlay).
+        float coW = 28f * scale;
+        float coH = 28f * scale;
+        float coX = gearX + ((gearW - coW) * 0.5f);
+        float coY = stY + stH + (8f * scale);
+        painter.FillRect(new UiRect(coX, coY, coW, coH), Bgra32.FromRgba(16, 44, 22, 245));
+        painter.StrokeRect(new UiRect(coX, coY, coW, coH), 2f * scale, brightGreen);
+        float pHead = 6f * scale;
+        float pBodyW = 10f * scale;
+        float pBodyH = 9f * scale;
+        float pHeadY = coY + (5f * scale);
+        float pBodyY = coY + (12f * scale);
+        painter.FillRect(new UiRect(coX + (4f * scale), pHeadY, pHead, pHead), brightGreen);
+        painter.FillRect(new UiRect(coX + (2f * scale), pBodyY, pBodyW, pBodyH), brightGreen);
+        painter.FillRect(new UiRect(coX + (18f * scale), pHeadY, pHead, pHead), brightGreen);
+        painter.FillRect(new UiRect(coX + (16f * scale), pBodyY, pBodyW, pBodyH), brightGreen);
 
         // ── 2. Cheats Modal Overlay ───────────────────────────────────────
         if (_cheatsModalOpen)
