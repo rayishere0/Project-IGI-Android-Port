@@ -23,6 +23,13 @@ namespace ProjectIGI.Frontend.Screens;
 /// main menu (and Back returns there), so closing it cannot put the shell away over a retail menu
 /// that is not running, the way the settings icon's unconditional flag can.
 /// </para>
+/// <para>
+/// The wording below is deliberately plain about what loopback is, because Ray read the first
+/// version as a lobby with missing partners ("nothing to connect to it seems", 2026-11-11):
+/// loopback runs on this device only, the second player is a copy of the player, and there is
+/// nothing to connect to, no room and no code, by design. Do not tidy that plain wording back
+/// into jargon, and do not present the disabled room rows as if they were options that work.
+/// </para>
 /// </remarks>
 public sealed class CoopScreen : ShellScreen
 {
@@ -126,7 +133,7 @@ public sealed class CoopScreen : ShellScreen
 
         var loopbackNote = new Label(
             theme.Body,
-            "One device: host + client in this process. The second player follows your input once the level is up. Starting co-op turns cheats off while the session runs.",
+            "Loopback only — on this device, nothing to connect to. The second player is a copy of you and follows your input once the level is up. Tap Start co-op, then Play co-op – Mission 1 (Play starts co-op first if it isn't running). Co-op turns cheats off while the session runs.",
             20f,
             theme.TextMuted)
         {
@@ -135,7 +142,7 @@ public sealed class CoopScreen : ShellScreen
         };
         menuStack.AddChild(loopbackNote);
 
-        var roomsHeader = new Label(theme.Heading, "Rooms - Milestone 2", 24f, Bgra32.FromRgb(225, 175, 60))
+        var roomsHeader = new Label(theme.Heading, "Rooms – not available yet", 24f, Bgra32.FromRgb(225, 175, 60))
         {
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0f, 12f, 0f, 0f),
@@ -151,7 +158,7 @@ public sealed class CoopScreen : ShellScreen
 
         var roomsNote = new Label(
             theme.Body,
-            "Rooms need Milestone 2: a master server and WebRTC. Not available yet.",
+            "No rooms exist yet — Milestone 2 (a master server and WebRTC) is not built.",
             20f,
             theme.TextMuted)
         {
