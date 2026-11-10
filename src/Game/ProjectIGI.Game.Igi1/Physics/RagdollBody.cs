@@ -114,12 +114,49 @@ public sealed partial class RagdollBody
     /// never settles.
     /// </para>
     /// <para>
-    /// A quarter of a metre a tick, about 7 m/s. Deep penetration is walked out over several substeps
-    /// instead of being fired out in one. From Macklin et al., <i>Small Steps in Physics Simulation</i>,
-    /// section 4.3, where it is the fix for exactly this.
+    /// 205 units is 5.0 cm a tick, about 1.5 m/s at 30 Hz — not the quarter-metre, 7 m/s this
+    /// comment used to claim; the constant is five times smaller than that. Deep penetration is
+    /// walked out over several substeps instead of being fired out in one. From Macklin et al.,
+    /// <i>Small Steps in Physics Simulation</i>, section 4.3, where it is the fix for exactly this.
     /// </para>
     /// </remarks>
     public const double MaximumDepenetrationSpeed = 205.0;
+
+    /// <summary>The fastest two bones may be pushed apart, in engine units per tick.</summary>
+    /// <remarks>
+    /// <para>
+    /// Separate from <see cref="MaximumDepenetrationSpeed"/> on purpose, and twice its rate: that cap
+    /// exists to stop a corpse launching off the floor, and there is no floor between two bones — and
+    /// the corrections here are repairs, excluded from the velocity readback, so they cannot launch
+    /// anything. At the default 8 substeps one pair separates by up to 820 units (20 cm) a tick
+    /// unopposed, against a limb-inside-a-torso penetration of ~330–1730 units, so deep overlap
+    /// clears in ~1–4 ticks of unopposed separation instead of never. The shared cap is untouched:
+    /// raising it would also raise floor depenetration and risk the launch failure it exists to
+    /// prevent.
+    /// </para>
+    /// </remarks>
+    public const double SelfCollisionDepenetrationSpeed = 410.0;
+
+    /// <summary>How deeply two bones may still overlap before a body is refused rest, in engine units.</summary>
+    /// <remarks>
+    /// One minimum bone radius: overlap shallower than that is millimetre-to-centimetre-scale clipping
+    /// the eye forgives, but a body that latches while a limb is a radius deep inside its torso stays
+    /// overlapped for the rest of the mission, because <c>Step</c> returns immediately once
+    /// <c>IsAtRest</c>. The 10 s <see cref="MaximumActiveTicks"/> backstop still applies — a body that
+    /// cannot clear in 10 s is frozen anyway, which bounds the cost.
+    /// </remarks>
+    public const double RestPenetrationInUnits = RagdollSkeleton.MinimumRadiusInUnits;
+
+    /// <summary>How many self-collision-only sweeps run at seed time to clear death-pose overlap.</summary>
+    /// <remarks>
+    /// The death clip that produced the seed pose is an authored crumple; nothing guarantees its poses
+    /// are self-collision-free, and a limb seeded inside the torso needs ticks of unopposed separation
+    /// to walk out — while the joints fight it and the rest latch may fire first. Twelve one-off
+    /// sweeps before the first tick clear it up front, at no per-tick cost. Each sweep may separate a
+    /// pair by up to the full self-collision budget, so twelve sweeps clear any penetration the rig
+    /// can hold.
+    /// </remarks>
+    public const int SeedDepenetrationSweeps = 12;
 
     /// <summary>How far a body may drift in a tick and still count as having stopped, in engine units.</summary>
     /// <remarks>
@@ -294,6 +331,11 @@ public sealed partial class RagdollBody
     private int _stillTicks;
     private int _restingTicks;
     private int _age;
+
+    // The worst self-collision penetration seen during this tick, in engine units (negative when
+    // overlapped, 0 when clear), measured before each sweep's own push-apart. Track refuses the
+    // rest latch while it is deeper than -RestPenetrationInUnits. Reset at the top of Step.
+    private double _deepestPenetration;
 
     private RagdollBody(
         RagdollSkeleton rig,
@@ -575,7 +617,22 @@ public sealed partial class RagdollBody
                 + new Vector3d(hand.X + middle.X, hand.Y + middle.Y, hand.Z + middle.Z);
         }
 
-        return new RagdollBody(rig, origin, position, rotation, attachment, host);
+        RagdollBody body = new(rig, origin, position, rotation, attachment, host);
+        body.DepenetrateAtSeed();
+        return body;
+    }
+
+    // One-off, at seed time only: run the self-collision projection on its own, with no integration
+    // and no world queries, until the seeded pose is out of itself. Called from Seed, before any
+    // velocity is added — the corrections are repairs, and the next Step's Integrate resets the
+    // repair accumulators before reading velocity, so the depenetration never becomes motion.
+    private void DepenetrateAtSeed()
+    {
+        _deepestPenetration = 0.0;
+        for (int i = 0; i < SeedDepenetrationSweeps; i++)
+        {
+            SolveSelfCollision(1.0);
+        }
     }
 
     /// <summary>Pushes one bone.</summary>
@@ -638,6 +695,7 @@ public sealed partial class RagdollBody
         }
 
         _position.CopyTo(_tickStart, 0);
+        _deepestPenetration = 0.0;
         Survey(world);
 
         double step = 1.0 / substeps;
@@ -671,6 +729,15 @@ public sealed partial class RagdollBody
                 SolveSelfCollision(step);
                 SolveJoints(poseHold);
             }
+
+            // And self-collision once more AFTER the joints, so the drawn pose is the separated one:
+            // the joints run last in the passes above, and SolveAttachment re-closes the anchor gaps
+            // the separation just opened, undoing the push-apart in the same pass. The loop comment
+            // above appeals to the slop deadband to absorb that — but PenetrationSlop is never applied
+            // to bone-vs-bone penetration, only to ground/wall depth, so without this sweep the overlap
+            // the joints reintroduced is what the player sees. One extra sweep per substep (8 × 496
+            // cheap pair checks a tick per corpse) and no new world queries.
+            SolveSelfCollision(step);
 
             Recover(step, linear, angular);
             SolveContactVelocities();
@@ -909,7 +976,12 @@ public sealed partial class RagdollBody
         if (averageMovement < RestThresholdInUnits)
         {
             _stillTicks++;
-            if (_stillTicks >= RestTicks)
+
+            // But not while deeply penetrated: a settled-but-overlapped body barely moves, so the
+            // latch would fire on schedule and freeze the overlap for the rest of the mission — Step
+            // returns immediately once IsAtRest. _stillTicks keeps counting meanwhile, so the latch
+            // fires on the first tick after the overlap clears.
+            if (_stillTicks >= RestTicks && _deepestPenetration >= -RestPenetrationInUnits)
             {
                 IsAtRest = true;
             }

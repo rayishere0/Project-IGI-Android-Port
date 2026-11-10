@@ -133,7 +133,14 @@ public sealed class RagdollSkeleton
         {
             for (int second = first + 1; second < bones.Length; second++)
             {
-                if (hops[first, second] >= SelfCollisionSeparation)
+                // Plus the parent check: hops is computed by walking ChildLists, which only lists a
+                // child under its parent when its rest translation is nonzero — a bone whose rest
+                // translation is exactly zero can never be descended to, so hops[parent, child] falls
+                // back to the bone count and the pair would be listed, where the solver would fight
+                // its own joint for it. A parent and its child are never a self-collision pair,
+                // whatever the hops matrix says.
+                if (hops[first, second] >= SelfCollisionSeparation
+                    && skeleton.Parents[second] != first)
                 {
                     pairs.Add(new RagdollPair(first, second));
                 }
