@@ -609,11 +609,14 @@ internal sealed class BepuRagdollWorld : IDisposable
             }
 
             int age = _tick - corpse.SeedTick;
-            if (corpse.RootDistanceFromOriginInMetres() > BepuRagdollCorpse.RunawayDistanceInMetres)
+            double distance = corpse.RootDistanceFromOriginInMetres();
+            if (!double.IsFinite(distance) || distance > BepuRagdollCorpse.RunawayDistanceInMetres)
             {
                 corpse.MarkInvalid();
                 _logger.Warning(LogCategory,
-                    $"[BepuRagdoll] corpse={corpse.Id} runaway: root travelled over {BepuRagdollCorpse.RunawayDistanceInMetres:F0}m from its death; falling back to the death clip.");
+                    double.IsFinite(distance)
+                        ? $"[BepuRagdoll] corpse={corpse.Id} runaway: root travelled over {BepuRagdollCorpse.RunawayDistanceInMetres:F0}m from its death; falling back to the death clip."
+                        : $"[BepuRagdoll] corpse={corpse.Id} runaway: root position went non-finite (NaN); falling back to the death clip.");
                 continue;
             }
 
@@ -645,6 +648,21 @@ internal sealed class BepuRagdollWorld : IDisposable
 
             _logger.Information(LogCategory,
                 $"[BepuRagdoll] step: tick={_tick} corpses={_corpses.Count} bodies={bodies} kinematics={_kinematics.Count} lastStepMs={_lastStepMs:F2}");
+        }
+    }
+
+    /// <summary>Marks every live corpse invalid, without touching the simulation.</summary>
+    /// <remarks>
+    /// Flag-only, so it is safe to call after the step itself threw: the existing per-member loop
+    /// in <c>StepRagdolls</c> and the player tick see the flag, drop the corpse and fall back to
+    /// the death clip, and the drop path removes the bodies from the live simulation. Used by the
+    /// step-failure containment in <c>SoldierRagdolls.StepBepuRagdolls</c>.
+    /// </remarks>
+    public void InvalidateAllCorpses()
+    {
+        foreach (BepuRagdollCorpse corpse in _corpses.ToArray())
+        {
+            corpse.MarkInvalid();
         }
     }
 

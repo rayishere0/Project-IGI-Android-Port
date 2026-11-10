@@ -9,7 +9,7 @@ namespace ProjectIGI.Game.Igi1.Physics;
 /// </content>
 public sealed partial class RagdollBody
 {
-    // The ground under a probe, with the recovery fallback: a bone that has got under a
+    // The ground under a probe, with the recovery fallbacks: a bone that has got under a
     // surface finds nothing through TryGround — its search starts only 0.4 m above the
     // bone, so a bone more than that below a floor is invisible to it and falls for ever
     // until the solver drops it back to the death clip. TryGroundRecovered starts a metre
@@ -17,9 +17,48 @@ public sealed partial class RagdollBody
     // then pushes it back out at the usual budget. Only ever reached when the normal
     // search found nothing, so a bone standing on a floor never pays for it and never
     // sees a ceiling through it.
-    private static bool GroundAt(RagdollWorld world, Vector3d point, out double height, out Vector3d normal) =>
-        world.TryGround(point, out height, out normal)
-        || world.TryGroundRecovered(point, out height, out normal);
+    //
+    // Two gaps in that shape, closed here. First, masking: TryGround short-circuits on ANY
+    // surface below the bone, so a bone buried under a slab with a floor far below it never
+    // reaches the recovery — it is pushed toward the lower floor and falls through the slab.
+    // When the surface TryGround found sits more than the 1 m recovery start below the probe,
+    // the bone cannot be resting on it, so the recovery tiers are consulted and the highest
+    // surface wins. Second, depth: the 1 m tier is beaten by a 45° slope across a full body
+    // (~1.8 m of rise) and by 4+ stair risers, so a second tier starting 2 m above the bone
+    // is consulted when the first found nothing — and only accepted when the surface it finds
+    // sits above the bone, i.e. the bone is buried under it; a surface 1–2 m above a bone
+    // standing in the open is a ceiling, not a floor.
+    private static bool GroundAt(RagdollWorld world, Vector3d point, out double height, out Vector3d normal)
+    {
+        if (world.TryGround(point, out height, out normal))
+        {
+            if (height < point.Z - RagdollWorld.GroundRecoveryAboveInUnits)
+            {
+                if (world.TryGroundRecovered(point, out double recoveredHeight, out Vector3d recoveredNormal)
+                    && recoveredHeight > height)
+                {
+                    height = recoveredHeight;
+                    normal = recoveredNormal;
+                }
+
+                if (world.TryGroundDeepRecovered(point, out double deepHeight, out Vector3d deepNormal)
+                    && deepHeight > height)
+                {
+                    height = deepHeight;
+                    normal = deepNormal;
+                }
+            }
+
+            return true;
+        }
+
+        if (world.TryGroundRecovered(point, out height, out normal))
+        {
+            return true;
+        }
+
+        return world.TryGroundDeepRecovered(point, out height, out normal) && height > point.Z;
+    }
 
     /// <summary>Finds the ground under every probe, once for the whole tick.</summary>
     /// <remarks>
@@ -165,6 +204,11 @@ public sealed partial class RagdollBody
                     continue;
                 }
 
+                // The worst world penetration seen this tick, mirroring the self-collision
+                // term below: Track refuses the rest latch while a body is still sunk into
+                // the world, so a corpse resting on a slope does not freeze half-buried in it.
+                _deepestWorldPenetration = Math.Min(_deepestWorldPenetration, -depth);
+
                 // Recorded on the FIRST pass, and that is not a detail. By the last pass the earlier ones
                 // have already pushed the bone clear, so the contact is no longer found -- and a contact
                 // that is not recorded never has its push-out velocity cancelled, which is precisely the
@@ -194,6 +238,9 @@ public sealed partial class RagdollBody
                 {
                     continue;
                 }
+
+                // A wall is world penetration too: a body sunk into one must not latch at rest.
+                _deepestWorldPenetration = Math.Min(_deepestWorldPenetration, -into);
 
                 Remember(record, bone, Vector3d.Zero, _wallNormal[slot]);
                 ApplyPositional(

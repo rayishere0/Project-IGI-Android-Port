@@ -23,6 +23,15 @@ internal sealed class SoldierRagdolls(SoldierContext context)
 
     private WorldRayCast? _dropTrace;
 
+    /// <summary>Whether the Bepu step has thrown this level and Bepu is disabled for the rest of it.</summary>
+    /// <remarks>
+    /// Set by <see cref="StepBepuRagdolls"/> when <c>StepOnce</c> throws: a solver that threw once
+    /// is not stepped again, and no new Bepu corpse is seeded while it is set (see
+    /// <see cref="BepuReady"/>). Cleared by <see cref="ReleaseBepuWorld"/>, so a failure in one
+    /// level does not poison the next level's freshly built world.
+    /// </remarks>
+    private bool _bepuFailed;
+
     /// <summary>Gets one prepared rig per skeleton, shared by every corpse wearing it.</summary>
     // One prepared rig per skeleton, shared by every corpse wearing it. Building it walks the whole bone
     // graph twice, so it must not happen per death -- and it holds no live state, so it need not.
@@ -40,7 +49,7 @@ internal sealed class SoldierRagdolls(SoldierContext context)
     public BepuRagdollWorld? BepuWorld { get; private set; }
 
     /// <summary>Whether a Bepu world is live for this level.</summary>
-    public bool BepuReady => BepuWorld is not null;
+    public bool BepuReady => BepuWorld is not null && !_bepuFailed;
 
     /// <summary>Builds the Bepu level world from the placed solids and the terrain.</summary>
     /// <param name="solids">The placed-object collision index, or null when the level has none.</param>
@@ -66,6 +75,7 @@ internal sealed class SoldierRagdolls(SoldierContext context)
     {
         BepuWorld?.Dispose();
         BepuWorld = null;
+        _bepuFailed = false;
     }
 
     /// <summary>Steps the Bepu world once for this tick.</summary>
@@ -73,16 +83,57 @@ internal sealed class SoldierRagdolls(SoldierContext context)
     /// The single Timestep per tick for the Bepu corpses, at the same site the XPBD step runs —
     /// after <c>FinishTick</c>, before the pose loop — so a Bepu corpse and an XPBD corpse are never
     /// stepped twice, and a player corpse seeded after <c>EndTick</c> waits one tick.
+    /// <para>
+    /// A throw in <c>StepOnce</c> — the kinematic sync, the solver timestep, or the post-step loop —
+    /// used to propagate uncaught up the tick and close the game (the only catch on the ragdoll tick
+    /// path is the fatal-error catch in <c>AndroidHost.Run</c>). It is contained here instead: the
+    /// exception is logged, every live Bepu corpse is marked invalid — the existing per-member loop
+    /// in <c>StepRagdolls</c> and the player tick then drop them and fall back to the death clip —
+    /// and Bepu is disabled for the rest of the level, so later deaths seed XPBD corpses through
+    /// the <c>UseBepuRagdolls</c> gate. The world itself is deliberately NOT disposed here: the
+    /// drop path removes corpses from the live simulation, and disposing it would make that removal
+    /// throw instead.
+    /// </para>
     /// </remarks>
     public void StepBepuRagdolls()
     {
-        BepuWorld?.StepOnce(_context.TickCount);
+        if (_bepuFailed)
+        {
+            return;
+        }
+
+        try
+        {
+            BepuWorld?.StepOnce(_context.TickCount);
+        }
+        catch (Exception ex)
+        {
+            _bepuFailed = true;
+            BepuWorld?.InvalidateAllCorpses();
+            _context.Logger.Error(SoldierContext.LogCategory,
+                "The Bepu ragdoll step failed; falling back to XPBD ragdolls for the rest of the level.", ex);
+        }
     }
 
     /// <summary>Removes a Bepu corpse's bodies from the simulation.</summary>
+    /// <remarks>
+    /// Contained like the step: a throw while removing bodies — a simulation left inconsistent by
+    /// a failed step — used to propagate uncaught up the tick and close the game. It is logged and
+    /// the corpse is marked invalid instead, so the step loop skips it and the death clip plays;
+    /// the bodies leak for the rest of the level, which is the cheaper failure.
+    /// </remarks>
     public void RemoveBepuCorpse(BepuRagdollCorpse corpse)
     {
-        BepuWorld?.RemoveCorpse(corpse);
+        try
+        {
+            BepuWorld?.RemoveCorpse(corpse);
+        }
+        catch (Exception ex)
+        {
+            corpse.MarkInvalid();
+            _context.Logger.Error(SoldierContext.LogCategory,
+                "Could not remove a Bepu ragdoll from the simulation; leaving it invalid.", ex);
+        }
     }
 
     /// <summary>Gives dropped weapons the world they collide with.</summary>

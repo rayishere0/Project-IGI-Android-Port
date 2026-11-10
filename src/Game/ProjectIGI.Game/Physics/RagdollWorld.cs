@@ -143,6 +143,18 @@ public sealed class RagdollWorld
     /// </remarks>
     public const double GroundRecoveryAboveInUnits = 4096.0;
 
+    /// <summary>How far above a point the deep ground recovery search starts, in engine units.</summary>
+    /// <remarks>
+    /// Two metres: the second tier of the recovery (see <see cref="TryGroundDeepRecovered"/>).
+    /// A body seeded mid-death-clip spreads bones ~1.8 m horizontally from a single
+    /// ground-snapped origin, which on a 45° slope is up to ~1.8 m of rise across the body —
+    /// past the 1 m tier — and a body draped over 4+ stair risers buries a limb more than a
+    /// metre the same way. Two metres covers a full body length on a 45° slope. It is not
+    /// raised further: the search start is also the ceiling the delegate can report, and a
+    /// start higher than any room a body could be standing under would find that ceiling.
+    /// </remarks>
+    public const double GroundDeepRecoveryAboveInUnits = 8192.0;
+
     /// <summary>Looks for a surface a short way from a point.</summary>
     /// <param name="from">Where to look from, in engine units.</param>
     /// <param name="direction">Which way to look; need not be unit length.</param>
@@ -153,7 +165,13 @@ public sealed class RagdollWorld
     /// <remarks>
     /// The ground query answers only downwards, so everything vertical goes through that and everything
     /// else goes through here — the same ray cast the player's own wall sweep uses, so a corpse meets the
-    /// walls a living body does.
+    /// walls a living body does. The terrain-inclusive <see cref="Trace"/> is consulted too, and the
+    /// nearer of the two hits wins: <see cref="Cast"/> sees placed objects only, so without it a terrain
+    /// bank or cliff face — or a stair riser, which is terrain — is invisible to a wall probe, and a bone
+    /// thrown at it keeps its horizontal velocity inside the hill until the runaway check drops it back
+    /// to the death clip. <see cref="Trace"/> already covers placed objects as well (it is the nearest
+    /// of the placed and terrain tracers), so where both hit the nearer one is the surface the bone
+    /// actually meets first; where only <see cref="Cast"/> exists (test worlds) the answer is unchanged.
     /// </remarks>
     public bool TrySurface(Vector3d from, Vector3d direction, double reach, out Vector3d point, out Vector3d normal)
     {
@@ -161,19 +179,36 @@ public sealed class RagdollWorld
         normal = default;
 
         double length = direction.Length;
-        if (Cast is not { } cast || length <= 0.0 || reach <= 0.0)
+        if (length <= 0.0 || reach <= 0.0)
         {
             return false;
         }
 
         Vector3d unit = direction / length;
-        if (!cast(from, from + (unit * reach), out WorldRayHit hit))
+        Vector3d end = from + (unit * reach);
+
+        bool found = false;
+        WorldRayHit nearest = default;
+        if (Cast is { } cast && cast(from, end, out WorldRayHit castHit))
+        {
+            nearest = castHit;
+            found = true;
+        }
+
+        if (Trace is { } trace && trace(from, end, out WorldRayHit traceHit)
+            && (!found || traceHit.Distance < nearest.Distance))
+        {
+            nearest = traceHit;
+            found = true;
+        }
+
+        if (!found)
         {
             return false;
         }
 
-        point = hit.Position;
-        normal = new Vector3d(hit.Normal.X, hit.Normal.Y, hit.Normal.Z);
+        point = nearest.Position;
+        normal = new Vector3d(nearest.Normal.X, nearest.Normal.Y, nearest.Normal.Z);
 
         double size = normal.Length;
         if (size <= 0.0)
@@ -231,34 +266,46 @@ public sealed class RagdollWorld
     /// the slab rather than vanishing.
     /// </para>
     /// </remarks>
-    public bool TryGroundRecovered(Vector3d point, out double groundZ, out Vector3d normal)
-    {
-        groundZ = 0.0;
-        normal = Vector3d.UnitZ;
-        if (Ground is not { } ground
-            || !ground(point.X, point.Y, point.Z + GroundRecoveryAboveInUnits, out TerrainGround surface))
-        {
-            return false;
-        }
+    public bool TryGroundRecovered(Vector3d point, out double groundZ, out Vector3d normal) =>
+        TryGroundStartingAt(point, GroundRecoveryAboveInUnits, out groundZ, out normal);
 
-        groundZ = surface.Height;
-        normal = new Vector3d(surface.NormalX, surface.NormalY, surface.NormalZ);
-        double size = normal.Length;
-        normal = size > 0.0 ? normal / size : Vector3d.UnitZ;
-        return true;
-    }
+    /// <summary>
+    /// Finds the ground surface near a point, allowing the surface to sit up to two metres above it.
+    /// </summary>
+    /// <param name="point">The point, in engine units.</param>
+    /// <param name="groundZ">Receives the ground height.</param>
+    /// <param name="normal">Receives the surface's unit normal — the direction a body resting on it is pushed.</param>
+    /// <returns><see langword="true"/> when a surface was found.</returns>
+    /// <remarks>
+    /// <para>
+    /// The second recovery tier, for a bone buried deeper than the 1 m tier can see: a body seeded
+    /// mid-death-clip spreads ~1.8 m from a single ground-snapped origin, which on a 45° slope is
+    /// ~1.8 m of rise across the body, and a body draped over 4+ stair risers buries a limb more
+    /// than a metre the same way. Only ever consulted when both the normal search and the 1 m
+    /// recovery found nothing — and because the ground delegate's window below its start is fixed
+    /// (~4.5 m), a start 2 m up can only add a surface sitting between 1 m and 2 m above the bone;
+    /// any floor below the bone was already visible to the searches that ran first. Callers must
+    /// still only accept a surface above the bone (the bone is buried under it): a surface 1–2 m
+    /// above a bone that is standing in the open is a ceiling, not a floor.
+    /// </para>
+    /// </remarks>
+    public bool TryGroundDeepRecovered(Vector3d point, out double groundZ, out Vector3d normal) =>
+        TryGroundStartingAt(point, GroundDeepRecoveryAboveInUnits, out groundZ, out normal);
 
     /// <summary>Finds the ground surface near a point, whether it is above or below.</summary>
     /// <param name="point">The point, in engine units.</param>
     /// <param name="groundZ">Receives the ground height.</param>
     /// <param name="normal">Receives the surface's unit normal — the direction a body resting on it is pushed.</param>
     /// <returns><see langword="true"/> when a surface was found.</returns>
-    public bool TryGround(Vector3d point, out double groundZ, out Vector3d normal)
+    public bool TryGround(Vector3d point, out double groundZ, out Vector3d normal) =>
+        TryGroundStartingAt(point, GroundSearchAboveInUnits, out groundZ, out normal);
+
+    private bool TryGroundStartingAt(Vector3d point, double aboveInUnits, out double groundZ, out Vector3d normal)
     {
         groundZ = 0.0;
         normal = Vector3d.UnitZ;
         if (Ground is not { } ground
-            || !ground(point.X, point.Y, point.Z + GroundSearchAboveInUnits, out TerrainGround surface))
+            || !ground(point.X, point.Y, point.Z + aboveInUnits, out TerrainGround surface))
         {
             return false;
         }
