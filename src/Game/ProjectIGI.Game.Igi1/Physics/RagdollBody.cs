@@ -95,6 +95,48 @@ public sealed partial class RagdollBody
     /// </remarks>
     public const double TorsionalFriction = 0.15;
 
+    /// <summary>
+    /// How much of a contacting bone's actual rotation the ground resists each tick, in radians.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Rolling resistance, and the missing term the endless roll is made of.</b> Sliding friction
+    /// acts on contact-point velocity, which for a rolling body is ~zero by definition, and torsional
+    /// friction acts on <c>_spin</c> — but <c>Recover</c> subtracts every repair correction before
+    /// reading <c>_spin</c> back, and the roll is driven by repairs: gravity sinks the body, the
+    /// contacts push it out along the normal off-centre from the centre of mass, the body tips. No
+    /// velocity-level damper ever sees that rotation, so nothing opposes it and a corpse rolls until
+    /// the 10 s <see cref="MaximumActiveTicks"/> backstop freezes it mid-roll.
+    /// </para>
+    /// <para>
+    /// So this damps what the body <em>actually did</em>, repairs included: each substep, for every
+    /// bone with a recorded contact, the orientation change since the substep started is measured with
+    /// <c>RagdollSolver.Recover</c> and counter-rotated back toward where the substep started. It is
+    /// a <b>cap, not a fraction</b>, and the shape is the whole point: a fraction of the rotation
+    /// removed each substep only slows a roll whose drive is re-created fresh every substep — gravity
+    /// sinks the body again, the contacts push it out again — while a cap absorbs the drive entirely
+    /// once the rotation per substep falls below it, which is what makes the body actually stop.
+    /// </para>
+    /// <para>
+    /// <b>Sizing.</b> The roll in the video turns at roughly 3 rad/s, about 0.1 radians a tick. The
+    /// cap is set just above that, so once the seed spin has been bled off by the dampers that do see
+    /// it, the resistance can absorb the full repair-driven rotation each tick — but a fresh, fast
+    /// tumble turns faster than the cap and is only partly resisted, so the body still falls, rolls
+    /// and reacts to the ground for its first second or so instead of sticking on first contact. If
+    /// the device shows bodies stopping dead where they land, this is too high; if they still roll,
+    /// it is too low. The per-substep cap is this value times the substep length, so the per-tick
+    /// capacity does not move with <c>g_ragdoll_substeps</c>.
+    /// </para>
+    /// <para>
+    /// It acts on the pose, not only on <c>_spin</c>, because that is where the repair-driven roll
+    /// lives — damping <c>_spin</c> alone leaves the roll untouched, which is the bug. The bone's
+    /// own spin is scaled by the same fraction that was removed, so a spin-driven roll is bled too.
+    /// Only bones with a recorded contact this substep are touched: a body in mid-air still tumbles
+    /// freely, and a body that has stopped rotating has nothing removed from it.
+    /// </para>
+    /// </remarks>
+    public const double RollingResistancePerTick = 0.12;
+
     /// <summary>How far a bone may sink into a surface before it is pushed out, in engine units.</summary>
     /// <remarks>
     /// Two centimetres, and it is a <b>deadband rather than a target</b>. Correcting penetration to
@@ -165,6 +207,26 @@ public sealed partial class RagdollBody
     /// is left over after those cancel is a hum far below anything visible.
     /// </remarks>
     public const double RestThresholdInUnits = 20.0;
+
+    /// <summary>How far a bone may turn in a tick and still count as having stopped, in radians.</summary>
+    /// <remarks>
+    /// <para>
+    /// The rest latch used to measure positional drift only, so it could not tell a slow roll from
+    /// rest — and it could not tell a body spinning in place from one lying still, because a spin in
+    /// place moves no centre of mass at all. This is the angular half of the same judgement: the
+    /// largest orientation change of any bone over the tick, measured from the real orientations
+    /// (repairs included), must be under this as well as the drift being under
+    /// <see cref="RestThresholdInUnits"/>.
+    /// </para>
+    /// <para>
+    /// <b>Sizing.</b> At the linear threshold a body rolling about a contact some 2000 units out —
+    /// about a body length — turns 20 / 2000 = 0.01 radians a tick, so the two thresholds describe
+    /// the same "barely moving" speed and a slow roll still latches instead of rolling for ever. A
+    /// body turning faster than about 17° a second keeps simulating. Twelve ticks under both
+    /// thresholds is what latches, exactly as before.
+    /// </para>
+    /// </remarks>
+    public const double RestAngularThresholdInRadians = 0.01;
 
     /// <summary>How fast a body may still be moving and count as trying to settle.</summary>
     /// <remarks>
@@ -315,6 +377,8 @@ public sealed partial class RagdollBody
     private readonly Quaternion32[] _priorOrientation;
     private readonly Matrix3f[] _inverseInertia;
     private readonly Vector3d[] _tickStart;
+    private readonly Quaternion32[] _tickStartOrientation;
+    private readonly bool[] _inContact;
     private readonly Quaternion32[] _local;
     private readonly Quaternion32[] _seedLocal;
     private readonly Vector3d[] _repair;
@@ -363,6 +427,8 @@ public sealed partial class RagdollBody
         _priorOrientation = new Quaternion32[count];
         _inverseInertia = new Matrix3f[count];
         _tickStart = new Vector3d[count];
+        _tickStartOrientation = new Quaternion32[count];
+        _inContact = new bool[count];
         // The SKELETON's share, not every body. Anything the corpse carries is simulated alongside the
         // bones but is no part of the pose, and BonePose.Evaluate rightly refuses a rotation per body
         // when it was given a bone count.
@@ -705,6 +771,7 @@ public sealed partial class RagdollBody
         }
 
         _position.CopyTo(_tickStart, 0);
+        _orientation.CopyTo(_tickStartOrientation, 0);
         _deepestPenetration = 0.0;
         Survey(world);
 
@@ -765,6 +832,7 @@ public sealed partial class RagdollBody
             Recover(step, linear, angular);
             SolveContactVelocities();
             DampJoints(joint);
+            DampRolling(step);
         }
 
         if (!IsSane())
@@ -785,12 +853,26 @@ public sealed partial class RagdollBody
         // settling help restarts from nothing every time it leaves the floor -- which made a body dropped
         // from a height take longer to settle than one dropped from a metre. Winding back at twice the
         // rate still lets a corpse genuinely kicked into the air tumble freely again.
+        // The most any bone turned over the tick, from the real orientations — repairs included,
+        // which is what the rest latch needs: a body spinning in place moves no centre of mass, so
+        // the drift below says nothing about it. Recover with a step of one tick returns the turn
+        // itself (2 sin(θ/2), within a percent of θ at these angles).
+        double maxTurn = 0.0;
+        for (int bone = 0; bone < _orientation.Length; bone++)
+        {
+            double turned = RagdollSolver.Recover(_tickStartOrientation[bone], _orientation[bone], 1.0).Length;
+            if (turned > maxTurn)
+            {
+                maxTurn = turned;
+            }
+        }
+
         double drift = moved / _position.Length;
         _restingTicks = _contactCount > 0 && drift < SettleSpeedInUnits
             ? Math.Min(_restingTicks + 1, SettleRampTicks)
             : Math.Max(0, _restingTicks - 2);
         _age++;
-        Track(drift);
+        Track(drift, maxTurn);
     }
 
     /// <summary>Builds the pose the renderer should draw.</summary>
@@ -861,6 +943,73 @@ public sealed partial class RagdollBody
             _spin[bone] =
                 (RagdollSolver.Recover(_priorOrientation[bone], _orientation[bone], step)
                     - (_repairSpin[bone] / step)) * angular;
+        }
+    }
+
+    // Rolling resistance, applied to the POSE — the one place the repair-driven roll can be
+    // reached. Every velocity-level damper in this solver acts on _velocity/_spin, and Recover
+    // subtracts every repair correction before reading those back, so a roll produced by contact
+    // push-outs (repair: true) rotating the body is invisible to all of them: sliding friction
+    // sees a contact point that is barely moving, torsional friction sees a _spin that never
+    // carries the roll. The only honest measurement of the roll is the orientation change that
+    // actually happened this substep, repairs included, which is what Recover reports when it is
+    // fed the substep-start orientation against the current one.
+    //
+    // Runs at the end of each substep, after Recover has read the velocities back: _priorOrientation
+    // is still the substep-start snapshot here (Integrate only refreshes it at the next substep's
+    // start), and _contactCount still holds this substep's recorded contacts. A bone is damped
+    // once per substep however many contacts it recorded — a bone lying flat records three — so the
+    // cap is per bone, not per contact.
+    //
+    // The counter-rotation turns the bone back toward where the substep started, by up to
+    // RollingResistancePerTick's share of the substep and never more than the turn that actually
+    // happened. It is deliberately NOT recorded as a repair: it runs after Recover, and the next
+    // substep's Integrate snapshots the counter-rotated orientation as its prior, so the removal
+    // never re-enters the velocity readback as phantom spin. The bone's own spin is scaled by the
+    // same fraction removed, so a spin-driven roll is bled as well — torsional friction already
+    // does this hard, this keeps the two halves of the same roll consistent.
+    //
+    // The counter-rotation turns the bone about its own centre of mass, so a probe at the end of a
+    // long bone moves by at most the cap times its reach — about 10 units at the default cap — well
+    // inside the 82-unit PenetrationSlop deadband, and the next substep's contacts re-push whatever
+    // of it went back into the floor.
+    private void DampRolling(double step)
+    {
+        if (_contactCount == 0)
+        {
+            return;
+        }
+
+        double cap = RollingResistancePerTick * step;
+        for (int i = 0; i < _contactCount; i++)
+        {
+            _inContact[_contactBone[i]] = true;
+        }
+
+        for (int bone = 0; bone < _position.Length; bone++)
+        {
+            if (!_inContact[bone])
+            {
+                continue;
+            }
+
+            _inContact[bone] = false;
+
+            // The turn this substep actually produced, in radians — spin and repairs together.
+            Vector3d actual = RagdollSolver.Recover(_priorOrientation[bone], _orientation[bone], step);
+            double radians = actual.Length * step;
+            if (radians <= 0.0)
+            {
+                continue;
+            }
+
+            double removed = Math.Min(radians, cap);
+            double fraction = removed / radians;
+
+            // Turn takes the rotation vector itself (Advance with a step of one), so the removal is
+            // the turn that happened, scaled by the fraction the cap allows.
+            Turn(bone, actual * (-step * fraction));
+            _spin[bone] *= 1.0 - fraction;
         }
     }
 
@@ -988,7 +1137,7 @@ public sealed partial class RagdollBody
         return true;
     }
 
-    private void Track(double averageMovement)
+    private void Track(double averageMovement, double maxAngularMovement)
     {
         if (_age >= MaximumActiveTicks)
         {
@@ -996,7 +1145,15 @@ public sealed partial class RagdollBody
             return;
         }
 
-        if (averageMovement < RestThresholdInUnits)
+        // Both halves of "stopped": the bones must have barely moved AND barely turned, on the same
+        // tick, for twelve consecutive ticks. Drift alone latches a body rolling slowly enough that
+        // its centres of mass creep under the threshold, and latches a body spinning in place whose
+        // centres do not move at all; the angular half closes both. A falling body cannot trip this:
+        // it is moving far faster than the drift threshold within a tick or two of leaving the
+        // ground, so _stillTicks resets long before twelve ticks accumulate — there is no separate
+        // contact gate here, exactly as before.
+        if (averageMovement < RestThresholdInUnits
+            && maxAngularMovement < RestAngularThresholdInRadians)
         {
             _stillTicks++;
 
