@@ -56,6 +56,13 @@ public readonly record struct RagdollBone(
 /// <param name="HingePlaneLimit">
 /// How far the swing may stray out of the hinge's plane, in radians — only for a hinge.
 /// </param>
+/// <param name="SagittalLow">
+/// The furthest the signed in-plane angle goes one way, in radians — the ball-joint half of the
+/// hinge range, for a joint with a dominant plane that is NOT a hinge. A hip flexes far forwards
+/// and extends only a little backwards, and the cone alone cannot say that; this is the number
+/// that can. Zero when the joint has no plane.
+/// </param>
+/// <param name="SagittalHigh">And the other way — only for a ball joint with a plane.</param>
 public readonly record struct RagdollJoint(
     int Parent,
     int Child,
@@ -69,7 +76,9 @@ public readonly record struct RagdollJoint(
     bool IsHinge,
     float HingeLow,
     float HingeHigh,
-    float HingePlaneLimit);
+    float HingePlaneLimit,
+    float SagittalLow,
+    float SagittalHigh);
 
 /// <summary>Two bones far enough apart in the rig that they are kept from passing through each other.</summary>
 /// <param name="First">The lower bone index.</param>

@@ -131,6 +131,18 @@ public sealed class RagdollWorld
     /// </remarks>
     public const double GroundSearchAboveInUnits = 1638.0;
 
+    /// <summary>How far above a point the ground recovery search starts, in engine units.</summary>
+    /// <remarks>
+    /// One metre: further than a bone can be buried at seed time on any slope the game ships —
+    /// a bone a metre uphill on a 45° slope sits a metre under its local ground — and far
+    /// enough above the normal 0.4 m start to matter. It is the start of the search, not a
+    /// reach: the delegate still returns the highest surface below it, so a bone in the open
+    /// never sees a ceiling through this (the normal search already found its floor), and the
+    /// recovery only ever runs when the normal search found nothing at all. See
+    /// <see cref="TryGroundRecovered"/>.
+    /// </remarks>
+    public const double GroundRecoveryAboveInUnits = 4096.0;
+
     /// <summary>Looks for a surface a short way from a point.</summary>
     /// <param name="from">Where to look from, in engine units.</param>
     /// <param name="direction">Which way to look; need not be unit length.</param>
@@ -188,6 +200,53 @@ public sealed class RagdollWorld
     /// <returns><see langword="true"/> when a surface was found.</returns>
     public bool TryGround(Vector3d point, out double groundZ) =>
         TryGround(point, out groundZ, out _);
+
+    /// <summary>
+    /// Finds the ground surface near a point, allowing the surface to sit up to a metre above it.
+    /// </summary>
+    /// <param name="point">The point, in engine units.</param>
+    /// <param name="groundZ">Receives the ground height.</param>
+    /// <param name="normal">Receives the surface's unit normal — the direction a body resting on it is pushed.</param>
+    /// <returns><see langword="true"/> when a surface was found.</returns>
+    /// <remarks>
+    /// <para>
+    /// The recovery half of <see cref="TryGround(Vector3d, out double, out Vector3d)"/>, for a
+    /// bone that has got UNDER a surface. The normal search starts only 0.4 m above the point
+    /// (<see cref="GroundSearchAboveInUnits"/>), because starting higher finds ceilings in rooms
+    /// and pushes corpses into the roof — so a bone more than 0.4 m below a floor finds nothing
+    /// at all, falls for ever, and is dropped back to the death clip once it has run 100 m past
+    /// where it died, which reads as a body sinking through the ground and teleporting back onto
+    /// it. A body seeded mid-death-clip on a slope or across stairs is buried exactly that way:
+    /// the seed origin is ground-snapped at one point, and a bone a metre uphill sits over ground
+    /// half a metre higher than the origin's.
+    /// </para>
+    /// <para>
+    /// This starts the search a metre above the point instead, so it finds the floor the bone is
+    /// under — and then the ordinary contact pushes the bone back out of it at the usual budget,
+    /// about 15 cm a tick, instead of the bone being lost. It is used ONLY as a fallback when the
+    /// normal search found nothing, so a bone standing on a floor never pays for it and never
+    /// sees a ceiling: the normal search succeeds for it first. The one case it can still get
+    /// wrong is a bone falling down an indoor shaft with a placed slab within a metre above it,
+    /// which is pushed up onto the slab instead of falling — rare, and the body ends up lying on
+    /// the slab rather than vanishing.
+    /// </para>
+    /// </remarks>
+    public bool TryGroundRecovered(Vector3d point, out double groundZ, out Vector3d normal)
+    {
+        groundZ = 0.0;
+        normal = Vector3d.UnitZ;
+        if (Ground is not { } ground
+            || !ground(point.X, point.Y, point.Z + GroundRecoveryAboveInUnits, out TerrainGround surface))
+        {
+            return false;
+        }
+
+        groundZ = surface.Height;
+        normal = new Vector3d(surface.NormalX, surface.NormalY, surface.NormalZ);
+        double size = normal.Length;
+        normal = size > 0.0 ? normal / size : Vector3d.UnitZ;
+        return true;
+    }
 
     /// <summary>Finds the ground surface near a point, whether it is above or below.</summary>
     /// <param name="point">The point, in engine units.</param>

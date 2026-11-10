@@ -26,6 +26,13 @@ namespace ProjectIGI.Game.Igi1.Physics;
 /// <param name="HingePlaneLimit">
 /// How far the swing may stray out of the hinge's plane, in radians — only for a hinge.
 /// </param>
+/// <param name="SagittalLow">
+/// The furthest the signed in-plane angle goes one way, in radians — the ball-joint half of
+/// the hinge range, for a joint with a dominant plane that is NOT a hinge. A hip flexes far
+/// forwards and extends only a little backwards, and the cone alone cannot say that; this is
+/// the number that can. Zero when the joint has no plane.
+/// </param>
+/// <param name="SagittalHigh">And the other way — only for a ball joint with a plane.</param>
 public readonly record struct RagdollJointRange(
     Vector3f SwingAxis,
     float SwingLimit,
@@ -35,7 +42,9 @@ public readonly record struct RagdollJointRange(
     bool IsHinge,
     float HingeLow,
     float HingeHigh,
-    float HingePlaneLimit);
+    float HingePlaneLimit,
+    float SagittalLow,
+    float SagittalHigh);
 
 /// <summary>
 /// The range each joint of a rig actually moves through, measured from the animations the game ships
@@ -128,6 +137,20 @@ public sealed class RagdollLimits
     public const float MaximumAbduction = 54f * MathF.PI / 180f;
 
     /// <summary>
+    /// How much of a joint's swing spread must lie on one axis before its swings count as planar,
+    /// as a fraction of the total spread — 0.8.
+    /// </summary>
+    /// <remarks>
+    /// A joint whose swings stay in one plane puts nearly all of their spread on the plane's
+    /// normal (a hip's is ≈1, the matrix being nearly rank one); a joint whose swings spread over
+    /// a sphere puts it on two axes at once (a shoulder's is ≈0.5). The threshold sits between
+    /// the two, so a hip gets a plane from the spread of its swings and a shoulder does not — and
+    /// a shoulder that wrongly got one would have its sideways swing capped at the 54° abduction
+    /// limit, which a real shoulder exceeds every time it raises an arm.
+    /// </remarks>
+    public const float SpreadPlaneThreshold = 0.8f;
+
+    /// <summary>
     /// How far the cone's centre must sit from the rest direction before a joint is treated as having a
     /// dominant swing plane, in radians — 10°.
     /// </summary>
@@ -191,7 +214,9 @@ public sealed class RagdollLimits
     /// joint with a plane, which direction sideways is, so the solver can bound a split the cone alone
     /// cannot see. The hinge's range is the signed angle about the plane's normal, measured the same way
     /// the twist is, and its plane is the one the rest direction and the cone's centre both sit in. A
-    /// joint whose range is symmetric about rest has no dominant plane and keeps its cone only.
+    /// joint whose range is symmetric about rest has no plane from its centre — but it may still have
+    /// one from the spread of its swings (a hip swings in the sagittal plane whatever its average is),
+    /// and that plane is measured too, so the solver can bound its split in both directions.
     /// </para>
     /// </remarks>
     public static RagdollLimits Measure(BoneAnimationSet set)
@@ -204,6 +229,18 @@ public sealed class RagdollLimits
         int[] samples = new int[count];
         float[] twistLow = new float[count];
         float[] twistHigh = new float[count];
+
+        // The spread of the swings, as a symmetric matrix per bone: S = Σ c·cᵀ where
+        // c = axis × swung. For a joint whose swings stay in one plane every c is parallel
+        // to the plane's normal, so S is (nearly) rank one and its dominant eigenvector IS
+        // that normal; for a joint whose swings spread over a sphere S is (nearly)
+        // isotropic and no direction dominates. See SpreadPlane.
+        float[] spreadXX = new float[count];
+        float[] spreadXY = new float[count];
+        float[] spreadXZ = new float[count];
+        float[] spreadYY = new float[count];
+        float[] spreadYZ = new float[count];
+        float[] spreadZZ = new float[count];
 
         for (int bone = 0; bone < count; bone++)
         {
@@ -234,6 +271,14 @@ public sealed class RagdollLimits
                     twistLow[bone] = Math.Min(twistLow[bone], twist);
                     twistHigh[bone] = Math.Max(twistHigh[bone], twist);
                     samples[bone]++;
+
+                    Vector3f spread = Vector3f.Cross(axis[bone], swung);
+                    spreadXX[bone] += spread.X * spread.X;
+                    spreadXY[bone] += spread.X * spread.Y;
+                    spreadXZ[bone] += spread.X * spread.Z;
+                    spreadYY[bone] += spread.Y * spread.Y;
+                    spreadYZ[bone] += spread.Y * spread.Z;
+                    spreadZZ[bone] += spread.Z * spread.Z;
                 }
             }
         }
@@ -257,11 +302,37 @@ public sealed class RagdollLimits
         // motion is symmetric about rest, and no single plane describes it.
         Vector3f[] plane = new Vector3f[count];
         bool[] hasPlane = new bool[count];
+        bool[] hasCentrePlane = new bool[count];
         for (int bone = 0; bone < count; bone++)
         {
             Vector3f cross = Vector3f.Cross(axis[bone], centre[bone]);
-            hasPlane[bone] = cross.Length >= MathF.Sin(PlaneMinimumOffset);
+            hasCentrePlane[bone] = cross.Length >= MathF.Sin(PlaneMinimumOffset);
+            hasPlane[bone] = hasCentrePlane[bone];
             plane[bone] = hasPlane[bone] ? cross.Normalized() : Vector3f.Zero;
+        }
+
+        // A joint whose range is symmetric about rest has its centre on its rest direction, so the
+        // plane above does not exist for it — but its swings may still stay in one plane, and the
+        // centre is the wrong place to look for that. A hip swings in the sagittal plane whatever
+        // its average is; a shoulder swings everywhere. The spread of the swings says which: a
+        // planar joint's spread matrix is nearly rank one, and its dominant eigenvector is the
+        // plane's normal. Only ever fills in a missing plane — a joint that already has one from
+        // its centre keeps it, so knees and elbows are untouched by this. And a spread plane
+        // never makes a hinge: a hinge is a joint whose range is centred off rest (a knee's
+        // half-bent middle), while a hip's range is symmetric and ball-like — it gets the
+        // ball-joint treatment (the abduction and sagittal caps), not the hinge term, so
+        // hasCentrePlane stays the hinge test below.
+        for (int bone = 0; bone < count; bone++)
+        {
+            if (!hasPlane[bone]
+                && SpreadPlane(
+                    spreadXX[bone], spreadXY[bone], spreadXZ[bone],
+                    spreadYY[bone], spreadYZ[bone], spreadZZ[bone],
+                    out Vector3f spreadPlane))
+            {
+                plane[bone] = spreadPlane;
+                hasPlane[bone] = true;
+            }
         }
 
         float[] maxOut = new float[count];
@@ -323,8 +394,10 @@ public sealed class RagdollLimits
             // enough that the plane is the motion, not an approximation of it. The hinge's own range
             // is the signed angle about the plane's normal, widened by the margin like every other
             // limit, with a few degrees of grace past straight so a joint exactly at its limit every
-            // substep is not a joint that jitters.
-            bool hinge = hasPlane[bone] && maxOut[bone] <= HingePlaneThreshold;
+            // substep is not a joint that jitters. The plane must come from the centre offset, not
+            // the spread: a hip with a spread plane is never a hinge (see the spread-plane loop
+            // above) — it gets the ball-joint treatment instead.
+            bool hinge = hasCentrePlane[bone] && maxOut[bone] <= HingePlaneThreshold;
 
             ranges[bone] = new RagdollJointRange(
                 centre[bone],
@@ -335,10 +408,83 @@ public sealed class RagdollLimits
                 hinge,
                 hinge ? hingeLow[bone] * Margin - HingeExtensionAllowance : 0f,
                 hinge ? hingeHigh[bone] * Margin : 0f,
-                hinge ? Math.Clamp(maxOut[bone] * Margin, MinimumSwing, MaximumSwing) : 0f);
+                hinge ? Math.Clamp(maxOut[bone] * Margin, MinimumSwing, MaximumSwing) : 0f,
+                // The in-plane range is kept for any joint with a plane, not only for hinges:
+                // a ball joint with a plane (a hip) needs it as its sagittal cap, where the
+                // hinge term never runs. A joint with no plane gets zero, and the solver
+                // ignores the sagittal term for it.
+                hasPlane[bone] ? hingeLow[bone] * Margin - HingeExtensionAllowance : 0f,
+                hasPlane[bone] ? hingeHigh[bone] * Margin : 0f);
         }
 
         return new RagdollLimits(ranges, measured);
+    }
+
+    /// <summary>
+    /// Finds the plane a joint's swings stay in, from the spread of the swings themselves.
+    /// </summary>
+    /// <param name="xx">The spread matrix, as its six independent entries (see Measure).</param>
+    /// <param name="xy">The spread matrix, as its six independent entries (see Measure).</param>
+    /// <param name="xz">The spread matrix, as its six independent entries (see Measure).</param>
+    /// <param name="yy">The spread matrix, as its six independent entries (see Measure).</param>
+    /// <param name="yz">The spread matrix, as its six independent entries (see Measure).</param>
+    /// <param name="zz">The spread matrix, as its six independent entries (see Measure).</param>
+    /// <param name="normal">Receives the plane's normal when one is found.</param>
+    /// <returns><see langword="true"/> when the swings are planar enough to have a plane.</returns>
+    /// <remarks>
+    /// <para>
+    /// The matrix is S = Σ c·cᵀ with c = axis × swung, so every c is parallel to the normal
+    /// of whatever plane the swings stay in. A planar joint's S is (nearly) rank one and its
+    /// dominant eigenvector IS that normal; a spherical joint's S is (nearly) isotropic and no
+    /// direction dominates. The dominant eigenvector is found by power iteration — eight steps
+    /// from the axis with the most spread, which for a (nearly) rank-one matrix is the answer
+    /// in one step — and the planarity test is the Rayleigh quotient against the trace:
+    /// ≈1 for a plane, ≈0.5 for a sphere, with <see cref="SpreadPlaneThreshold"/> between
+    /// them. A bone that never swings has an empty matrix and no plane.
+    /// </para>
+    /// </remarks>
+    private static bool SpreadPlane(
+        float xx, float xy, float xz, float yy, float yz, float zz, out Vector3f normal)
+    {
+        normal = Vector3f.Zero;
+        float trace = xx + yy + zz;
+        if (trace <= 0f)
+        {
+            return false;
+        }
+
+        // Start from the axis with the most spread: for a (nearly) rank-one matrix the dominant
+        // eigenvector lies along it, so the iteration converges in a couple of steps rather than
+        // wandering from an arbitrary start — and starting from a zero diagonal would collapse
+        // to the zero vector on the first step.
+        Vector3f v = xx >= yy && xx >= zz ? Vector3f.UnitX
+            : yy >= zz ? Vector3f.UnitY
+            : Vector3f.UnitZ;
+        for (int i = 0; i < 8; i++)
+        {
+            Vector3f w = new(
+                (xx * v.X) + (xy * v.Y) + (xz * v.Z),
+                (xy * v.X) + (yy * v.Y) + (yz * v.Z),
+                (xz * v.X) + (yz * v.Y) + (zz * v.Z));
+            if (w.LengthSquared <= 0f)
+            {
+                return false;
+            }
+
+            v = w.Normalized();
+        }
+
+        // Rayleigh quotient: how much of the total spread lies along v. A planar joint's swings
+        // put nearly all of it on one axis (≈1); a spherical joint's spreads it over two (≈0.5).
+        float along = (xx * v.X * v.X) + (yy * v.Y * v.Y) + (zz * v.Z * v.Z)
+            + (2f * ((xy * v.X * v.Y) + (xz * v.X * v.Z) + (yz * v.Y * v.Z)));
+        if (along / trace < SpreadPlaneThreshold)
+        {
+            return false;
+        }
+
+        normal = v;
+        return true;
     }
 
     /// <summary>Splits a local rotation into how far it twists about an axis and where it puts that axis.</summary>
