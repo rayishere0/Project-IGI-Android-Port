@@ -195,7 +195,7 @@ internal sealed class SoldierDamage(SoldierContext context, SoldierFootsteps foo
             // one nothing else -- and it is a per-tick delta already, so it goes in as it stands, turned out of body
             // space by the heading.
             Vector3d velocity = SoldierDeathFall.RotateAboutZ(new Vector3d(carried.X, carried.Y, carried.Z), facing);
-            BodyFell?.Invoke(new SoldierFall(view, ragdollOrigin, hit.Bone, travel, category, velocity, droppedWeapon is not null));
+            BodyFell?.Invoke(new SoldierFall(view, ragdollOrigin, hit.Bone, travel, category, velocity, droppedWeapon is not null, animation));
 
             if (droppedWeapon is { } dropped)
             {

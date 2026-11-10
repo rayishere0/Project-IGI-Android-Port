@@ -12,6 +12,7 @@ namespace ProjectIGI.Game.Igi1.Ai;
 /// <param name="Category">The killing weapon's category.</param>
 /// <param name="Velocity">What the body was already doing: its clip's root motion this tick, out of body space.</param>
 /// <param name="DroppedWeapon">Whether it let go of a weapon, which is no longer drawn in its hand.</param>
+/// <param name="DeathAnimation">The death clip <c>SoldierDeath.Choose</c> picked, or -1 when no clip change was made and the body keeps its old clip. Carried so the renderer can tell a real death clip from a leftover live one when it decides when to seed the ragdoll.</param>
 public readonly record struct SoldierFall(
     SoldierView View,
     Vector3d Origin,
@@ -19,4 +20,5 @@ public readonly record struct SoldierFall(
     Vector3d Travel,
     WeaponCategory Category,
     Vector3d Velocity,
-    bool DroppedWeapon);
+    bool DroppedWeapon,
+    int DeathAnimation);

@@ -38,6 +38,15 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
     // ProjectIGI_TRACE_CUTSCENE_ACTOR. Read once: the check runs for every soldier on every tick.
     private static readonly string? TracedCutsceneActor = Environment.GetEnvironmentVariable("ProjectIGI_TRACE_CUTSCENE_ACTOR");
 
+    /// <summary>
+    /// How far through the death clip a body plays before its ragdoll takes over, as a fraction
+    /// of the clip: 0.5 seeds at the clip's midpoint, from the crumpling mid-fall pose rather than
+    /// the clip's standing first frame. Read off <see cref="SoldierView.ClipProgress"/> — the clip
+    /// clock itself, so no duration table or per-soldier counter is needed. A clip that has ended
+    /// reads 1.0, so a body always seeds by its clip's end, never later.
+    /// </summary>
+    internal const float RagdollSeedProgress = 0.5f;
+
     private readonly List<SoldierGroup> _groups = groups;
     private readonly SoldierSimulation _sim = sim;
     private readonly IProjectIGILogger _logger = logger;
@@ -314,8 +323,41 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
         member.Ragdoll?.Pose() ?? member.Agent.View.UnrotatedPose();
 
     /// <summary>Steps every soldier's corpse one tick, dropping any whose solver has gone wrong.</summary>
+    /// <remarks>
+    /// Seeds held for the death clip's first half are taken first, in the same pass: the clip has
+    /// advanced this tick already (EndTick runs this after FinishTick), so the progress read is the
+    /// current tick's, and a body seeded here is stepped below in the same tick — as a body seeded
+    /// during the simulation always was.
+    /// </remarks>
     public void StepRagdolls()
     {
+        foreach (SoldierGroup group in _groups)
+        {
+            foreach (SoldierMember member in group.Soldiers)
+            {
+                if (member.PendingRagdoll is not { } pending)
+                {
+                    continue;
+                }
+
+                if (!GameplayCVars.Ragdoll.Value || member.Ragdoll is not null)
+                {
+                    // Ragdolls off, or a body seeded some other way already: drop the pending
+                    // seed and let the death clip play fully, as before.
+                    member.PendingRagdoll = null;
+                }
+                else if (member.Agent.View.CurrentAnimation != pending.DeathAnimation
+                    || member.Agent.View.ClipProgress >= RagdollSeedProgress)
+                {
+                    // Halfway through the death clip, or the clip is no longer the death clip:
+                    // seed now, from the mid-clip pose. A body must never wait out its death
+                    // with no ragdoll coming.
+                    member.PendingRagdoll = null;
+                    SeedPendingRagdoll(member, pending);
+                }
+            }
+        }
+
         if (GameplayCVars.Ragdoll.Value)
         {
             RagdollWorld corpses = _sim.RagdollWorldForCorpses();
@@ -355,6 +397,35 @@ internal sealed class SoldierFrameInterpolator(List<SoldierGroup> groups, Soldie
                 CaptureTickState(member);
             }
         }
+    }
+
+    /// <summary>Seeds a ragdoll held until the death clip played halfway, from the body as it stands now.</summary>
+    /// <remarks>
+    /// The death-time origin and carried velocity are stale by now — the authoritative body has kept
+    /// sliding under <c>TickDeadBody</c> since it died — so both are re-derived here: the same
+    /// ground-snap + root-height triple <see cref="TickPlacementOf"/> builds, and the clip's
+    /// root-motion delta this tick, turned out of body space by the death facing. Only the struck
+    /// bone, the round's travel and its category are carried from death; those do not change.
+    /// </remarks>
+    private void SeedPendingRagdoll(SoldierMember member, PendingRagdollSeed pending)
+    {
+        SoldierView view = member.Agent.View;
+        double grounded = _sim.SnapToGround(view.Position.X, view.Position.Y, view.Position.Z);
+        Vector3d origin = new(view.Position.X, view.Position.Y, grounded + view.RootSample.Z);
+        Vector3f carried = view.RootMotion();
+        float facing = MathF.Atan2(view.Orientation.M21, view.Orientation.M11);
+        Vector3d velocity = SoldierDeathFall.RotateAboutZ(
+            new Vector3d(carried.X, carried.Y, carried.Z), facing);
+        member.Ragdoll = SeedRagdoll(
+            view,
+            origin,
+            view.Orientation,
+            pending.Bone,
+            pending.Travel,
+            pending.Category,
+            velocity,
+            _sim.FindModel(view),
+            weapon: null);
     }
 
     /// <summary>

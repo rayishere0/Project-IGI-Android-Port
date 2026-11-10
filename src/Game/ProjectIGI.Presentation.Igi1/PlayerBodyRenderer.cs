@@ -50,6 +50,12 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
     // clip keeps running underneath and keeps moving the authoritative body, and this replaces only the
     // pose and the placement that are drawn.
     private RagdollBody? _ragdoll;
+
+    // The ragdoll seed held until the death clip has played halfway -- the same handover as a
+    // guard's, checked on this body's own tick (see Tick). Only the struck bone, the round's
+    // travel and its category are carried from death; the origin and carried velocity are
+    // re-derived at seed time, because the body keeps moving under the clip while this waits.
+    private PendingRagdollSeed? _pendingRagdoll;
     private Group? _group;
     private Member? _member;
     private bool _active;
@@ -177,18 +183,28 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         _sim.PlayerBodyView.Kill(deathAnimation);
         _active = true;
 
-        // Seeded before the tick state is captured, so the very first capture is already the corpse's
-        // own placement rather than the clip's -- a death is a cut and there is nothing to blend from.
-        _ragdoll = _owner.SeedRagdoll(
-            _sim.PlayerBodyView,
-            new Vector3d(feet.X, feet.Y, feet.Z + _sim.PlayerBodyView.RootSample.Z),
-            _sim.PlayerBodyView.Orientation,
-            bone,
-            travel,
-            category,
-            velocity,
-            _group?.Body.Model,
-            weapon: null);
+        // No death clip to play halfway through -- Kill kept the idle -- so seed at once, as
+        // before. Otherwise hold the seed: the death clip plays its first half, and Tick seeds
+        // the ragdoll from the mid-clip pose once the clip is halfway through.
+        if (deathAnimation < 0 || _sim.PlayerBodyView.CurrentAnimation != deathAnimation)
+        {
+            // Seeded before the tick state is captured, so the very first capture is already the corpse's
+            // own placement rather than the clip's -- a death is a cut and there is nothing to blend from.
+            _ragdoll = _owner.SeedRagdoll(
+                _sim.PlayerBodyView,
+                new Vector3d(feet.X, feet.Y, feet.Z + _sim.PlayerBodyView.RootSample.Z),
+                _sim.PlayerBodyView.Orientation,
+                bone,
+                travel,
+                category,
+                velocity,
+                _group?.Body.Model,
+                weapon: null);
+        }
+        else
+        {
+            _pendingRagdoll = new PendingRagdollSeed(deathAnimation, bone, travel, category);
+        }
 
         // A death is a cut, not a movement: the body appears where the player fell, and nothing on
         // screen is its history. Snap the interpolation pair and start the frame bookkeeping over.
@@ -245,6 +261,25 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
 
         _sim.PlayerBodyView.PlaceAt(new Vector3d(px, py, pz), _sim.PlayerBodyView.Orientation);
 
+        // A seed held for the death clip's first half: the clip has advanced this tick already
+        // (view.Tick() above) and the body has moved by it, so ClipProgress and the position
+        // above are the current tick's. Seed once the clip is halfway through, or at once if
+        // it is no longer the death clip.
+        if (_pendingRagdoll is { } pending && _sim.PlayerBodyView is { } view)
+        {
+            if (!GameplayCVars.Ragdoll.Value)
+            {
+                // Ragdolls off: drop the pending seed and let the death clip play fully, as before.
+                _pendingRagdoll = null;
+            }
+            else if (view.CurrentAnimation != pending.DeathAnimation
+                || view.ClipProgress >= SoldierFrameInterpolator.RagdollSeedProgress)
+            {
+                _pendingRagdoll = null;
+                SeedPendingRagdoll(view, pending);
+            }
+        }
+
         // The corpse, when there is one. It is stepped after the retail move above rather than instead
         // of it: that move is what the rest of the game believes, and only the drawing changes here.
         if (_ragdoll is { } playerCorpse)
@@ -262,6 +297,30 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
 
         Reskin(_sim.PlayerBodyView, model);
         CaptureTickState(snap: false);
+    }
+
+    /// <summary>Seeds a ragdoll held until the death clip played halfway, from the body as it stands now.</summary>
+    /// <remarks>
+    /// The death-time origin and carried velocity are stale by now -- the body has kept moving under
+    /// the clip since it died -- so both are re-derived here: the body's current feet plus the clip's
+    /// root height, and the clip's root-motion delta this tick, turned out of body space by the death
+    /// facing. Only the struck bone, the round's travel and its category are carried from death.
+    /// </remarks>
+    private void SeedPendingRagdoll(SoldierView view, PendingRagdollSeed pending)
+    {
+        Vector3f carried = view.RootMotion();
+        Vector3d velocity = SoldierDeathFall.RotateAboutZ(
+            new Vector3d(carried.X, carried.Y, carried.Z), _facing);
+        _ragdoll = _owner.SeedRagdoll(
+            view,
+            new Vector3d(view.Position.X, view.Position.Y, view.Position.Z + view.RootSample.Z),
+            view.Orientation,
+            pending.Bone,
+            pending.Travel,
+            pending.Category,
+            velocity,
+            _group?.Body.Model,
+            weapon: null);
     }
 
     /// <inheritdoc cref="ISoldierBodies.StandPlayerBodyAt"/>
@@ -836,6 +895,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         _group = null;
         _member = null;
         _ragdoll = null;
+        _pendingRagdoll = null;
         _active = false;
         _sim.PlayerBodyClimbing = false;
         _sim.PlayerBodyShown = false;

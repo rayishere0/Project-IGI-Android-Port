@@ -92,6 +92,20 @@ internal sealed class SoldierMember(SoldierAgent agent, MeshHandle mesh)
     /// </remarks>
     public RagdollBody? Ragdoll { get; set; }
 
+    /// <summary>
+    /// The ragdoll seed held until the death clip has played halfway, or
+    /// <see langword="null"/> when no seed is waiting.
+    /// </summary>
+    /// <remarks>
+    /// The death clip keeps playing underneath while this waits — the body is drawn from the
+    /// clip, not the ragdoll — and <see cref="SoldierFrameInterpolator.StepRagdolls"/> seeds
+    /// it once the clip is halfway through (or at once when there is no death clip). Only the
+    /// struck bone, the round's travel and its category are carried from death: the origin and
+    /// the carried velocity are re-derived at seed time, because the authoritative body keeps
+    /// sliding under the clip while the seed waits.
+    /// </remarks>
+    public PendingRagdollSeed? PendingRagdoll { get; set; }
+
     /// <summary>Whether the animated mesh took a new pose since the last frame's bookkeeping.</summary>
     /// <remarks>
     /// When it did, the previous-pose stream now holds what was on screen last frame, and the
@@ -173,3 +187,17 @@ internal sealed class SoldierMember(SoldierAgent agent, MeshHandle mesh)
     /// <summary>Last frame's weapon transform — a rigid model's exact previous pose.</summary>
     public (Vector3d Origin, Matrix3f Rotation)? PreviousWeapon { get; set; }
 }
+
+/// <summary>
+/// A ragdoll seed held until the death clip has played halfway: the death-clip id the
+/// halfway check reads against, and the per-death inputs that do not go stale while it waits.
+/// </summary>
+/// <param name="DeathAnimation">The death clip id, as the view's <c>CurrentAnimation</c> names it once the clip starts.</param>
+/// <param name="Bone">The bone the killing round or blast struck.</param>
+/// <param name="Travel">Which way the round came, origin to end.</param>
+/// <param name="Category">The killing weapon's category.</param>
+internal readonly record struct PendingRagdollSeed(
+    int DeathAnimation,
+    int Bone,
+    Vector3d Travel,
+    WeaponCategory Category);
