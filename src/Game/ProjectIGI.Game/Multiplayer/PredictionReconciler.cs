@@ -1,0 +1,163 @@
+using ProjectIGI.Core.Numerics;
+
+namespace ProjectIGI.Game.Multiplayer;
+
+/// <summary>What a player stood on as a prediction was made: one of the level's moving platforms, and where it stood then.</summary>
+/// <param name="Index">The platform, in the level's own order: a lift's index among the snapshot's lifts.</param>
+/// <param name="Origin">Where the platform stood, in world units, on the game that made the prediction.</param>
+public readonly record struct PlatformFrame(int Index, Vector3d Origin);
+
+/// <summary>Keeps a client's own player where the server has it, without waiting for the server to move it.</summary>
+/// <remarks>
+/// <para>
+/// The client runs its own player on its own controls at once: that is the prediction, and it is the title's ordinary tick.
+/// Each command's result is noted here by the tick it was sent for. When a snapshot says the server has run the client's
+/// commands up to tick N and put its player at S, the prediction for N is compared with S. Agreeing (as it does when both
+/// ran the same controls over the same world), nothing happens. Disagreeing, the difference is the client's error, and the
+/// player's position now is moved by it: every tick since N was predicted from a start that was out by that much.
+/// </para>
+/// <para>
+/// Source goes further, putting the player back at S and running every command since N again. An I.G.I. human is far too
+/// much state to save and run again each tick (its animation, its state machine of over a hundred states, its weapons), so
+/// this keeps to the position, the part an error shows in. The simulated position takes the whole correction at once, so
+/// the next comparison measures only what is new; smoothing what the eye sees belongs to the camera, not the simulation.
+/// </para>
+/// </remarks>
+public sealed class PredictionReconciler
+{
+    private const int History = 128;
+
+    private readonly Dictionary<long, Vector3d> _predicted = [];
+
+    // For each prediction made standing on a platform, that platform and where it stood.
+    private readonly Dictionary<long, PlatformFrame> _platforms = [];
+    private long _lastChecked = long.MinValue;
+    private long _newest = long.MinValue;
+
+    // The newest prediction made before the last correction: those up to it started from the uncorrected place, and are not
+    // weighed until a command sent after the correction comes back.
+    private long _correctedThrough = long.MinValue;
+
+    // Whether a correction came before the next prediction is noted: that command was run before it too.
+    private bool _correctedSinceRecord;
+
+    /// <summary>Moves the newest predictions by what the server did to the player that the client learned of late.</summary>
+    /// <param name="offsets">
+    /// How far each of the newest predictions should have stood from where it was recorded, oldest first: the last is the
+    /// newest command's. A knock the server gave the player some commands ago carried it on through each since, and the
+    /// client, moving its player by it now, moves what it predicted for those commands with it -- or the server's word on
+    /// each would put the player back by a knock it already took.
+    /// </param>
+    public void ShiftNewest(IReadOnlyList<Vector3d> offsets)
+    {
+        ArgumentNullException.ThrowIfNull(offsets);
+        for (int i = 0; i < offsets.Count; i++)
+        {
+            long tick = _newest - (offsets.Count - 1) + i;
+            if (_predicted.TryGetValue(tick, out Vector3d at))
+            {
+                _predicted[tick] = at + offsets[i];
+            }
+        }
+    }
+
+    /// <summary>How far off a prediction may be, in world units, before it is corrected, unless the world says otherwise.</summary>
+    public const double DefaultTolerance = 64;
+
+    /// <summary>Gets or sets how far off a prediction may be, in world units, before it is corrected at all.</summary>
+    public double Tolerance { get; set; } = DefaultTolerance;
+
+    /// <summary>Gets the size of the last error found, in world units.</summary>
+    public double LastError { get; private set; }
+
+    /// <summary>Gets how many corrections have been made.</summary>
+    public long Corrections { get; private set; }
+
+    /// <summary>Notes where the client's own player stood after the command for a tick.</summary>
+    /// <param name="tick">The tick the command was sent for.</param>
+    /// <param name="position">Where the player stood after running it.</param>
+    /// <param name="platform">
+    /// The platform it stood on then, or <see langword="null"/>. A prediction made on a lift is weighed on the lift: the
+    /// server ran the command a tick or two earlier or later in its car's travel than this client did, as its queue of the
+    /// client's commands runs dry or catches up, and in the world that was an error of as many ticks of the car's travel.
+    /// </param>
+    public void Record(long tick, Vector3d position, PlatformFrame? platform = null)
+    {
+        _newest = Math.Max(_newest, tick);
+        _predicted[tick] = position;
+        if (platform is { } frame)
+        {
+            _platforms[tick] = frame;
+        }
+        else
+        {
+            _platforms.Remove(tick);
+        }
+
+        if (_correctedSinceRecord)
+        {
+            _correctedSinceRecord = false;
+            _correctedThrough = Math.Max(_correctedThrough, tick);
+        }
+
+        if (_predicted.Count > History)
+        {
+            foreach (long old in _predicted.Keys.Where(t => t < tick - History).ToArray())
+            {
+                _predicted.Remove(old);
+                _platforms.Remove(old);
+            }
+        }
+    }
+
+    /// <summary>Compares where the server put the player after a tick's command with where the client predicted it.</summary>
+    /// <param name="commandTick">The newest tick whose command the server has run for this client.</param>
+    /// <param name="server">Where the server put the player then.</param>
+    /// <param name="serverPlatform">
+    /// Where the server's copy of a platform stood in the same snapshot, by its index, or <see langword="null"/> when it has
+    /// none: a prediction made on a platform is compared with the server's word as places on it.
+    /// </param>
+    /// <returns>How far to move the player now, or <see langword="null"/> when the prediction agreed or was already checked.</returns>
+    public Vector3d? Check(long commandTick, Vector3d server, Func<int, Vector3d?>? serverPlatform = null)
+    {
+        if (commandTick <= _lastChecked || !_predicted.TryGetValue(commandTick, out Vector3d predicted))
+        {
+            return null;
+        }
+
+        _lastChecked = commandTick;
+
+        // A prediction made before the last correction was made from the wrong place, and moving it by the correction is no
+        // more than a guess: a body the correction lifted off a lift's floor falls back onto it, one it put under a floor
+        // stands up again. Weighed against the server's word all the same, the guess was put right as an error in turn, and
+        // that correction made the next -- a player standing still in a lift was moved every tick, without end. So after a
+        // correction the client waits a round trip, for the commands it predicted from the corrected place.
+        if (commandTick <= _correctedThrough)
+        {
+            return null;
+        }
+
+        Vector3d error = server - predicted;
+        if (_platforms.TryGetValue(commandTick, out PlatformFrame frame) && serverPlatform?.Invoke(frame.Index) is { } origin)
+        {
+            error = (server - origin) - (predicted - frame.Origin);
+        }
+
+        LastError = error.Length;
+        if (LastError <= Tolerance)
+        {
+            return null;
+        }
+
+        // Every later prediction started from the same wrong place: correct them too, so they are not counted again.
+        Corrections++;
+        _correctedThrough = _newest;
+        _correctedSinceRecord = true;
+        foreach (long tick in _predicted.Keys.Where(t => t > commandTick).ToArray())
+        {
+            _predicted[tick] += error;
+        }
+
+        return error;
+    }
+}

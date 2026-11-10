@@ -292,8 +292,8 @@ public sealed partial class Igi1MissionAudio(MissionWorld mission, IMissionSound
         host.SoundOutput?.PlayDefinition("weaponpickup_1", priority: 180);
     }
 
-    /// <summary>Awards and plays an authored item that has reached the player.</summary>
-    /// <returns><see langword="true"/> when it was ammunition, whose message the caller posts.</returns>
+    /// <summary>Plays an authored item reaching the player.</summary>
+    /// <param name="ammunition">Whether it was ammunition.</param>
     /// <remarks>
     /// <para>
     /// <c>GenericPickup::cleanup</c> calls <c>0x4E7200("pickup", 0, 0)</c>. The cue is shared by C4,
@@ -305,31 +305,8 @@ public sealed partial class Igi1MissionAudio(MissionWorld mission, IMissionSound
     /// plays <c>weaponpickup_1</c> (<c>0x45FF80</c>); the box plays no cue of its own.
     /// </para>
     /// </remarks>
-    public bool TakeGenericPickup(GenericPickup pickup)
-    {
-        ArgumentNullException.ThrowIfNull(pickup);
-
-        // Award ammunition at the same collection edge as the cue, so the object, inventory count and sound
-        // cannot drift apart. An explicit task payload wins over the catalog fallback.
-        bool ammunition = string.Equals(pickup.Task.Type.Name, "AmmoPickup", StringComparison.Ordinal);
-        if (mission.Player?.Weapons is { } weapons
-            && mission.AmmoTypes is { } ammoTypes
-            && AmmoPickupCatalog.TryResolve(pickup, ammoTypes, out AmmoType ammo))
-        {
-            weapons.Ammunition.Add(ammo.AmmoId, AmmoPickupCatalog.Amount(pickup, ammo.AmmoId));
-
-            // A world ammo box was the one way M203 rounds could enter the pool without ever
-            // associating the M203 type, so the rounds sat in the inventory while HasM203Round()
-            // still said no. Associate the type with the rounds themselves.
-            if (string.Equals(ammo.ScriptId, PlayerWeapons.M203AmmoScriptId, StringComparison.Ordinal))
-            {
-                weapons.SetM203Ammunition(ammo);
-            }
-        }
-
+    public void PlayGenericPickupSound(bool ammunition) =>
         host.SoundOutput?.PlayDefinition(ammunition ? "weaponpickup_1" : "pickup", priority: 180);
-        return ammunition;
-    }
 
     /// <summary>Advances the level's authored ambience and keeps its beds sounding.</summary>
     /// <param name="listenerInUnits">Where the ear is, in engine units.</param>
@@ -782,11 +759,30 @@ public sealed partial class Igi1MissionAudio(MissionWorld mission, IMissionSound
             return;
         }
 
-        foreach (Vector3d at in mission.Player.Grenades.Bounces)
+        PlayGrenadeBounces(mission.Player);
+    }
+
+    /// <summary>
+    /// Plays the bounces one player's grenades -- and, in the mission's own player's pool, the soldiers' -- made in its last
+    /// update.
+    /// </summary>
+    /// <param name="rig">The player.</param>
+    public void PlayGrenadeBounces(PlayerCamera rig)
+    {
+        ArgumentNullException.ThrowIfNull(rig);
+        foreach (Vector3d at in rig.Grenades.Bounces)
         {
-            host.SoundOutput?.PlayDefinition("grenade_bnc_1", at, priority: 120);
+            PlayGrenadeBounce(at);
         }
     }
+
+    /// <summary>Plays a proximity mine's arming cue, <c>proxy_arm</c>, where it lies: this game's, or one a co-op server's armed.</summary>
+    /// <param name="at">Where the mine is, in world units.</param>
+    public void PlayMineArm(Vector3d at) => host.SoundOutput?.PlayDefinition("proxy_arm", at, priority: 180);
+
+    /// <summary>Plays one grenade's knock where it struck: this game's, or one a co-op server heard.</summary>
+    /// <param name="at">Where, in world units.</param>
+    public void PlayGrenadeBounce(Vector3d at) => host.SoundOutput?.PlayDefinition("grenade_bnc_1", at, priority: 120);
 
     /// <summary>The sounds of the player's update: the binoculars' zoom and the medipack.</summary>
     public void SoundPlayerUpdate()

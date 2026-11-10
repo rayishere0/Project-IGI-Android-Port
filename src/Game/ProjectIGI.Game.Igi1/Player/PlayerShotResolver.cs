@@ -462,6 +462,27 @@ internal sealed class PlayerShotResolver
         }
     }
 
+    /// <summary>Advances what flies: the grenades, the rockets and the launcher's rounds.</summary>
+    internal void TickProjectiles()
+    {
+        // The grenades fly every tick regardless of the tracer option -- they are the retail
+        // behaviour, not a remaster one. Detonations are drained by the game, which owns the
+        // effects and the blast's victims.
+        _grenades.Tick(GrenadeWalls ?? _body.Walls, HumanProximityTargets, GrenadeTrace);
+        if (MissileTrace is { } missileTrace)
+        {
+            _missiles.TickWithMissileContext(
+                (LiveMissile _, Vector3d from, Vector3d to, out WorldTraceHit hit) =>
+                    missileTrace(new WorldTraceRequest(from, to, WorldTraceMask.World), out hit),
+                HumanProbes);
+        }
+        else
+        {
+            _missiles.Tick(MissileWalls ?? GrenadeWalls ?? _body.Walls, HumanProbes);
+        }
+        _m203.Tick(GrenadeWalls ?? _body.Walls, HumanProbes);
+    }
+
     /// <summary>Advances the ballistic rounds and lands whatever arrived this tick.</summary>
     /// <remarks>
     /// The impact side-effects are exactly <see cref="ResolveShot"/>'s, applied on the tick the round

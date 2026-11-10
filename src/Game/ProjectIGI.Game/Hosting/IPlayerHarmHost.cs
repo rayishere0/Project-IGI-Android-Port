@@ -27,4 +27,7 @@ public interface IPlayerHarmHost
     /// <param name="facing">The way it was thrown.</param>
     /// <param name="walls">What pulls the camera in.</param>
     void BeginDeathCamera(Vector3d position, float facing, WorldRayCast walls);
+
+    /// <summary>Hands the view back from the camera that pulls back over the fallen body.</summary>
+    void EndDeathCamera();
 }

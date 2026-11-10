@@ -24,6 +24,12 @@ public sealed class Igi1PlayerHarm(MissionWorld mission, Igi1HumanSounds sounds,
     private const int PlayerBluntFrontZone = 13;
     private const int PlayerBluntBackZone = 14;
 
+    /// <summary>Gets the mission's own player, as the handlers hurt it.</summary>
+    public IHarmedPlayer Own { get; } = new MissionPlayer(mission, new LocalPlayerSenses(mission, sounds, audio, host));
+
+    /// <summary>Gets every player in the level the handlers can hurt: the mission's own, then its co-op partners.</summary>
+    public IEnumerable<IHarmedPlayer> Players => [Own, .. mission.NetworkPlayers];
+
     /// <summary>
     /// The shake a bullet or a blow puts in the view — <c>0x412440</c> and <c>0x412CE0</c>: a draw clamped
     /// to <c>[0.25, 1]</c> scales the full 5 cm and 0.75 degrees, for fifteen ticks.
@@ -60,44 +66,127 @@ public sealed class Igi1PlayerHarm(MissionWorld mission, Igi1HumanSounds sounds,
     /// player grunts and then hears <c>punched_01</c> or <c>punched_02</c> by the parity of a random draw.
     /// Each corner of the red flash takes its own draw.
     /// </remarks>
-    public void StrikePlayer(Vector3d attacker, float damage)
+    /// <summary>A soldier's close-combat blow landing on the mission's own player.</summary>
+    /// <param name="attacker">The striking soldier's position.</param>
+    /// <param name="damage">The blow's damage.</param>
+    public void StrikePlayer(Vector3d attacker, float damage) => StrikePlayer(Own, attacker, damage);
+
+    /// <summary>A soldier's close-combat blow landing on a player — the blunt-hit handler <c>0x412CE0</c>.</summary>
+    /// <param name="target">The player struck.</param>
+    /// <param name="attacker">The striking soldier's position.</param>
+    /// <param name="damage">The blow's damage, the settings row's close-combat figure.</param>
+    /// <remarks>
+    /// The zone is 13 when the attacker is in front of the player and 14 when behind, the damage is that zone's multiplier
+    /// times the blow (scaled by difficulty, as every player hit is), and a surviving player grunts and then hears
+    /// <c>punched_01</c> or <c>punched_02</c> by the parity of a random draw. Each corner of the red flash takes its own draw.
+    /// </remarks>
+    public void StrikePlayer(IHarmedPlayer target, Vector3d attacker, float damage)
     {
-        if (mission.Player is null || mission.IsPlayerDead)
+        ArgumentNullException.ThrowIfNull(target);
+        if (target.Rig is not { } rig || target.IsDead)
         {
             return;
         }
 
         // The body's forward axis against the direction from the attacker: negative when facing it.
-        Vector3d towardsPlayer = new(
-            mission.Player.Body.Position.X - attacker.X,
-            mission.Player.Body.Position.Y - attacker.Y,
-            mission.Player.Body.Position.Z - attacker.Z);
-        float yaw = mission.Player.Body.Yaw;
+        Vector3d feet = rig.Body.Position;
+        Vector3d towardsPlayer = new(feet.X - attacker.X, feet.Y - attacker.Y, feet.Z - attacker.Z);
+        float yaw = rig.Body.Yaw;
         double facing = (towardsPlayer.X * -Math.Sin(yaw)) + (towardsPlayer.Y * Math.Cos(yaw));
         int zone = facing < 0.0 ? PlayerBluntFrontZone : PlayerBluntBackZone;
 
-        mission.PlayerHealth.Apply(zone, damage);
-        if (!mission.PlayerHealth.IsDead)
+        target.Health.Apply(zone, damage);
+        bool alive = !target.Health.IsDead;
+        if (alive)
         {
-            PlayPlayerGrunt();
-            host.PlayDefinition(
-                (mission.SoundRandom.NextRaw() & 1) != 0 ? "punched_01" : "punched_02",
-                positionInUnits: null,
-                priority: 250);
+            target.Senses.Grunt();
+            target.Senses.Blow();
         }
 
-        InstallPlayerHitShake();
-        mission.DamageFlash.HitEveryCorner(
-            mission.SoundRandom.NextSingle(),
-            mission.SoundRandom.NextSingle(),
-            mission.SoundRandom.NextSingle(),
-            mission.SoundRandom.NextSingle());
+        target.Senses.HitShake();
+        target.Senses.FlashCorners();
 
-        if (mission.PlayerHealth.IsDead)
+        if (!alive)
         {
             // A close-combat blow is melee, not a round.
-            BeginPlayerDeath(attacker, zone, bone: -1, WeaponCategory.Knife);
+            BeginPlayerDeath(target, attacker, zone, bone: -1, WeaponCategory.Knife);
         }
+    }
+
+    /// <summary>Brings the mission's own player back, as a co-op teammate revives it.</summary>
+    /// <param name="at">Where it stands up, or <see langword="null"/> where it fell.</param>
+    /// <param name="facing">Its heading there.</param>
+    public void RevivePlayer(Vector3d? at, float facing) => RevivePlayer(Own, at, facing);
+
+    /// <summary>Brings a dead player back, as a co-op teammate revives it: whole again, armed, and seen from its own eyes.</summary>
+    /// <param name="target">The player.</param>
+    /// <param name="at">Where it stands up, or <see langword="null"/> where it fell.</param>
+    /// <param name="facing">Its heading there.</param>
+    /// <remarks>Not the original's: a single player's death ends the mission, a co-op player's waits for a teammate.</remarks>
+    public static void RevivePlayer(IHarmedPlayer target, Vector3d? at, float facing)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        if (target.Rig is not { } rig || (!target.IsDead && !target.Health.IsDead))
+        {
+            return;
+        }
+
+        target.IsDead = false;
+        target.Health.Reset();
+        if (at is { } feet)
+        {
+            rig.Body.Position = feet;
+            rig.Body.Yaw = facing;
+        }
+
+        rig.ReviveWeapons();
+        target.Senses.Revived();
+    }
+
+    /// <summary>Puts a player through the whole death sequence, whatever killed it.</summary>
+    /// <param name="target">The player.</param>
+    /// <param name="from">Where the killing thing came from — the shooter's muzzle, or the blast.</param>
+    /// <param name="zone">The zone the killing damage landed on.</param>
+    /// <param name="bone">The bone the round went through, or <c>-1</c> when nothing so precise.</param>
+    /// <param name="category">The killing weapon's category, which picks the fall's family.</param>
+    /// <remarks>
+    /// Extracted from the guard-round handler so that EVERYTHING lethal runs it — a grenade that zeroes the health must kill
+    /// exactly the way a bullet does, or the player stands at zero health forever, which is precisely the bug this fixed.
+    /// </remarks>
+    public void BeginPlayerDeath(IHarmedPlayer target, Vector3d from, int zone, int bone, WeaponCategory category)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        if (target.Rig is not { } rig || target.IsDead)
+        {
+            return;
+        }
+
+        // Locomotion state 47 (0x40E560): the clip comes from the LAST ZONE STRUCK's row in the player's own hit-zone
+        // table, one of its two reactions by rand(2). The player stops taking input from here on -- it is a state, not a
+        // message.
+        target.IsDead = true;
+        rig.ResetOptics();
+        rig.StopWeaponsForDeath();
+        int fall = HumanPlayerDeath.Choose(zone, HumanHitZoneTable.Player, mission.ShotRandom.Next(2));
+
+        // Which way the body is thrown: the facing whose backward axis points away from the killer, exactly as the soldier
+        // death faces the incoming round (SoldierDeath.TurnToTheShot).
+        Vector3d feet = rig.Body.Position;
+        double throwX = feet.X - from.X;
+        double throwY = feet.Y - from.Y;
+        double throwLength = Math.Sqrt((throwX * throwX) + (throwY * throwY));
+        float throwFacing = throwLength > 1e-6
+            ? (float)Math.Atan2(throwX / throwLength, -(throwY / throwLength))
+            : rig.Body.Yaw;
+
+        target.Senses.Died(new PlayerFall(
+            fall,
+            feet,
+            throwFacing,
+            bone,
+            new Vector3d(feet.X - from.X, feet.Y - from.Y, feet.Z - from.Z),
+            category,
+            new Vector3d(rig.Body.Velocity.X, rig.Body.Velocity.Y, rig.Body.Velocity.Z)));
     }
 
     /// <summary>Puts the player through the whole death sequence, whatever killed them.</summary>

@@ -689,6 +689,7 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
         // on screen LAST frame. Doing it per draw would make a body cast three shadows' worth of history
         // and report itself as never having moved.
         _playerBody.ResolveFrameState();
+        ResolvePartnerFrameStates();
     }
 
     /// <inheritdoc/>
@@ -699,12 +700,25 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
     }
 
     /// <inheritdoc/>
-    public bool LoadPlayerBody(LoadedMission mission, string model, BoneAnimationSet animations, Vector3d position, float gamma) =>
-        _playerBody.Load(mission, model, animations, position, gamma);
+    public bool LoadPlayerBody(LoadedMission mission, string model, BoneAnimationSet animations, Vector3d position, float gamma, string? look = null)
+    {
+        RememberPartnerLoad(mission, model, animations);
+        if (look is null)
+        {
+            return _playerBody.Load(mission, model, animations, position, gamma);
+        }
+
+        // The look a co-op player is seen in, the same way its partners' are found: this level's, or another's.
+        (LoadedMission lookMission, string resolved) = ResolveLook(mission, look, model);
+        return _playerBody.Load(lookMission, resolved, AnimationsFor(resolved, lookMission, animations), position, gamma);
+    }
 
     /// <inheritdoc/>
     public void KillPlayerBody(int deathAnimation, Vector3d feet, float gamma, int bone = -1, Vector3d travel = default, WeaponCategory category = WeaponCategory.Gun, Vector3d velocity = default) =>
         _playerBody.Kill(deathAnimation, feet, gamma, bone, travel, category, velocity);
+
+    /// <inheritdoc/>
+    public void RevivePlayerBody() => _playerBody.Revive();
 
     /// <inheritdoc/>
     public void TickPlayerBody() =>
@@ -739,14 +753,18 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
         _playerBody.PlaceClimbing(taskPosition, facing);
 
     /// <inheritdoc/>
-    public void DrawPlayerBody(in Camera3D camera, in Matrix4f projection) =>
+    public void DrawPlayerBody(in Camera3D camera, in Matrix4f projection)
+    {
         _playerBody.Draw(in camera, in projection);
+        DrawPartners(in camera, in projection);
+    }
 
     /// <inheritdoc/>
     public void DrawMuzzleFlashes(in Camera3D camera, in Matrix4f projection)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         _drawer.DrawMuzzleFlashes(camera, projection);
+        DrawPartnerMuzzleFlashes(camera, projection);
     }
 
     /// <inheritdoc/>
@@ -876,6 +894,7 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
         _sim.RagdollWorld = null;
         _sim.ReleaseBepuWorld();
         _playerBody.Release();
+        ReleasePartners();
         Count = 0;
     }
 

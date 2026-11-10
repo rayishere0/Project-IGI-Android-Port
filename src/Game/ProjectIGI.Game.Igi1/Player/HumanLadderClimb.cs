@@ -226,6 +226,10 @@ public sealed class HumanLadderClimb
         }
     }
 
+    /// <summary>Moves the climb's place by a correction from outside the climb.</summary>
+    /// <param name="delta">The correction, in world units.</param>
+    public void Shift(Vector3d delta) => _position += delta;
+
     /// <summary>Applies the one frame animation 168 runs on entering state 37, before its event pauses it.</summary>
     /// <param name="delta">That frame's already-rotated root motion, in world units.</param>
     /// <remarks>
@@ -333,4 +337,7 @@ public sealed class HumanLadderClimb
         Phase = LadderTraversalPhase.Inactive;
         return true;
     }
+
+    /// <summary>Lets go of the ladder: the climb is over, wherever the climber stands.</summary>
+    public void Release() => Phase = LadderTraversalPhase.Inactive;
 }

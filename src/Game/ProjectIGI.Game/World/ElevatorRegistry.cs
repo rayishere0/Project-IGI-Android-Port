@@ -149,8 +149,27 @@ public sealed class ElevatorRegistry
         TickCommand(command);
     }
 
+    /// <summary>
+    /// Gets or sets whether the lifts are another game's: a co-op client's, whose cars only coast on as the server's
+    /// last told them, the level's floor expressions and switches left to the server.
+    /// </summary>
+    /// <remarks>
+    /// Run on the client's own script, a car started when its late copy of the doors and switches said so -- early, late,
+    /// or not at all while a door the server had shut still stood open here -- and was put back where the server's stood
+    /// every few snapshots. Coasting, it stands each tick where the server's will be (<see cref="ElevatorState.Project"/>).
+    /// </remarks>
+    public bool Mirrored { get; set; }
+
     private void TickCommand(ElevatorCommand command)
     {
+        if (Mirrored)
+        {
+            bool wasCoasting = command.Elevator.State.HasMovementRequest;
+            command.Elevator.State.Coast();
+            Sound(command.Elevator, wasCoasting);
+            return;
+        }
+
         bool wasMoving = command.Elevator.State.HasMovementRequest;
         // The update (0x43D280) writes isWantedFloor[0..9] then, if there is no up/down pulse,
         // sets nWantedFloor to the last true index. A held expression is a destination, not a
@@ -173,26 +192,60 @@ public sealed class ElevatorRegistry
             wantedFloor,
             enabled);
         command.ClearExteriorRequestAfterStart();
+        Sound(command.Elevator, wasMoving);
+    }
 
-        if (_sounds is not null)
+    // The start, travel and stop sounds of a lift's tick.
+    private void Sound(PlacedElevator elevator, bool wasMoving)
+    {
+        if (_sounds is null)
         {
-            if (command.Elevator.State.IsStart)
-            {
-                _sounds(command.Elevator, ElevatorSoundEvent.Started);
-            }
-
-            if (!wasMoving && command.Elevator.State.HasMovementRequest)
-            {
-                command.Elevator.IsSounding = true;
-                _sounds(command.Elevator, ElevatorSoundEvent.Traveling);
-            }
-
-            if (command.Elevator.State.IsStop)
-            {
-                command.Elevator.IsSounding = false;
-                _sounds(command.Elevator, ElevatorSoundEvent.Stopped);
-            }
+            return;
         }
+
+        if (elevator.State.IsStart)
+        {
+            _sounds(elevator, ElevatorSoundEvent.Started);
+        }
+
+        if (!wasMoving && elevator.State.HasMovementRequest)
+        {
+            elevator.IsSounding = true;
+            _sounds(elevator, ElevatorSoundEvent.Traveling);
+        }
+
+        if (elevator.State.IsStop)
+        {
+            elevator.IsSounding = false;
+            _sounds(elevator, ElevatorSoundEvent.Stopped);
+        }
+    }
+
+    /// <summary>Puts a lift where another game's copy has it: a co-op client taking the server's.</summary>
+    /// <param name="elevator">The lift.</param>
+    /// <param name="motion">Where the other copy's car is and where it is going.</param>
+    /// <param name="solids">The collision its car and riders are moved in, or <see langword="null"/>.</param>
+    /// <remarks>
+    /// Its collision and its riders' move with it at once, and its sound starts or stops as the move does. Whoever stands in
+    /// it is not carried by the jump: the server carried them already, and says where.
+    /// </remarks>
+    public void Restore(PlacedElevator elevator, ElevatorMotion motion, ObjectCollisionIndex? solids)
+    {
+        ArgumentNullException.ThrowIfNull(elevator);
+        bool wasMoving = elevator.State.HasMovementRequest;
+        elevator.State.Restore(motion);
+        if (solids is not null)
+        {
+            ApplyCollision(solids, elevator);
+        }
+
+        if (_sounds is null || wasMoving == elevator.State.HasMovementRequest)
+        {
+            return;
+        }
+
+        elevator.IsSounding = !wasMoving;
+        _sounds(elevator, wasMoving ? ElevatorSoundEvent.Stopped : ElevatorSoundEvent.Traveling);
     }
 
     /// <summary>Converts an elevator-owned switch pulse into its authored floor request.</summary>
@@ -204,6 +257,12 @@ public sealed class ElevatorRegistry
     public bool RequestFromSwitch(DeclaredTask switchTask)
     {
         ArgumentNullException.ThrowIfNull(switchTask);
+
+        // A co-op client's press reaches the server's lift by the command it went out with; its car comes with the snapshots.
+        if (Mirrored)
+        {
+            return false;
+        }
 
         foreach (ElevatorCommand command in _commands)
         {
@@ -542,7 +601,7 @@ public sealed class ElevatorRegistry
                 variables.BindReal(declared, "vLastFloor", () => state.LastFloorPosition, _ => { });
                 variables.BindInt(declared, "nWantedFloor", () => state.WantedFloorIndex, value =>
                 {
-                    if ((uint)value < (uint)state.FloorCount)
+                    if (!registry.Mirrored && (uint)value < (uint)state.FloorCount)
                     {
                         state.RequestFloor(value);
                     }
@@ -629,6 +688,17 @@ public sealed class ElevatorRegistry
     }
 
     private sealed record ExteriorSwitchCall(DeclaredTask Switch, int FloorIndex);
+
+    /// <summary>Gets whether someone stands in a lift: on its floor, or in its cab.</summary>
+    /// <param name="elevator">The lift.</param>
+    /// <param name="passenger">Where they stand, in world units.</param>
+    /// <param name="solids">The live collision, whose ground-hit owner says what they stand on.</param>
+    /// <returns>Whether they ride it.</returns>
+    public static bool IsPassenger(PlacedElevator elevator, Vector3d passenger, ObjectCollisionIndex? solids)
+    {
+        ArgumentNullException.ThrowIfNull(elevator);
+        return IsPassengerOn(elevator, passenger, solids);
+    }
 
     private static bool IsPassengerOn(
         PlacedElevator elevator,

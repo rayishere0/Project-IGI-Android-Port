@@ -275,6 +275,16 @@ internal sealed class PlayerWeaponStateMachine
         Request(WeaponAction.None);
     }
 
+    /// <summary>Takes the machine out of death, ready with what it holds, as a co-op player is brought back.</summary>
+    internal void Revive()
+    {
+        PreviousState = State;
+        State = HumanWeaponState.Ready;
+        Flags &= ~(HumanWeaponFlagWord.Dead | HumanWeaponFlagWord.Dying);
+        Request(WeaponAction.None);
+        Enter(State);
+    }
+
     /// <summary>Whether the grenade in hand has nothing left to throw — clip and reserve both empty.</summary>
     private bool OutOfThrowables() =>
         InHand is not { } held || (held.Gun.RoundsInClip <= 0 && held.Gun.Reserve(Ammunition) <= 0);

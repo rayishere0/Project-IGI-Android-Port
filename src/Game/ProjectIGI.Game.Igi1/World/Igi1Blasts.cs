@@ -8,6 +8,7 @@ using ProjectIGI.Game.Ai;
 using ProjectIGI.Game.Igi1.Ai;
 using ProjectIGI.Game.Igi1.Player;
 using ProjectIGI.Game.Igi1.Weapons;
+using ProjectIGI.Game.Multiplayer;
 using ProjectIGI.Game.Player;
 using ProjectIGI.Game.Weapons;
 using ProjectIGI.Game.World;
@@ -24,7 +25,7 @@ namespace ProjectIGI.Game.Igi1.World;
 /// <param name="audio">The sirens and cameras a blast silences.</param>
 /// <param name="impacts">The scorch a rocket or a launcher round burns.</param>
 /// <param name="host">What shows and plays them.</param>
-public sealed class Igi1Blasts(
+public sealed partial class Igi1Blasts(
     MissionWorld mission, Igi1PlayerHarm harm, Igi1MissionAudio audio, Igi1ImpactEffects impacts, IBlastEffectsHost host)
 {
     // The FireBalls and fragments a grenade (0x476AC0) and an M203 round (0x476340) hand Explosion0.
@@ -63,46 +64,46 @@ public sealed class Igi1Blasts(
     /// </remarks>
     public void ResolveGrenadeDetonations()
     {
-        if (mission.Player is null)
+        if (mission.Player is { } player)
         {
-            return;
+            ResolveGrenadeDetonations(player);
+        }
+    }
+
+    /// <summary>
+    /// Applies and shows what one player's last update set off: its grenades and mines, its rockets and its launcher
+    /// rounds -- a co-op partner's as the mission's own player's.
+    /// </summary>
+    /// <param name="rig">The player.</param>
+    public void ResolveDetonations(PlayerCamera rig)
+    {
+        ArgumentNullException.ThrowIfNull(rig);
+        ResolveGrenadeDetonations(rig);
+        foreach (MissileDetonation blast in rig.Missiles.Detonations)
+        {
+            ResolveMissileDetonation(blast);
         }
 
-        foreach (GrenadeDetonation blast in mission.Player.Grenades.Detonations)
+        ResolveM203Detonations(rig);
+    }
+
+    private void ResolveGrenadeDetonations(PlayerCamera rig)
+    {
+        foreach (GrenadeDetonation blast in rig.Grenades.Detonations)
         {
             if (blast.Type == GrenadeExplosionType.Flashbang)
             {
-                // 0x00476AC0's type-1 branch spawns only the flash (0x0047E9A0) and plays explo_flash
-                // (0x0047E820) -- no fireball and no explo_02_m. The world residue is three puffs of smoke1.spr
-                // (0x47E820), while the player handler at 0x00413090 writes the distance-based whiteout
-                // fields from the player's eye. That handler does not perform a wall trace.
-                host.PlayDefinition("explo_flash", blast.Position, 90);
-                impacts.Explosions.Flash(blast.Position);
-
-                // 0x47E9A0 burns the same burn1.tex, 2048 wide, on what the grenade's line found 2048 below.
-                impacts.ScorchBelow(blast.Position, GrenadeScorchDropInUnits, FlashScorchHalfWidthInUnits);
-                float eyeDistance = (float)(mission.Player.EyeUnits - blast.Position).Length;
-                (float visible, float close) = Flashbang.Effect(eyeDistance, blast.RadiusUnits);
-                // 0x00413090 writes the player fields only when one of its two distance tests passes.
-                // The world smoke belongs to 0x47E9A0 and is deliberately independent, so a distant
-                // flash event never turns into a zero-strength (but still scheduled) screen flash.
-                if (visible > 0f || close > 0f)
-                {
-                    mission.FlashbangFlash.Apply(visible, close);
-                }
+                ShowFlashbang(blast.Position, blast.RadiusUnits);
+                Record(ReplicatedBlastKind.Flashbang, blast.Position, default, blast.RadiusUnits, 0f);
                 continue;
             }
 
-            // The frag (type 0, 0x476AC0): the scorch on whatever lies 2048 below, then an Explosion0 of one FireBall
-            // and three fragments at the configured radius, which goes off with explo_02_m and its blast at once.
             // AIEVENT_EXPLOSION was already posted by NotifyGrenadeAiEvents before the soldier tick; posting it
             // again would have a guard react twice to one retail blast.
             GrenadeDetonation frag = blast;
-            impacts.ScorchBelow(blast.Position, GrenadeScorchDropInUnits, Igi1ImpactEffects.MissileScorchHalfWidthInUnits);
-            impacts.Explosions.Spawn(new Igi1ExplosionRequest(
-                blast.Position, 1, 1, blast.DamageFactor, blast.RadiusUnits, blast.FalloffUnits, GrenadeFragments, GrenadeFireballs,
-                "explo_02_m",
-                () => Explode(frag.Position, frag.RadiusUnits, frag.FalloffUnits, frag.DamageFactor, WeaponCategory.Grenade)));
+            ShowFrag(blast.Position, blast.RadiusUnits, blast.FalloffUnits, blast.DamageFactor,
+                () => Explode(frag.Position, frag.RadiusUnits, frag.FalloffUnits, frag.DamageFactor, WeaponCategory.Grenade));
+            Record(ReplicatedBlastKind.Grenade, blast.Position, default, blast.RadiusUnits, blast.FalloffUnits);
         }
     }
 
@@ -118,36 +119,32 @@ public sealed class Igi1Blasts(
         {
             ResolveMissileDetonation(blast);
         }
+
+        // A vehicle's rockets fly on every game's own copy of the level, so they are nobody's to send.
         foreach (MissileDetonation blast in mission.VehicleMissiles.Detonations)
         {
-            ResolveMissileDetonation(blast);
+            ResolveMissileDetonation(blast, record: false);
         }
     }
 
-    private void ResolveMissileDetonation(MissileDetonation blast)
+    private void ResolveMissileDetonation(MissileDetonation blast, bool record = true)
     {
-        if (mission.Player is null)
-        {
-            return;
-        }
-
         // The missile's own impact (0x428390, at 0x42854D) sets off an Explosion0 with explo_03_l -- the launcher's
         // rocket and a vehicle's alike, since both are the same Missile task.
         // The scorch on whatever lies 12288 below, then five FireBalls and ten fragments at 10240. The blast carries
         // the firing weapon's record (0x428390 hands Explosion0 the missile's +0x894), which is what lets a LAW
         // rocket -- and nothing else -- blow a car up.
-        impacts.ScorchBelow(blast.Position, MissileScorchDropInUnits, Igi1ImpactEffects.MissileScorchHalfWidthInUnits);
-        impacts.Explosions.Spawn(new Igi1ExplosionRequest(
-            blast.Position, 1, 1, blast.DamageFactor, MissileExplosion.RadiusUnits, MissileExplosion.FalloffUnits,
-            MissileExplosion.Fragments, MissileExplosion.Fireballs,
-            "explo_03_l",
-            () => Explode(
-                blast.Position,
-                blast.RadiusUnits,
-                blast.FalloffUnits,
-                blast.DamageFactor,
-                WeaponCategory.Grenade,
-                sourceWeaponId: blast.SourceWeaponId)));
+        ShowMissile(blast.Position, blast.DamageFactor, () => Explode(
+            blast.Position,
+            blast.RadiusUnits,
+            blast.FalloffUnits,
+            blast.DamageFactor,
+            WeaponCategory.Grenade,
+            sourceWeaponId: blast.SourceWeaponId));
+        if (record)
+        {
+            Record(ReplicatedBlastKind.Missile, blast.Position, default, MissileExplosion.RadiusUnits, MissileExplosion.FalloffUnits);
+        }
     }
 
     /// <summary>
@@ -244,6 +241,15 @@ public sealed class Igi1Blasts(
             members.Add((long.MaxValue, members.Count, () => SendPlayerTheBlast(blast)));
         }
 
+        // A co-op session's other players are humans the blast reaches as it reaches the player, through the player's
+        // handler; they hold no task in the level, so they come last, after it.
+        foreach (Multiplayer.Igi1NetworkPlayer partner in mission.NetworkPlayers)
+        {
+            Multiplayer.Igi1NetworkPlayer member = partner;
+            members.Add((long.MaxValue, members.Count, () => BlastPlayer(
+                member, blast.Position, blast.RadiusUnits, blast.FalloffUnits, blast.DamageFactor, blast.KilledBy)));
+        }
+
         if (mission.Destructibles is { } registry)
         {
             foreach (DestructibleObject item in registry.Objects)
@@ -325,45 +331,52 @@ public sealed class Igi1Blasts(
         }
         else
         {
-            BlastPlayer(blast.Position, blast.RadiusUnits, blast.FalloffUnits, blast.DamageFactor, blast.KilledBy);
+            BlastPlayer(harm.Own, blast.Position, blast.RadiusUnits, blast.FalloffUnits, blast.DamageFactor, blast.KilledBy);
         }
     }
 
-    /// <summary>A blast's share of the player (<c>0x412990</c>): the shove and the shake, then the dose, the flash and the death.</summary>
+    /// <summary>A blast's share of a player (<c>0x412990</c>): the shove and the shake, then the dose, the flash and the death.</summary>
+    /// <param name="target">The player: the mission's own, or a co-op partner.</param>
     /// <param name="position">The blast's centre, in units.</param>
     /// <param name="radiusUnits">The full-damage radius, in units.</param>
     /// <param name="falloffUnits">The falloff beyond it, in units.</param>
     /// <param name="damageFactor">The blast's damage.</param>
     /// <param name="killedBy">The weapon category a death it causes is reported under.</param>
-    public void BlastPlayer(Vector3d position, float radiusUnits, float falloffUnits, float damageFactor, WeaponCategory killedBy)
+    public void BlastPlayer(IHarmedPlayer target, Vector3d position, float radiusUnits, float falloffUnits, float damageFactor, WeaponCategory killedBy)
     {
-        if (mission.Player is null || mission.PlayerHealth.IsDead)
+        ArgumentNullException.ThrowIfNull(target);
+        if (target.Rig is not { } rig || target.Health.IsDead)
         {
             return;
         }
 
-        ReachPlayerWithBlast(position, radiusUnits, falloffUnits);
+        ReachPlayerWithBlast(target, rig, position, radiusUnits, falloffUnits);
+        // 0x412990 weighs the blast at the origin (Human+32) with a third of the body model's bound (Human+0xA0).
         float dose = ExplosionDamage.Dose(
-            (float)(mission.Player.Body.Position - position).Length,
-            ExplosionDamage.EffectiveBodyRadius((float)HumanSeparation.RadiusInUnits),
+            (float)(rig.Body.Origin - position).Length,
+            ExplosionDamage.EffectiveBodyRadius(mission.Soldiers?.PlayerHumanRadius ?? (float)HumanSeparation.RadiusInUnits),
             radiusUnits,
             falloffUnits,
             damageFactor);
         if (dose > 0f)
         {
-            mission.PlayerHealth.Apply(ExplosionDamage.Zone, dose);
-            FlashPlayerForBlast();
+            target.Health.Apply(ExplosionDamage.Zone, dose);
+
+            // 0x412990's flash: four independent corner draws.
+            target.Senses.FlashCorners();
 
             // A blast that zeroes the health kills exactly the way a bullet does -- without this the player stood at
             // zero for ever.
-            if (mission.PlayerHealth.IsDead)
+            if (target.Health.IsDead)
             {
-                harm.BeginPlayerDeath(position, ExplosionDamage.Zone, -1, killedBy);
+                harm.BeginPlayerDeath(target, position, ExplosionDamage.Zone, -1, killedBy);
             }
         }
     }
 
     /// <summary>What any blast does to the player before its damage is counted — the head of <c>0x412990</c>.</summary>
+    /// <param name="target">The player.</param>
+    /// <param name="rig">Its rig.</param>
     /// <param name="blastPosition">The blast's centre, in units.</param>
     /// <param name="radiusUnits">The blast radius, in units.</param>
     /// <param name="falloffUnits">The blast's falloff, in units.</param>
@@ -380,18 +393,19 @@ public sealed class Igi1Blasts(
     /// sound set defines it, so the original is silent there too.
     /// </para>
     /// </remarks>
-    private void ReachPlayerWithBlast(Vector3d blastPosition, float radiusUnits, float falloffUnits)
+    private static void ReachPlayerWithBlast(IHarmedPlayer target, PlayerCamera rig, Vector3d blastPosition, float radiusUnits, float falloffUnits)
     {
-        if (mission.Player is null || mission.PlayerHealth.IsDead || radiusUnits <= 0f)
+        if (target.Health.IsDead || radiusUnits <= 0f)
         {
             return;
         }
 
-        Vector3d away = mission.Player.EyeUnits - blastPosition;
+        Vector3d away = rig.EyeUnits - blastPosition;
         double distance = away.Length;
         if (distance < (radiusUnits + falloffUnits) * 1.5 && distance > 0.0)
         {
-            mission.Player.Body.AddHitShove(
+            target.Shove(
+                rig,
                 (float)(away.X / distance * BlastShoveUnitsPerTick),
                 (float)(away.Y / distance * BlastShoveUnitsPerTick));
         }
@@ -400,40 +414,33 @@ public sealed class Igi1Blasts(
         double share = beyond < 0.0 ? 1.0 : 1.0 - (beyond / (radiusUnits * 6.0));
         if (share > 0.0)
         {
-            mission.Player.InstallViewShake(
+            target.Senses.Shake(
                 (float)(HumanViewShake.HitPositionUnits * share),
                 (float)(HumanViewShake.HitAngleRadians * share),
                 ExplosionShakeTicks);
         }
     }
 
-    /// <summary>The flash a damaging blast raises — <c>0x412990</c>'s four independent corner draws.</summary>
-    private void FlashPlayerForBlast() =>
-        mission.DamageFlash.HitEveryCorner(
-            mission.SoundRandom.NextSingle(),
-            mission.SoundRandom.NextSingle(),
-            mission.SoundRandom.NextSingle(),
-            mission.SoundRandom.NextSingle());
-
     /// <summary>Applies M203 impacts emitted by the native-style projectile task.</summary>
     public void ResolveM203Detonations()
     {
-        if (mission.Player is null)
+        if (mission.Player is { } player)
         {
-            return;
+            ResolveM203Detonations(player);
         }
+    }
 
-        foreach (M203Detonation blast in mission.Player.M203.Detonations)
+    private void ResolveM203Detonations(PlayerCamera rig)
+    {
+        foreach (M203Detonation blast in rig.M203.Detonations)
         {
             // GunM203's native projectile callback (0x476340) sends the proxy explosion tag, not the
             // hand-grenade fireball. The distinct sound/effect is audible proof that the M203 task
             // reached its own detonation path.
             M203Detonation round = blast;
-            impacts.Scorch(blast.Position, blast.Normal, Igi1ImpactEffects.M203ScorchHalfWidthInUnits);
-            impacts.Explosions.Spawn(new Igi1ExplosionRequest(
-                blast.Position, 1, 1, blast.DamageFactor, blast.RadiusUnits, blast.FalloffUnits, GrenadeFragments, GrenadeFireballs,
-                "explo_proxy",
-                () => Explode(round.Position, round.RadiusUnits, round.FalloffUnits, round.DamageFactor, WeaponCategory.Gun)));
+            ShowM203(blast.Position, blast.Normal, blast.RadiusUnits, blast.FalloffUnits, blast.DamageFactor,
+                () => Explode(round.Position, round.RadiusUnits, round.FalloffUnits, round.DamageFactor, WeaponCategory.Gun));
+            Record(ReplicatedBlastKind.M203, blast.Position, blast.Normal, blast.RadiusUnits, blast.FalloffUnits);
         }
     }
 
@@ -506,6 +513,20 @@ public sealed class Igi1Blasts(
             () => Explode(at, range, 0f, damage, WeaponCategory.Grenade),
             SoundPriority: 60));
         host.Logger.Information("Ai", $"{destroyed.Task.Name} was shot out.");
+    }
+
+    // Every player in the level: the mission's own, then a co-op session's others.
+    private IEnumerable<PlayerCamera> Rigs()
+    {
+        if (mission.Player is { } own)
+        {
+            yield return own;
+        }
+
+        foreach (Multiplayer.Igi1NetworkPlayer partner in mission.NetworkPlayers)
+        {
+            yield return partner.Player;
+        }
     }
 
     /// <summary>Applies the retail presentation and blast side effects of one destroyed world object.</summary>
@@ -774,11 +795,17 @@ public sealed class Igi1Blasts(
     /// <summary>Hands each of the player's rounds this tick to the exact object it struck.</summary>
     public void ApplyPlayerRounds()
     {
-        if (mission.Player is not { } player)
+        if (mission.Player is { } player)
         {
-            return;
+            ApplyRounds(player);
         }
+    }
 
+    /// <summary>Hands each of one player's rounds from its last update to the exact object it struck.</summary>
+    /// <param name="player">The player: the mission's own, or a co-op partner.</param>
+    public void ApplyRounds(PlayerCamera player)
+    {
+        ArgumentNullException.ThrowIfNull(player);
         foreach (GunImpact playerImpact in player.Impacts)
         {
             if (playerImpact.HitSomething)

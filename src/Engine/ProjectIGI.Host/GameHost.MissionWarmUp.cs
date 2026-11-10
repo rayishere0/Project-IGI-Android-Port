@@ -160,7 +160,11 @@ public sealed partial class GameHost
     private bool PresentationHoldsLevel =>
         IsWarmingUp
         || _loadSequence.Phase is MissionLoadPhase.Depart or MissionLoadPhase.Hold
-        || _entry.IsCameraActive;
+        || _entry.IsCameraActive
+        || CoopHoldsLevel;
+
+    /// <summary>Gets whether a co-op session holds the level until the others are there.</summary>
+    private bool CoopHoldsLevel => TickObserver is Multiplayer.ISessionHold { HoldsLevel: true };
 
     /// <summary>Whether a loading screen may be drawn at all this run.</summary>
     /// <remarks>

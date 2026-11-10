@@ -137,6 +137,12 @@ public interface IMissionViewpoint
     /// <param name="centre">The body's centre.</param>
     void FollowDeathView(Vector3d centre);
 
+    /// <summary>Follows a teammate still standing, for a downed co-op player to watch through.</summary>
+    /// <param name="eye">The teammate's eye, in world units.</param>
+    /// <param name="yaw">The teammate's heading.</param>
+    /// <param name="pitch">The teammate's pitch, up positive.</param>
+    void FollowTeammateView(Vector3d eye, float yaw, float pitch);
+
     /// <summary>Puts the death camera away, as a new mission starts.</summary>
     void ResetDeathView();
 

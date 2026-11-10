@@ -118,6 +118,34 @@ internal sealed class MissileRenderer : IMissilePresenter
         }
     }
 
+    /// <summary>Draws what another game's weapons have in the world, each by its own model.</summary>
+    public void Draw(IReadOnlyList<ShownProjectile> shown, in Camera3D camera, in Matrix4f projection, float alpha)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(shown);
+        if (_mission is null)
+        {
+            return;
+        }
+
+        foreach (ShownProjectile projectile in shown)
+        {
+            if (GetModel(projectile.Model) is not { } model)
+            {
+                continue;
+            }
+
+            model.Sun = Sun;
+            model.Draw(
+                new BoneAttachment(Vector3d.Lerp(projectile.PreviousPosition, projectile.Position, alpha), projectile.Orientation),
+                camera,
+                projection,
+                false,
+                0,
+                WeaponDrawParts.BodyOnly);
+        }
+    }
+
     /// <inheritdoc/>
     public FixedFunctionSun? Sun { get; set; }
 

@@ -99,6 +99,22 @@ public interface ISoldierPresenter : ISoldierBodies, IShootableBodies
         WeaponCategory category = WeaponCategory.Gun,
         Vector3d velocity = default);
 
+    /// <summary>Stands the fallen player body up again, as a co-op player is brought back.</summary>
+    void RevivePlayerBody();
+
+    /// <summary>Follows a co-op session's partners' bodies for a tick: each made the first time, posed and stepped; one gone, let go.</summary>
+    /// <param name="partners">The partners to show this tick.</param>
+    /// <remarks>Each body is built as the player's was; a presenter with none to build shows none.</remarks>
+    void FollowPartnerBodies(IReadOnlyList<PartnerBody> partners)
+    {
+    }
+
+    /// <summary>Keeps the partners' bodies out of sight, or shows them again: followed all the while, drawn only when shown.</summary>
+    /// <param name="hidden">Whether they are hidden, as a scene playing hides them.</param>
+    void HidePartnerBodies(bool hidden)
+    {
+    }
+
     /// <summary>Advances the player body's death clip by one tick and re-skins it, once it is active.</summary>
     /// <remarks>
     /// The same per-tick re-skin a corpse gets: the clip advances, holding its last frame when it runs out,
