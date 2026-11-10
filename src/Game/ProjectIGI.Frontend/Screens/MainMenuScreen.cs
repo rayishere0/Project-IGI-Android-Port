@@ -74,6 +74,13 @@ public sealed class MainMenuScreen : ShellScreen
         configBtn.Activated += () => Context.Stack.Reset(new SettingsScreen(Context));
         menuStack.AddChild(configBtn);
 
+        // Upstream's shell labels its co-op tab "Co-op", second after the campaign; the port's
+        // landing page has no header tabs, so the same label sits here, between Configuration and
+        // Quit. It opens the Co-op screen: loopback start/stop today, rooms in Milestone 2.
+        var coopBtn = new IgiMenuButton(theme, "Co-op") { TextSize = 40f, Height = 78f, Width = 760f };
+        coopBtn.Activated += () => Context.Stack.Reset(new CoopScreen(Context));
+        menuStack.AddChild(coopBtn);
+
         var quitBtn = new IgiMenuButton(theme, "Quit") { TextSize = 40f, Height = 78f, Width = 760f };
         quitBtn.Activated += () => Context.Host.Quit();
         menuStack.AddChild(quitBtn);

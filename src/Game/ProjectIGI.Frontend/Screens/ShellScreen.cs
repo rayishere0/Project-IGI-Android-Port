@@ -17,6 +17,13 @@ public enum ShellTab
     /// <summary>The campaign / mission select.</summary>
     Campaign,
 
+    /// <summary>The co-op section: the loopback session today, rooms in Milestone 2.</summary>
+    /// <remarks>
+    /// Upstream's shell has the same tab, second of its five, labelled "Co-op". The port's landing
+    /// page has no header tabs, so the section is reached from the main menu's Co-op button instead.
+    /// </remarks>
+    Coop,
+
     /// <summary>The settings.</summary>
     Settings,
 

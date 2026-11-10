@@ -48,6 +48,9 @@ namespace ProjectIGI.Host.Menu;
 /// <param name="rescanContent">Re-reads the content folders from disk and reloads what changed.</param>
 /// <param name="contentProfilePath">Where the content profile lives, or null when none is in force.</param>
 /// <param name="returnToRetailMenu">Puts the shell away and returns to the title's own retail main menu.</param>
+/// <param name="getCoopLoopbackRunning">Whether the loopback co-op session is running.</param>
+/// <param name="startLoopbackCoop">Starts the loopback co-op session, if it is not running.</param>
+/// <param name="stopLoopbackCoop">Stops the loopback co-op session, if one runs.</param>
 public sealed class ShellHost(
     Action<int, int> startMission,
     Action<MissionConditions> setMissionConditions,
@@ -82,7 +85,10 @@ public sealed class ShellHost(
     Action<bool>? setContentBypassed = null,
     Func<string>? rescanContent = null,
     Func<string?>? contentProfilePath = null,
-    Action? returnToRetailMenu = null) : IShellHost
+    Action? returnToRetailMenu = null,
+    Func<bool>? getCoopLoopbackRunning = null,
+    Action? startLoopbackCoop = null,
+    Action? stopLoopbackCoop = null) : IShellHost
 {
     /// <inheritdoc/>
     public void CustomizeTouchControls() => customizeTouchControls?.Invoke();
@@ -155,6 +161,15 @@ public sealed class ShellHost(
 
     /// <inheritdoc/>
     public void AbandonMission() => abandonMission();
+
+    /// <inheritdoc/>
+    public bool CoopLoopbackRunning => getCoopLoopbackRunning?.Invoke() ?? false;
+
+    /// <inheritdoc/>
+    public void StartLoopbackCoop() => startLoopbackCoop?.Invoke();
+
+    /// <inheritdoc/>
+    public void StopLoopbackCoop() => stopLoopbackCoop?.Invoke();
 
     /// <inheritdoc/>
     public bool SwitchTitle(string titleId) => switchTitle(titleId);

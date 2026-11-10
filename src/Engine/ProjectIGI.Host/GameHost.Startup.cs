@@ -758,7 +758,10 @@ public sealed partial class GameHost
                     // The same two lines LeaveTheMenu uses on the way into a mission.
                     _menuFlow.MenuMode = false;
                     _menuFlow.PauseMenu = false;
-                });
+                },
+                getCoopLoopbackRunning: () => IsLoopbackRunning,
+                startLoopbackCoop: StartLoopbackCoop,
+                stopLoopbackCoop: StopLoopbackCoop);
 
             state.ShellHostForEntryCam = state.ShellHost;
 

@@ -33,10 +33,10 @@ public static class CoopCVars
 
     /// <summary>Whether the loopback co-op session (host + client in this process) is running.</summary>
     /// <remarks>
-    /// Milestone 1's gate: off by default, and the only way the loopback session starts is the
-    /// <c>coop_loopback</c> console command setting it. With it off no session object is constructed.
-    /// Deliberately NOT archived: a session does not survive a restart, so persisting the flag would
-    /// leave a stale <c>true</c> in settings.cfg with no session running.
+    /// Milestone 1's gate: off by default, and the loopback session is started from the shell's
+    /// Co-op menu or the <c>coop_loopback</c> console command. With it off no session object is
+    /// constructed. Deliberately NOT archived: a session does not survive a restart, so persisting
+    /// the flag would leave a stale <c>true</c> in settings.cfg with no session running.
     /// </remarks>
     public static readonly BoolCVar Loopback = CVar.Bool(
         "coop_loopback",
