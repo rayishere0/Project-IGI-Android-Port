@@ -66,6 +66,14 @@ public interface IShellHost
     /// <summary>Persists the current settings (the CVar archive), e.g. on leaving the settings screen.</summary>
     void SaveSettings();
 
+    /// <summary>Puts the shell away and returns to the title's own retail main menu.</summary>
+    /// <remarks>
+    /// For settings opened from the retail menu: the shell was only ever drawn over it, so closing
+    /// the settings means the app drops menu mode and the retail menu is on screen again. A host
+    /// with no retail menus has nothing to return to and leaves this a no-op.
+    /// </remarks>
+    void ReturnToRetailMenu() { }
+
     /// <summary>Persists player profiles and their profile-bound progress immediately.</summary>
     void SaveProfiles();
 

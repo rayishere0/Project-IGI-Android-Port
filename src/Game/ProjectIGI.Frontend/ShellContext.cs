@@ -77,6 +77,16 @@ public sealed class ShellContext
     /// </remarks>
     public bool InGame { get; set; }
 
+    /// <summary>Gets or sets whether the settings screen was opened from the retail main menu.</summary>
+    /// <remarks>
+    /// Set by <see cref="Shell.OpenSettingsFromMainMenu"/> when the settings icon on the retail menu
+    /// opens the configuration screen, and cleared when that screen closes. While it is set, closing
+    /// the settings goes back to the retail menu (the shell is put away) rather than to the shell's
+    /// own main menu, which the player never saw. Only the retail-menu entry sets it; settings opened
+    /// from the pause menu or the shell's own main menu leave it clear.
+    /// </remarks>
+    public bool SettingsFromRetailMenu { get; set; }
+
     /// <summary>Gets or sets the conditions the campaign is being played under.</summary>
     /// <remarks>
     /// The shell's own copy of what it last told <see cref="IShellHost.SetMissionConditions"/>, kept here

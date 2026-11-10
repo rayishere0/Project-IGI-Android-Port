@@ -91,6 +91,30 @@ public sealed partial class GameHost
                 state.Console.Model.IsOpen = !state.Console.Model.IsOpen;
                 input.Mouse.SetButton(MouseButton.Left, down: false);
             }
+
+            // Settings icon just under the console icon: taps open the pause menu's
+            // configuration screen over the retail menu, so settings can be changed
+            // before a mission starts. Same generous hit area as the gear. (The icon
+            // is 28 units, centred on the gear; see DrawCheatsOverlay.)
+            float stW = 28f * scale;
+            float stH = 28f * scale;
+            float stX = gearX + ((gearW - stW) * 0.5f);
+            float stY = kbY + kbH + (8f * scale);
+            float stHitX = stX + (stW * 0.5f) - (hit * 0.5f);
+            float stHitY = stY + (stH * 0.5f) - (hit * 0.5f);
+            if (click && clickX >= stHitX && clickX <= stHitX + hit && clickY >= stHitY && clickY <= stHitY + hit)
+            {
+                if (state.Shell is { } shell)
+                {
+                    // Menu mode is what lets the shell update and draw over the retail
+                    // menu; the retail menu's own tasks see idle input while it is set
+                    // (UpdateShell marks the frame captured), so the menu underneath
+                    // cannot react to taps on the settings.
+                    shell.OpenSettingsFromMainMenu();
+                    _menuFlow.MenuMode = true;
+                    input.Mouse.SetButton(MouseButton.Left, down: false);
+                }
+            }
             return;
         }
 
@@ -248,6 +272,28 @@ public sealed partial class GameHost
             painter.DrawText(type.Mono, prompt,
                 new UiVec2(kbX + ((kbW - promptExtent.X) * 0.5f), kbY + ((kbH - promptExtent.Y) * 0.5f)),
                 promptSize, glyphColor);
+        }
+
+        // ── 1c. Settings icon just under the console icon ───────────────────
+        // Three slider tracks with a knob on each: the settings glyph, in the same
+        // 28-unit box as the console icon. Tapping it opens the configuration
+        // screen over the retail menu (see UpdateCheatsOverlay).
+        float stW = 28f * scale;
+        float stH = 28f * scale;
+        float stX = gearX + ((gearW - stW) * 0.5f);
+        float stY = kbY + kbH + (8f * scale);
+        painter.FillRect(new UiRect(stX, stY, stW, stH), Bgra32.FromRgba(16, 44, 22, 245));
+        painter.StrokeRect(new UiRect(stX, stY, stW, stH), 2f * scale, brightGreen);
+        float trackX = stX + (5f * scale);
+        float trackW = 18f * scale;
+        float trackH = 2f * scale;
+        float knob = 5f * scale;
+        float[] trackY = [stY + (7f * scale), stY + (13f * scale), stY + (19f * scale)];
+        float[] knobX = [stX + (8f * scale), stX + (15f * scale), stX + (11f * scale)];
+        for (int i = 0; i < 3; i++)
+        {
+            painter.FillRect(new UiRect(trackX, trackY[i], trackW, trackH), brightGreen);
+            painter.FillRect(new UiRect(knobX[i], trackY[i] - (1.5f * scale), knob, knob), brightGreen);
         }
 
         // ── 2. Cheats Modal Overlay ───────────────────────────────────────

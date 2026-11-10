@@ -749,7 +749,15 @@ public sealed partial class GameHost
                 getContentBypassed: () => ContentBypassed,
                 setContentBypassed: value => ContentBypassed = value,
                 rescanContent: () => RescanContent(),
-                contentProfilePath: () => ContentProfilePath);
+                contentProfilePath: () => ContentProfilePath,
+                returnToRetailMenu: () =>
+                {
+                    // Settings opened from the retail menu are only ever drawn over it: closing
+                    // them means the shell is put away and the retail menu is on screen again.
+                    // The same two lines LeaveTheMenu uses on the way into a mission.
+                    _menuFlow.MenuMode = false;
+                    _menuFlow.PauseMenu = false;
+                });
 
             state.ShellHostForEntryCam = state.ShellHost;
 

@@ -47,6 +47,7 @@ namespace ProjectIGI.Host.Menu;
 /// <param name="setContentBypassed">Sets whether every content layer is bypassed.</param>
 /// <param name="rescanContent">Re-reads the content folders from disk and reloads what changed.</param>
 /// <param name="contentProfilePath">Where the content profile lives, or null when none is in force.</param>
+/// <param name="returnToRetailMenu">Puts the shell away and returns to the title's own retail main menu.</param>
 public sealed class ShellHost(
     Action<int, int> startMission,
     Action<MissionConditions> setMissionConditions,
@@ -80,7 +81,8 @@ public sealed class ShellHost(
     Func<bool>? getContentBypassed = null,
     Action<bool>? setContentBypassed = null,
     Func<string>? rescanContent = null,
-    Func<string?>? contentProfilePath = null) : IShellHost
+    Func<string?>? contentProfilePath = null,
+    Action? returnToRetailMenu = null) : IShellHost
 {
     /// <inheritdoc/>
     public void CustomizeTouchControls() => customizeTouchControls?.Invoke();
@@ -165,6 +167,9 @@ public sealed class ShellHost(
 
     /// <inheritdoc/>
     public void SaveSettings() => saveSettings();
+
+    /// <inheritdoc/>
+    public void ReturnToRetailMenu() => returnToRetailMenu?.Invoke();
 
     /// <inheritdoc/>
     public void SaveProfiles() => saveProfiles();

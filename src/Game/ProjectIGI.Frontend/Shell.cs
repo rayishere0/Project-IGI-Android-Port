@@ -142,6 +142,20 @@ public sealed class Shell
         Stack.Reset(new PauseScreen(_context));
     }
 
+    /// <summary>Opens the settings screen from the retail main menu, before any mission starts.</summary>
+    /// <remarks>
+    /// The retail menu is the title's own menu, not the shell's landing page, so the settings open
+    /// over it rather than replacing it: the flag on the context is what tells the settings screen
+    /// to go back to the retail menu (and put the shell away) when it closes, instead of landing
+    /// on the shell's main menu, which the player never saw. The host is expected to have put the
+    /// shell in menu mode already, so the screen updates and draws.
+    /// </remarks>
+    public void OpenSettingsFromMainMenu()
+    {
+        _context.SettingsFromRetailMenu = true;
+        Stack.Reset(new SettingsScreen(_context), animate: false);
+    }
+
     /// <summary>Opens the shell over a mission the player did not survive, as the failure page.</summary>
     /// <remarks>
     /// The same door as <see cref="OpenPauseMenu"/>, and for the same reason: the page is a front end in

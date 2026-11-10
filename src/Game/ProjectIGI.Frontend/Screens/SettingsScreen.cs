@@ -1,5 +1,6 @@
 using System.Globalization;
 using ProjectIGI.Core.Graphics;
+using ProjectIGI.Game;
 using ProjectIGI.Input;
 using ProjectIGI.Rendering;
 using ProjectIGI.UI;
@@ -42,6 +43,7 @@ public sealed class SettingsScreen : ShellScreen
     private readonly int _initialDynamicTargetFps;
     private readonly float _initialViewDistance;
     private readonly bool _initialShowFps;
+    private readonly bool _initialRagdoll;
     private readonly float _initialGamma;
     private readonly float _initialMotionBlur;
     private readonly int _initialShadows;
@@ -80,6 +82,7 @@ public sealed class SettingsScreen : ShellScreen
         _initialDynamicTargetFps = ReconstructionCVars.DynamicTargetFps.Value;
         _initialViewDistance = ReconstructionCVars.ViewDistance.Value;
         _initialShowFps = DisplayCVars.ShowFps.Value;
+        _initialRagdoll = GameplayCVars.Ragdoll.Value;
         _initialGamma = PostCVars.Gamma.Value;
         _initialMotionBlur = PostCVars.MotionBlur.Value;
         // StoredValue, not Value: the menu backdrop's lite profile holds r_shadows at 0 through an
@@ -453,6 +456,31 @@ public sealed class SettingsScreen : ShellScreen
         };
         configStack.AddChild(fpsToggle);
 
+        // ── Gameplay: ragdolls ──────────────────────────────────────────────
+        // Simulated bodies instead of the original's canned death animations.
+        // Experimental: bodies can still clip through the ground, and the level-1
+        // crash on the first ragdoll is still open. Off is the original game, and
+        // off is the default. The Bepu prototype solver stays a console-only flag
+        // (g_ragdoll_bepu), not a row here.
+        var gameplayHeader = new Label(theme.Heading, "GAMEPLAY", 24f, Bgra32.White)
+        {
+            Width = 980f,
+        };
+        configStack.AddChild(gameplayHeader);
+
+        bool ragdollState = GameplayCVars.Ragdoll.Value;
+        var ragdollToggle = new Toggle(theme, "Ragdolls (Experimental)", ragdollState)
+        {
+            Width = 980f,
+            Height = 56f,
+            Tooltip = "Simulated bodies instead of the original's canned death animations.\n\nExperimental — bodies can clip through the ground, and the level-1 crash is still open. Off is the original game.",
+        };
+        ragdollToggle.ValueChanged += val =>
+        {
+            GameplayCVars.Ragdoll.Value = val;
+        };
+        configStack.AddChild(ragdollToggle);
+
         // ── Content packs: data mods (folders of replacement art) ─────────
         // The engine already resolves packs and the game folder's own overrides folder; this section is
         // the touch path to them. It appears on the host that owns the content profile (Android); a host
@@ -547,6 +575,7 @@ public sealed class SettingsScreen : ShellScreen
             ReconstructionCVars.DynamicResolution.Value = _initialDynamicResolution;
             ReconstructionCVars.DynamicTargetFps.Value = _initialDynamicTargetFps;
             ReconstructionCVars.ViewDistance.Value = _initialViewDistance;
+            GameplayCVars.Ragdoll.Value = _initialRagdoll;
             // Siblings first, r_shadows last: restoring r_shadows re-derives the capture path and
             // the lighting model, and the frame after that reads the whole tier at once.
             ShadowCVars.ShadowCascades.Value = _initialShadowCascades;
@@ -803,6 +832,15 @@ public sealed class SettingsScreen : ShellScreen
         if (Context.InGame)
         {
             Context.Stack.Reset(new PauseScreen(Context));
+        }
+        else if (Context.SettingsFromRetailMenu)
+        {
+            // Opened from the retail main menu, not from the shell's own main menu:
+            // the player never saw the shell's landing page, so going back means the
+            // shell is put away and the retail menu is on screen again.
+            Context.SettingsFromRetailMenu = false;
+            Context.Stack.Reset(new MainMenuScreen(Context));
+            Context.Host.ReturnToRetailMenu();
         }
         else
         {
