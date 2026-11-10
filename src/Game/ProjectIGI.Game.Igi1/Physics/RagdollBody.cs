@@ -322,6 +322,7 @@ public sealed partial class RagdollBody
     private readonly Matrix3f[] _rotation;
     private readonly bool[] _rotationStale;
     private readonly double[] _surface;
+    private readonly Vector3d[] _surfaceNormal;
     private readonly bool[] _grounded;
     private readonly Vector3d[] _wallPoint;
     private readonly Vector3d[] _wallNormal;
@@ -444,6 +445,7 @@ public sealed partial class RagdollBody
         }
 
         _surface = new double[count * 3];
+        _surfaceNormal = new Vector3d[count * 3];
         _grounded = new bool[count * 3];
         _wallPoint = new Vector3d[count * WallProbes];
         _wallNormal = new Vector3d[count * WallProbes];

@@ -1,4 +1,5 @@
 using ProjectIGI.Core.Diagnostics;
+using ProjectIGI.Core.Numerics;
 using ProjectIGI.Formats.Animation;
 using ProjectIGI.Formats.World;
 using ProjectIGI.Game.Igi1.Physics;
@@ -77,14 +78,69 @@ internal sealed class SoldierRagdolls(SoldierContext context)
             return world;
         }
 
-        Igi1HumanAi.GroundQuery? ground = _context.MakeGroundQuery();
-        RagdollWorld = new RagdollWorld(
-            _context.Cast,
-            ground is null ? null : (double x, double y, double z, out double groundZ) => ground(x, y, z, out groundZ))
+        RagdollWorld = new RagdollWorld(_context.Cast, MakeCorpseGroundQuery())
         {
             Triangles = _dropTriangles,
             Trace = _dropTrace,
         };
         return RagdollWorld;
+    }
+
+    /// <summary>The ground query corpses stand on: placed collision and terrain, highest wins.</summary>
+    /// <remarks>
+    /// The same surfaces <see cref="SoldierContext.MakeGroundQuery"/> finds, in the same probe window —
+    /// but keeping the surface normal the shared query throws away. A corpse pushed straight up out of
+    /// a slope sinks into it by r·(1−cosθ) and sticks instead of sliding; pushed along the normal it
+    /// rests on the slope. The shared query is untouched: brains, footsteps and the death-fall solver
+    /// still take the height-only one.
+    /// </remarks>
+    /// <returns>The query, or <see langword="null"/> when the level has neither.</returns>
+    private RagdollGround? MakeCorpseGroundQuery()
+    {
+        IGroundHeightField? terrain = _context.Terrain;
+        WorldRayCast? cast = _context.Cast;
+        if (terrain is null && cast is null)
+        {
+            return null;
+        }
+
+        return (x, y, z, out TerrainGround ground) =>
+        {
+            // The same double.MinValue start MakeGroundQuery uses, so a terrain surface wins over
+            // "nothing found" exactly as it does there.
+            ground = new TerrainGround(double.MinValue, 0.0, 0.0, 1.0);
+            bool found = false;
+
+            if (cast is not null
+                && cast(
+                    new Vector3d(x, y, z),
+                    new Vector3d(x, y, z - SoldierContext.ProbeBelowInUnits - SoldierContext.ProbeAboveInUnits),
+                    out WorldRayHit hit))
+            {
+                Vector3d normal = new Vector3d(hit.Normal.X, hit.Normal.Y, hit.Normal.Z);
+                double size = normal.Length;
+                ground = new TerrainGround(
+                    hit.Position.Z,
+                    size > 0.0 ? normal.X / size : 0.0,
+                    size > 0.0 ? normal.Y / size : 0.0,
+                    size > 0.0 ? normal.Z / size : 1.0);
+                found = true;
+            }
+
+            if (terrain is not null
+                && terrain.TryGetGround(x, y, z, out TerrainGround surface)
+                && surface.Height >= z - SoldierContext.ProbeBelowInUnits - SoldierContext.ProbeAboveInUnits
+                && surface.Height <= z)
+            {
+                if (surface.Height > ground.Height)
+                {
+                    ground = surface;
+                }
+
+                found = true;
+            }
+
+            return found;
+        };
     }
 }

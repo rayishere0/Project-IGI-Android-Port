@@ -234,7 +234,7 @@ public sealed class DroppedGunMeshBody
     private const double GroundMemoCellUnits = 409.6;
 
     private readonly DroppedGunCollider _collider;
-    private readonly Dictionary<long, (bool Found, double GroundZ)> _groundMemo = [];
+    private readonly Dictionary<long, (bool Found, TerrainGround Surface)> _groundMemo = [];
     private RagdollWorld? _memoSource;
     private RagdollWorld? _memoWorld;
     private Quaternion32 _orientation;
@@ -396,17 +396,17 @@ public sealed class DroppedGunMeshBody
         RagdollGround? ground = world.Ground;
         _memoWorld = ground is null
             ? world
-            : new RagdollWorld(world.Cast, (double x, double y, double z, out double groundZ) =>
+            : new RagdollWorld(world.Cast, (double x, double y, double z, out TerrainGround surface) =>
             {
                 long key = MemoKey(x, y, z);
-                if (_groundMemo.TryGetValue(key, out (bool Found, double GroundZ) cached))
+                if (_groundMemo.TryGetValue(key, out (bool Found, TerrainGround Surface) cached))
                 {
-                    groundZ = cached.GroundZ;
+                    surface = cached.Surface;
                     return cached.Found;
                 }
 
-                bool found = ground(x, y, z, out groundZ);
-                _groundMemo[key] = (found, groundZ);
+                bool found = ground(x, y, z, out surface);
+                _groundMemo[key] = (found, surface);
                 return found;
             });
         return _memoWorld;
