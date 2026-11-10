@@ -2,6 +2,7 @@ using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Formats.Animation;
 using ProjectIGI.Formats.World;
+using ProjectIGI.Game;
 using ProjectIGI.Game.Igi1.Physics;
 using ProjectIGI.Game.Physics;
 using ProjectIGI.Game.World;
@@ -29,6 +30,60 @@ internal sealed class SoldierRagdolls(SoldierContext context)
 
     /// <summary>Gets or sets what corpses collide against, built on first use.</summary>
     public RagdollWorld? RagdollWorld { get; set; }
+
+    /// <summary>Gets the Bepu simulation for this level, or null when it was not built.</summary>
+    /// <remarks>
+    /// Built at level load, only when <c>g_ragdoll_bepu</c> is on — the whole-level gather costs a
+    /// load-time sweep the XPBD path should never pay. Null means the flag is off or the build
+    /// failed; either way every Bepu gate falls back to XPBD, and the build log says which.
+    /// </remarks>
+    public BepuRagdollWorld? BepuWorld { get; private set; }
+
+    /// <summary>Whether a Bepu world is live for this level.</summary>
+    public bool BepuReady => BepuWorld is not null;
+
+    /// <summary>Builds the Bepu level world from the placed solids and the terrain.</summary>
+    /// <param name="solids">The placed-object collision index, or null when the level has none.</param>
+    /// <param name="terrain">The level terrain, or null (level 14) when there is none.</param>
+    /// <remarks>
+    /// A build failure never breaks the level: <see cref="BepuRagdollWorld.Build"/> returns null
+    /// and logs why, and the Bepu gates fall back to XPBD. Called once per level load, beside
+    /// <see cref="SetDroppedWeaponWorld"/> — which is where the same two sources already sit.
+    /// </remarks>
+    public void SetBepuLevelWorld(ObjectCollisionIndex? solids, TerrainData? terrain)
+    {
+        ReleaseBepuWorld();
+        if (!GameplayCVars.RagdollBepu.Value)
+        {
+            return;
+        }
+
+        BepuWorld = BepuRagdollWorld.Build(solids, terrain, _context.Logger);
+    }
+
+    /// <summary>Drops the Bepu level world, if one was built.</summary>
+    public void ReleaseBepuWorld()
+    {
+        BepuWorld?.Dispose();
+        BepuWorld = null;
+    }
+
+    /// <summary>Steps the Bepu world once for this tick.</summary>
+    /// <remarks>
+    /// The single Timestep per tick for the Bepu corpses, at the same site the XPBD step runs —
+    /// after <c>FinishTick</c>, before the pose loop — so a Bepu corpse and an XPBD corpse are never
+    /// stepped twice, and a player corpse seeded after <c>EndTick</c> waits one tick.
+    /// </remarks>
+    public void StepBepuRagdolls()
+    {
+        BepuWorld?.StepOnce(_context.TickCount);
+    }
+
+    /// <summary>Removes a Bepu corpse's bodies from the simulation.</summary>
+    public void RemoveBepuCorpse(BepuRagdollCorpse corpse)
+    {
+        BepuWorld?.RemoveCorpse(corpse);
+    }
 
     /// <summary>Gives dropped weapons the world they collide with.</summary>
     /// <param name="triangles">The solid triangles near a box, terrain included, for the realistic body.</param>

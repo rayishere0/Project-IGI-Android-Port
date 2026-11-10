@@ -350,6 +350,9 @@ public sealed class Igi1PlayerSetup(
                     }
                 },
                 mission.Trace is { } dropTrace ? WorldTrace.AsRayCast(dropTrace) : null);
+            // The Bepu prototype's level mesh, from the same two sources — only when the flag is
+            // on; a failed build logs why and the XPBD path carries on.
+            mission.Soldiers?.SetBepuLevelWorld(dropSolids, dropTerrain);
             if (mission.GunPickups.Items.Count > 0)
             {
                 host.Logger.Information("Weapon", $"{mission.GunPickups.Items.Count} gun pickup(s) available.");

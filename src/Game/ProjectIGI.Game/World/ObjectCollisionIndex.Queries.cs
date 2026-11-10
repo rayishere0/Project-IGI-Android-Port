@@ -153,6 +153,132 @@ public sealed partial class ObjectCollisionIndex
         entry.CollectTriangles(min, max, into);
     }
 
+    /// <summary>Collects the static triangles of the default level — the same gather as <see cref="CollectTriangles"/>, minus the dynamic entries.</summary>
+    /// <param name="min">The box's low corner, in world units.</param>
+    /// <param name="max">The box's high corner.</param>
+    /// <param name="into">Receives the triangles; not cleared first.</param>
+    /// <remarks>
+    /// <see cref="CollectTriangles"/> includes the dynamic entries at their live pose. A Bepu static
+    /// mesh must not: a door that moves would leave a solid ghost of its load pose behind, and a
+    /// corpse would rest on air where the door used to be. This is the grid-only half of the same
+    /// gather, with the same live filters (see <see cref="CollectEntry"/>).
+    /// </remarks>
+    public void CollectStaticTriangles(Vector3d min, Vector3d max, List<CollisionTriangle> into)
+    {
+        ArgumentNullException.ThrowIfNull(into);
+
+        foreach (int index in _defaultGrid.Oversized)
+        {
+            ObjectCollisionEntry entry = _entries[index];
+            if (!entry.IsDynamic)
+            {
+                CollectEntry(entry, min, max, into);
+            }
+        }
+
+        _defaultGrid.BeginQuery();
+        int x0 = CollisionStaticGrid.CellOf(min.X), x1 = CollisionStaticGrid.CellOf(max.X);
+        int y0 = CollisionStaticGrid.CellOf(min.Y), y1 = CollisionStaticGrid.CellOf(max.Y);
+        for (int x = x0; x <= x1; x++)
+        {
+            for (int y = y0; y <= y1; y++)
+            {
+                if (!_defaultGrid.TryGetCell(x, y, out int[] indices))
+                {
+                    continue;
+                }
+
+                foreach (int index in indices)
+                {
+                    ObjectCollisionEntry entry = _entries[index];
+                    if (!_defaultGrid.AlreadyVisited(index) && !entry.IsDynamic)
+                    {
+                        CollectEntry(entry, min, max, into);
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>How many entries have ever moved (default set plus player set).</summary>
+    /// <remarks>
+    /// A moved entry stays counted even after it stops — the count is a change trigger for the
+    /// kinematic sync, not a live-entry census. A retired entry still counts here; it is the pose
+    /// list going quiet that retires its kinematic body.
+    /// </remarks>
+    public int DynamicEntryCount => _dynamicDefault.Count + _dynamicPlayer.Count;
+
+    /// <summary>Collects one hull snapshot per live dynamic entry of the default set, for the Bepu kinematic bodies.</summary>
+    /// <param name="into">Receives the snapshots; not cleared first.</param>
+    /// <remarks>
+    /// Only the default set, like <see cref="CollectTriangles"/> — the player set is the human's own
+    /// trace set, not world geometry a corpse can rest on. The same live filters as
+    /// <see cref="CollectEntry"/> apply (a collected pickup, a retired entry, a passable owner or a
+    /// dormant container is absent), and the points are the entry's own local vertices — mesh-fixed,
+    /// relative to <see cref="ObjectCollisionEntry.PoseOrigin"/> — deduplicated, so the hull is built
+    /// once per entry and the pose does the moving.
+    /// </remarks>
+    public void CollectDynamicSnapshots(List<DynamicCollisionSnapshot> into)
+    {
+        ArgumentNullException.ThrowIfNull(into);
+
+        foreach (ObjectCollisionEntry entry in _dynamicDefault)
+        {
+            if (!IsLiveForBepu(entry))
+            {
+                continue;
+            }
+
+            HashSet<Vector3f> seen = [];
+            List<Vector3f> points = [];
+            foreach (Vector3f local in entry.LocalVertices)
+            {
+                if (seen.Add(local))
+                {
+                    points.Add(local);
+                }
+            }
+
+            into.Add(new DynamicCollisionSnapshot(
+                entry.Owner, entry.InstanceName, entry.PoseOrigin, entry.PoseOrientation, points.ToArray()));
+        }
+    }
+
+    /// <summary>Collects the current pose of every live dynamic entry of the default set.</summary>
+    /// <param name="into">Receives the poses; not cleared first.</param>
+    /// <remarks>
+    /// Pose-only, every tick: no triangles, no hulls. The same live filters as
+    /// <see cref="CollectDynamicSnapshots"/> — an entry that stops being live disappears from this
+    /// list, and that is what retires its kinematic body.
+    /// </remarks>
+    public void CollectDynamicPoses(List<DynamicEntryPose> into)
+    {
+        ArgumentNullException.ThrowIfNull(into);
+
+        foreach (ObjectCollisionEntry entry in _dynamicDefault)
+        {
+            if (!IsLiveForBepu(entry))
+            {
+                continue;
+            }
+
+            into.Add(new DynamicEntryPose(
+                entry.Owner, entry.InstanceName, entry.PoseOrigin, entry.PoseOrientation));
+        }
+    }
+
+    /// <summary>Whether a dynamic entry is live geometry a Bepu body may rest on.</summary>
+    /// <remarks>
+    /// The same four filters <see cref="CollectEntry"/> applies before it reads an entry's triangles:
+    /// a collected pickup is gone, a retired entry is destroyed, a passable owner is not solid, and a
+    /// dormant container is not in the world yet.
+    /// </remarks>
+    private bool IsLiveForBepu(ObjectCollisionEntry entry) =>
+        GenericPickups?.IsCollected(entry.Owner) != true
+        && !IsRetired(entry)
+        && !_passable.Contains(entry.Owner)
+        && ConditionalContainerGate.IsTaskActive(entry.Owner);
+
     /// <summary>Casts against live world collision while excluding one task's attached placements.</summary>
     /// <remarks>
     /// A moving vehicle starts its obstacle probe at its front edge. Excluding the vehicle owner keeps
@@ -811,3 +937,20 @@ public sealed partial class ObjectCollisionIndex
         return (t0 >= 0.0 && t0 <= 1.0) || (t1 >= 0.0 && t1 <= 1.0) || (t0 < 0.0 && t1 > 1.0);
     }
 }
+
+/// <summary>One dynamic entry's hull, in its own frame, for a Bepu kinematic body.</summary>
+/// <param name="Owner">The task that owns the entry — the identity, with <paramref name="InstanceName"/>.</param>
+/// <param name="InstanceName">The entry's instance name.</param>
+/// <param name="PoseOrigin">Where the mesh's origin sits now, in world units.</param>
+/// <param name="PoseOrientation">The mesh's current local-to-world orientation.</param>
+/// <param name="LocalPoints">The mesh vertices, deduplicated, in the entry's own frame relative to <paramref name="PoseOrigin"/>.</param>
+public readonly record struct DynamicCollisionSnapshot(
+    GameTask Owner, string InstanceName, Vector3d PoseOrigin, Matrix3f PoseOrientation, Vector3f[] LocalPoints);
+
+/// <summary>One dynamic entry's current pose, for the per-tick kinematic sync.</summary>
+/// <param name="Owner">The task that owns the entry — the identity, with <paramref name="InstanceName"/>.</param>
+/// <param name="InstanceName">The entry's instance name.</param>
+/// <param name="PoseOrigin">Where the mesh's origin sits now, in world units.</param>
+/// <param name="PoseOrientation">The mesh's current local-to-world orientation.</param>
+public readonly record struct DynamicEntryPose(
+    GameTask Owner, string InstanceName, Vector3d PoseOrigin, Matrix3f PoseOrientation);

@@ -177,6 +177,38 @@ public static class GameplayCVars
         64,
         CVarOptions.Archive,
         "Ragdoll solver substeps per tick. Higher is stiffer and more expensive.");
+    /// <summary>Runs corpses on the BepuPhysics prototype solver instead of the XPBD one.</summary>
+    /// <remarks>
+    /// <para>
+    /// Prototype flag, default off: with it off the XPBD path runs exactly as today, and with it on
+    /// deaths seed Bepu bodies and the Bepu simulation steps instead of (not as well as) the XPBD
+    /// step for those corpses. Ray can A/B on device: same kill, XPBD vs Bepu. If Bepu fails, the
+    /// XPBD path stays the fallback.
+    /// </para>
+    /// </remarks>
+    public static readonly BoolCVar RagdollBepu = CVar.Bool(
+        "g_ragdoll_bepu",
+        false,
+        CVarOptions.Archive,
+        "Run corpses on the BepuPhysics prototype solver instead of XPBD.");
+
+    /// <summary>Which way the Bepu level meshes are wound, per source.</summary>
+    /// <remarks>
+    /// <para>
+    /// Bepu mesh triangles are one-sided: only the front face (normal (C - A) x (B - A)) generates
+    /// contacts. 0 = auto (placed meshes as gathered, terrain flipped - the derived default: the
+    /// engine winds placed meshes into the solid and terrain out of it, so the two need opposite
+    /// treatment); 1 = both as gathered; 2 = both flipped. Change it on device and re-enter the
+    /// mission if a corpse falls through a surface - no rebuild needed.
+    /// </para>
+    /// </remarks>
+    public static readonly NumericCVar<int> RagdollBepuWinding = CVar.Int(
+        "g_ragdoll_bepu_wind",
+        0,
+        0,
+        2,
+        CVarOptions.Archive,
+        "Bepu mesh winding: 0 = auto (placed as-gathered, terrain flipped), 1 = as-gathered, 2 = flipped.");
 
     /// <summary>Whether a round is a simulated projectile rather than the original's instant ray.</summary>
     /// <remarks>
@@ -348,6 +380,7 @@ public static class GameplayCVars
         {
             case GameplayProfile.Vanilla:
                 Ragdoll.Value = false;
+                RagdollBepu.Value = false;
 
                 // The one gameplay-mutating option. Enhanced deliberately does NOT set it back: it is
                 // an opt-in on top of any profile, but vanilla means the 2000 build, full stop.

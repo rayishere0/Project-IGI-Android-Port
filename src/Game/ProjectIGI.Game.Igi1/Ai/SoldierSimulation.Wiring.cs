@@ -3,6 +3,7 @@ using ProjectIGI.Core.Numerics;
 using ProjectIGI.Engine.Tasks;
 using ProjectIGI.Formats.Animation;
 using ProjectIGI.Formats.World;
+using ProjectIGI.Game;
 using ProjectIGI.Game.Ai;
 using ProjectIGI.Game.Igi1.Physics;
 using ProjectIGI.Game.Igi1.Player;
@@ -224,6 +225,20 @@ public sealed partial class SoldierSimulation
     /// <inheritdoc cref="SoldierRagdolls.RagdollWorld"/>
     internal RagdollWorld? RagdollWorld { get => _ragdolls.RagdollWorld; set => _ragdolls.RagdollWorld = value; }
 
+    /// <inheritdoc cref="SoldierRagdolls.BepuWorld"/>
+    internal BepuRagdollWorld? BepuWorld => _ragdolls.BepuWorld;
+
+    /// <inheritdoc cref="SoldierRagdolls.BepuReady"/>
+    internal bool BepuReady => _ragdolls.BepuReady;
+
+    /// <summary>Whether a death seeds a Bepu corpse: ragdolls on, the flag on, and the level world built.</summary>
+    /// <remarks>
+    /// The one gate for the whole prototype. Anything else — ragdolls off, flag off, or the build
+    /// failed — seeds XPBD exactly as today, so the flag-off path is the XPBD path with nothing
+    /// extra running.
+    /// </remarks>
+    internal bool UseBepuRagdolls => GameplayCVars.Ragdoll.Value && GameplayCVars.RagdollBepu.Value && BepuReady;
+
     /// <inheritdoc cref="SoldierPlayerBody.View"/>
     internal SoldierView? PlayerBodyView { get => _playerBody.View; set => _playerBody.View = value; }
 
@@ -323,6 +338,13 @@ public sealed partial class SoldierSimulation
     /// <inheritdoc cref="SoldierRagdolls.SetDroppedWeaponWorld"/>
     public void SetDroppedWeaponWorld(CollisionTriangleGather? triangles, WorldRayCast? trace) =>
         _ragdolls.SetDroppedWeaponWorld(triangles, trace);
+
+    /// <inheritdoc cref="SoldierRagdolls.SetBepuLevelWorld"/>
+    public void SetBepuLevelWorld(ObjectCollisionIndex? solids, TerrainData? terrain) =>
+        _ragdolls.SetBepuLevelWorld(solids, terrain);
+
+    /// <inheritdoc cref="SoldierRagdolls.ReleaseBepuWorld"/>
+    public void ReleaseBepuWorld() => _ragdolls.ReleaseBepuWorld();
 
     /// <summary>Gives dropped weapons a collision world after they leave a dead soldier.</summary>
     public void UseDroppedWeaponPickups(GunPickupRegistry? pickups) => DroppedWeaponPickups = pickups;
@@ -640,6 +662,12 @@ public sealed partial class SoldierSimulation
 
     /// <inheritdoc cref="SoldierRagdolls.RagdollWorldForCorpses"/>
     internal RagdollWorld RagdollWorldForCorpses() => _ragdolls.RagdollWorldForCorpses();
+
+    /// <inheritdoc cref="SoldierRagdolls.StepBepuRagdolls"/>
+    internal void StepBepuRagdolls() => _ragdolls.StepBepuRagdolls();
+
+    /// <inheritdoc cref="SoldierRagdolls.RemoveBepuCorpse"/>
+    internal void RemoveBepuCorpse(BepuRagdollCorpse corpse) => _ragdolls.RemoveBepuCorpse(corpse);
 
     /// <inheritdoc cref="SoldierPlayerBody.StartTraversalAnimation"/>
     internal void StartPlayerTraversalAnimation(

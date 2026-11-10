@@ -208,6 +208,12 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
                 if (group.Soldiers.Find(candidate => ReferenceEquals(candidate.Agent, agent)) is { } corpse)
                 {
                     group.Soldiers.Remove(corpse);
+                    if (corpse.BepuRagdoll is { } bepu)
+                    {
+                        // The member is discarded; its Bepu bodies would otherwise leak.
+                        _sim.RemoveBepuCorpse(bepu);
+                    }
+
                     if (corpse.Mesh.IsValid)
                     {
                         _device.DestroyMesh(corpse.Mesh);
@@ -232,16 +238,32 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
             // no clip whose first half the body could play.
             if (fall.DeathAnimation < 0 || fall.View.CurrentAnimation != fall.DeathAnimation)
             {
-                member.Ragdoll = SeedRagdoll(
-                    fall.View,
-                    fall.Origin,
-                    fall.View.Orientation,
-                    fall.Bone,
-                    fall.Travel,
-                    fall.Category,
-                    fall.Velocity,
-                    _sim.FindModel(fall.View),
-                    weapon: null);
+                if (_sim.UseBepuRagdolls)
+                {
+                    member.BepuRagdoll = SeedBepuRagdoll(
+                        fall.View,
+                        fall.Origin,
+                        fall.View.Orientation,
+                        fall.Bone,
+                        fall.Travel,
+                        fall.Category,
+                        fall.Velocity,
+                        _sim.FindModel(fall.View),
+                        weapon: null);
+                }
+                else
+                {
+                    member.Ragdoll = SeedRagdoll(
+                        fall.View,
+                        fall.Origin,
+                        fall.View.Orientation,
+                        fall.Bone,
+                        fall.Travel,
+                        fall.Category,
+                        fall.Velocity,
+                        _sim.FindModel(fall.View),
+                        weapon: null);
+                }
             }
             else
             {
@@ -597,6 +619,23 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
         _frames.SeedRagdoll(view, originInUnits, orientation, bone, travel, category, carriedVelocity, model, weapon);
 
     /// <summary>
+    /// Starts a Bepu corpse from the pose a body was last drawn in, and pushes it with the round.
+    /// </summary>
+    /// <returns>The corpse, or <see langword="null"/> when the Bepu flag is off, the world was not built, or the rig cannot drive one.</returns>
+    /// <remarks>See <see cref="SoldierFrameInterpolator.SeedBepuRagdoll"/>.</remarks>
+    internal BepuRagdollCorpse? SeedBepuRagdoll(
+        SoldierView view,
+        Vector3d originInUnits,
+        Matrix3f orientation,
+        int bone,
+        Vector3d travel,
+        WeaponCategory category,
+        Vector3d carriedVelocity,
+        MefModel? model,
+        SoldierHeldWeapon? weapon) =>
+        _frames.SeedBepuRagdoll(view, originInUnits, orientation, bone, travel, category, carriedVelocity, model, weapon);
+
+    /// <summary>
     /// The soldier model's bounding radius the draw callback's frustum test scales by 1.41, in metres.
     /// </summary>
     /// <remarks>
@@ -822,6 +861,7 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
         _sim.Sight = null;
         _sim.RagdollRigs.Clear();
         _sim.RagdollWorld = null;
+        _sim.ReleaseBepuWorld();
         _playerBody.Release();
         Count = 0;
     }

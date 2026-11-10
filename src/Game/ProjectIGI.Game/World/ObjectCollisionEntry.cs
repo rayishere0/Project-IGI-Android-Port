@@ -78,6 +78,14 @@ internal sealed class ObjectCollisionEntry
     /// <summary>Gets the mesh's current local-to-world orientation.</summary>
     public Matrix3f PoseOrientation { get; private set; }
 
+    /// <summary>Gets the mesh vertices in the entry's own frame, relative to <see cref="PoseOrigin"/>.</summary>
+    /// <remarks>
+    /// Mesh-fixed: moving the entry changes <see cref="PoseOrigin"/> and
+    /// <see cref="PoseOrientation"/>, never these. A hull built from them is pose-independent — the
+    /// body pose does the moving.
+    /// </remarks>
+    internal IReadOnlyList<Vector3f> LocalVertices => _localVertices;
+
     public (Vector3d Min, Vector3d Max) ClosedBounds { get; }
 
     /// <summary>Gets whether this entry belongs to the human (level-one) trace set.</summary>

@@ -50,6 +50,9 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
     // clip keeps running underneath and keeps moving the authoritative body, and this replaces only the
     // pose and the placement that are drawn.
     private RagdollBody? _ragdoll;
+    // The Bepu corpse, when g_ragdoll_bepu is on and the level world was built. Never set
+    // alongside _ragdoll: a death seeds one or the other.
+    private BepuRagdollCorpse? _bepuRagdoll;
 
     // The ragdoll seed held until the death clip has played halfway -- the same handover as a
     // guard's, checked on this body's own tick (see Tick). Only the struck bone, the round's
@@ -82,7 +85,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
     public bool IsActive => _active;
 
     /// <inheritdoc cref="ISoldierPresenter.PlayerRagdollCentre"/>
-    public Vector3d? RagdollCentre => _ragdoll?.Centre;
+    public Vector3d? RagdollCentre => _bepuRagdoll?.Centre ?? _ragdoll?.Centre;
 
     /// <inheritdoc cref="ISoldierBodies.LoadPlayerBody"/>
     public bool Load(
@@ -190,16 +193,32 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         {
             // Seeded before the tick state is captured, so the very first capture is already the corpse's
             // own placement rather than the clip's -- a death is a cut and there is nothing to blend from.
-            _ragdoll = _owner.SeedRagdoll(
-                _sim.PlayerBodyView,
-                new Vector3d(feet.X, feet.Y, feet.Z + _sim.PlayerBodyView.RootSample.Z),
-                _sim.PlayerBodyView.Orientation,
-                bone,
-                travel,
-                category,
-                velocity,
-                _group?.Body.Model,
-                weapon: null);
+            if (_sim.UseBepuRagdolls)
+            {
+                _bepuRagdoll = _owner.SeedBepuRagdoll(
+                    _sim.PlayerBodyView,
+                    new Vector3d(feet.X, feet.Y, feet.Z + _sim.PlayerBodyView.RootSample.Z),
+                    _sim.PlayerBodyView.Orientation,
+                    bone,
+                    travel,
+                    category,
+                    velocity,
+                    _group?.Body.Model,
+                    weapon: null);
+            }
+            else
+            {
+                _ragdoll = _owner.SeedRagdoll(
+                    _sim.PlayerBodyView,
+                    new Vector3d(feet.X, feet.Y, feet.Z + _sim.PlayerBodyView.RootSample.Z),
+                    _sim.PlayerBodyView.Orientation,
+                    bone,
+                    travel,
+                    category,
+                    velocity,
+                    _group?.Body.Model,
+                    weapon: null);
+            }
         }
         else
         {
@@ -280,9 +299,21 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
             }
         }
 
-        // The corpse, when there is one. It is stepped after the retail move above rather than instead
-        // of it: that move is what the rest of the game believes, and only the drawing changes here.
-        if (_ragdoll is { } playerCorpse)
+        // The corpse, when there is one. The XPBD corpse is stepped here, after the retail move above
+        // rather than instead of it: that move is what the rest of the game believes, and only the
+        // drawing changes here. A Bepu corpse is stepped once per tick by the soldiers StepRagdolls,
+        // never here - a second step in the same tick would double its motion - so this only drops
+        // one whose solver has gone wrong.
+        if (_bepuRagdoll is { } bepuCorpse)
+        {
+            if (!bepuCorpse.IsValid)
+            {
+                _bepuRagdoll = null;
+                _sim.RemoveBepuCorpse(bepuCorpse);
+                _logger.Warning(SoldierRenderer.LogCategory, "The player Bepu ragdoll left the level; falling back to the death clip.");
+            }
+        }
+        else if (_ragdoll is { } playerCorpse)
         {
             playerCorpse.Step(
                 _sim.RagdollWorldForCorpses(),
@@ -291,7 +322,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
             if (!playerCorpse.IsValid)
             {
                 _ragdoll = null;
-                _logger.Warning(SoldierRenderer.LogCategory, "The player's ragdoll left the level; falling back to the death clip.");
+                _logger.Warning(SoldierRenderer.LogCategory, "The player ragdoll left the level; falling back to the death clip.");
             }
         }
 
@@ -311,16 +342,32 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         Vector3f carried = view.RootMotion();
         Vector3d velocity = SoldierDeathFall.RotateAboutZ(
             new Vector3d(carried.X, carried.Y, carried.Z), _facing);
-        _ragdoll = _owner.SeedRagdoll(
-            view,
-            new Vector3d(view.Position.X, view.Position.Y, view.Position.Z + view.RootSample.Z),
-            view.Orientation,
-            pending.Bone,
-            pending.Travel,
-            pending.Category,
-            velocity,
-            _group?.Body.Model,
-            weapon: null);
+        if (_sim.UseBepuRagdolls)
+        {
+            _bepuRagdoll = _owner.SeedBepuRagdoll(
+                view,
+                new Vector3d(view.Position.X, view.Position.Y, view.Position.Z + view.RootSample.Z),
+                view.Orientation,
+                pending.Bone,
+                pending.Travel,
+                pending.Category,
+                velocity,
+                _group?.Body.Model,
+                weapon: null);
+        }
+        else
+        {
+            _ragdoll = _owner.SeedRagdoll(
+                view,
+                new Vector3d(view.Position.X, view.Position.Y, view.Position.Z + view.RootSample.Z),
+                view.Orientation,
+                pending.Bone,
+                pending.Travel,
+                pending.Category,
+                velocity,
+                _group?.Body.Model,
+                weapon: null);
+        }
     }
 
     /// <inheritdoc cref="ISoldierBodies.StandPlayerBodyAt"/>
@@ -613,7 +660,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
             return;
         }
 
-        BonePose pose = _ragdoll is { } corpse ? corpse.Pose() : view.UnrotatedPose();
+        BonePose pose = _bepuRagdoll is { } bepu ? bepu.Pose() : _ragdoll is { } corpse ? corpse.Pose() : view.UnrotatedPose();
         member.DrawnPose = pose;
         if (!member.PoseUploads.ShouldUpload(pose))
         {
@@ -648,6 +695,11 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
 
     private (Vector3d Where, Matrix3f Orientation) Placement()
     {
+        if (_bepuRagdoll is { } bepuCorpse)
+        {
+            return (bepuCorpse.Origin / WorldScene.UnitsPerMetre, Matrix3f.Identity);
+        }
+
         if (_ragdoll is { } corpse)
         {
             return (corpse.Origin / WorldScene.UnitsPerMetre, Matrix3f.Identity);
@@ -895,6 +947,7 @@ internal sealed class PlayerBodyRenderer(SoldierRenderer owner, IGraphicsDevice 
         _group = null;
         _member = null;
         _ragdoll = null;
+        _bepuRagdoll = null;
         _pendingRagdoll = null;
         _active = false;
         _sim.PlayerBodyClimbing = false;
