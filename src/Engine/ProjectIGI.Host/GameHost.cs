@@ -80,6 +80,15 @@ public sealed partial class GameHost : IDisposable
     /// </summary>
     public bool KeyboardRequested { get; set; }
 
+    /// <summary>
+    /// Gets or sets whether the Android microphone permission has been asked for: set the first
+    /// time co-op voice wants the microphone, so the Android side can ask for RECORD_AUDIO at
+    /// first voice use rather than at startup. The Android side polls this (IsMicrophoneRequested)
+    /// and asks once per run; the managed side never clears it, and the mic-open attempt returning
+    /// null while ungranted is the signal that voice stays listen-only.
+    /// </summary>
+    public bool MicrophoneRequested { get; set; }
+
     // The previous frame's KeyboardRequested, for the Back-close detector in
     // BeginFramePass: a true -> false transition while the console is open can only
     // mean Java cleared the flag (Back, or backgrounding), so the console closes.

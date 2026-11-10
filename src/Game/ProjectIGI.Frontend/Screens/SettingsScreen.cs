@@ -44,6 +44,7 @@ public sealed class SettingsScreen : ShellScreen
     private readonly float _initialViewDistance;
     private readonly bool _initialShowFps;
     private readonly bool _initialRagdoll;
+    private readonly int _initialVoiceMode;
     private readonly float _initialGamma;
     private readonly float _initialMotionBlur;
     private readonly float _initialFieldOfView;
@@ -84,6 +85,7 @@ public sealed class SettingsScreen : ShellScreen
         _initialViewDistance = ReconstructionCVars.ViewDistance.Value;
         _initialShowFps = DisplayCVars.ShowFps.Value;
         _initialRagdoll = GameplayCVars.Ragdoll.Value;
+        _initialVoiceMode = ProjectIGI.Host.CoopVoiceCVars.Mode.Value;
         _initialGamma = PostCVars.Gamma.Value;
         _initialMotionBlur = PostCVars.MotionBlur.Value;
         _initialFieldOfView = GameplayCVars.FieldOfView.Value;
@@ -502,6 +504,30 @@ public sealed class SettingsScreen : ShellScreen
         };
         configStack.AddChild(ragdollToggle);
 
+        // ── Co-op: voice ────────────────────────────────────────────────────
+        // Push to talk in a co-op room: hold the microphone button (top right, beside the
+        // binoculars) or the G key. Off means this player is never heard, though the others
+        // are still heard. Open mic (speak whenever heard) stays a console setting
+        // (coop_voice 2): the toggle only ever picks off or push to talk.
+        var coopHeader = new Label(theme.Heading, "CO-OP", 24f, Bgra32.White)
+        {
+            Width = 980f,
+        };
+        configStack.AddChild(coopHeader);
+
+        bool voiceState = ProjectIGI.Host.CoopVoiceCVars.Mode.Value != 0;
+        var voiceToggle = new Toggle(theme, "Co-op voice (push to talk)", voiceState)
+        {
+            Width = 980f,
+            Height = 56f,
+            Tooltip = "Hold the microphone button or the G key to be heard in a co-op room.\n\nOff means this player is never heard; the others are still heard. Open mic is a console setting (coop_voice 2).",
+        };
+        voiceToggle.ValueChanged += val =>
+        {
+            ProjectIGI.Host.CoopVoiceCVars.Mode.Value = val ? 1 : 0;
+        };
+        configStack.AddChild(voiceToggle);
+
         // ── Content packs: data mods (folders of replacement art) ─────────
         // The engine already resolves packs and the game folder's own overrides folder; this section is
         // the touch path to them. It appears on the host that owns the content profile (Android); a host
@@ -598,6 +624,7 @@ public sealed class SettingsScreen : ShellScreen
             ReconstructionCVars.DynamicTargetFps.Value = _initialDynamicTargetFps;
             ReconstructionCVars.ViewDistance.Value = _initialViewDistance;
             GameplayCVars.Ragdoll.Value = _initialRagdoll;
+            ProjectIGI.Host.CoopVoiceCVars.Mode.Value = _initialVoiceMode;
             // Siblings first, r_shadows last: restoring r_shadows re-derives the capture path and
             // the lighting model, and the frame after that reads the whole tier at once.
             ShadowCVars.ShadowCascades.Value = _initialShadowCascades;
