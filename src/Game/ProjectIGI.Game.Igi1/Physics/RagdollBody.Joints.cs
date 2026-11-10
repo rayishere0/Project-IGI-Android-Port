@@ -48,6 +48,17 @@ public sealed partial class RagdollBody
 
     // The joint itself: the two bones' anchor points are the same point, and they must stay so. Solved
     // AFTER the angular limits, because it is the one violation an audience can actually see.
+    //
+    // Applied as a repair, like every other projection in the solver: the correction is accumulated
+    // in _repair and excluded from the velocity Recover reads back. Before this the attachment was
+    // the one positional projection that was not a repair, so every time it re-closed an anchor gap
+    // the contacts had just opened -- re-sinking what they pushed out, up to one projection's worth
+    // (17.1 units) a pass -- Recover read the pull-back as downward velocity, the next substep sank
+    // the bone again, and the floor bounced it back up: the push-out/pull-in loop that reads as a
+    // corpse seizing on the ground. The final SolveContacts sweep after the joints only fixes the
+    // end-of-substep POSITION; it cannot touch the velocity, and SolveContactVelocities only cancels
+    // the normal component at pass-0 recorded contact points. Marking the pull a repair removes the
+    // loop at its source; the joints still close the gap positionally every pass, exactly as before.
     private void SolveAttachment(RagdollJoint link)
     {
         Vector3d parentArm = Turned(link.Parent, link.ParentAnchor);
@@ -60,7 +71,7 @@ public sealed partial class RagdollBody
             return;
         }
 
-        ApplyPositional(link.Parent, link.Child, parentArm, childArm, gap / distance, distance);
+        ApplyPositional(link.Parent, link.Child, parentArm, childArm, gap / distance, distance, repair: true);
     }
 
     /// <summary>

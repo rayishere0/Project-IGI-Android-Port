@@ -902,8 +902,11 @@ public sealed partial class RagdollBody
             // And the world contacts once more AFTER the joints, for the same reason and the same trade:
             // the joints run last in the passes above, and SolveAttachment re-closes the anchor gaps the
             // push-out just opened, re-sinking what the contacts pushed out — up to one projection's
-            // worth (17.1 units) a pass — and the pull-back is read back as velocity by Recover, which
-            // is the push-out/pull-in loop that reads as ground jitter. The sweep is recorded as NOT
+            // worth (17.1 units) a pass. The pull-back used to be read back as velocity by Recover —
+            // the push-out/pull-in loop that read as ground jitter — until SolveAttachment became a
+            // repair like every other projection, so the pull no longer enters the velocity at all.
+            // The sweep stays: it is the positional half of the fix, the repair flag the velocity half.
+            // The sweep is recorded as NOT
             // recording: the survey runs once a tick, and re-recording the same contacts would
             // double-count them in the resting and friction accounting. Whichever runs last is
             // satisfied — the contacts here, the joints in the passes — and there is no free winner: if
