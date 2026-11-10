@@ -521,7 +521,7 @@ internal sealed class BepuRagdollWorld : IDisposable
         Simulation.Solver.Add(parent, child, shapes.BallSockets[joint]);
         Simulation.Solver.Add(parent, child, shapes.SwingLimits[joint]);
         Simulation.Solver.Add(parent, child, shapes.TwistLimits[joint]);
-        Simulation.Solver.Add(parent, child, shapes.Motor);
+        Simulation.Solver.Add(parent, child, BepuRigShapes.Motor);
     }
 
     private void AddGripJoint(BodyHandle hand, BodyHandle weapon, RagdollSkeleton rig, RagdollBone carried, int host)
@@ -546,7 +546,7 @@ internal sealed class BepuRagdollWorld : IDisposable
 
         float grip = RagdollWeapon.GripAllowance;
         Vector3 swingAxis = BepuRagdollConversions.ToBepuDirection(
-            RagdollSolver.Rotate(handAlignment.Transposed(), carried.Aim));
+            RagdollSolver.Rotate(handAlignment.Transposed(), new Vector3d(carried.Aim.X, carried.Aim.Y, carried.Aim.Z)));
         Simulation.Solver.Add(hand, weapon, new SwingLimit
         {
             AxisLocalA = Vector3.Normalize(swingAxis),
@@ -819,11 +819,11 @@ internal sealed class BepuRagdollWorld : IDisposable
             points[i] = BepuRagdollConversions.ToBepuPosition(new Vector3d(p.X, p.Y, p.Z));
         }
 
-        ConvexHull hull;
+        BepuPhysics.Collidables.ConvexHull hull;
         Vector3 centre;
         try
         {
-            hull = new ConvexHull(points.AsSpan(), _pool, out centre);
+            hull = new BepuPhysics.Collidables.ConvexHull(points.AsSpan(), _pool, out centre);
         }
         catch (Exception ex)
         {
@@ -1007,7 +1007,7 @@ internal sealed class BepuRagdollWorld : IDisposable
                 // the child's own axis is its capsule Y in its body frame. 2.4.0 has no
                 // MaximumSwingAngle — the limit is MinimumDot = cos(half-angle).
                 Vector3 axisA = BepuRagdollConversions.ToBepuDirection(
-                    RagdollSolver.Rotate(parentAlignment.Transposed(), joint.SwingAxis));
+                    RagdollSolver.Rotate(parentAlignment.Transposed(), new Vector3d(joint.SwingAxis.X, joint.SwingAxis.Y, joint.SwingAxis.Z)));
                 swingLimits[j] = new SwingLimit
                 {
                     AxisLocalA = Vector3.Normalize(axisA),
