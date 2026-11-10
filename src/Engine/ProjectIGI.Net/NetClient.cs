@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.Security.Cryptography;
 
 namespace ProjectIGI.Net;
 
@@ -81,7 +80,10 @@ public sealed class NetClient : IDisposable
         _server = server;
         _connectPayload = payload.ToArray();
         Span<byte> nonce = stackalloc byte[8];
-        RandomNumberGenerator.Fill(nonce);
+
+        // NetRandom, not RandomNumberGenerator: the crypto RNG faults natively on this Android
+        // runtime (SIGSEGV in CryptoNative_GetRandomBytes; see NetRandom).
+        NetRandom.Fill(nonce);
         _nonce = BinaryPrimitives.ReadUInt64LittleEndian(nonce);
         _attemptStarted = now;
         _lastHandshakeSend = double.NegativeInfinity;
