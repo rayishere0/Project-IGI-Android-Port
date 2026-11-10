@@ -41,6 +41,25 @@ public interface IShellHost
     /// <summary>Abandons the mission the pause menu is open over and returns the shell to the front end.</summary>
     void AbandonMission();
 
+    /// <summary>Gets whether the loopback co-op session (host + client in this process) is running.</summary>
+    /// <remarks>
+    /// The Co-op menu reads this for its status line. The default is off, so a host without a
+    /// loopback session reports no session running.
+    /// </remarks>
+    bool CoopLoopbackRunning => false;
+
+    /// <summary>Starts the loopback co-op session (host + client in this process), if it is not running.</summary>
+    /// <remarks>
+    /// Milestone 1 only: no room, no master server, no second device. Idempotent — starting an
+    /// already-running session is a no-op. The default does nothing, so a host without a loopback
+    /// session leaves the menu's start action inert.
+    /// </remarks>
+    void StartLoopbackCoop() { }
+
+    /// <summary>Stops the loopback co-op session, if one runs, and gives the cheats back.</summary>
+    /// <remarks>The default does nothing.</remarks>
+    void StopLoopbackCoop() { }
+
     /// <summary>Closes the game.</summary>
     void Quit();
 

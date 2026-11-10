@@ -72,6 +72,27 @@ public sealed class PauseScreen : ShellScreen
         configBtn.Activated += () => Context.Stack.Reset(new SettingsScreen(Context));
         menuStack.AddChild(configBtn);
 
+        // In-mission co-op: only when a loopback session runs, a status line and a stop button.
+        // Stopping mid-mission is what the session supports (the M1 start/stop may run mid-mission);
+        // the page rebuilds so the row is gone once the session stops. Nothing shows when no
+        // session runs, so solo pause menus are unchanged.
+        if (Context.Host.CoopLoopbackRunning)
+        {
+            var coopLabel = new Label(theme.Heading, "Co-op: loopback session running", 24f, Bgra32.FromRgb(165, 255, 185))
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            menuStack.AddChild(coopLabel);
+
+            var stopCoopBtn = new IgiMenuButton(theme, "STOP CO-OP") { TextSize = 30f, Height = 64f, Width = 740f };
+            stopCoopBtn.Activated += () =>
+            {
+                Context.Host.StopLoopbackCoop();
+                Context.Stack.Reset(new PauseScreen(Context));
+            };
+            menuStack.AddChild(stopCoopBtn);
+        }
+
         var abortBtn = new IgiMenuButton(theme, "ABORT MISSION")
         {
             TextSize = 34f,

@@ -20,6 +20,12 @@ public sealed partial class GameHost
     // The loopback session, while it runs: the server and the client it joined, driven as one observer.
     private LoopbackSession? _loopback;
 
+    /// <summary>Gets whether the loopback co-op session is running.</summary>
+    /// <remarks>
+    /// The menu reads this for its status line; the frame loop reads <c>_loopback</c> itself.
+    /// </remarks>
+    public bool IsLoopbackRunning => _loopback is not null;
+
     // Where the client last went, until this host has gone there too: one told it during another load waits for that to
     // finish rather than being lost, and only the latest is kept.
     private int? _followInto;
