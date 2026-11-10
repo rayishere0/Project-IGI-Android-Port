@@ -793,6 +793,19 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
     /// <inheritdoc/>
     public HumanShot Shooter() => TryShoot;
 
+    /// <summary>Gets a delegate that offers rounds to the corpses in the world, as a pure test.</summary>
+    /// <returns>The delegate the player takes, beside <see cref="Shooter"/> for the living.</returns>
+    /// <remarks>
+    /// The test applies nothing: the caller applies the push through
+    /// <see cref="CorpseImpulser"/> only once it has established the corpse is the nearest of
+    /// wall, living human and corpse.
+    /// </remarks>
+    public CorpseShot CorpseShooter() => _hits.TryCastCorpse;
+
+    /// <summary>Gets a delegate that applies a round's push to a corpse the corpse test returned.</summary>
+    /// <returns>The delegate the shot march takes, beside <see cref="CorpseShooter"/>.</returns>
+    public CorpseImpulse CorpseImpulser() => _hits.ApplyCorpseImpulse;
+
     /// <inheritdoc/>
     public IEnumerable<IShootableBody> Bodies() => _hits.Bodies();
 
@@ -934,6 +947,11 @@ public sealed partial class SoldierRenderer : ISoldierPresenter, IDisposable
         _shadowTick++;
 
         _frames.StepRagdolls();
+
+        // The corpses' collision bodies, from the poses this tick just stepped: the player
+        // moves against them from next tick, one tick stale, and a settled corpse stays solid
+        // because the publish reads its frozen pose rather than the solver's active set.
+        _frames.SyncCorpseBodies();
 
         // A GunPickup simulates independently after a dead human drops it, including when the optional
         // visual corpse ragdoll is off. Sharing these probes keeps its walls and floor identical to the

@@ -50,6 +50,13 @@ public sealed partial class ObjectCollisionIndex
     // the analytic capsule the renderer uses to keep humans apart.
     private HumanBody[] _humanBodies = [];
 
+    // Dead human bodies, re-supplied by the presenter every tick beside the living ones: the same
+    // analytic capsules, but 2–3 coarse ones per corpse along the body's long axis instead of one
+    // upright one — a prone body is not a standing post. Scanned by the same player cast, so a
+    // corpse is a wall the player slides along; the bullet trace never sees them (bullets offer
+    // corpses separately, per bone, through the corpse-shot delegate).
+    private HumanBody[] _corpseBodies = [];
+
     // Legacy/manual passability override. Mission doors no longer use it: their collision mesh follows
     // the live task transform through UpdateTransform, including every half-open pose.
     private readonly HashSet<GameTask> _passable = [];

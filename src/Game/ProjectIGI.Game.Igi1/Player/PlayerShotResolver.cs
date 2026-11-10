@@ -1,5 +1,6 @@
 using ProjectIGI.Core.Numerics;
 using ProjectIGI.Game.Igi1.Weapons;
+using ProjectIGI.Game.Igi1.World;
 using ProjectIGI.Game.Player;
 using ProjectIGI.Game.Weapons;
 using ProjectIGI.Game.Weapons.Ballistics;
@@ -97,6 +98,17 @@ internal sealed class PlayerShotResolver
     /// <b>nearer</b>, so a guard standing in front of a wall is hit and the wall is not marked.
     /// </remarks>
     internal HumanShot? Humans { get; set; }
+
+    /// <summary>Gets or sets what offers this player's rounds to the corpses in the world.</summary>
+    /// <remarks>
+    /// A pure test, beside <see cref="Humans"/> for the living: the march consults it first so
+    /// a corpse in front of a guard shortens the stop the living test is offered, and applies
+    /// the push through <see cref="CorpseImpulse"/> only when the corpse wins the pass.
+    /// </remarks>
+    internal CorpseShot? Corpses { get; set; }
+
+    /// <summary>Gets or sets what applies a round's push to a corpse the corpse test returned.</summary>
+    internal CorpseImpulse? CorpseImpulse { get; set; }
 
     /// <summary>Gets or sets a non-mutating human intersection used by launcher missiles.</summary>
     internal HumanRayCast? HumanProbes { get; set; }
@@ -488,10 +500,30 @@ internal sealed class PlayerShotResolver
             GameplayCVars.BallisticsGravity.Value,
             GameplayCVars.BallisticsDrag.Value,
             Walls?.Tracer(),
-            BallisticEntryOf);
+            BallisticEntryOf,
+            Corpses,
+            CorpseImpulse,
+            FleshMaterialIndex());
 
         foreach (BallisticImpact impact in _ballistics.Impacts)
         {
+            if (impact.StruckCorpse)
+            {
+                // No counters, no ground notice, no wall mark: the corpse took the round, and
+                // the flesh row on the Wall is what the impact sound reads. The push already
+                // landed, in the simulation tick, when the round met the corpse.
+                _impacts.Add(new GunImpact(
+                    impact.Position,
+                    true,
+                    impact.RangeInUnits,
+                    impact.Owner,
+                    impact.Placement,
+                    StruckHuman: false,
+                    Wall: new WorldRayHit(impact.Human.Position, impact.Human.Normal, impact.Human.Distance, impact.Human.Material),
+                    Direction: impact.Direction));
+                continue;
+            }
+
             if (impact.StruckHuman)
             {
                 HumanHits++;
@@ -527,6 +559,16 @@ internal sealed class PlayerShotResolver
                 Direction: impact.Direction));
         }
     }
+
+    /// <summary>Gets the flesh material row's index, or <c>-1</c> when the table has none.</summary>
+    /// <remarks>
+    /// The corpse test carries no material row - the presenter has no table - so the callers
+    /// that need the flesh row for a corpse hit resolve it here, where the table lives.
+    /// </remarks>
+    private int FleshMaterialIndex() =>
+        Materials is { } rows && rows.TryGetByName(BulletImpactSounds.FleshMaterialName, out GameMaterial flesh)
+            ? flesh.Index
+            : -1;
 
     // A flying round meets a surface or a body under the hit-scan march's own rule: the material row against
     // the weapon's power, and only an object the trace named can be passed. A glance stops a flying round.
@@ -619,9 +661,27 @@ internal sealed class PlayerShotResolver
                 }
                 WorldRayHit hit = struckWall ? richHit.RayHit : default;
 
+                // The corpses first, as a pure test: a corpse in front of a guard takes the
+                // round, so the living test below must never be offered the guard behind it.
+                // The callback damages as it is called, so the stop has to go in with the round.
+                HumanHit corpseHit = default;
+                object? corpse = null;
+                bool struckCorpse = Corpses is { } corpses
+                    && corpses(
+                        origin,
+                        end,
+                        struckWall ? hit.Distance : double.PositiveInfinity,
+                        out corpseHit,
+                        out corpse)
+                    && (!struckWall || corpseHit.Distance < hit.Distance);
+
                 // The wall first, then the guards short of it. A guard in front of a wall takes the round
                 // and the wall stays clean; one behind it is never offered the damage, and the wall is
                 // marked. The callback damages as it is called, so the stop has to go in with the round.
+                // A corpse in front shortens the stop the same way a wall does.
+                double humanStop = struckCorpse
+                    ? Math.Min(struckWall ? hit.Distance : double.PositiveInfinity, corpseHit.Distance)
+                    : struckWall ? hit.Distance : double.PositiveInfinity;
                 HumanHit human = default;
                 bool struckHuman = Humans is { } humans
                     && humans(
@@ -629,10 +689,23 @@ internal sealed class PlayerShotResolver
                         end,
                         damageFactor,
                         category,
-                        struckWall ? hit.Distance : double.PositiveInfinity,
+                        humanStop,
                         alreadyHeard: pass > 0,
                         out human)
                     && (!struckWall || human.Distance < hit.Distance);
+
+                // The corpse wins when it is nearer than the guard: the round reached it, so the
+                // push lands inside ResolveCorpseBody before the penetration branch decides
+                // whether the round carries on.
+                if (struckCorpse && (!struckHuman || corpseHit.Distance < human.Distance) && ResolveCorpseBody(corpseHit, corpse, travel, category))
+                {
+                    continue;
+                }
+
+                if (struckCorpse && (!struckHuman || corpseHit.Distance < human.Distance))
+                {
+                    return;
+                }
 
                 if (struckHuman && ResolveBody(human, travel))
                 {
@@ -791,6 +864,75 @@ internal sealed class PlayerShotResolver
             }
 
             origin = StepOff(human.Position, direction);
+            return true;
+        }
+
+        // A corpse is a body like any other to the march, but it takes no damage, counts no
+        // hit and leaves no "Hit a guard" log: the push is the whole effect, and the flesh row
+        // decides whether the round carries on, exactly as for a living body. Returns whether
+        // the march carries on.
+        bool ResolveCorpseBody(in HumanHit corpse, object? body, Vector3f travel, WeaponCategory category)
+        {
+            // The push lands whether or not the round gets through: the round met the body.
+            if (!corpse.IsExit && CorpseImpulse is { } push)
+            {
+                push(body, corpse.Bone, new Vector3d(travel.X, travel.Y, travel.Z), category);
+            }
+
+            remaining = GunShotBallistics.ConsumeRange(remaining, (float)corpse.Distance);
+
+            if (corpse.IsExit)
+            {
+                leftASurface = true;
+                if (remaining <= 0f)
+                {
+                    return false;
+                }
+
+                origin = StepOff(corpse.Position, direction);
+                return true;
+            }
+
+            // The test carries no material row - the presenter has no table - so the flesh row
+            // is resolved here, where the table lives. Without it the round stops in the body.
+            int flesh = FleshMaterialIndex();
+            _impacts.Add(new GunImpact(
+                corpse.Position,
+                true,
+                remaining,
+                StruckHuman: false,
+                Wall: new WorldRayHit(corpse.Position, corpse.Normal, corpse.Distance, flesh),
+                Direction: travel));
+
+            if (leftASurface
+                || remaining <= 0f
+                || flesh < 0
+                || Materials is not { } rows
+                || !rows.TryGet(flesh, out GameMaterial skin))
+            {
+                return false;
+            }
+
+            GunShotImpact outcome = GunShotBallistics.ResolveEntry(
+                penetrationPower,
+                skin,
+                namedObject: true,
+                GunShotBallistics.IncidenceRadians(direction, corpse.Normal),
+                deflected,
+                _random.NextSingle);
+            if (outcome == GunShotImpact.Stopped)
+            {
+                return false;
+            }
+
+            if (outcome == GunShotImpact.Deflected)
+            {
+                deflected = true;
+                Deflected?.Invoke(corpse.Position);
+                direction = Reflect(direction, corpse.Normal);
+            }
+
+            origin = StepOff(corpse.Position, direction);
             return true;
         }
 

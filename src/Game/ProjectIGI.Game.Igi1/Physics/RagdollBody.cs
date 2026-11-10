@@ -625,6 +625,29 @@ public sealed partial class RagdollBody
         return _orientation[bone];
     }
 
+    /// <summary>Gets one bone's capsule in world space, for the corpse queries.</summary>
+    /// <param name="bone">The bone index.</param>
+    /// <param name="axisA">One end of the capsule's central axis, in engine units.</param>
+    /// <param name="axisB">The other end of the capsule's central axis, in engine units.</param>
+    /// <param name="radius">The capsule's radius, in engine units.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="bone"/> is not a bone of this rig.</exception>
+    /// <remarks>
+    /// The same capsule the solver surveys: centred on the bone's centre of mass
+    /// (<c>_position[bone]</c>), along its rotated aim for half its length either way
+    /// (<c>Turned(bone, _aim[bone]) * _halfLength[bone]</c>), radius
+    /// <c>_radius[bone]</c>. Read straight from the frozen pose when the body has latched at
+    /// rest, so a settled corpse answers exactly as an active one does.
+    /// </remarks>
+    public void CapsuleOf(int bone, out Vector3d axisA, out Vector3d axisB, out double radius)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(bone);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(bone, _position.Length);
+        Vector3d along = Turned(bone, _aim[bone]) * _halfLength[bone];
+        axisA = _position[bone] - along;
+        axisB = _position[bone] + along;
+        radius = _radius[bone];
+    }
+
     /// <summary>Starts a ragdoll from the pose a body was drawn in when it died.</summary>
     /// <param name="rig">The prepared rig.</param>
     /// <param name="pose">

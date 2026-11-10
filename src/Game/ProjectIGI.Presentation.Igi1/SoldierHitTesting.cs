@@ -4,6 +4,7 @@ using ProjectIGI.Formats.Animation;
 using ProjectIGI.Formats.World;
 using ProjectIGI.Game;
 using ProjectIGI.Game.Igi1.Ai;
+using ProjectIGI.Game.Igi1.Physics;
 using ProjectIGI.Game.Igi1.Player;
 using ProjectIGI.Game.Player;
 using ProjectIGI.Game.Weapons;
@@ -270,5 +271,226 @@ internal sealed class SoldierHitTesting(
         }
 
         return met;
+    }
+
+    /// <summary>Casts a round at every corpse's bone capsules, as a pure test: it applies nothing.</summary>
+    /// <param name="origin">Where the round starts, in world units.</param>
+    /// <param name="rayEnd">Where it stops.</param>
+    /// <param name="stopDistance">
+    /// How far from <paramref name="origin"/>, in world units, the round may reach. A corpse at or
+    /// beyond it is behind the surface or living human the caller already met and is never struck.
+    /// </param>
+    /// <param name="hit">The nearest crossing of a corpse's bone capsules, when there is one.</param>
+    /// <param name="corpse">The struck corpse — the XPBD body or the Bepu corpse — when there is one.</param>
+    /// <returns><see langword="false"/> when the round meets no corpse short of the stop.</returns>
+    /// <remarks>
+    /// <para>
+    /// The dead are excluded from <see cref="Bodies"/> and the skinned-mesh path is the wrong
+    /// geometry for them — a corpse has no animated pose, only the solver's — so this is analytic
+    /// capsules throughout: the same generous body-sphere cull
+    /// <see cref="TryCastMember"/> uses around the corpse's centre, then one
+    /// <see cref="RayCapsule.Intersect"/> per bone. The player's own corpse is never in these
+    /// groups, so it is never offered a round.
+    /// </para>
+    /// <para>
+    /// A hit carries the struck bone (the push needs it), the default zone (a corpse takes no
+    /// damage, so no zone is ever scored from it), and <c>Material -1</c> (the presenter has no
+    /// materials table; the caller substitutes the flesh row). The normal is turned to oppose
+    /// the round, as <see cref="HumanHit.Normal"/> promises — which for an exit means the
+    /// outward capsule normal, negated.
+    /// </para>
+    /// <para>
+    /// Settled corpses answer exactly like active ones: the capsules are read from the frozen
+    /// pose, never gated on the rest latch or Bepu sleep.
+    /// </para>
+    /// </remarks>
+    public bool TryCastCorpse(Vector3d origin, Vector3d rayEnd, double stopDistance, out HumanHit hit, out object? corpse)
+    {
+        hit = default;
+        corpse = null;
+        Vector3d ray = rayEnd - origin;
+        double reach = Math.Sqrt((ray.X * ray.X) + (ray.Y * ray.Y) + (ray.Z * ray.Z));
+        if (reach <= 0.0)
+        {
+            return false;
+        }
+
+        Vector3d direction = new(ray.X / reach, ray.Y / reach, ray.Z / reach);
+        double nearest = double.MaxValue;
+        HumanHit best = default;
+        object? bestCorpse = null;
+        foreach (SoldierGroup group in _groups)
+        {
+            foreach (SoldierMember member in group.Soldiers)
+            {
+                if (member.Ragdoll is { IsValid: true } ragdoll)
+                {
+                    TestCorpse(ragdoll, ragdoll.Centre, origin, ray, direction, reach, stopDistance, ref nearest, ref best, ref bestCorpse);
+                }
+                else if (member.BepuRagdoll is { IsValid: true, Removed: false } bepu)
+                {
+                    TestCorpse(bepu, bepu.Centre, origin, ray, direction, reach, stopDistance, ref nearest, ref best, ref bestCorpse);
+                }
+            }
+        }
+
+        if (bestCorpse is null)
+        {
+            return false;
+        }
+
+        hit = best;
+        corpse = bestCorpse;
+        return true;
+    }
+
+    /// <summary>Applies a round's push to a corpse the <see cref="TryCastCorpse"/> test returned.</summary>
+    /// <param name="corpse">The token the test returned.</param>
+    /// <param name="bone">The bone the round went through, from the hit.</param>
+    /// <param name="travel">The round's own line, from the muzzle towards where it ended.</param>
+    /// <param name="category">The firing weapon's category, which decides how hard the body is thrown.</param>
+    /// <remarks>
+    /// The same seed-time push on both solvers, so a shot corpse takes the same jolt a fresh one
+    /// does: XPBD through <see cref="RagdollImpulse.Apply"/>, Bepu through
+    /// <c>BepuRagdollCorpse.ApplyImpulse</c> in SI units (the seed's
+    /// <c>MomentumOf * TicksPerSecond / UnitsPerMetre</c> conversion). Both clear the rest state —
+    /// the XPBD latch and Bepu sleep — so a settled corpse jolts and re-settles with no separate
+    /// wake call. Applied only when the caller has established the corpse won the pass.
+    /// </remarks>
+    public void ApplyCorpseImpulse(object? corpse, int bone, Vector3d travel, WeaponCategory category)
+    {
+        if (corpse is RagdollBody xpbd)
+        {
+            RagdollImpulse.Apply(
+                xpbd,
+                bone,
+                travel,
+                RagdollImpulse.MomentumOf(xpbd.Rig, category, GameplayCVars.RagdollForce.Value));
+        }
+        else if (corpse is BepuRagdollCorpse bepu)
+        {
+            bepu.ApplyImpulse(
+                bone,
+                travel,
+                RagdollImpulse.MomentumOf(bepu.Rig, category, GameplayCVars.RagdollForce.Value)
+                    * RagdollImpulse.TicksPerSecond / RagdollImpulse.UnitsPerMetre);
+        }
+    }
+
+    private static void TestCorpse(
+        RagdollBody ragdoll,
+        Vector3d centre,
+        Vector3d origin,
+        Vector3d ray,
+        Vector3d direction,
+        double reach,
+        double stopDistance,
+        ref double nearest,
+        ref HumanHit best,
+        ref object? bestCorpse)
+    {
+        if (!ReachesCorpse(origin, direction, centre, reach))
+        {
+            return;
+        }
+
+        for (int bone = 0; bone < ragdoll.BoneCount; bone++)
+        {
+            ragdoll.CapsuleOf(bone, out Vector3d axisA, out Vector3d axisB, out double radius);
+            ConsiderBone(axisA, axisB, radius, bone, origin, ray, reach, stopDistance, ragdoll, ref nearest, ref best, ref bestCorpse);
+        }
+    }
+
+    private static void TestCorpse(
+        BepuRagdollCorpse bepu,
+        Vector3d centre,
+        Vector3d origin,
+        Vector3d ray,
+        Vector3d direction,
+        double reach,
+        double stopDistance,
+        ref double nearest,
+        ref HumanHit best,
+        ref object? bestCorpse)
+    {
+        if (!ReachesCorpse(origin, direction, centre, reach))
+        {
+            return;
+        }
+
+        for (int bone = 0; bone < bepu.Rig.BoneCount; bone++)
+        {
+            bepu.CapsuleOf(bone, out Vector3d axisA, out Vector3d axisB, out double radius);
+            ConsiderBone(axisA, axisB, radius, bone, origin, ray, reach, stopDistance, bepu, ref nearest, ref best, ref bestCorpse);
+        }
+    }
+
+    private static bool ReachesCorpse(Vector3d origin, Vector3d direction, Vector3d centre, double reach)
+    {
+        Vector3d offset = origin - centre;
+        bool startsInside = (offset.X * offset.X) + (offset.Y * offset.Y) + (offset.Z * offset.Z)
+            <= SoldierSimulation.PickCullRadiusUnits * SoldierSimulation.PickCullRadiusUnits;
+        return startsInside
+            || SoldierSimulation.RaySphere(origin, direction, centre, SoldierSimulation.PickCullRadiusUnits, reach, out _);
+    }
+
+    private static void ConsiderBone(
+        Vector3d axisA,
+        Vector3d axisB,
+        double radius,
+        int bone,
+        Vector3d origin,
+        Vector3d ray,
+        double reach,
+        double stopDistance,
+        object corpse,
+        ref double nearest,
+        ref HumanHit best,
+        ref object? bestCorpse)
+    {
+        if (!RayCapsule.Intersect(origin, ray, axisA, axisB, radius, out double t, out Vector3d capsuleNormal))
+        {
+            return;
+        }
+
+        double distance = t * reach;
+        if (distance >= nearest || distance >= stopDistance)
+        {
+            return;
+        }
+
+        // Inside this capsule the returned contact is the far side: an exit, no push. The
+        // bone capsules overlap, so a round through a torso may meet a second bone's entry
+        // instead of a clean body exit — rifles always pass flesh, a weak round usually stops
+        // in the first bone, so the penetration behaviour is the same either way.
+        bool exit = OriginInsideCapsule(origin, axisA, axisB, radius);
+        Vector3d normal = exit ? new Vector3d(-capsuleNormal.X, -capsuleNormal.Y, -capsuleNormal.Z) : capsuleNormal;
+        nearest = distance;
+        best = new HumanHit(
+            new Vector3d(origin.X + (ray.X * t), origin.Y + (ray.Y * t), origin.Z + (ray.Z * t)),
+            distance,
+            HumanDamage.DefaultZone,
+            0f,
+            0f,
+            Bone: bone,
+            Material: -1,
+            IsExit: exit,
+            Normal: new Vector3f((float)normal.X, (float)normal.Y, (float)normal.Z));
+        bestCorpse = corpse;
+    }
+
+    private static bool OriginInsideCapsule(Vector3d origin, Vector3d axisA, Vector3d axisB, double radius)
+    {
+        Vector3d axis = axisB - axisA;
+        double lengthSquared = (axis.X * axis.X) + (axis.Y * axis.Y) + (axis.Z * axis.Z);
+        double along = lengthSquared <= 0.0
+            ? 0.0
+            : Math.Clamp(
+                ((origin.X - axisA.X) * axis.X + (origin.Y - axisA.Y) * axis.Y + (origin.Z - axisA.Z) * axis.Z) / lengthSquared,
+                0.0,
+                1.0);
+        Vector3d closest = new(axisA.X + (axis.X * along), axisA.Y + (axis.Y * along), axisA.Z + (axis.Z * along));
+        Vector3d gap = origin - closest;
+        return (gap.X * gap.X) + (gap.Y * gap.Y) + (gap.Z * gap.Z) < radius * radius;
     }
 }

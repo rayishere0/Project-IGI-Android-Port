@@ -203,6 +203,19 @@ public interface ISoldierPresenter : ISoldierBodies, IShootableBodies
     /// <returns>The delegate the player takes.</returns>
     HumanShot Shooter();
 
+    /// <summary>Gets a delegate that offers rounds to the corpses in the world, as a pure test.</summary>
+    /// <returns>The delegate the player takes, beside <see cref="Shooter"/> for the living.</returns>
+    /// <remarks>
+    /// The test applies nothing: the caller applies the push through
+    /// <see cref="CorpseImpulser"/> only once it has established the corpse is the nearest of
+    /// wall, living human and corpse.
+    /// </remarks>
+    CorpseShot CorpseShooter();
+
+    /// <summary>Gets a delegate that applies a round's push to a corpse the corpse test returned.</summary>
+    /// <returns>The delegate the shot march takes, beside <see cref="CorpseShooter"/>.</returns>
+    CorpseImpulse CorpseImpulser();
+
     /// <summary>Advances every soldier's animation by one tick and re-skins the groups.</summary>
     /// <remarks>
     /// <para>
