@@ -88,11 +88,13 @@ public sealed partial class RagdollBody
             if (_halfLength[bone] <= _radius[bone])
             {
                 int only = bone * 3;
-                _grounded[only] = world.TryGround(_position[bone], out _surface[only]);
+                _grounded[only] = world.TryGround(_position[bone], out _surface[only], out _surfaceNormal[only]);
                 _grounded[only + 1] = _grounded[only];
                 _grounded[only + 2] = _grounded[only];
                 _surface[only + 1] = _surface[only];
                 _surface[only + 2] = _surface[only];
+                _surfaceNormal[only + 1] = _surfaceNormal[only];
+                _surfaceNormal[only + 2] = _surfaceNormal[only];
                 continue;
             }
 
@@ -100,7 +102,7 @@ public sealed partial class RagdollBody
             {
                 int probe = (bone * 3) + end + 1;
                 _grounded[probe] =
-                    world.TryGround(_position[bone] + (along * end), out _surface[probe]);
+                    world.TryGround(_position[bone] + (along * end), out _surface[probe], out _surfaceNormal[probe]);
             }
         }
     }
@@ -135,7 +137,17 @@ public sealed partial class RagdollBody
                 }
 
                 Vector3d probe = _position[bone] + (along * end);
-                double depth = _surface[index] + _radius[bone] - probe.Z - PenetrationSlop;
+
+                // Depth against the surface itself, not against its height: the surveyed point at the
+                // probe's own (x, y), measured along the surface normal. On flat ground the normal is
+                // +Z and this is the old vertical depth; on a slope the normal shortens the vertical
+                // gap by cosθ, which is exactly the sink the flat normal used to leave behind — the
+                // solver read the contact as satisfied while the body was visibly buried. Pushed along
+                // the normal, and recorded with it, so friction damps across the slope and the body
+                // slides down it instead of sticking — the same shape as the wall branch below.
+                Vector3d surfacePoint = new Vector3d(probe.X, probe.Y, _surface[index]);
+                Vector3d normal = _surfaceNormal[index];
+                double depth = Vector3d.Dot(surfacePoint - probe, normal) + _radius[bone] - PenetrationSlop;
                 if (depth <= 0.0)
                 {
                     continue;
@@ -149,9 +161,9 @@ public sealed partial class RagdollBody
 
                 // Only ever a substep's worth of it -- see MaximumDepenetrationSpeed for why that cap
                 // is what stops a corpse launching off the floor rather than landing on it.
-                Remember(record, bone, arm, Vector3d.UnitZ);
+                Remember(record, bone, arm, normal);
                 ApplyPositional(
-                    -1, bone, Vector3d.Zero, arm, Vector3d.UnitZ, Math.Min(depth, budget), repair: true);
+                    -1, bone, Vector3d.Zero, arm, normal, Math.Min(depth, budget), repair: true);
             }
 
             // And the walls. Pushed at the bone's centre rather than at the contact point: a wall shove

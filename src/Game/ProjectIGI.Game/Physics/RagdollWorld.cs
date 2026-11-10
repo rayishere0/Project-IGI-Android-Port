@@ -7,13 +7,16 @@ namespace ProjectIGI.Game.Physics;
 /// <param name="x">World X, in engine units.</param>
 /// <param name="y">World Y, in engine units.</param>
 /// <param name="z">The height to search downwards from, in engine units.</param>
-/// <param name="groundZ">Receives the ground height when one is found.</param>
+/// <param name="ground">Receives the ground surface when one is found: its height and its unit normal.</param>
 /// <returns><see langword="true"/> when a surface was found.</returns>
 /// <remarks>
 /// The same shape as <c>Igi1HumanAi.GroundQuery</c>, declared again here so the solver depends on nothing
-/// in the AI. The desktop shell's <c>MakeGroundQuery</c> satisfies both.
+/// in the AI — except that this one also carries the surface normal. A ground contact pushed straight up
+/// out of a slope sinks the body into it by r·(1−cosθ) and sticks instead of sliding; pushed along the
+/// normal it rests on the slope. The desktop shell's <c>MakeGroundQuery</c> satisfies the height-only
+/// half, so corpses build their own query that keeps the normal.
 /// </remarks>
-public delegate bool RagdollGround(double x, double y, double z, out double groundZ);
+public delegate bool RagdollGround(double x, double y, double z, out TerrainGround ground);
 
 /// <summary>What a ragdoll collides against.</summary>
 /// <remarks>
@@ -62,12 +65,12 @@ public sealed class RagdollWorld
     /// <param name="height">The plane's Z, in engine units.</param>
     /// <returns>The world.</returns>
     public static RagdollWorld Plane(double height) =>
-        new(ground: (double x, double y, double z, out double groundZ) =>
+        new(ground: (double x, double y, double z, out TerrainGround ground) =>
         {
             _ = x;
             _ = y;
             _ = z;
-            groundZ = height;
+            ground = new TerrainGround(height, 0.0, 0.0, 1.0);
             return true;
         });
 
@@ -95,12 +98,12 @@ public sealed class RagdollWorld
                     (end - origin).Length * at);
                 return true;
             },
-            ground: (double x, double y, double z, out double groundZ) =>
+            ground: (double x, double y, double z, out TerrainGround ground) =>
             {
                 _ = x;
                 _ = y;
                 _ = z;
-                groundZ = floor;
+                ground = new TerrainGround(floor, 0.0, 0.0, 1.0);
                 return true;
             });
 
@@ -183,10 +186,28 @@ public sealed class RagdollWorld
     /// <param name="point">The point, in engine units.</param>
     /// <param name="groundZ">Receives the ground height.</param>
     /// <returns><see langword="true"/> when a surface was found.</returns>
-    public bool TryGround(Vector3d point, out double groundZ)
+    public bool TryGround(Vector3d point, out double groundZ) =>
+        TryGround(point, out groundZ, out _);
+
+    /// <summary>Finds the ground surface near a point, whether it is above or below.</summary>
+    /// <param name="point">The point, in engine units.</param>
+    /// <param name="groundZ">Receives the ground height.</param>
+    /// <param name="normal">Receives the surface's unit normal — the direction a body resting on it is pushed.</param>
+    /// <returns><see langword="true"/> when a surface was found.</returns>
+    public bool TryGround(Vector3d point, out double groundZ, out Vector3d normal)
     {
         groundZ = 0.0;
-        return Ground is { } ground
-            && ground(point.X, point.Y, point.Z + GroundSearchAboveInUnits, out groundZ);
+        normal = Vector3d.UnitZ;
+        if (Ground is not { } ground
+            || !ground(point.X, point.Y, point.Z + GroundSearchAboveInUnits, out TerrainGround surface))
+        {
+            return false;
+        }
+
+        groundZ = surface.Height;
+        normal = new Vector3d(surface.NormalX, surface.NormalY, surface.NormalZ);
+        double size = normal.Length;
+        normal = size > 0.0 ? normal / size : Vector3d.UnitZ;
+        return true;
     }
 }
