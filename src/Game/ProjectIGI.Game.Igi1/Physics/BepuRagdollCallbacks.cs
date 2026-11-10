@@ -85,6 +85,13 @@ internal struct BepuNarrowPhaseCallbacks : INarrowPhaseCallbacks
     /// <summary>The shared tag table. A reference, so the simulation's copy reads what the adapter wrote.</summary>
     public BepuBodyTagTable Tags = null!;
 
+    // Explicit parameterless constructor: C# requires one on a struct that declares field
+    // initializers (CS8983). The initializer above still runs in it; the caller then sets
+    // Tags from its own table (see BepuRagdollWorld).
+    public BepuNarrowPhaseCallbacks()
+    {
+    }
+
     /// <summary>Contact friction: <see cref="RagdollBody.Friction"/> (0.4), the same Coulomb coefficient.</summary>
     public const float ContactFriction = 0.4f;
 
@@ -139,9 +146,14 @@ internal struct BepuNarrowPhaseCallbacks : INarrowPhaseCallbacks
     /// The generic constraint is verified from the 2.4.0 DLL metadata (GenericParam 569 on this
     /// method): <c>struct</c> + <c>IContactManifold&lt;TManifold&gt;</c>. The <c>unmanaged</c>
     /// spelling is the demo's; it carries the same two constraints.
+    /// The 2.4.0 interface takes <c>pairMaterial</c> as <c>out</c>, not <c>ref</c> — the
+    /// prototype first shipped it as <c>ref</c> (CS0535). The PR #65 survey read the XML
+    /// doc-ID <c>PairMaterialProperties@</c> as <c>ref</c>; doc IDs cannot distinguish
+    /// <c>ref</c> from <c>out</c>. The 2.4.0 DLL Param flags say <c>pdOut</c> on this
+    /// parameter, and the compiler's error prints <c>out</c>.
     /// </remarks>
     public bool ConfigureContactManifold<TManifold>(
-        int workerIndex, CollidablePair pair, ref TManifold manifold, ref PairMaterialProperties pairMaterial)
+        int workerIndex, CollidablePair pair, ref TManifold manifold, out PairMaterialProperties pairMaterial)
         where TManifold : unmanaged, IContactManifold<TManifold>
     {
         pairMaterial = new PairMaterialProperties(

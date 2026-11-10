@@ -39,7 +39,7 @@ internal sealed class BepuRagdollCorpse
 
     private readonly BepuRagdollWorld _world;
     private readonly Quaternion32[] _local;
-    private readonly Quaternion32[] _world;
+    private readonly Quaternion32[] _worldRotations;
     private readonly Quaternion32[] _alignmentInverse;
     private readonly Vector3f[] _centres;
 
@@ -96,7 +96,7 @@ internal sealed class BepuRagdollCorpse
         _alignmentInverse = alignmentInverse;
         _centres = centres;
         _local = new Quaternion32[rig.BoneCount];
-        _world = new Quaternion32[rig.BoneCount];
+        _worldRotations = new Quaternion32[rig.BoneCount];
     }
 
     /// <summary>Gets the body's centre of mass, in engine units — what the death camera frames.</summary>
@@ -275,7 +275,7 @@ internal sealed class BepuRagdollCorpse
         {
             Quaternion32 bodyEngine =
                 BepuRagdollConversions.ToEngineQuaternion(simulation.Bodies[Bodies[bone]].Pose.Orientation);
-            _world[bone] = (bodyEngine * _alignmentInverse[bone]).Normalized();
+            _worldRotations[bone] = (bodyEngine * _alignmentInverse[bone]).Normalized();
         }
 
         for (int bone = 0; bone < Rig.BoneCount; bone++)
@@ -283,14 +283,14 @@ internal sealed class BepuRagdollCorpse
             int parent = Rig.Skeleton.Parents[bone];
             Quaternion32 above = parent == BoneSkeleton.NoParent
                 ? Quaternion32.Identity
-                : _world[parent];
-            _local[bone] = (above.Conjugate() * _world[bone]).Normalized();
+                : _worldRotations[parent];
+            _local[bone] = (above.Conjugate() * _worldRotations[bone]).Normalized();
         }
 
         // Root joint = root COM − (root orientation × root COM offset), relative to the origin.
         Vector3 rootComMetres = simulation.Bodies[Bodies[0]].Pose.Position;
         Vector3d rootComUnits = BepuRagdollConversions.ToEnginePosition(rootComMetres);
-        Matrix3f rootRotation = BonePose.ToMatrix(_world[0]);
+        Matrix3f rootRotation = BonePose.ToMatrix(_worldRotations[0]);
         Vector3f centre = RagdollSolver.Rotate(rootRotation, _centres[0]);
         Vector3d root = rootComUnits - new Vector3d(centre.X, centre.Y, centre.Z) - Origin;
         return BonePose.Evaluate(

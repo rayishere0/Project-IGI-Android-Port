@@ -3,6 +3,7 @@ using System.Numerics;
 using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuPhysics.Constraints;
+using BepuUtilities;
 using BepuUtilities.Memory;
 using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Numerics;
