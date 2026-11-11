@@ -48,6 +48,10 @@
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Co-op voice: the microphone, asked for at first voice use (MainActivity polls the
+         managed MicrophoneRequested flag) and never at startup. Denied means voice send stays
+         off; hearing the others and text chat still work. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 

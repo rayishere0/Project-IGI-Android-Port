@@ -40,6 +40,7 @@ public final class NativeEngine {
     public static native boolean nativeIsTextFieldFocused();
     public static native boolean nativeIsKeyboardRequested();
     public static native void nativeSetKeyboardRequested(boolean requested);
+    public static native boolean nativeIsMicrophoneRequested();
     public static native void nativeShutdown();
 
     private NativeEngine() {}

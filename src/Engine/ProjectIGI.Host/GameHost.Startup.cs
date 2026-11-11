@@ -50,6 +50,7 @@ public sealed partial class GameHost
         _flashlight.RegisterCommands(state.Console.System);
         RegisterTitlePlayerCommands(state.Console.System);
         RegisterLoopbackCommands(state.Console.System);
+        RegisterCoopTalk(state.Console.System);
         _hosted.Impacts.Register(state.Console.System, () => _inspectorEye, _logger);
         RegisterCameraCommands(state.Console.System);
         RegisterRendererSwitchCommand(state.Console.System);
