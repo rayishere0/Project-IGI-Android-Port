@@ -232,3 +232,7 @@ The generated APK will be located at:
 - **Original Game**: Developed by **Innerloop Studios** and published by **Eidos Interactive** (2000).
 - This project is an open-source educational recreation and engine rewrite intended for preservation and modern platform support.
 - All trademarks and registered trademarks belong to their respective owners.
+
+### Upstream credit
+
+- **Engine**: this port is based on [OpenIGI](https://github.com/OpenIGI/OpenIGI) by **Shahriyar Bazaei**, licensed under the **GNU General Public License v3.0** (see [LICENSE](LICENSE)). This port modifies the OpenIGI engine for Android.
