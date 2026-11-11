@@ -52,7 +52,6 @@ typedef void (*TextFn)(const char* text);
 typedef int (*TextFocusFn)();
 typedef int (*KeyboardRequestedFn)();
 typedef void (*SetKeyboardRequestedFn)(int value);
-typedef int (*MicrophoneRequestedFn)();
 typedef void (*SurfaceLostFn)();
 typedef void (*SurfaceRecreatedFn)(intptr_t nativeWindow, int width, int height);
 
@@ -72,7 +71,6 @@ static TextFn g_text_fn = nullptr;
 static TextFocusFn g_text_focus_fn = nullptr;
 static KeyboardRequestedFn g_keyboard_requested_fn = nullptr;
 static SetKeyboardRequestedFn g_set_keyboard_requested_fn = nullptr;
-static MicrophoneRequestedFn g_microphone_requested_fn = nullptr;
 static SurfaceLostFn g_surface_lost_fn = nullptr;
 static SurfaceRecreatedFn g_surface_recreated_fn = nullptr;
 
@@ -205,9 +203,8 @@ static bool initialize_coreclr(const std::string& filesDir, const std::string& n
     int res12 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "SetKeyboardRequested", (void**)&g_set_keyboard_requested_fn);
     int res13 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnGamepadAxis", (void**)&g_gamepad_axis_fn);
     int res14 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "OnGamepadConnected", (void**)&g_gamepad_connected_fn);
-    int res15 = coreclr_delegate(g_host_handle, g_domain_id, "OpenIGI.Android", "OpenIGI.Android.AndroidHost", "IsMicrophoneRequested", (void**)&g_microphone_requested_fn);
 
-    LOGI("Delegate binding results: Run=0x%08X, OnTouch=0x%08X, OnKey=0x%08X, OnResize=0x%08X, Stop=0x%08X, OnGyro=0x%08X, OnText=0x%08X, IsTextFieldFocused=0x%08X, OnSurfaceLost=0x%08X, OnSurfaceRecreated=0x%08X, IsKeyboardRequested=0x%08X, SetKeyboardRequested=0x%08X, OnGamepadAxis=0x%08X, OnGamepadConnected=0x%08X, IsMicrophoneRequested=0x%08X", res1, res2, res3, res4, res5, res6, res7, res8, res9, res10, res11, res12, res13, res14, res15);
+    LOGI("Delegate binding results: Run=0x%08X, OnTouch=0x%08X, OnKey=0x%08X, OnResize=0x%08X, Stop=0x%08X, OnGyro=0x%08X, OnText=0x%08X, IsTextFieldFocused=0x%08X, OnSurfaceLost=0x%08X, OnSurfaceRecreated=0x%08X, IsKeyboardRequested=0x%08X, SetKeyboardRequested=0x%08X, OnGamepadAxis=0x%08X, OnGamepadConnected=0x%08X", res1, res2, res3, res4, res5, res6, res7, res8, res9, res10, res11, res12, res13, res14);
 
     if (res1 < 0 || !g_run_fn) {
         LOGE("Failed to bind AndroidHost.Run: 0x%08X", res1);
@@ -450,14 +447,6 @@ JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeSetKeyboardReq
     if (g_set_keyboard_requested_fn) {
         g_set_keyboard_requested_fn(requested ? 1 : 0);
     }
-}
-
-JNIEXPORT jboolean JNICALL Java_com_projectigi_app_NativeEngine_nativeIsMicrophoneRequested
-  (JNIEnv *env, jclass clazz) {
-    if (g_microphone_requested_fn) {
-        return g_microphone_requested_fn() != 0 ? JNI_TRUE : JNI_FALSE;
-    }
-    return JNI_FALSE;
 }
 
 JNIEXPORT void JNICALL Java_com_projectigi_app_NativeEngine_nativeShutdown

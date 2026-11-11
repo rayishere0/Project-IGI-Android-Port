@@ -404,13 +404,6 @@ public static class AndroidHost
         }
     }
 
-    /// <summary>Whether the Android microphone permission is wanted: set the first time co-op voice wants the microphone, so Java can ask for RECORD_AUDIO at first voice use. The managed side never clears it; Java asks once per run and the mic-open attempt (which returns null while ungranted) is the grant signal.</summary>
-    [UnmanagedCallersOnly(EntryPoint = "IsMicrophoneRequested")]
-    public static int IsMicrophoneRequested()
-    {
-        return _gameHost is { } host && host.MicrophoneRequested ? 1 : 0;
-    }
-
     [UnmanagedCallersOnly(EntryPoint = "OnResize")]
     public static void OnResize(int width, int height)
     {

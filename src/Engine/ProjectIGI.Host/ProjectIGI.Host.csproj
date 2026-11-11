@@ -1,17 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <!-- Opus voice codec for co-op (pure managed; see Directory.Packages.props for the licence note). -->
-    <PackageReference Include="Concentus" />
-  </ItemGroup>
-
-  <ItemGroup>
     <!-- The game host: the frame loop, the mission and cutscene wiring, the developer console, the
          menu host and the bake orchestration. Everything here is portable — a desktop, mobile or web
          app supplies the window, the graphics device and the audio backend through the abstraction
          interfaces and gets the same host. It names no backend and no game title. -->
     <ProjectReference Include="..\..\Core\ProjectIGI.Core\ProjectIGI.Core.csproj" />
-    <ProjectReference Include="..\ProjectIGI.Net.Udp\ProjectIGI.Net.Udp.csproj" />
     <ProjectReference Include="..\ProjectIGI.Engine\ProjectIGI.Engine.csproj" />
     <ProjectReference Include="..\..\Core\ProjectIGI.Formats\ProjectIGI.Formats.csproj" />
     <ProjectReference Include="..\..\Core\ProjectIGI.Scripting\ProjectIGI.Scripting.csproj" />

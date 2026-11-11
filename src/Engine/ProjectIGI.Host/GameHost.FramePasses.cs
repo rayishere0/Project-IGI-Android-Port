@@ -114,8 +114,6 @@ public sealed partial class GameHost
         ApplyGamepadControls(state);
         UpdateCheatsOverlay(state);
         FollowLoopbackSession(state);
-        FollowDirectSession(state);
-        UpdateLanDiscovery();
 
         // Whatever the detail-map workers finished since the last pass, uploaded a few at a time.
         // The setting is read here rather than captured at construction so that turning
@@ -191,15 +189,6 @@ public sealed partial class GameHost
         // IsKeyboardRequested; text-field auto-focus (IsTextFieldFocused) is untouched.
         KeyboardRequested = state.Console.IsOpen;
         _prevKeyboardRequested = KeyboardRequested;
-
-        // A co-op line being typed takes the keyboard next, the same way, and a key
-        // held to talk sends this player's voice: both read the frame's input before
-        // the game does, and neither runs while the console owns it.
-        if (!state.Console.IsOpen)
-        {
-            UpdateCoopVoice();
-            UpdateCoopTalk();
-        }
     }
 
     /// <summary>Runs the shell over its own input, or lets the game's binds have the keys when it is not up.</summary>
