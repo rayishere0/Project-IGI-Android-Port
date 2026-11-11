@@ -572,21 +572,6 @@ public sealed class SettingsScreen : ShellScreen
             RebuildContentRows();
         }
 
-        // ── Engine credit ───────────────────────────────────────────────────
-        // The shell's own credits page (Extras) is never shown on Android, and the
-        // retail menu's credits come from the game's own data files, so the line
-        // lives here, on the one code-rendered screen every player can reach.
-        var engineCredit = new Label(
-            theme.Body,
-            "Engine based on OpenIGI by Shahriyar Bazaei, licensed under the GNU General Public License v3.0.",
-            17f,
-            UiPalette.TextBody)
-        {
-            Wrap = true,
-            Width = 980f,
-        };
-        configStack.AddChild(engineCredit);
-
         frame.AddChild(_scroll);
 
         // ── Bottom Buttons: OK & Cancel ──────────────────────────────────
