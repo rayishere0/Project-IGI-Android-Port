@@ -106,6 +106,67 @@ static std::string build_tpa_list(const std::string& directory) {
     return tpa;
 }
 
+// The .NET Android crypto PAL's init: jint AndroidCryptoNative_InitLibraryOnLoad(JavaVM*, void*)
+// in libSystem.Security.Cryptography.Native.Android.so (dotnet/runtime,
+// src/native/libs/System.Security.Cryptography.Native.Android/pal_jni.c). It stores the
+// JavaVM the PAL's GetJNIEnv() dereferences on every call, and caches the Java classes
+// the PAL needs (SecureRandom, MessageDigest, Cipher, SSLContext, ...).
+typedef jint (*CryptoPalInitFn)(JavaVM*, void*);
+
+// Initialises the .NET Android crypto PAL, once, before any managed code runs. The
+// runtime loads that library by dlopen for P/Invoke, so its (weak) JNI_OnLoad never
+// runs and its stored JavaVM stays null: the first crypto/TLS call then faults at 0x0
+// in GetJNIEnv — RandomNumberGenerator on the game thread (the #80 Start crash) and
+// SslStream creation on a .NET TP Worker (the rooms HTTPS/WSS crash, 2026-11-11
+// 14:27:42 IST). Calling the init here is exactly what .NET for Android does at
+// startup; it fixes every PAL site at once (RNG, SslStream, hashing) because they all
+// start at the same GetJNIEnv() on the same JavaVM. A failure only warns: the game
+// starts as it does today, with crypto still broken, and no new failure mode.
+static bool init_android_crypto_pal(const std::string& nativeLibDir, const std::string& managedDir, const std::string& filesDir) {
+    static bool attempted = false;
+    static bool ok = false;
+    if (attempted) {
+        return ok;
+    }
+    attempted = true;
+
+    if (!g_jvm) {
+        LOGE("Android crypto PAL: no JavaVM yet; crypto/TLS calls will crash if used.");
+        return false;
+    }
+
+    void* cryptoLib = dlopen((nativeLibDir + "/libSystem.Security.Cryptography.Native.Android.so").c_str(), RTLD_NOW | RTLD_GLOBAL);
+    if (!cryptoLib) {
+        cryptoLib = dlopen((managedDir + "/libSystem.Security.Cryptography.Native.Android.so").c_str(), RTLD_NOW | RTLD_GLOBAL);
+    }
+    if (!cryptoLib) {
+        cryptoLib = dlopen((filesDir + "/libSystem.Security.Cryptography.Native.Android.so").c_str(), RTLD_NOW | RTLD_GLOBAL);
+    }
+    if (!cryptoLib) {
+        cryptoLib = dlopen("libSystem.Security.Cryptography.Native.Android.so", RTLD_NOW | RTLD_GLOBAL);
+    }
+    if (!cryptoLib) {
+        LOGW("Android crypto PAL not found (%s); HTTPS/SSL and crypto RNG will crash if used.", dlerror());
+        return false;
+    }
+
+    auto init = (CryptoPalInitFn)dlsym(cryptoLib, "AndroidCryptoNative_InitLibraryOnLoad");
+    if (!init) {
+        LOGW("Android crypto PAL has no InitLibraryOnLoad export; HTTPS/SSL and crypto RNG will crash if used.");
+        return false;
+    }
+
+    jint res = init(g_jvm, nullptr);
+    if (res != JNI_VERSION_1_6) {
+        LOGW("Android crypto PAL init returned %d, expected %d; HTTPS/SSL may crash.", (int)res, (int)JNI_VERSION_1_6);
+        return false;
+    }
+
+    LOGI("Android crypto PAL initialised; TLS/RNG now safe on any thread.");
+    ok = true;
+    return true;
+}
+
 static bool initialize_coreclr(const std::string& filesDir, const std::string& nativeLibDir) {
     if (g_host_handle != nullptr) {
         return true;
@@ -149,6 +210,11 @@ static bool initialize_coreclr(const std::string& filesDir, const std::string& n
     } else {
         LOGW("Failed to preload OpenAL: %s", dlerror());
     }
+
+    // Before any managed code runs: without this, the first crypto/TLS call faults
+    // at 0x0 (see init_android_crypto_pal above). Runs on the UI thread, as in .NET
+    // for Android's startup path.
+    init_android_crypto_pal(nativeLibDir, managedDir, filesDir);
 
     setenv("PROJECTIGI_NATIVE_LIB_DIR", nativeLibDir.c_str(), 1);
 
