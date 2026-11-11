@@ -96,6 +96,14 @@ public interface IShellHost
     /// <remarks>The default does nothing.</remarks>
     void RefreshLanServers() { }
 
+    /// <summary>Gets the co-op rooms on the master server, or null where this build has no WebRTC library.</summary>
+    /// <remarks>
+    /// Co-op through rooms: hosting one for friends anywhere to join by its code, or joining one, on any
+    /// build. The host supplies it where the build can make WebRTC connections; elsewhere it is null and
+    /// the menu says so. The default is null, so a host without rooms leaves the menu's room section inert.
+    /// </remarks>
+    ICoopRooms? Coop => null;
+
     /// <summary>Closes the game.</summary>
     void Quit();
 

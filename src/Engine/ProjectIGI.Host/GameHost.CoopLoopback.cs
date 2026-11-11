@@ -100,8 +100,9 @@ public sealed partial class GameHost
             return;
         }
 
-        // One session at a time: a direct-IP session holds the same TickObserver slot.
+        // One session at a time: a direct-IP or room session holds the same TickObserver slot.
         StopDirectCoop();
+        StopRoomCoop();
 
         string name = _configuration.Active?.Name is { Length: > 0 } profileName ? profileName : "Jones";
         string version = typeof(GameHost).Assembly
