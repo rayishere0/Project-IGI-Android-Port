@@ -220,33 +220,6 @@ public interface IRemasteredHudPresenter : IDisposable
     /// <param name="screenWidth">The target width in pixels.</param>
     /// <param name="screenHeight">The target height in pixels.</param>
     void DrawInteractionProgress(SpriteBatch batch, float progress, int screenWidth, int screenHeight);
-
-    /// <summary>Draws co-op talk: the lines said, the one being typed, and the places marked, each with who and how far.</summary>
-    /// <param name="batch">The batch to draw into.</param>
-    /// <param name="chat">The lines still up, oldest first.</param>
-    /// <param name="entry">The line being typed, or <see langword="null"/>.</param>
-    /// <param name="warning">A word about this player's connection, or <see langword="null"/>.</param>
-    /// <param name="talking">Who is talking now, by name.</param>
-    /// <param name="marks">The places marked.</param>
-    /// <param name="eye">Where the world is seen from.</param>
-    /// <param name="horizontalTangent">The horizontal half-tangent of the view.</param>
-    /// <param name="aspectRatio">The viewport's width divided by its height.</param>
-    /// <param name="screenWidth">The target width in pixels.</param>
-    /// <param name="screenHeight">The target height in pixels.</param>
-    void DrawCoopTalk(
-        SpriteBatch batch,
-        IReadOnlyList<HudChatLine> chat,
-        string? entry,
-        string? warning,
-        IReadOnlyList<string> talking,
-        IReadOnlyList<HudMark> marks,
-        in Camera3D eye,
-        float horizontalTangent,
-        float aspectRatio,
-        int screenWidth,
-        int screenHeight)
-    {
-    }
 }
 
 /// <summary>What a title needs in order to build its heads-up display.</summary>

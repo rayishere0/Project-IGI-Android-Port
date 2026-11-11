@@ -189,15 +189,6 @@ public sealed partial class GameHost
         // IsKeyboardRequested; text-field auto-focus (IsTextFieldFocused) is untouched.
         KeyboardRequested = state.Console.IsOpen;
         _prevKeyboardRequested = KeyboardRequested;
-
-        // A co-op line being typed takes the keyboard next, the same way, and a key
-        // held to talk sends this player's voice: both read the frame's input before
-        // the game does, and neither runs while the console owns it.
-        if (!state.Console.IsOpen)
-        {
-            UpdateCoopVoice();
-            UpdateCoopTalk();
-        }
     }
 
     /// <summary>Runs the shell over its own input, or lets the game's binds have the keys when it is not up.</summary>

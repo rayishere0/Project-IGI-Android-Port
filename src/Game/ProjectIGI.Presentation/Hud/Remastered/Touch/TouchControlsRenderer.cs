@@ -3,7 +3,6 @@ using ProjectIGI.Core.Graphics;
 using ProjectIGI.Rendering;
 using ProjectIGI.UI;
 using ProjectIGI.UI.Drawing;
-using ProjectIGI.UI.Kit;
 using ProjectIGI.UI.Layout;
 using ProjectIGI.UI.Text;
 
@@ -147,7 +146,6 @@ public static class TouchControlsRenderer
                 TouchElementId.Pause => "PAUSE",
                 TouchElementId.Map => "MAP",
                 TouchElementId.Binoculars => "BINOCS",
-                TouchElementId.Talk => "TALK",
                 _ => "",
             };
 
@@ -365,9 +363,6 @@ public static class TouchControlsRenderer
                 Line(-0.12f, -0.15f, 0.12f, -0.15f);
                 Line(-0.62f, -0.15f, -0.4f, -0.68f);
                 Line(0.62f, -0.15f, 0.4f, -0.68f);
-                break;
-            case TouchButton.Talk:
-                KitIcons.Draw(painter, KitIcon.Microphone, c, size * 1.5f, ink);
                 break;
             case TouchButton.ZoomIn:
                 Line(-0.6f, 0f, 0.6f, 0f);
