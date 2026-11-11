@@ -160,6 +160,72 @@ static bool init_android_crypto_pal(const std::string& nativeLibDir, const std::
         return false;
     }
 
+    // Pre-flight: the PAL's init ABORTS the process (LOG_FATAL + abort())
+    // if any class it caches is missing from the dex. The init caches 83
+    // classes; 79 are JDK (java/*, javax/*) and always present, one is a
+    // framework class (com/android/org/conscrypt/SSLParametersImpl), and
+    // three are .NET Android runtime classes (net/dot/android/crypto/*)
+    // that this host does NOT ship in its dex. Before this PR they were
+    // absent, so calling the init killed the game at Play (Ray's logcat
+    // 2026-11-11 15:10 IST: "GetClassGRef: class
+    // net/dot/android/crypto/DotnetProxyTrustManager was not found"). The
+    // three classes are now vendored into the app's Java tree under the
+    // same package, so the check below should pass. But never trust that:
+    // check every non-JDK class the init caches with the bridge's own
+    // FindClass (which returns NULL instead of aborting) plus the exact
+    // ctor/method the 10.0 PAL looks up, via raw GetMethodID (NULL on
+    // failure, no abort). If anything is missing, SKIP the init and let
+    // the game start as it did before #93 (crypto calls will still crash
+    // when used, but the game LAUNCHES). A rooms-only crash must never
+    // again become a can't-launch crash. This runs on the UI thread
+    // inside nativeStartGame's JNI call, so FindClass resolves against
+    // the app's classloader - exactly the context the PAL's own
+    // FindClass will use a moment later.
+    {
+        JNIEnv* env = nullptr;
+        if (g_jvm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK) {
+            if (g_jvm->AttachCurrentThread(&env, nullptr) != JNI_OK || !env) {
+                LOGW("Android crypto PAL pre-flight: no JNIEnv; skipping PAL init, game starts without crypto.");
+                return false;
+            }
+        }
+        auto clearPending = [&]() {
+            if (env->ExceptionCheck()) env->ExceptionClear();
+        };
+        // Each entry: class, then the ctor/method the 10.0 PAL looks up
+        // (nullptr method = class only). Signatures are the 10.0 shapes;
+        // main's DotnetProxyTrustManager has a different (3-arg) ctor,
+        // but the device PAL is .NET 10 - proven on its own binary.
+        struct PalClassCheck { const char* klass; const char* method; const char* sig; bool isStatic; };
+        static const PalClassCheck kPalClasses[] = {
+            {"net/dot/android/crypto/DotnetProxyTrustManager", "<init>", "(J)V", false},
+            {"net/dot/android/crypto/DotnetX509KeyManager", "<init>", "(Ljava/security/KeyStore$PrivateKeyEntry;)V", false},
+            {"net/dot/android/crypto/PalPbkdf2", "pbkdf2OneShot", "(Ljava/lang/String;[BLjava/nio/ByteBuffer;ILjava/nio/ByteBuffer;)I", true},
+            {"com/android/org/conscrypt/SSLParametersImpl", "setUseSni", "(Z)V", false},
+        };
+        for (const PalClassCheck& c : kPalClasses) {
+            jclass cls = env->FindClass(c.klass);
+            if (!cls) {
+                clearPending();
+                LOGW("Android crypto PAL pre-flight: class %s missing from dex; skipping PAL init, game starts without crypto.", c.klass);
+                return false;
+            }
+            if (c.method) {
+                jmethodID mid = c.isStatic
+                    ? env->GetStaticMethodID(cls, c.method, c.sig)
+                    : env->GetMethodID(cls, c.method, c.sig);
+                if (!mid) {
+                    clearPending();
+                    LOGW("Android crypto PAL pre-flight: %s.%s %s missing; skipping PAL init, game starts without crypto.", c.klass, c.method, c.sig);
+                    env->DeleteLocalRef(cls);
+                    return false;
+                }
+            }
+            env->DeleteLocalRef(cls);
+        }
+        LOGI("Android crypto PAL pre-flight: all required classes present; calling init.");
+    }
+
     // The PAL's init is NOT exported under its own name: AndroidCryptoNative_
     // InitLibraryOnLoad is a plain hidden function in the .so — dlsym() finds
     // no such dynamic symbol, on the device build (Ray's logcat 2026-11-11
