@@ -100,6 +100,9 @@ public sealed partial class GameHost
             return;
         }
 
+        // One session at a time: a direct-IP session holds the same TickObserver slot.
+        StopDirectCoop();
+
         string name = _configuration.Active?.Name is { Length: > 0 } profileName ? profileName : "Jones";
         string version = typeof(GameHost).Assembly
             .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
@@ -195,9 +198,10 @@ public sealed partial class GameHost
     // has no room and no page, so the end is logged once and the session stopped.
     private void FollowLoopbackSession(FrameLoopState state)
     {
-        if (TickObserver is not ISessionFollower follower)
+        // Only this session's follower is followed here: a direct-IP client's follower is
+        // FollowDirectSession's, and following both would fight over _followInto.
+        if (_loopback is null || TickObserver is not ISessionFollower follower)
         {
-            _followInto = null;
             return;
         }
 
