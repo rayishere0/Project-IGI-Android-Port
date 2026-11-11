@@ -29,9 +29,10 @@ namespace ProjectIGI.Host;
 /// takes it there. So a joiner joins first and is carried into the mission when the host starts it.
 /// </para>
 /// <para>
-/// Mutual exclusion with loopback: starting a direct session stops a running loopback session,
-/// and starting loopback stops a direct one (see <c>GameHost.CoopLoopback.cs</c>). The two share
-/// the <c>TickObserver</c> slot and the <c>_followInto</c> field, and only one may hold them.
+/// Mutual exclusion with loopback and rooms: starting a direct session stops a running loopback
+/// or room session, and starting loopback or a room stops a direct one (see
+/// <c>GameHost.CoopLoopback.cs</c> and <c>GameHost.CoopRooms.cs</c>). The three share the
+/// <c>TickObserver</c> slot and the <c>_followInto</c> field, and only one may hold them.
 /// </para>
 /// </remarks>
 public sealed partial class GameHost
@@ -93,6 +94,7 @@ public sealed partial class GameHost
         }
 
         StopLoopbackCoop();
+        StopRoomCoop();
         _directFailure = null;
         _directJoinedAddress = null;
 
@@ -166,6 +168,7 @@ public sealed partial class GameHost
         }
 
         StopLoopbackCoop();
+        StopRoomCoop();
         _directFailure = null;
 
         string name = _configuration.Active?.Name is { Length: > 0 } profileName ? profileName : "Jones";

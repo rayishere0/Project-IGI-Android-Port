@@ -58,6 +58,7 @@ namespace ProjectIGI.Host.Menu;
 /// <param name="stopDirectCoop">Stops the direct-IP co-op session, if one runs.</param>
 /// <param name="getLanServers">The co-op games found on this Wi-Fi by the last refresh.</param>
 /// <param name="refreshLanServers">Asks every co-op game on this Wi-Fi what it is.</param>
+/// <param name="coop">The co-op rooms on the master server, or null where this build has no WebRTC library.</param>
 public sealed class ShellHost(
     Action<int, int> startMission,
     Action<MissionConditions> setMissionConditions,
@@ -102,7 +103,8 @@ public sealed class ShellHost(
     Action<string>? joinDirectCoop = null,
     Action? stopDirectCoop = null,
     Func<IReadOnlyList<(string Address, string Name, string Map, int Players, int MaxPlayers)>>? getLanServers = null,
-    Action? refreshLanServers = null) : IShellHost
+    Action? refreshLanServers = null,
+    ICoopRooms? coop = null) : IShellHost
 {
     /// <inheritdoc/>
     public void CustomizeTouchControls() => customizeTouchControls?.Invoke();
@@ -205,6 +207,9 @@ public sealed class ShellHost(
 
     /// <inheritdoc/>
     public void RefreshLanServers() => refreshLanServers?.Invoke();
+
+    /// <inheritdoc/>
+    public ICoopRooms? Coop => coop;
 
     /// <inheritdoc/>
     public bool SwitchTitle(string titleId) => switchTitle(titleId);

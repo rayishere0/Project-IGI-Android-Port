@@ -52,6 +52,7 @@ public sealed partial class GameHost
         RegisterTitlePlayerCommands(state.Console.System);
         RegisterLoopbackCommands(state.Console.System);
         RegisterDirectIpCommands(state.Console.System);
+        RegisterRoomCommands(state.Console.System);
         RegisterCoopTalk(state.Console.System);
         _hosted.Impacts.Register(state.Console.System, () => _inspectorEye, _logger);
         RegisterCameraCommands(state.Console.System);
@@ -522,6 +523,7 @@ public sealed partial class GameHost
             // so does this.
             state.Saves = new SaveSlotStore(SavesDirectory());
 
+            _coop ??= CreateCoop();
             state.ShellHost = new ShellHost(
                 startMission: (id, difficulty) =>
                 {
@@ -655,6 +657,8 @@ public sealed partial class GameHost
                 },
                 abandonMission: () =>
                 {
+                    // Out of the mission is out of its room.
+                    _coop?.Leave();
                     CancelMissionWarmUp();
                     ReleasePlayedMission();
                     state.Shell?.ClosePauseMenu();
@@ -771,9 +775,14 @@ public sealed partial class GameHost
                 joinDirectCoop: address => JoinDirectCoop(address),
                 stopDirectCoop: StopDirectCoop,
                 getLanServers: () => [.. LanServers.Select(s => (s.Address, s.Info.Name, HostedSession.MapName(s.Info.Map), s.Info.Players, s.Info.MaxPlayers))],
-                refreshLanServers: RefreshLanServers);
+                refreshLanServers: RefreshLanServers,
+                coop: _coop);
 
             state.ShellHostForEntryCam = state.ShellHost;
+            if (_coop is not null)
+            {
+                _coop.Shell = state.ShellHost;
+            }
 
             state.Shell = new Shell(BuildShellContext(state.ShellHost, shellTheme, state.Saves));
 

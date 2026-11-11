@@ -115,6 +115,8 @@ public sealed partial class GameHost
         UpdateCheatsOverlay(state);
         FollowLoopbackSession(state);
         FollowDirectSession(state);
+        _coop?.Update();
+        FollowRoomSession(state);
         UpdateLanDiscovery();
 
         // Whatever the detail-map workers finished since the last pass, uploaded a few at a time.
