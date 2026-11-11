@@ -11,7 +11,6 @@
          app supplies the window, the graphics device and the audio backend through the abstraction
          interfaces and gets the same host. It names no backend and no game title. -->
     <ProjectReference Include="..\..\Core\ProjectIGI.Core\ProjectIGI.Core.csproj" />
-    <ProjectReference Include="..\ProjectIGI.Net.Udp\ProjectIGI.Net.Udp.csproj" />
     <ProjectReference Include="..\ProjectIGI.Engine\ProjectIGI.Engine.csproj" />
     <ProjectReference Include="..\..\Core\ProjectIGI.Formats\ProjectIGI.Formats.csproj" />
     <ProjectReference Include="..\..\Core\ProjectIGI.Scripting\ProjectIGI.Scripting.csproj" />

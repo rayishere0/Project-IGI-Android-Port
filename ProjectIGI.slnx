@@ -21,7 +21,6 @@
     <Project Path="src/Engine/ProjectIGI.Modding.Presentation/ProjectIGI.Modding.Presentation.csproj" />
     <Project Path="src/Engine/ProjectIGI.Modding/ProjectIGI.Modding.csproj" />
     <Project Path="src/Engine/ProjectIGI.Net/ProjectIGI.Net.csproj" />
-    <Project Path="src/Engine/ProjectIGI.Net.Udp/ProjectIGI.Net.Udp.csproj" />
   </Folder>
   <Folder Name="/src/Game/">
     <Project Path="src/Game/ProjectIGI.Frontend.Settings/ProjectIGI.Frontend.Settings.csproj" />
