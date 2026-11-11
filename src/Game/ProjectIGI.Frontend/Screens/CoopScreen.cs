@@ -14,10 +14,10 @@ namespace ProjectIGI.Frontend.Screens;
 /// <remarks>
 /// The closest faithful equivalent of upstream's shell Co-op tab for what exists today: upstream
 /// opens its CoopScreen from a header tab and offers host / join-by-code / public rooms, every one
-/// of them through the master server and WebRTC. This port has neither yet, so the page offers only
+/// of them through the master server and WebRTC. This port has neither, so the page offers only
 /// what Milestone 1 built - start and stop the loopback session and play mission 1 through it - and
-/// shows the room options as disabled rows that say they need Milestone 2, rather than wiring them
-/// to dead ends. The console command stays as the dev fallback.
+/// shows the room options as disabled rows, rather than wiring them to dead ends.
+/// The console command stays as the dev fallback.
 /// <para>
 /// The screen never touches the settings return path: it is only reachable from the shell's own
 /// main menu (and Back returns there), so closing it cannot put the shell away over a retail menu
@@ -142,15 +142,15 @@ public sealed class CoopScreen : ShellScreen
         };
         menuStack.AddChild(loopbackNote);
 
-        var roomsHeader = new Label(theme.Heading, "Rooms – not available yet", 24f, Bgra32.FromRgb(225, 175, 60))
+        var roomsHeader = new Label(theme.Heading, "Rooms", 24f, Bgra32.FromRgb(225, 175, 60))
         {
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0f, 12f, 0f, 0f),
         };
         menuStack.AddChild(roomsHeader);
 
-        // Room options, shown but unavailable: Milestone 2 has no master server and no WebRTC
-        // yet, so these are disabled rows, not buttons that lead nowhere. Muted grey, and
+        // Room options, shown but unavailable: co-op is on this device only, so these are
+        // disabled rows, not buttons that lead nowhere. Muted grey, and
         // IsEnabled false so Control.Activate cannot fire them.
         menuStack.AddChild(DisabledRoomRow(theme, "Host a room"));
         menuStack.AddChild(DisabledRoomRow(theme, "Join by code"));
@@ -158,7 +158,7 @@ public sealed class CoopScreen : ShellScreen
 
         var roomsNote = new Label(
             theme.Body,
-            "No rooms exist yet — Milestone 2 (a master server and WebRTC) is not built.",
+            "Co-op is on this device only — there are no rooms to join.",
             20f,
             theme.TextMuted)
         {
