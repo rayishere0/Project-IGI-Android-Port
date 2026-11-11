@@ -68,6 +68,30 @@ android {
     }
 }
 
+// Fail fast when the managed assemblies were never deployed. A Gradle-only build
+// ships whatever DLLs are committed under src/main/assets/managed, and those
+// predate the co-op code — OpenIGI.Net.dll was never committed at all. Without
+// this check the build succeeds and the game simply has no co-op in it: no icon,
+// no Co-op screen, no coop_loopback command. The fix is to run
+// deploy_managed_assets.ps1 from the repo root first, then re-run Gradle.
+// Extend `required` when the source gains a new managed assembly the game
+// cannot run without; keep the list to assemblies whose absence proves stale DLLs.
+tasks.register('checkManagedAssemblies') {
+    doLast {
+        def managedDir = file('src/main/assets/managed')
+        def required = ['OpenIGI.Net.dll', 'OpenIGI.Net.Udp.dll']
+        def missing = required.findAll { !new File(managedDir, it).exists() }
+        if (!missing.isEmpty()) {
+            throw new GradleException(
+                "Managed assemblies missing from src/main/assets/managed: ${missing.join(', ')}. " +
+                "Run deploy_managed_assets.ps1 from the repo root first (it builds the .NET " +
+                "assemblies and copies them here), then re-run the Gradle build. " +
+                "A Gradle-only build ships the DLLs committed in the repo, which predate co-op.")
+        }
+    }
+}
+tasks.named('preBuild') { dependsOn('checkManagedAssemblies') }
+
 configurations.all {
     resolutionStrategy {
         force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
