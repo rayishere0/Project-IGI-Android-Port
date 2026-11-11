@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.Security.Cryptography;
 
 namespace ProjectIGI.Net;
 
@@ -61,7 +60,11 @@ public sealed class NetServer : IDisposable
         _peers = new Peer?[options.MaxClients];
         _receiveBuffer = new byte[Math.Max(transport.MaxDatagramSize, NetConstants.MaxPacketSize)];
         Span<byte> key = stackalloc byte[16];
-        RandomNumberGenerator.Fill(key);
+
+        // NetRandom, not RandomNumberGenerator: the crypto RNG faults natively on this Android
+        // runtime (SIGSEGV in CryptoNative_GetRandomBytes; see NetRandom). The key only needs to
+        // differ per server on the loopback transport.
+        NetRandom.Fill(key);
         _key0 = BinaryPrimitives.ReadUInt64LittleEndian(key);
         _key1 = BinaryPrimitives.ReadUInt64LittleEndian(key[8..]);
     }
@@ -287,7 +290,7 @@ public sealed class NetServer : IDisposable
             return;
         }
 
-        uint salt = (uint)RandomNumberGenerator.GetInt32(int.MaxValue) | 1u;
+        uint salt = (uint)NetRandom.NextInt32(int.MaxValue) | 1u;
         Peer peer = new(slot, nonce, admission.Payload, new NetConnection(_transport, source, _options.ProtocolId, salt, now));
         _peers[slot] = peer;
         _byAddress[source] = slot;

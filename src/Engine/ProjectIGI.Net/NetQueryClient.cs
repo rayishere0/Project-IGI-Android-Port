@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.Security.Cryptography;
 
 namespace ProjectIGI.Net;
 
@@ -95,7 +94,7 @@ public sealed class NetQueryClient : IDisposable
     private byte[] Request(double now)
     {
         byte[] request = new byte[RequestSize];
-        ulong nonce = BinaryPrimitives.ReadUInt64LittleEndian(RandomNumberGenerator.GetBytes(8));
+        ulong nonce = BinaryPrimitives.ReadUInt64LittleEndian(NetRandom.GetBytes(8));
         BinaryPrimitives.WriteUInt64LittleEndian(request.AsSpan(NetConstants.PacketPrefixSize), nonce);
         PacketCodec.Seal(request, PacketKind.InfoRequest, _protocolId);
         _sent[nonce] = now;
