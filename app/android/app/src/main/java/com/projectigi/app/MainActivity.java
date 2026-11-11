@@ -75,8 +75,15 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private static final int REQUEST_SELECT_GAME_FOLDER = 2001;
     private static final int REQUEST_SELECT_CONTENT_PACK = 2002;
     private static final int REQUEST_STORAGE_PERMISSIONS = 1002;
+    private static final int REQUEST_MICROPHONE = 1003;
     private static final String PREFS_NAME = "projectigi_prefs";
     private static final String PREF_RENDERER_BACKEND = "renderer_backend";
+
+    // Whether RECORD_AUDIO has been asked for, or is already granted, this run: asked once,
+    // at the first voice use, never again while the app runs. Denied stays denied until the
+    // player re-grants it in system settings; voice send stays off meanwhile and nothing else
+    // breaks.
+    private boolean micPermissionRequested = false;
 
     // Content packs live in app-private storage, next to the game data: the engine only ever does
     // plain System.IO, so a pack has to be a real directory, and a folder beside the picked retail
@@ -455,6 +462,32 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 }, REQUEST_STORAGE_PERMISSIONS);
             }
         }
+    }
+
+    // Co-op voice, at first voice use: the managed side raises MicrophoneRequested the first
+    // time voice wants the microphone (push to talk held, or open mic), and this poller — the
+    // same 250 ms poller that shows the IME — asks for RECORD_AUDIO once. The grant needs no
+    // callback here: the managed mic-open attempt returns null while ungranted and succeeds
+    // once granted, so voice send starts working on its own. Denied means voice send stays
+    // off; hearing the others and text chat still work.
+    private void requestMicrophonePermissionIfWanted() {
+        if (micPermissionRequested || !isGameStarted) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return;
+        }
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            micPermissionRequested = true;
+            return;
+        }
+        if (!NativeEngine.nativeIsMicrophoneRequested()) {
+            return;
+        }
+        micPermissionRequested = true;
+        requestPermissions(new String[]{
+            android.Manifest.permission.RECORD_AUDIO
+        }, REQUEST_MICROPHONE);
     }
 
     private void updatePlayButtonState(boolean enabled) {
@@ -1740,6 +1773,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             @Override
             public void run() {
                 updateImeVisibility();
+                requestMicrophonePermissionIfWanted();
                 if (imeHandler != null) {
                     imeHandler.postDelayed(this, 250);
                 }
