@@ -106,11 +106,20 @@ static std::string build_tpa_list(const std::string& directory) {
     return tpa;
 }
 
-// The .NET Android crypto PAL's init: jint AndroidCryptoNative_InitLibraryOnLoad(JavaVM*, void*)
-// in libSystem.Security.Cryptography.Native.Android.so (dotnet/runtime,
-// src/native/libs/System.Security.Cryptography.Native.Android/pal_jni.c). It stores the
-// JavaVM the PAL's GetJNIEnv() dereferences on every call, and caches the Java classes
-// the PAL needs (SecureRandom, MessageDigest, Cipher, SSLContext, ...).
+// The .NET Android crypto PAL's init lives behind JNI_OnLoad: the PAL's
+// pal_jni_onload.c exports a (weak, JNIEXPORT) JNI_OnLoad that tail-calls
+// AndroidCryptoNative_InitLibraryOnLoad(vm, reserved) (dotnet/runtime,
+// src/native/libs/System.Security.Cryptography.Native.Android/). The init
+// stores the JavaVM the PAL's GetJNIEnv() dereferences on every call, and
+// caches the Java classes the PAL needs (SecureRandom, MessageDigest, Cipher,
+// SSLContext, ...). The init itself is NOT exported: it is a plain hidden
+// function, so dlsym("AndroidCryptoNative_InitLibraryOnLoad") returns NULL —
+// proved on-device (Ray's logcat, 2026-11-11 15:00:59 IST: "has no
+// InitLibraryOnLoad export") and on the shipped .NET 10 runtime packs
+// (nm -D on 10.0.0 and 10.0.15: JNI_OnLoad present, InitLibraryOnLoad
+// absent from .dynsym). That is why PR #92's first attempt failed on the
+// symbol lookup. Call JNI_OnLoad instead — the documented entry point,
+// exactly what the JVM calls on System.loadLibrary.
 typedef jint (*CryptoPalInitFn)(JavaVM*, void*);
 
 // Initialises the .NET Android crypto PAL, once, before any managed code runs. The
@@ -118,10 +127,11 @@ typedef jint (*CryptoPalInitFn)(JavaVM*, void*);
 // runs and its stored JavaVM stays null: the first crypto/TLS call then faults at 0x0
 // in GetJNIEnv — RandomNumberGenerator on the game thread (the #80 Start crash) and
 // SslStream creation on a .NET TP Worker (the rooms HTTPS/WSS crash, 2026-11-11
-// 14:27:42 IST). Calling the init here is exactly what .NET for Android does at
-// startup; it fixes every PAL site at once (RNG, SslStream, hashing) because they all
-// start at the same GetJNIEnv() on the same JavaVM. A failure only warns: the game
-// starts as it does today, with crypto still broken, and no new failure mode.
+// 14:27:42 IST). Calling JNI_OnLoad here is exactly what .NET for Android does at
+// startup (via System.loadLibrary); it fixes every PAL site at once (RNG, SslStream,
+// hashing) because they all start at the same GetJNIEnv() on the same JavaVM. A
+// failure only warns: the game starts as it does today, with crypto still broken,
+// and no new failure mode.
 static bool init_android_crypto_pal(const std::string& nativeLibDir, const std::string& managedDir, const std::string& filesDir) {
     static bool attempted = false;
     static bool ok = false;
@@ -150,21 +160,43 @@ static bool init_android_crypto_pal(const std::string& nativeLibDir, const std::
         return false;
     }
 
+    // The PAL's init is NOT exported under its own name: AndroidCryptoNative_
+    // InitLibraryOnLoad is a plain hidden function in the .so — dlsym() finds
+    // no such dynamic symbol, on the device build (Ray's logcat 2026-11-11
+    // 15:00:59 IST) and on the shipped .NET 10 runtime packs (nm -D on 10.0.0
+    // and 10.0.15). The exported entry point is JNI_OnLoad (JNIEXPORT, weak;
+    // dotnet/runtime pal_jni_onload.c), which simply tail-calls
+    // InitLibraryOnLoad(vm, reserved) and returns its result
+    // (JNI_VERSION_1_6). So call JNI_OnLoad — the documented entry point,
+    // exactly what the JVM would call on System.loadLibrary. Keep the direct
+    // init as a fallback for any build that does export it. Each outcome has
+    // its own log line so the next logcat says exactly what happened.
+    auto jniOnLoad = (CryptoPalInitFn)dlsym(cryptoLib, "JNI_OnLoad");
+    if (jniOnLoad) {
+        jint res = jniOnLoad(g_jvm, nullptr);
+        if (res != JNI_VERSION_1_6) {
+            LOGW("Android crypto PAL JNI_OnLoad returned %d, expected %d; HTTPS/SSL may crash.", (int)res, (int)JNI_VERSION_1_6);
+            return false;
+        }
+        LOGI("Android crypto PAL initialised via JNI_OnLoad (returned 0x%06x); TLS/RNG now safe on any thread.", (unsigned)res);
+        ok = true;
+        return true;
+    }
+
     auto init = (CryptoPalInitFn)dlsym(cryptoLib, "AndroidCryptoNative_InitLibraryOnLoad");
-    if (!init) {
-        LOGW("Android crypto PAL has no InitLibraryOnLoad export; HTTPS/SSL and crypto RNG will crash if used.");
-        return false;
+    if (init) {
+        jint res = init(g_jvm, nullptr);
+        if (res != JNI_VERSION_1_6) {
+            LOGW("Android crypto PAL InitLibraryOnLoad returned %d, expected %d; HTTPS/SSL may crash.", (int)res, (int)JNI_VERSION_1_6);
+            return false;
+        }
+        LOGI("Android crypto PAL initialised via InitLibraryOnLoad (returned 0x%06x); TLS/RNG now safe on any thread.", (unsigned)res);
+        ok = true;
+        return true;
     }
 
-    jint res = init(g_jvm, nullptr);
-    if (res != JNI_VERSION_1_6) {
-        LOGW("Android crypto PAL init returned %d, expected %d; HTTPS/SSL may crash.", (int)res, (int)JNI_VERSION_1_6);
-        return false;
-    }
-
-    LOGI("Android crypto PAL initialised; TLS/RNG now safe on any thread.");
-    ok = true;
-    return true;
+    LOGW("Android crypto PAL has neither JNI_OnLoad nor InitLibraryOnLoad export; HTTPS/SSL and crypto RNG will crash if used.");
+    return false;
 }
 
 static bool initialize_coreclr(const std::string& filesDir, const std::string& nativeLibDir) {
