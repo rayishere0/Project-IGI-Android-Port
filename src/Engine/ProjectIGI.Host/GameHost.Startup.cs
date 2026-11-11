@@ -11,6 +11,7 @@ using ProjectIGI.Game.World;
 using ProjectIGI.Host.Configuration;
 using ProjectIGI.Host.Lighting;
 using ProjectIGI.Host.Menu;
+using ProjectIGI.Host.Multiplayer;
 using ProjectIGI.Host.Services;
 using ProjectIGI.Presentation;
 using ProjectIGI.Presentation.Cameras;
@@ -50,6 +51,7 @@ public sealed partial class GameHost
         _flashlight.RegisterCommands(state.Console.System);
         RegisterTitlePlayerCommands(state.Console.System);
         RegisterLoopbackCommands(state.Console.System);
+        RegisterDirectIpCommands(state.Console.System);
         RegisterCoopTalk(state.Console.System);
         _hosted.Impacts.Register(state.Console.System, () => _inspectorEye, _logger);
         RegisterCameraCommands(state.Console.System);
@@ -762,7 +764,14 @@ public sealed partial class GameHost
                 },
                 getCoopLoopbackRunning: () => IsLoopbackRunning,
                 startLoopbackCoop: StartLoopbackCoop,
-                stopLoopbackCoop: StopLoopbackCoop);
+                stopLoopbackCoop: StopLoopbackCoop,
+                getDirectCoopRunning: () => IsDirectCoopRunning,
+                getDirectCoopStatus: () => DirectCoopStatus,
+                hostDirectCoop: () => HostDirectCoop(),
+                joinDirectCoop: address => JoinDirectCoop(address),
+                stopDirectCoop: StopDirectCoop,
+                getLanServers: () => [.. LanServers.Select(s => (s.Address, s.Info.Name, HostedSession.MapName(s.Info.Map), s.Info.Players, s.Info.MaxPlayers))],
+                refreshLanServers: RefreshLanServers);
 
             state.ShellHostForEntryCam = state.ShellHost;
 

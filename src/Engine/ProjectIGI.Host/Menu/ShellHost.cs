@@ -51,6 +51,13 @@ namespace ProjectIGI.Host.Menu;
 /// <param name="getCoopLoopbackRunning">Whether the loopback co-op session is running.</param>
 /// <param name="startLoopbackCoop">Starts the loopback co-op session, if it is not running.</param>
 /// <param name="stopLoopbackCoop">Stops the loopback co-op session, if one runs.</param>
+/// <param name="getDirectCoopRunning">Whether a direct-IP co-op session is running.</param>
+/// <param name="getDirectCoopStatus">Where the direct-IP co-op session is, in words for the menu.</param>
+/// <param name="hostDirectCoop">Hosts a direct-IP co-op session on this Wi-Fi, if none is running.</param>
+/// <param name="joinDirectCoop">Joins a direct-IP co-op session by its host's Wi-Fi address.</param>
+/// <param name="stopDirectCoop">Stops the direct-IP co-op session, if one runs.</param>
+/// <param name="getLanServers">The co-op games found on this Wi-Fi by the last refresh.</param>
+/// <param name="refreshLanServers">Asks every co-op game on this Wi-Fi what it is.</param>
 public sealed class ShellHost(
     Action<int, int> startMission,
     Action<MissionConditions> setMissionConditions,
@@ -88,7 +95,14 @@ public sealed class ShellHost(
     Action? returnToRetailMenu = null,
     Func<bool>? getCoopLoopbackRunning = null,
     Action? startLoopbackCoop = null,
-    Action? stopLoopbackCoop = null) : IShellHost
+    Action? stopLoopbackCoop = null,
+    Func<bool>? getDirectCoopRunning = null,
+    Func<string?>? getDirectCoopStatus = null,
+    Action? hostDirectCoop = null,
+    Action<string>? joinDirectCoop = null,
+    Action? stopDirectCoop = null,
+    Func<IReadOnlyList<(string Address, string Name, string Map, int Players, int MaxPlayers)>>? getLanServers = null,
+    Action? refreshLanServers = null) : IShellHost
 {
     /// <inheritdoc/>
     public void CustomizeTouchControls() => customizeTouchControls?.Invoke();
@@ -170,6 +184,27 @@ public sealed class ShellHost(
 
     /// <inheritdoc/>
     public void StopLoopbackCoop() => stopLoopbackCoop?.Invoke();
+
+    /// <inheritdoc/>
+    public bool DirectCoopRunning => getDirectCoopRunning?.Invoke() ?? false;
+
+    /// <inheritdoc/>
+    public string? DirectCoopStatus => getDirectCoopStatus?.Invoke();
+
+    /// <inheritdoc/>
+    public void HostDirectCoop() => hostDirectCoop?.Invoke();
+
+    /// <inheritdoc/>
+    public void JoinDirectCoop(string address) => joinDirectCoop?.Invoke(address);
+
+    /// <inheritdoc/>
+    public void StopDirectCoop() => stopDirectCoop?.Invoke();
+
+    /// <inheritdoc/>
+    public IReadOnlyList<(string Address, string Name, string Map, int Players, int MaxPlayers)> LanServers => getLanServers?.Invoke() ?? [];
+
+    /// <inheritdoc/>
+    public void RefreshLanServers() => refreshLanServers?.Invoke();
 
     /// <inheritdoc/>
     public bool SwitchTitle(string titleId) => switchTitle(titleId);

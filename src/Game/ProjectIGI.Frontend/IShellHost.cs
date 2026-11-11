@@ -60,6 +60,42 @@ public interface IShellHost
     /// <remarks>The default does nothing.</remarks>
     void StopLoopbackCoop() { }
 
+    /// <summary>Gets whether a direct-IP co-op session (host + client on this Wi-Fi, over UDP) is running.</summary>
+    /// <remarks>
+    /// The Co-op menu reads this for its status line. The default is off, so a host without a
+    /// direct-IP session reports no session running.
+    /// </remarks>
+    bool DirectCoopRunning => false;
+
+    /// <summary>Gets where the direct-IP co-op session is, in words for the menu, or null when none runs.</summary>
+    /// <remarks>The default is null.</remarks>
+    string? DirectCoopStatus => null;
+
+    /// <summary>Hosts a direct-IP co-op session on this Wi-Fi (port 26001), if none is running.</summary>
+    /// <remarks>
+    /// Milestone 2, Wi-Fi only: no master server, no relay. Joiners connect to this phone's
+    /// Wi-Fi address. Idempotent — hosting while a session runs is a no-op. The default does
+    /// nothing, so a host without a direct-IP session leaves the menu's host action inert.
+    /// </remarks>
+    void HostDirectCoop() { }
+
+    /// <summary>Joins a direct-IP co-op session by its host's Wi-Fi address, if none is running.</summary>
+    /// <param name="address">The host, as <c>host[:port]</c> — a bare host takes port 26001.</param>
+    /// <remarks>The default does nothing.</remarks>
+    void JoinDirectCoop(string address) { }
+
+    /// <summary>Stops the direct-IP co-op session, if one runs, and gives the cheats back.</summary>
+    /// <remarks>The default does nothing.</remarks>
+    void StopDirectCoop() { }
+
+    /// <summary>Gets the co-op games found on this Wi-Fi by the last refresh, as address, name, map, players, max players.</summary>
+    /// <remarks>The default is empty.</remarks>
+    IReadOnlyList<(string Address, string Name, string Map, int Players, int MaxPlayers)> LanServers => [];
+
+    /// <summary>Asks every co-op game on this Wi-Fi what it is, for <see cref="LanServers"/>.</summary>
+    /// <remarks>The default does nothing.</remarks>
+    void RefreshLanServers() { }
+
     /// <summary>Closes the game.</summary>
     void Quit();
 
