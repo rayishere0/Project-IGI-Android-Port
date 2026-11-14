@@ -165,13 +165,19 @@ static bool init_android_crypto_pal(const std::string& nativeLibDir, const std::
     // net/dot/android/crypto/DotnetProxyTrustManager was not found"). The
     // three classes are now vendored into the app's Java tree under the
     // same package, so the check below should pass. But never trust that:
-    // check every non-JDK class the init caches with the bridge's own
+    // check every REQUIRED non-JDK class the init caches with the bridge's own
     // FindClass (which returns NULL instead of aborting) plus the exact
     // ctor/method the 10.0 PAL looks up, via raw GetMethodID (NULL on
     // failure, no abort). If anything is missing, SKIP the init and let
     // the game start as it did before #93 (crypto calls will still crash
     // when used, but the game LAUNCHES). A rooms-only crash must never
-    // again become a can't-launch crash. This runs on the UI thread
+    // again become a can't-launch crash. The one framework class is
+    // checked CONDITIONALLY, exactly as the PAL checks it: the PAL's init
+    // enters its conscrypt block only when OpenSSLEngineImpl resolves,
+    // and skips the block otherwise - requiring setUseSni unconditionally
+    // skipped the whole init on devices where the conscrypt internals
+    // moved or are hidden-API-blocked (the 2026-11-15 co-op-screen
+    // SIGSEGV). This runs on the UI thread
     // inside nativeStartGame's JNI call, so FindClass resolves against
     // the app's classloader - exactly the context the PAL's own
     // FindClass will use a moment later.
@@ -186,16 +192,18 @@ static bool init_android_crypto_pal(const std::string& nativeLibDir, const std::
         auto clearPending = [&]() {
             if (env->ExceptionCheck()) env->ExceptionClear();
         };
-        // Each entry: class, then the ctor/method the 10.0 PAL looks up
-        // (nullptr method = class only). Signatures are the 10.0 shapes;
-        // main's DotnetProxyTrustManager has a different (3-arg) ctor,
-        // but the device PAL is .NET 10 - proven on its own binary.
+        // Each entry: class, then the ctor/method the 10.0 PAL looks up.
+        // Signatures are the 10.0 shapes, verified against the PAL's own
+        // init (dotnet/runtime release/10.0, pal_jni.c lines 1106-1113)
+        // and the shipped binary. All three are REQUIRED: the PAL caches
+        // them with GetClassGRef/GetMethod, which abort when missing.
+        // The conscrypt lookup is NOT in this table: the PAL treats it as
+        // optional (see the conditional block after the loop).
         struct PalClassCheck { const char* klass; const char* method; const char* sig; bool isStatic; };
         static const PalClassCheck kPalClasses[] = {
             {"net/dot/android/crypto/DotnetProxyTrustManager", "<init>", "(J)V", false},
             {"net/dot/android/crypto/DotnetX509KeyManager", "<init>", "(Ljava/security/KeyStore$PrivateKeyEntry;)V", false},
             {"net/dot/android/crypto/PalPbkdf2", "pbkdf2OneShot", "(Ljava/lang/String;[BLjava/nio/ByteBuffer;ILjava/nio/ByteBuffer;)I", true},
-            {"com/android/org/conscrypt/SSLParametersImpl", "setUseSni", "(Z)V", false},
         };
         for (const PalClassCheck& c : kPalClasses) {
             jclass cls = env->FindClass(c.klass);
@@ -216,6 +224,55 @@ static bool init_android_crypto_pal(const std::string& nativeLibDir, const std::
                 }
             }
             env->DeleteLocalRef(cls);
+        }
+
+        // The conscrypt block is OPTIONAL in the PAL's own init: it is
+        // entered only when com/android/org/conscrypt/OpenSSLEngineImpl
+        // resolves (GetOptionalClassGRef), and only then are the
+        // sslParameters field, SSLParametersImpl, and setUseSni looked up
+        // (each aborting when missing). Requiring setUseSni
+        // unconditionally - as this check did before - skipped the whole
+        // PAL init on devices where the conscrypt internals moved or are
+        // hidden-API-blocked, even though the PAL would have skipped the
+        // block and initialised fine: the PAL's stored JavaVM stayed null
+        // and the first TLS call faulted at 0x0 (the 2026-11-15
+        // co-op-screen SIGSEGV). Mirror the PAL exactly: when
+        // OpenSSLEngineImpl is absent, skip the conscrypt checks; when
+        // present, require every lookup the PAL performs inside the
+        // block, including the sslParameters field this check used to
+        // miss (a present engine without that field would abort the
+        // init). A failed FindClass leaves a pending exception: clear it,
+        // as the PAL's own optional lookup does, or the init's later JNI
+        // calls misbehave.
+        {
+            jclass engine = env->FindClass("com/android/org/conscrypt/OpenSSLEngineImpl");
+            if (!engine) {
+                clearPending();
+                LOGI("Android crypto PAL pre-flight: OpenSSLEngineImpl absent; the PAL skips its conscrypt block, init proceeds.");
+            } else {
+                jfieldID sslParams = env->GetFieldID(engine, "sslParameters", "Lcom/android/org/conscrypt/SSLParametersImpl;");
+                if (!sslParams) {
+                    clearPending();
+                    LOGW("Android crypto PAL pre-flight: OpenSSLEngineImpl.sslParameters field missing; skipping PAL init, game starts without crypto.");
+                    env->DeleteLocalRef(engine);
+                    return false;
+                }
+                env->DeleteLocalRef(engine);
+                jclass params = env->FindClass("com/android/org/conscrypt/SSLParametersImpl");
+                if (!params) {
+                    clearPending();
+                    LOGW("Android crypto PAL pre-flight: class com/android/org/conscrypt/SSLParametersImpl missing; skipping PAL init, game starts without crypto.");
+                    return false;
+                }
+                jmethodID setUseSni = env->GetMethodID(params, "setUseSni", "(Z)V");
+                if (!setUseSni) {
+                    clearPending();
+                    LOGW("Android crypto PAL pre-flight: SSLParametersImpl.setUseSni (Z)V missing; skipping PAL init, game starts without crypto.");
+                    env->DeleteLocalRef(params);
+                    return false;
+                }
+                env->DeleteLocalRef(params);
+            }
         }
         LOGI("Android crypto PAL pre-flight: all required classes present; calling init.");
     }
