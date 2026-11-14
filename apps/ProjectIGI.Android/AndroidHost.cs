@@ -29,6 +29,13 @@ public static class AndroidHost
 {
     private static GameHost? _gameHost;
     private static AndroidGameWindow? _window;
+    // The gamepad's connected state as last reported by Android while the window did
+    // not exist yet. The launch scan in MainActivity reports an already-connected pad
+    // the moment nativeStartGame returns, which is before Run (on the game thread) has
+    // created the window — without this latch that report is dropped and the pad stays
+    // undetected until a disconnect/reconnect. Drained into the window once it exists.
+    private static bool? _pendingGamepadConnected;
+    private static readonly object _gamepadConnectedLock = new();
     private static ProjectIGI.Rendering.Pipeline.GraphicsDevice? _device;
     private static VulkanRhi? _vulkanRhi;
     private static WebGpuRhiDevice? _webGpuRhi;
@@ -144,6 +151,17 @@ public static class AndroidHost
                 .ApplyTo(fileSystem);
 
             _window = new AndroidGameWindow(landscapeWidth, landscapeHeight);
+            // A gamepad report that arrived before the window existed (the launch scan's
+            // report of an already-connected pad) was latched in OnGamepadConnected; drain
+            // it into the new window's queue so the first pump marks the pad connected.
+            lock (_gamepadConnectedLock)
+            {
+                if (_pendingGamepadConnected is { } pendingConnected)
+                {
+                    _pendingGamepadConnected = null;
+                    _window.EnqueueGamepadConnected(pendingConnected);
+                }
+            }
             AndroidPlatformHost platform = new(_window);
             string settingsPath = Path.Combine(dataDir, SettingsPaths.SettingsFileName);
             bool settingsExist = File.Exists(settingsPath);
@@ -362,7 +380,24 @@ public static class AndroidHost
     [UnmanagedCallersOnly(EntryPoint = "OnGamepadConnected")]
     public static void OnGamepadConnected(int connected)
     {
-        _window?.EnqueueGamepadConnected(connected != 0);
+        // The report can arrive before Run has created the window (the launch scan
+        // fires the moment nativeStartGame returns, on the UI thread, while the game
+        // thread is still starting up). Latch it instead of dropping it: Run drains the
+        // latch into the window once it exists. The lock closes the race between this
+        // read of _window and Run's drain — a report can neither slip between them nor
+        // be overwritten by a stale one, since the latch keeps the latest report.
+        bool isConnected = connected != 0;
+        lock (_gamepadConnectedLock)
+        {
+            if (_window is { } window)
+            {
+                window.EnqueueGamepadConnected(isConnected);
+            }
+            else
+            {
+                _pendingGamepadConnected = isConnected;
+            }
+        }
     }
 
     /// <summary>Typed text from a hardware keyboard, decoded by Android: each character joins the platform's decoded-character queue.</summary>
