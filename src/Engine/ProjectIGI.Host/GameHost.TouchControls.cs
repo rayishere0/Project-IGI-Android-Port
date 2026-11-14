@@ -44,6 +44,10 @@ public sealed partial class GameHost
     // seen. Edge actions therefore hold their synthetic key for 100 ms.
     private readonly Dictionary<string, int> _padEdgeHoldUntilMs = [];
     private int _lastGamepadMilliseconds = -1;
+    // The soldier the aim lock is holding (its task id, or -1 for none): kept
+    // between frames so the pull does not flicker between guards, and re-validated
+    // every frame, so a dead or departed guard drops out on its own.
+    private int _aimLockTargetId = -1;
     // The virtual pointer the left stick drives over the retail menu, the shell
     // and the map computer: kept between frames so the cursor stays where the
     // stick left it. It only moves while the stick is deflected, so a touch tap
@@ -57,25 +61,40 @@ public sealed partial class GameHost
     private const float GamepadStickDeadZone = 0.18f;
 
     /// <summary>The trigger pressure that counts as pressed (triggers are axes, 0..1).</summary>
-    private const float GamepadTriggerThreshold = 0.35f;
+    private const float GamepadTriggerThreshold = GamepadState.TriggerThreshold;
 
     /// <summary>The turn rate at full right-stick deflection: one full turn a second.</summary>
     private const float GamepadMaxTurnRadiansPerSecond = MathF.Tau;
 
-    /// <summary>How far off the crosshair a guard may sit and still draw the aim assist: five degrees, half-angle.</summary>
-    private const float GamepadAimAssistConeRadians = 0.0872665f;
-
-    /// <summary>How far away a guard may be and still draw the aim assist, in metres.</summary>
+    /// <summary>How far away a guard may be and still draw the aim lock, in metres.</summary>
     private const float GamepadAimAssistRangeMetres = 60f;
 
-    /// <summary>How fast the assist closes the angle to its target, as a fraction of that angle per second.</summary>
-    private const float GamepadAimAssistGainPerSecond = 2.5f;
+    /// <summary>How fast the aim lock closes the angle to its target at zero strength, as a fraction of that angle per second.</summary>
+    private const float GamepadAimAssistMinGainPerSecond = 1.0f;
 
-    /// <summary>The fastest the assist ever turns the view on its own, in radians a second: about seventeen degrees.</summary>
-    private const float GamepadAimAssistMaxRadiansPerSecond = 0.30f;
+    /// <summary>How fast the aim lock closes the angle to its target at full strength.</summary>
+    private const float GamepadAimAssistMaxGainPerSecond = 5.0f;
 
-    /// <summary>The share of the stick's own turn rate on an axis the assist may add on that axis: half, so the stick always wins.</summary>
-    private const float GamepadAimAssistStickShare = 0.5f;
+    /// <summary>The fastest the aim lock ever turns the view on its own at zero strength, in radians a second.</summary>
+    private const float GamepadAimAssistMinCapRadiansPerSecond = 0.15f;
+
+    /// <summary>The fastest the aim lock ever turns the view on its own at full strength, in radians a second: about thirty-four degrees.</summary>
+    private const float GamepadAimAssistMaxCapRadiansPerSecond = 0.60f;
+
+    /// <summary>The share of the stick's own turn rate on an axis the lock may add on that axis at zero strength: half, so the stick always wins.</summary>
+    private const float GamepadAimAssistMinStickShare = 0.5f;
+
+    /// <summary>The share of the stick's own turn rate on an axis the lock may add on that axis at full strength: all of it, so a held turn tracks.</summary>
+    private const float GamepadAimAssistMaxStickShare = 1.0f;
+
+    /// <summary>How far past the cone a locked target may drift before the lock gives it up: a quarter wider than the cone, so the pull does not flicker at the edge.</summary>
+    private const float GamepadAimAssistStickyConeFactor = 1.25f;
+
+    /// <summary>How much closer a challenger must be than the locked target to steal the lock: seventy percent of its angle.</summary>
+    private const float GamepadAimAssistStickySwitchFactor = 0.7f;
+
+    /// <summary>How many wall casts the lock spends per frame, nearest candidates first.</summary>
+    private const int GamepadAimAssistMaxLosCasts = 4;
 
     /// <summary>How far short of a guard a wall contact may sit and still count as the guard itself: about three centimetres.</summary>
     private const double GamepadAimAssistLosToleranceUnits = 128.0;
@@ -402,15 +421,15 @@ public sealed partial class GameHost
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The mapping is the standard shooter layout, and every action goes through
-    /// <see cref="WantPad"/> so the pad presses the same profile-bound keys and
-    /// mouse buttons touch uses — the player and game code never see a gamepad,
-    /// only the keys and buttons they already read.
+    /// The mapping is the standard shooter layout, remappable on the pause menu's
+    /// Gamepad page, and every action goes through <see cref="WantPad"/> so the pad
+    /// presses the same profile-bound keys and mouse buttons touch uses — the player
+    /// and game code never see a gamepad, only the keys and buttons they already read.
     /// </para>
     /// <para>
     /// Left stick moves, right stick looks (through <see cref="MouseState.AddMotion"/>,
-    /// scaled by the profile's Mouse Sensitivity and Invert Mouse, so the look
-    /// slider the player already has governs the stick and the zoom scaling in
+    /// scaled by the profile's controller sensitivity and Invert Mouse, so the
+    /// Gamepad page's sensitivity slider governs the stick and the zoom scaling in
     /// the first-person view applies for free). RT fires, LT aims (both
     /// thresholded at 0.35, since triggers are axes with no button entries).
     /// RB/LB change weapon, A jumps, B toggles crouch on the shared toggle,
@@ -522,24 +541,27 @@ public sealed partial class GameHost
 
     private void ApplyGamepadPlay(FrameLoopState state, GamepadState pad, PlayerProfile? profile, float elapsed, int now)
     {
-        // Triggers are axes, so they are thresholded here and held while past it.
-        if (pad.RightTrigger > GamepadTriggerThreshold)
+        // Every action reads the control the profile binds it to, so the pause menu's Gamepad page can
+        // move any of them; the defaults are the standard shooter layout. Triggers are axes, so they are
+        // thresholded inside the control reads and held while past it.
+        IReadOnlyList<GamepadBinding> bindings = GamepadBindings(profile);
+        if (pad.IsDown(PadControl(bindings, "Fire"), GamepadTriggerThreshold))
         {
             WantPad(profile, "Fire");
         }
 
-        if (pad.LeftTrigger > GamepadTriggerThreshold)
+        if (pad.IsDown(PadControl(bindings, "AlternateFire"), GamepadTriggerThreshold))
         {
             WantPad(profile, "AlternateFire");
         }
 
-        EdgeWant(profile, pad, GamepadButton.RightShoulder, "NextWeapon", now);
-        EdgeWant(profile, pad, GamepadButton.LeftShoulder, "PrevWeapon", now);
-        EdgeWant(profile, pad, GamepadButton.South, "Jump", now);
+        EdgeWant(profile, pad, PadControl(bindings, "NextWeapon"), "NextWeapon", now);
+        EdgeWant(profile, pad, PadControl(bindings, "PrevWeapon"), "PrevWeapon", now);
+        EdgeWant(profile, pad, PadControl(bindings, "Jump"), "Jump", now);
 
         // Crouch is a toggle, on the shared toggle with touch: one press crouches,
         // the next stands up.
-        if (pad.WasPressed(GamepadButton.East))
+        if (pad.WasPressed(PadControl(bindings, "Crouch"), GamepadTriggerThreshold))
         {
             _crouchToggled = !_crouchToggled;
         }
@@ -549,48 +571,50 @@ public sealed partial class GameHost
             WantPad(profile, "Crouch");
         }
 
-        EdgeWant(profile, pad, GamepadButton.West, "Reload", now);
-        EdgeWant(profile, pad, GamepadButton.North, "Activate", now);
+        EdgeWant(profile, pad, PadControl(bindings, "Reload"), "Reload", now);
+        EdgeWant(profile, pad, PadControl(bindings, "Activate"), "Activate", now);
 
-        if (pad.WasPressed(GamepadButton.Start))
+        if (pad.WasPressed(PadControl(bindings, "Pause"), GamepadTriggerThreshold))
         {
             TryOpenPauseMenu(state);
         }
 
-        EdgeWant(profile, pad, GamepadButton.Back, "MapComputer", now);
+        EdgeWant(profile, pad, PadControl(bindings, "MapComputer"), "MapComputer", now);
 
-        // While an optic is zoomed in, D-pad Up/Down step its zoom instead of
-        // opening binoculars or toggling the flashlight. A long press on Up to
+        // While an optic is zoomed in, the Binoculars/Flashlight controls step its zoom instead of
+        // opening binoculars or toggling the flashlight. A long press on the Binoculars control to
         // open the binoculars keeps zooming in once they are up.
         if (OpticsZoomed())
         {
-            if (pad.IsDown(GamepadButton.DpadUp))
+            if (pad.IsDown(PadControl(bindings, "Binoculars"), GamepadTriggerThreshold))
             {
                 WantPad(profile, "ZoomIn");
             }
 
-            if (pad.IsDown(GamepadButton.DpadDown))
+            if (pad.IsDown(PadControl(bindings, "Flashlight"), GamepadTriggerThreshold))
             {
                 WantPad(profile, "ZoomOut");
             }
         }
         else
         {
-            EdgeWant(profile, pad, GamepadButton.DpadUp, "Binoculars", now);
-            EdgeWant(profile, pad, GamepadButton.DpadDown, "Flashlight", now);
+            EdgeWant(profile, pad, PadControl(bindings, "Binoculars"), "Binoculars", now);
+            EdgeWant(profile, pad, PadControl(bindings, "Flashlight"), "Flashlight", now);
         }
 
-        // Peek is one retail action with no left/right variant: either side leans.
-        if (pad.IsDown(GamepadButton.DpadLeft) || pad.IsDown(GamepadButton.DpadRight))
+        // Peek is one retail action with no left/right variant: either side leans. It holds two
+        // rows, one per side, so both controls are read.
+        if (pad.IsDown(PadControl(bindings, "Peek", 0), GamepadTriggerThreshold)
+            || pad.IsDown(PadControl(bindings, "Peek", 1), GamepadTriggerThreshold))
         {
             WantPad(profile, "Peek");
         }
 
-        EdgeWant(profile, pad, GamepadButton.LeftStick, "ToggleWalkRun", now);
+        EdgeWant(profile, pad, PadControl(bindings, "ToggleWalkRun"), "ToggleWalkRun", now);
 
-        // R3 holds the weapon wheel open: holding its bound button (mouse 3) is
+        // The weapon wheel control holds the wheel open: holding its bound button (mouse 3) is
         // what opens the wheel, and the right stick's motion then steers it.
-        if (pad.IsDown(GamepadButton.RightStick))
+        if (pad.IsDown(PadControl(bindings, "WeaponWheel"), GamepadTriggerThreshold))
         {
             WantPad(profile, "WeaponWheel");
         }
@@ -625,6 +649,11 @@ public sealed partial class GameHost
         }
 
         ApplyGamepadLook(pad, profile, elapsed);
+
+        // The aim lock runs whether or not the stick is turning: at high strength it tracks a guard
+        // with the stick centred, and letting go of the stick never stops a lock the player has not
+        // steered away from.
+        ApplyGamepadAimAssist(pad, profile, elapsed);
     }
 
     private void ApplyGamepadComputer(GamepadState pad, PlayerProfile? profile, float elapsed, int now)
@@ -642,10 +671,10 @@ public sealed partial class GameHost
                 y * GamepadComputerPointerCountsPerSecond * elapsed);
         }
 
-        // South clicks, like a tap; Back closes the computer (the same action as
-        // the touch Close button).
+        // South clicks, like a tap; the mapped Map Computer control closes the
+        // computer (the same action as the touch Close button).
         SetPointerClick(pad.IsDown(GamepadButton.South));
-        EdgeWant(profile, pad, GamepadButton.Back, "MapComputer", now);
+        EdgeWant(profile, pad, PadControl(GamepadBindings(profile), "MapComputer"), "MapComputer", now);
     }
 
     private void ApplyGamepadPointer(GamepadState pad, float elapsed)
@@ -682,7 +711,7 @@ public sealed partial class GameHost
             && sight.TanX < HumanView.DefaultTanX * 0.999f;
     }
 
-    /// <summary>Turns the view from the right stick, through the profile's mouse look settings.</summary>
+    /// <summary>Turns the view from the right stick, through the profile's controller look settings.</summary>
     private void ApplyGamepadLook(GamepadState pad, PlayerProfile? profile, float elapsed)
     {
         float x = DeadZoned(pad.RightStickX, GamepadStickDeadZone);
@@ -693,64 +722,84 @@ public sealed partial class GameHost
         }
 
         // Deflection becomes radians this frame at up to one full turn a second,
-        // then mouse counts through the profile's own sensitivity and inversion —
-        // the same conversion as the gyro, so the Mouse Sensitivity slider governs
-        // the stick and the zoom scaling in the first-person view applies for
-        // free. Stick down looks down, as mouse down does; if a direction feels
-        // backwards on a device, flip the sign of that line only.
-        float radiansPerCount = MouseLookSettings.FromProfile(profile).RadiansPerCount;
+        // then mouse counts through the controller's own sensitivity and the shared
+        // inversion — the same conversion as the gyro, so the Controller Sensitivity
+        // slider governs the stick and the zoom scaling in the first-person view
+        // applies for free. Stick down looks down, as mouse down does; if a
+        // direction feels backwards on a device, flip the sign of that line only.
+        float radiansPerCount = GamepadLookSettings(profile).RadiansPerCount;
         float countsPerRadian = 1f / MathF.Max(0.00001f, radiansPerCount);
         _window.Input.Mouse.AddMotion(
             x * GamepadMaxTurnRadiansPerSecond * elapsed * countsPerRadian,
             y * GamepadMaxTurnRadiansPerSecond * elapsed * countsPerRadian);
-
-        // The stick is turning, so the assist may lean the view with it; a centred
-        // stick pulls nothing, and letting go stops the pull at once.
-        ApplyGamepadAimAssist(pad, profile, elapsed, x, y);
     }
 
-    /// <summary>Leans the controller's look toward the nearest visible guard near the crosshair, slightly.</summary>
+    /// <summary>Locks the controller's look onto the nearest visible guard near the crosshair, as far as the profile's aim-lock settings say.</summary>
     /// <remarks>
     /// <para>
-    /// Magnetism, not a snap: the pull is proportional to how far off the guard the crosshair sits, fades to nothing at the
-    /// cone's edge, and on each axis never adds more than half of what the stick itself is turning on that axis — so a player
-    /// steering away always out-turns it, and it can only ever help a turn the player is already making. It runs only while
-    /// the right stick is deflected in play, through the same mouse counts the stick uses, so the Mouse Sensitivity slider,
-    /// the invert setting and the zoom scaling all govern it exactly as they govern the stick.
+    /// Magnetism with a lock at high strength: the pull is proportional to how far off the guard the crosshair sits, fades to
+    /// nothing at the cone's edge, and holds its target while it stays near the cone, so the pull does not flicker between
+    /// guards. The cone is a share of the half field of view — the profile's Aim Lock Radius, sixty percent by default, so
+    /// twenty-seven degrees at the ninety-degree field of view, narrowing under a scope with the lens — and the strength
+    /// scales how fast the pull closes, how fast it may ever turn, and how much of the stick's own turn it may add. At
+    /// zero strength, or zero radius, the lock is off entirely.
     /// </para>
     /// <para>
-    /// A guard counts when it is alive, on the hostile team, within sixty metres and five degrees of the crosshair, with a
-    /// clear line from the eye to its chest: the world's own terrain-and-placed-collision cast, so a wall between the player
-    /// and the guard blocks the pull outright. No target is tracked once it leaves the cone or the line of sight, and
-    /// nothing is remembered between frames — each frame re-picks the nearest guard in the cone, so the pull lets go
-    /// cleanly the moment the player looks away.
+    /// Steering away releases it: on each axis, a stick deflection that opposes the pull zeroes that axis for the frame, and
+    /// the pull never adds more than its share of what the stick itself is turning. With the stick centred the lock tracks
+    /// on its own, harder the stronger it is set. A guard counts when it is alive, on the hostile team, within sixty metres
+    /// and inside the cone, with a clear line from the eye to its chest: the world's own terrain-and-placed-collision cast,
+    /// so a wall between the player and the guard blocks the pull outright. The lock lets go when the guard dies, leaves the
+    /// range or the widened cone, or loses its line of sight.
     /// </para>
     /// <para>
-    /// What it costs: one pass over the level's soldiers per frame while the stick moves, and one wall cast per guard that
-    /// is already inside the cone and the range — usually none or one. The soldier list itself is the frame's existing
-    /// roster, not a fresh query.
+    /// What it costs: one pass over the level's soldiers per frame in play, and at most four wall casts, nearest candidates
+    /// first. The soldier list itself is the frame's existing roster, not a fresh query.
     /// </para>
     /// </remarks>
-    private void ApplyGamepadAimAssist(GamepadState pad, PlayerProfile? profile, float elapsed, float stickX, float stickY)
+    private void ApplyGamepadAimAssist(GamepadState pad, PlayerProfile? profile, float elapsed)
     {
-        if (elapsed <= 0f || _soldiers is null || HostedPlayer is not { } hosted)
+        float strength = profile?.AimLockStrength ?? PlayerProfile.DefaultAimLockStrength;
+        float radius = profile?.AimLockRadius ?? PlayerProfile.DefaultAimLockRadius;
+        if (elapsed <= 0f || strength <= 0f || radius <= 0f || _soldiers is null || HostedPlayer is not { } hosted)
         {
+            _aimLockTargetId = -1;
             return;
         }
 
         // The wheel steers with the right stick, the binoculars scan rather than aim, and a mounted gun, a ladder or an
-        // interaction turns the view by its own rules: the assist stays out of all of them. Menus and the map computer
+        // interaction turns the view by its own rules: the lock stays out of all of them. Menus and the map computer
         // never reach here — only Play calls the look — and touch and mouse look never pass through this method at all.
-        if (pad.IsDown(GamepadButton.RightStick) || hosted.IsBinocularsOpen || hosted.IsMountedStationaryGun
+        if (pad.IsDown(PadControl(GamepadBindings(profile), "WeaponWheel"), GamepadTriggerThreshold)
+            || hosted.IsBinocularsOpen || hosted.IsMountedStationaryGun
             || hosted.IsOnLadder || hosted.IsInWorldInteraction)
         {
+            _aimLockTargetId = -1;
             return;
         }
 
-        // No wall cast, no visibility proof, no pull: guessing through a wall is exactly what the assist must never do.
+        // No wall cast, no visibility proof, no pull: guessing through a wall is exactly what the lock must never do.
         WorldRayCast? walls = hosted.GrenadeWalls;
         if (walls is null)
         {
+            _aimLockTargetId = -1;
+            return;
+        }
+
+        // The cone, from the lens the frame is drawn with: the sight zoom's tangent times the chosen field of view's,
+        // or the pinned -fov lens when one is set — the same computation the frame's own lens uses, recomputed here
+        // because the assist runs before the frame's lens is resolved. The radius is a share of the half field of view.
+        SightZoomFrame sight = _playerMode && Viewpoint?.SightZoom(1f) is { } playerSight
+            ? playerSight
+            : new SightZoomFrame(HumanView.DefaultTanX, HumanView.DefaultViewModelTanX);
+        float baseTangent = MathF.Tan(ProjectIGI.Game.GameplayCVars.FieldOfView.Value * (MathF.PI / 360f));
+        float horizontalTangent = _options.FieldOfView is { } fixedFov
+            ? MathF.Tan(fixedFov * (MathF.PI / 360f))
+            : sight.TanX * baseTangent;
+        double cone = radius * Math.Atan(horizontalTangent);
+        if (cone <= 0.0)
+        {
+            _aimLockTargetId = -1;
             return;
         }
 
@@ -758,13 +807,12 @@ public sealed partial class GameHost
         float yaw = hosted.Body.Yaw;
         float pitch = hosted.Body.Pitch;
         double rangeUnits = GamepadAimAssistRangeMetres * WorldScene.UnitsPerMetre;
+        double stickyCone = cone * GamepadAimAssistStickyConeFactor;
 
-        // The nearest guard in the cone, by total angle off the crosshair: the one the player is already closest to aiming at.
-        // The aim point is the soldier's origin, about chest height, which is what the mission runtime counts as the human.
-        bool found = false;
-        double bestAngle = GamepadAimAssistConeRadians;
-        double bestYawError = 0.0;
-        double bestPitchError = 0.0;
+        // Every guard near the cone, nearest first: the aim point is the soldier's origin, about chest height, which is
+        // what the mission runtime counts as the human. The widened cone keeps the locked target in the running while it
+        // drifts just past the edge; challengers must be inside the cone itself.
+        var candidates = new List<AimLockCandidate>();
         foreach (HumanOccupant occupant in _soldiers.LiveOccupants())
         {
             if (occupant.Team != GamepadAimAssistEnemyTeam || occupant.IsDead)
@@ -786,56 +834,146 @@ public sealed partial class GameHost
             double yawError = WrapAngle(desiredYaw - yaw);
             double pitchError = desiredPitch - pitch;
             double angle = Math.Sqrt((yawError * yawError) + (pitchError * pitchError));
-            if (angle >= bestAngle)
+            if (angle >= stickyCone)
             {
                 continue;
             }
 
-            // The wall cast ends at the guard's chest; a contact meaningfully short of that is a wall, the ground or a
-            // crate in between, and the guard is left alone. Glass and fences count as cover here — the binoculars'
-            // see-through rule is not repeated, so the assist never pulls at what it cannot prove is in the open.
-            if (walls(eye, occupant.Position, out WorldRayHit hit)
-                && hit.Distance < distance - GamepadAimAssistLosToleranceUnits)
-            {
-                continue;
-            }
-
-            found = true;
-            bestAngle = angle;
-            bestYawError = yawError;
-            bestPitchError = pitchError;
+            candidates.Add(new AimLockCandidate(occupant.TaskId, angle, yawError, pitchError, distance, occupant.Position));
         }
 
-        if (!found)
+        candidates.Sort(static (a, b) => a.Angle.CompareTo(b.Angle));
+
+        // The wall cast ends at the guard's chest; a contact meaningfully short of that is a wall, the ground or a
+        // crate in between, and the guard is left alone. Glass and fences count as cover here — the binoculars'
+        // see-through rule is not repeated, so the lock never pulls at what it cannot prove is in the open.
+        static bool Visible(WorldRayCast walls, Vector3d eye, AimLockCandidate candidate) =>
+            !walls(eye, candidate.Position, out WorldRayHit hit)
+            || hit.Distance >= candidate.Distance - GamepadAimAssistLosToleranceUnits;
+
+        // The locked target, if it is still around: its visibility is proved before any challenger is considered.
+        AimLockCandidate? sticky = null;
+        foreach (AimLockCandidate candidate in candidates)
         {
+            if (candidate.TaskId == _aimLockTargetId)
+            {
+                sticky = candidate;
+                break;
+            }
+        }
+
+        int casts = 0;
+        bool stickyVisible = false;
+        if (sticky is { } held)
+        {
+            casts++;
+            stickyVisible = Visible(walls, eye, held);
+        }
+
+        // The nearest visible challenger inside the cone.
+        AimLockCandidate? challenger = null;
+        foreach (AimLockCandidate candidate in candidates)
+        {
+            if (casts >= GamepadAimAssistMaxLosCasts)
+            {
+                break;
+            }
+
+            if (candidate.TaskId == _aimLockTargetId || candidate.Angle >= cone)
+            {
+                continue;
+            }
+
+            casts++;
+            if (Visible(walls, eye, candidate))
+            {
+                challenger = candidate;
+                break;
+            }
+        }
+
+        // A challenger steals the lock only when clearly closer to the crosshair than the locked target; otherwise the
+        // lock holds, and with no locked target the nearest visible guard in the cone takes it.
+        AimLockCandidate? chosen = stickyVisible && sticky is { } locked
+            ? challenger is { } rival && rival.Angle < locked.Angle * GamepadAimAssistStickySwitchFactor ? rival : locked
+            : challenger;
+        if (chosen is null)
+        {
+            _aimLockTargetId = -1;
             return;
         }
 
+        AimLockCandidate target = chosen.Value;
+        _aimLockTargetId = target.TaskId;
+
         // Proportional to the error and faded toward the cone's edge, so the pull is strongest near the middle, settles
         // rather than overshoots as the crosshair arrives, and lets go without a step when the guard leaves the cone.
-        float fade = 1f - (float)(bestAngle / GamepadAimAssistConeRadians);
-        float yawRate = Math.Clamp((float)(bestYawError * GamepadAimAssistGainPerSecond) * fade,
-            -GamepadAimAssistMaxRadiansPerSecond, GamepadAimAssistMaxRadiansPerSecond);
-        float pitchRate = Math.Clamp((float)(bestPitchError * GamepadAimAssistGainPerSecond) * fade,
-            -GamepadAimAssistMaxRadiansPerSecond, GamepadAimAssistMaxRadiansPerSecond);
+        // Gain and cap scale with the strength, so a low strength leans and a high strength locks.
+        float fade = Math.Clamp(1f - (float)(target.Angle / cone), 0f, 1f);
+        float gain = GamepadAimAssistMinGainPerSecond
+            + ((GamepadAimAssistMaxGainPerSecond - GamepadAimAssistMinGainPerSecond) * strength);
+        float cap = GamepadAimAssistMinCapRadiansPerSecond
+            + ((GamepadAimAssistMaxCapRadiansPerSecond - GamepadAimAssistMinCapRadiansPerSecond) * strength);
+        float yawRate = Math.Clamp((float)(target.YawError * gain) * fade, -cap, cap);
+        float pitchRate = Math.Clamp((float)(target.PitchError * gain) * fade, -cap, cap);
 
-        // Per axis, never more than half of what the stick is turning on that axis: the player's hand always wins, and
-        // an axis the stick is not driving gets no pull at all.
-        yawRate = Math.Clamp(yawRate,
-            -GamepadAimAssistStickShare * MathF.Abs(stickX) * GamepadMaxTurnRadiansPerSecond,
-            GamepadAimAssistStickShare * MathF.Abs(stickX) * GamepadMaxTurnRadiansPerSecond);
-        pitchRate = Math.Clamp(pitchRate,
-            -GamepadAimAssistStickShare * MathF.Abs(stickY) * GamepadMaxTurnRadiansPerSecond,
-            GamepadAimAssistStickShare * MathF.Abs(stickY) * GamepadMaxTurnRadiansPerSecond);
+        // The stick's own deflection, dead-zoned as the look reads it.
+        float stickX = DeadZoned(pad.RightStickX, GamepadStickDeadZone);
+        float stickY = DeadZoned(pad.RightStickY, GamepadStickDeadZone);
+        MouseLookSettings look = GamepadLookSettings(profile);
+
+        if (stickX == 0f && stickY == 0f)
+        {
+            // Centred stick: the lock tracks on its own, up to a share of its cap that grows with the square of the
+            // strength — barely a lean at low strength, the full cap at full strength.
+            float idleCap = cap * strength * strength;
+            yawRate = Math.Clamp(yawRate, -idleCap, idleCap);
+            pitchRate = Math.Clamp(pitchRate, -idleCap, idleCap);
+        }
+        else
+        {
+            // Steering away releases the pull on that axis: a stick deflection opposing the pull zeroes it for the
+            // frame, so the lock never fights the player's hand.
+            float stickYawRate = stickX * GamepadMaxTurnRadiansPerSecond;
+            float stickPitchRate = (look.InvertPitch ? stickY : -stickY) * GamepadMaxTurnRadiansPerSecond;
+            if (stickYawRate * yawRate < 0f)
+            {
+                yawRate = 0f;
+            }
+
+            if (stickPitchRate * pitchRate < 0f)
+            {
+                pitchRate = 0f;
+            }
+
+            // Per axis, never more than the strength's share of what the stick is turning on that axis: the player's
+            // hand always wins, and an axis the stick is not driving gets no pull at all.
+            float share = GamepadAimAssistMinStickShare
+                + ((GamepadAimAssistMaxStickShare - GamepadAimAssistMinStickShare) * strength);
+            yawRate = Math.Clamp(yawRate,
+                -share * MathF.Abs(stickX) * GamepadMaxTurnRadiansPerSecond,
+                share * MathF.Abs(stickX) * GamepadMaxTurnRadiansPerSecond);
+            pitchRate = Math.Clamp(pitchRate,
+                -share * MathF.Abs(stickY) * GamepadMaxTurnRadiansPerSecond,
+                share * MathF.Abs(stickY) * GamepadMaxTurnRadiansPerSecond);
+        }
 
         // The stick's own conversion back into mouse counts, with its sign rules: yaw counts turn right, and the pitch
-        // counts carry the profile's invert, so the assist leans exactly the way the stick would.
-        MouseLookSettings look = MouseLookSettings.FromProfile(profile);
+        // counts carry the profile's invert, so the lock leans exactly the way the stick would.
         float countsPerRadian = 1f / MathF.Max(0.00001f, look.RadiansPerCount);
         _window.Input.Mouse.AddMotion(
             yawRate * elapsed * countsPerRadian,
             (look.InvertPitch ? pitchRate : -pitchRate) * elapsed * countsPerRadian);
     }
+
+    /// <summary>One guard the aim lock is considering: its angle off the crosshair and the turn that would centre it.</summary>
+    private readonly record struct AimLockCandidate(
+        int TaskId,
+        double Angle,
+        double YawError,
+        double PitchError,
+        double Distance,
+        Vector3d Position);
 
     /// <summary>Wraps an angle into [-π, π], so a guard just across the ±π seam is a small turn away, not a full turn.</summary>
     private static double WrapAngle(double angle)
@@ -901,9 +1039,9 @@ public sealed partial class GameHost
     }
 
     /// <summary>Presses an edge action, holding its synthetic key long enough for the 30 Hz tick to see it.</summary>
-    private void EdgeWant(PlayerProfile? profile, GamepadState pad, GamepadButton button, string action, int now)
+    private void EdgeWant(PlayerProfile? profile, GamepadState pad, GamepadControl control, string action, int now)
     {
-        if (pad.WasPressed(button))
+        if (pad.WasPressed(control, GamepadTriggerThreshold))
         {
             _padEdgeHoldUntilMs[action] = now + GamepadEdgeHoldMilliseconds;
         }
@@ -912,6 +1050,56 @@ public sealed partial class GameHost
         {
             WantPad(profile, action);
         }
+    }
+
+    /// <summary>The look settings the controller's right stick and the aim lock use: the profile's controller sensitivity with the shared invert.</summary>
+    private static MouseLookSettings GamepadLookSettings(PlayerProfile? profile) => profile is null
+        ? MouseLookSettings.Default
+        : MouseLookSettings.FromSensitivity(profile.GamepadSensitivity, profile.InvertMouse);
+
+    /// <summary>The controller bindings in force: the profile's, or the defaults before a profile loads.</summary>
+    private static IReadOnlyList<GamepadBinding> GamepadBindings(PlayerProfile? profile) =>
+        profile?.GamepadBindings ?? PlayerProfile.DefaultGamepadBindings;
+
+    /// <summary>The control an action is bound to, or the default's when the profile has no row for it.</summary>
+    /// <param name="bindings">The bindings in force.</param>
+    /// <param name="action">The action name.</param>
+    /// <param name="occurrence">Which row of the action, for the two Peek rows.</param>
+    /// <returns>The control, or <see cref="GamepadControl.None"/> when neither list binds the action.</returns>
+    private static GamepadControl PadControl(IReadOnlyList<GamepadBinding> bindings, string action, int occurrence = 0)
+    {
+        if (TryPadControl(bindings, action, occurrence, out GamepadControl control))
+        {
+            return control;
+        }
+
+        if (TryPadControl(PlayerProfile.DefaultGamepadBindings, action, occurrence, out control))
+        {
+            return control;
+        }
+
+        return GamepadControl.None;
+    }
+
+    private static bool TryPadControl(IReadOnlyList<GamepadBinding> bindings, string action, int occurrence, out GamepadControl control)
+    {
+        int seen = 0;
+        foreach (GamepadBinding binding in bindings)
+        {
+            if (string.Equals(binding.Action, action, StringComparison.OrdinalIgnoreCase))
+            {
+                if (seen == occurrence)
+                {
+                    control = binding.Control;
+                    return true;
+                }
+
+                seen++;
+            }
+        }
+
+        control = GamepadControl.None;
+        return false;
     }
 
     /// <summary>Applies a dead zone with rescaling, so full deflection is still full deflection.</summary>

@@ -97,18 +97,6 @@ public sealed partial class GameHost
                 && _mission.Cutscenes?.IsPlaying != true);
         _device.BeginLatencyFrame();
 
-        // Back-close detector for the console: the soft-keyboard request is derived
-        // from Console.IsOpen (see below), so the only way it can go true -> false
-        // while the console is open is Java clearing it — Back dismissing the IME
-        // (MainActivity.onBackPressed) or the app backgrounding (onPause). Either way
-        // the console closes, so one Back closes the console and the keyboard
-        // together instead of the derivation re-showing the IME within 250 ms.
-        // Runs before PumpEvents so the close lands before this frame's input is read.
-        if (state.Console.IsOpen && !KeyboardRequested && _prevKeyboardRequested)
-        {
-            state.Console.Model.IsOpen = false;
-        }
-
         _window.PumpEvents();
         ApplyTouchControls(state);
         ApplyGamepadControls(state);
@@ -187,13 +175,6 @@ public sealed partial class GameHost
         state.Console.Update(_window.Input, Math.Clamp((consoleNow - state.LastConsoleMilliseconds) / 1000f, 0f, 0.25f));
         state.LastConsoleMilliseconds = consoleNow;
 
-        // The soft keyboard follows the console: opening it by any path (main-menu
-        // icon, Grave key, toggleconsole, command palette) shows the IME for typing,
-        // closing it by any path hides it again. The Java poller reads this via
-        // IsKeyboardRequested; text-field auto-focus (IsTextFieldFocused) is untouched.
-        KeyboardRequested = state.Console.IsOpen;
-        _prevKeyboardRequested = KeyboardRequested;
-
         // A co-op line being typed takes the keyboard next, the same way, and a key
         // held to talk sends this player's voice: both read the frame's input before
         // the game does, and neither runs while the console owns it.
@@ -224,9 +205,6 @@ public sealed partial class GameHost
             var shellFrame = new LayoutContext(_window.Width, _window.Height);
             state.Shell.Update(shellFrame, _window.Input, shellElapsed);
             DrainPressQueue(state, executeBinds: false);
-            // Whether a text field is focused, for the Android soft keyboard: the Java
-            // side polls this (via IsTextFieldFocused) and shows/hides the IME.
-            IsTextFieldFocused = state.Shell.Stack.Top?.Focus?.Focused is ProjectIGI.UI.Widgets.TextBox;
             if (!state.Console.IsOpen)
             {
                 _window.Input.Captured = true;
@@ -488,8 +466,6 @@ public sealed partial class GameHost
             _window.CursorLocked = false;
             _logger.Information("Menu", "Paused (background).");
         }
-
-        IsTextFieldFocused = false;
     }
 
     /// <summary>Fires the console statements <c>-runat</c> scheduled for this frame.</summary>

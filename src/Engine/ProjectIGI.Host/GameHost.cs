@@ -66,20 +66,6 @@ public sealed partial class GameHost : IDisposable
     // second of the menu, as a player choosing it would leave.
     private const int EntryTimeSettleFrames = 60;
 
-    /// <summary>Gets whether the shell currently has a text field focused (for the Android soft keyboard).</summary>
-    public bool IsTextFieldFocused { get; private set; }
-
-    /// <summary>
-    /// Whether the Android soft keyboard is wanted right now. This is a derivation, not a
-    /// toggle: BeginFramePass sets it from the developer console's open state once per frame,
-    /// so the IME follows the console however it was opened (main-menu icon, Grave key,
-    /// toggleconsole). The Android side polls this and shows the IME while it is set. The
-    /// only other writer is Java, which clears it when Back dismisses the keyboard or the
-    /// app backgrounds — BeginFramePass treats that clear while the console is open as
-    /// "close the console", so one Back closes both together.
-    /// </summary>
-    public bool KeyboardRequested { get; set; }
-
     /// <summary>
     /// Gets or sets whether the Android microphone permission has been asked for: set the first
     /// time co-op voice wants the microphone, so the Android side can ask for RECORD_AUDIO at
@@ -88,11 +74,6 @@ public sealed partial class GameHost : IDisposable
     /// null while ungranted is the signal that voice stays listen-only.
     /// </summary>
     public bool MicrophoneRequested { get; set; }
-
-    // The previous frame's KeyboardRequested, for the Back-close detector in
-    // BeginFramePass: a true -> false transition while the console is open can only
-    // mean Java cleared the flag (Back, or backgrounding), so the console closes.
-    private bool _prevKeyboardRequested;
 
     // --- Environment, supplied by the composition root ---
     private readonly IPlatformHost _platform;

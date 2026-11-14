@@ -17,10 +17,6 @@ import android.hardware.SensorManager;
 import android.hardware.input.InputManager;
 import android.os.Handler;
 import android.os.Looper;
-import android.text.Editable;
-import android.text.TextWatcher;
-import android.view.inputmethod.InputMethodManager;
-import android.widget.EditText;
 import android.graphics.BitmapFactory;
 import android.graphics.BlendMode;
 import android.graphics.BlendModeColorFilter;
@@ -128,7 +124,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private SensorEventListener gyroListener;
     private long lastGyroTimestampNs = 0;
     // Gamepad: hot-plug detection and stick/trigger axes. The first gamepad found
-    // wins: with two pads connected only its buttons and axes reach the game.
+    // wins: with two pads connected only its buttons and axes reach the game. A pad
+    // the scan cannot see (a Bluetooth pad exposing only a keyboard source) is
+    // adopted on its first button press instead; see adoptGamepadIfUntracked.
     private InputManager inputManager;
     private InputManager.InputDeviceListener gamepadListener;
     private int activeGamepadId = -1;
@@ -137,12 +135,11 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     // instead of keys: transitions are synthesised into DPAD key events below.
     private int prevHatX = 0;
     private int prevHatY = 0;
-    // Soft keyboard: a hidden, zero-size EditText the IME types into, and a poller
-    // that shows/hides the keyboard when the game focuses a text field.
-    private EditText hiddenInput;
-    private Handler imeHandler;
-    private Runnable imePoller;
-    private boolean imeShown = false;
+    // Microphone permission poller: asks for RECORD_AUDIO once, at the first voice
+    // use, on a 250 ms cadence. There is no soft keyboard any more: text reaches the
+    // game only from a hardware keyboard, decoded in onKeyDown below.
+    private Handler micHandler;
+    private Runnable micPoller;
     // True while this Activity is in the foreground. The quit watcher uses it to tell a Quit
     // in the main menu (foreground, game stops) from tabbing out (backgrounded, game stops too).
     private boolean isResumed = false;
@@ -226,7 +223,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         rootLayout.addView(surfaceView, new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
-        setupGyroAndKeyboard();
+        setupGyro();
         setupGamepad();
 
         // Authentic Project I.G.I. Launcher Splash
@@ -465,8 +462,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     }
 
     // Co-op voice, at first voice use: the managed side raises MicrophoneRequested the first
-    // time voice wants the microphone (push to talk held, or open mic), and this poller — the
-    // same 250 ms poller that shows the IME — asks for RECORD_AUDIO once. The grant needs no
+    // time voice wants the microphone (push to talk held, or open mic), and the
+    // microphone poller asks for RECORD_AUDIO once. The grant needs no
     // callback here: the managed mic-open attempt returns null while ungranted and succeeds
     // once granted, so voice send starts working on its own. Denied means voice send stays
     // off; hearing the others and text chat still work.
@@ -1454,21 +1451,104 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             // and immediately closed it again (or skipped past it).
             return true;
         }
+        // A button press from an untracked device adopts it as the gamepad: some
+        // Bluetooth pads present as keyboards, so the device scan never sees them.
+        if (isGamepadButtonKeyCode(keyCode)) {
+            adoptGamepadIfUntracked(event.getDeviceId());
+        }
         if (isGamepadKeyCode(keyCode) && isSecondGamepad(event.getDeviceId())) {
             return super.onKeyDown(keyCode, event);
         }
         NativeEngine.nativeOnKey(keyCode, true);
+        forwardTypedChar(event, keyCode, event.getDeviceId() == activeGamepadId);
+        // Gamepad buttons are consumed: the game already has the press, and nothing
+        // else should act on it.
+        if (isGamepadKeyCode(keyCode)) {
+            return true;
+        }
         return super.onKeyDown(keyCode, event);
     }
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         if (!isGameStarted) return super.onKeyUp(keyCode, event);
+        if (isGamepadButtonKeyCode(keyCode)) {
+            adoptGamepadIfUntracked(event.getDeviceId());
+        }
         if (isGamepadKeyCode(keyCode) && isSecondGamepad(event.getDeviceId())) {
             return super.onKeyUp(keyCode, event);
         }
         NativeEngine.nativeOnKey(keyCode, false);
+        if (isGamepadKeyCode(keyCode)) {
+            return true;
+        }
         return super.onKeyUp(keyCode, event);
+    }
+
+    // The BUTTON_* codes only, without the D-pad: a physical keyboard's arrow keys
+    // arrive as DPAD codes, and adopting the keyboard as the gamepad would swallow
+    // the pad that connects later.
+    private static boolean isGamepadButtonKeyCode(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_BUTTON_A:
+            case KeyEvent.KEYCODE_BUTTON_B:
+            case KeyEvent.KEYCODE_BUTTON_X:
+            case KeyEvent.KEYCODE_BUTTON_Y:
+            case KeyEvent.KEYCODE_BUTTON_L1:
+            case KeyEvent.KEYCODE_BUTTON_R1:
+            case KeyEvent.KEYCODE_BUTTON_L2:
+            case KeyEvent.KEYCODE_BUTTON_R2:
+            case KeyEvent.KEYCODE_BUTTON_THUMBL:
+            case KeyEvent.KEYCODE_BUTTON_THUMBR:
+            case KeyEvent.KEYCODE_BUTTON_START:
+            case KeyEvent.KEYCODE_BUTTON_SELECT:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    // Adopts a device that sent a gamepad button as the tracked pad, when nothing
+    // is tracked yet. Bluetooth pads that expose only a keyboard source are never
+    // found by the device scan; the first button press is proof enough. Removal
+    // still clears it (onInputDeviceRemoved), and the scan keeps it while present.
+    private void adoptGamepadIfUntracked(int deviceId) {
+        if (activeGamepadId != -1 || deviceId == -1) {
+            return;
+        }
+        activeGamepadId = deviceId;
+        prevHatX = 0;
+        prevHatY = 0;
+        if (!gamepadConnected) {
+            gamepadConnected = true;
+            Log.i(TAG, "Gamepad adopted from button press (device " + deviceId + ")");
+        }
+        if (isGameStarted) {
+            NativeEngine.nativeOnGamepadConnected(true);
+        }
+    }
+
+    // Forwards the character a hardware key produces, so a physical or Bluetooth
+    // keyboard can type into the console and text fields now the soft keyboard is
+    // gone. Gamepad buttons carry no character and never reach here; the keys the
+    // game already handles (Back, Enter, Delete, Grave) are excluded, so toggling
+    // the console does not type a backtick into it. Control characters are excluded
+    // too: Enter arrives as its own key event, not as a newline. Characters from
+    // the tracked gamepad itself are excluded as well: a pad that reports a
+    // character alongside a button press must not type into the console.
+    private static void forwardTypedChar(KeyEvent event, int keyCode, boolean fromGamepad) {
+        if (fromGamepad) {
+            return;
+        }
+        if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ENTER
+                || keyCode == KeyEvent.KEYCODE_DEL || keyCode == KeyEvent.KEYCODE_GRAVE
+                || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+            return;
+        }
+        int unicodeChar = event.getUnicodeChar();
+        if (unicodeChar > 31) {
+            NativeEngine.nativeOnText(String.valueOf((char) unicodeChar));
+        }
     }
 
     // Joystick axes never arrive in onTouchEvent: Android delivers them here, as
@@ -1478,7 +1558,11 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     @Override
     public boolean onGenericMotionEvent(MotionEvent event) {
         if (!isGameStarted) return super.onGenericMotionEvent(event);
-        if ((event.getSource() & InputDevice.SOURCE_JOYSTICK) != InputDevice.SOURCE_JOYSTICK
+        // An adopted pad is trusted whatever source its events carry: a Bluetooth
+        // pad in keyboard mode reports no joystick or gamepad source at all.
+        boolean fromAdoptedPad = activeGamepadId != -1 && event.getDeviceId() == activeGamepadId;
+        if (!fromAdoptedPad
+                && (event.getSource() & InputDevice.SOURCE_JOYSTICK) != InputDevice.SOURCE_JOYSTICK
                 && (event.getSource() & InputDevice.SOURCE_GAMEPAD) != InputDevice.SOURCE_GAMEPAD) {
             return super.onGenericMotionEvent(event);
         }
@@ -1492,8 +1576,23 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         float ly = event.getAxisValue(MotionEvent.AXIS_Y);
         float rx = event.getAxisValue(MotionEvent.AXIS_Z);
         float ry = event.getAxisValue(MotionEvent.AXIS_RZ);
+        // Some pads (notably Bluetooth ones) report the right stick on RX/RY
+        // instead of Z/RZ: fall back per axis when the usual one reads centred.
+        if (rx == 0f) {
+            rx = event.getAxisValue(MotionEvent.AXIS_RX);
+        }
+        if (ry == 0f) {
+            ry = event.getAxisValue(MotionEvent.AXIS_RY);
+        }
         float lt = event.getAxisValue(MotionEvent.AXIS_LTRIGGER);
         float rt = event.getAxisValue(MotionEvent.AXIS_RTRIGGER);
+        // Likewise, some pads report the triggers as brake/gas.
+        if (lt == 0f) {
+            lt = event.getAxisValue(MotionEvent.AXIS_BRAKE);
+        }
+        if (rt == 0f) {
+            rt = event.getAxisValue(MotionEvent.AXIS_GAS);
+        }
         NativeEngine.nativeOnGamepadAxis(lx, ly, rx, ry, lt, rt);
 
         // D-pad-as-axes fallback: some pads report the D-pad on HAT_X/HAT_Y
@@ -1521,13 +1620,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
     @Override
     public void onBackPressed() {
-        // If the soft keyboard is showing, the first Back dismisses it (and clears the
-        // keyboard request) instead of navigating — standard Android behaviour.
-        if (isGameStarted && imeShown) {
-            hideSoftKeyboard();
-            NativeEngine.nativeSetKeyboardRequested(false);
-            return;
-        }
         if (isGameStarted) {
             NativeEngine.nativeOnKey(4, true);
             surfaceView.postDelayed(() -> NativeEngine.nativeOnKey(4, false), 50);
@@ -1553,17 +1645,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             inputManager.unregisterInputDeviceListener(gamepadListener);
         }
         lastGyroTimestampNs = 0;
-        hideSoftKeyboard();
-        // Clear the soft-keyboard request (derived from the console's open state)
-        // and the hidden field's focus, or the IME poller (or a focused EditText)
-        // pops the keyboard up again the moment the app returns to the foreground.
-        // The keyboard only comes back when the console is opened again or a text
-        // field is focused; the managed side also closes the console on return,
-        // since this clear while it is open means "close the console".
-        NativeEngine.nativeSetKeyboardRequested(false);
-        if (hiddenInput != null) {
-            hiddenInput.clearFocus();
-        }
         // The game goes into its paused state when the app leaves the foreground (Home,
         // recents, switching apps): the same Back press that opens the pause menu in-game.
         // In the main menu Back is a no-op, so this is safe there too. The C# side also
@@ -1662,13 +1743,20 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     }
 
     private void updateGamepadPresence() {
+        // An adopted pad (a Bluetooth pad in keyboard mode, found by its button
+        // press rather than the scan) stays tracked while the device is present,
+        // or the scan below would drop it on every resume.
         int foundId = -1;
-        int[] ids = InputDevice.getDeviceIds();
-        if (ids != null) {
-            for (int id : ids) {
-                if (isGamepadDevice(InputDevice.getDevice(id))) {
-                    foundId = id;
-                    break;
+        if (activeGamepadId != -1 && gamepadConnected && InputDevice.getDevice(activeGamepadId) != null) {
+            foundId = activeGamepadId;
+        } else {
+            int[] ids = InputDevice.getDeviceIds();
+            if (ids != null) {
+                for (int id : ids) {
+                    if (isGamepadDevice(InputDevice.getDevice(id))) {
+                        foundId = id;
+                        break;
+                    }
                 }
             }
         }
@@ -1683,8 +1771,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         }
     }
 
-    // Gyroscope aim + the soft keyboard for text fields (player-name box).
-    private void setupGyroAndKeyboard() {
+    // Gyroscope aim, plus the microphone-permission poller (co-op voice asks once,
+    // at first voice use). There is no soft keyboard any more: see forwardTypedChar.
+    private void setupGyro() {
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         if (sensorManager != null) {
             gyroSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
@@ -1722,97 +1811,19 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             }
         };
 
-        // Hidden, zero-size EditText the IME types into. The game draws its own UI on
-        // a SurfaceView, so there is no Android View for the keyboard to target; this
-        // invisible field is the target, and its TextWatcher forwards typed text.
-        hiddenInput = new EditText(this);
-        // Visible (not INVISIBLE): some keyboards refuse to show for an invisible view.
-        // It is 1x1 with no background and no cursor, so nothing is actually drawn.
-        hiddenInput.setVisibility(View.VISIBLE);
-        hiddenInput.setCursorVisible(false);
-        hiddenInput.setFocusable(true);
-        hiddenInput.setFocusableInTouchMode(true);
-        hiddenInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT
-            | android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        hiddenInput.setBackground(null);
-        rootLayout.addView(hiddenInput, new FrameLayout.LayoutParams(1, 1));
-        final String[] lastText = {""};
-        hiddenInput.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                String now = s.toString();
-                String prev = lastText[0];
-                if (now.length() > prev.length() && now.startsWith(prev)) {
-                    // Inserted text: forward only the new characters.
-                    NativeEngine.nativeOnText(now.substring(prev.length()));
-                } else if (now.length() < prev.length()) {
-                    // Deleted text: one Backspace per removed character.
-                    int removed = prev.length() - now.length();
-                    for (int i = 0; i < removed; i++) {
-                        NativeEngine.nativeOnKey(67, true);
-                        NativeEngine.nativeOnKey(67, false);
-                    }
-                }
-                lastText[0] = now;
-            }
-        });
-
-        // Polls whether the game has a text field focused and shows/hides the IME.
-        // The game tells us via nativeIsTextFieldFocused(); the IME needs a focused View,
-        // which is the hidden EditText above.
-        imeHandler = new Handler(Looper.getMainLooper());
-        imePoller = new Runnable() {
+        // Polls for the first voice use, so RECORD_AUDIO is asked for once, when
+        // voice actually wants the microphone, rather than at startup.
+        micHandler = new Handler(Looper.getMainLooper());
+        micPoller = new Runnable() {
             @Override
             public void run() {
-                updateImeVisibility();
                 requestMicrophonePermissionIfWanted();
-                if (imeHandler != null) {
-                    imeHandler.postDelayed(this, 250);
+                if (micHandler != null) {
+                    micHandler.postDelayed(this, 250);
                 }
             }
         };
-        imeHandler.post(imePoller);
-    }
-
-    private void updateImeVisibility() {
-        // Show the keyboard when a text field is focused OR when the developer console
-        // is open: the managed side derives the keyboard request from the console's
-        // open state, so opening the console (main-menu icon, Grave key, toggleconsole)
-        // summons the IME for typing commands, and closing it hides the IME again.
-        // Back clears the request while the console is open, and the managed side
-        // treats that clear as "close the console" — one Back closes both together.
-        boolean focused = isGameStarted && (NativeEngine.nativeIsTextFieldFocused()
-            || NativeEngine.nativeIsKeyboardRequested());
-        InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-        if (focused && !imeShown) {
-            if (hiddenInput != null && imm != null) {
-                hiddenInput.requestFocus();
-                imm.showSoftInput(hiddenInput, 0);
-            }
-            imeShown = true;
-        } else if (!focused && imeShown) {
-            hideSoftKeyboard();
-        }
-    }
-
-    private void hideSoftKeyboard() {
-        if (!imeShown) {
-            return;
-        }
-        imeShown = false;
-        InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-        if (hiddenInput != null && imm != null) {
-            imm.hideSoftInputFromWindow(hiddenInput.getWindowToken(), 0);
-            hiddenInput.setText("");
-        }
+        micHandler.post(micPoller);
     }
 
     @Override
@@ -1827,8 +1838,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     protected void onDestroy() {
         quitWatcherStopped = true;
         if (quitWatcherThread != null) quitWatcherThread.interrupt();
-        if (imeHandler != null && imePoller != null) {
-            imeHandler.removeCallbacks(imePoller);
+        if (micHandler != null && micPoller != null) {
+            micHandler.removeCallbacks(micPoller);
         }
         if (sensorManager != null && gyroListener != null) {
             sensorManager.unregisterListener(gyroListener);
