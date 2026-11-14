@@ -498,6 +498,16 @@ public sealed partial class GameHost
             SetPointerClick(down: false);
         }
 
+        // Outside the pointer modes the pad's menu click has no reader: let it go here, or a click
+        // held across the resume (or a computer close) stays latched as a held mouse button — Fire
+        // — for the whole of play. SetPointerClick only lets go of what it held, so a touch tap's
+        // button is never released from under it, and Fire's own synthetic press below re-presses
+        // the button when the trigger is held.
+        if (mode != TouchControlMode.Computer && mode != TouchControlMode.Pointer)
+        {
+            SetPointerClick(down: false);
+        }
+
         // Only what the pad pressed is let go: a key the keyboard or touch holds
         // at the same time stays theirs. This runs even while disconnected, or a
         // button held when the pad was unplugged stays latched.
@@ -572,6 +582,15 @@ public sealed partial class GameHost
         }
 
         EdgeWant(profile, pad, PadControl(bindings, "Reload"), "Reload", now);
+
+        // Activate is a hold, not an edge: timed interactions (computers, doors) cancel the moment
+        // Use is released, so the synthetic key stays down while the control is held. The edge hold
+        // below it is the floor, so a tap shorter than a tick still registers.
+        if (pad.IsDown(PadControl(bindings, "Activate"), GamepadTriggerThreshold))
+        {
+            WantPad(profile, "Activate");
+        }
+
         EdgeWant(profile, pad, PadControl(bindings, "Activate"), "Activate", now);
 
         if (pad.WasPressed(PadControl(bindings, "Pause"), GamepadTriggerThreshold))
