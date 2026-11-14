@@ -72,6 +72,10 @@ public sealed class PauseScreen : ShellScreen
         configBtn.Activated += () => Context.Stack.Reset(new SettingsScreen(Context));
         menuStack.AddChild(configBtn);
 
+        var gamepadBtn = new IgiMenuButton(theme, "GAMEPAD") { TextSize = 34f, Height = 76f, Width = 740f };
+        gamepadBtn.Activated += () => Context.Stack.Reset(new GamepadScreen(Context));
+        menuStack.AddChild(gamepadBtn);
+
         // In-mission co-op: only when a loopback session runs, a status line and a stop button.
         // Stopping mid-mission is what the session supports (the M1 start/stop may run mid-mission);
         // the page rebuilds so the row is gone once the session stops. Nothing shows when no

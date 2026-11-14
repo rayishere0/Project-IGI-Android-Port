@@ -173,6 +173,7 @@ public sealed class GameConfig
         foreach (PlayerProfile profile in _profiles)
         {
             profile.RestoreMissingDefaultBindings();
+            profile.RestoreMissingDefaultGamepadBindings();
         }
     }
 

@@ -365,6 +365,7 @@ public static class AndroidHost
         _window?.EnqueueGamepadConnected(connected != 0);
     }
 
+    /// <summary>Typed text from a hardware keyboard, decoded by Android: each character joins the platform's decoded-character queue.</summary>
     [UnmanagedCallersOnly(EntryPoint = "OnText")]
     public static void OnText(IntPtr textPtr)
     {
@@ -377,30 +378,6 @@ public static class AndroidHost
         if (!string.IsNullOrEmpty(text))
         {
             _window?.EnqueueText(text);
-        }
-    }
-
-    /// <summary>Whether the shell currently has a text field focused (for the Android soft keyboard).</summary>
-    [UnmanagedCallersOnly(EntryPoint = "IsTextFieldFocused")]
-    public static int IsTextFieldFocused()
-    {
-        return _gameHost is { } host && host.IsTextFieldFocused ? 1 : 0;
-    }
-
-    /// <summary>Whether the Android soft keyboard is wanted: derived from the developer console's open state (GameHost derives KeyboardRequested from Console.IsOpen once per frame).</summary>
-    [UnmanagedCallersOnly(EntryPoint = "IsKeyboardRequested")]
-    public static int IsKeyboardRequested()
-    {
-        return _gameHost is { } host && host.KeyboardRequested ? 1 : 0;
-    }
-
-    /// <summary>Sets the soft-keyboard request flag. The Android side only ever clears it — when Back dismisses the keyboard, or the app backgrounds. The managed side treats that clear while the console is open as "close the console", so one Back closes both together.</summary>
-    [UnmanagedCallersOnly(EntryPoint = "SetKeyboardRequested")]
-    public static void SetKeyboardRequested(int value)
-    {
-        if (_gameHost is { } host)
-        {
-            host.KeyboardRequested = value != 0;
         }
     }
 

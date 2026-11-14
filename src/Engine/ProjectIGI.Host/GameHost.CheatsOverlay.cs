@@ -74,32 +74,14 @@ public sealed partial class GameHost
                 input.Mouse.SetButton(MouseButton.Left, down: false);
             }
 
-            // Console icon just under the gear: taps toggle the developer console
-            // (the same open state the Grave key flips). The soft keyboard follows
-            // the console: GameHost derives KeyboardRequested from Console.IsOpen
-            // once per frame, so opening the console summons the IME for typing
-            // commands. Same generous hit area as the gear.
-            // (The icon is 28 units, centred on the gear; see DrawCheatsOverlay.)
-            float kbW = 28f * scale;
-            float kbH = 28f * scale;
-            float kbX = gearX + ((gearW - kbW) * 0.5f);
-            float kbY = gearY + gearH + (8f * scale);
-            float kbHitX = kbX + (kbW * 0.5f) - (hit * 0.5f);
-            float kbHitY = kbY + (kbH * 0.5f) - (hit * 0.5f);
-            if (click && clickX >= kbHitX && clickX <= kbHitX + hit && clickY >= kbHitY && clickY <= kbHitY + hit)
-            {
-                state.Console.Model.IsOpen = !state.Console.Model.IsOpen;
-                input.Mouse.SetButton(MouseButton.Left, down: false);
-            }
-
-            // Settings icon just under the console icon: taps open the pause menu's
+            // Settings icon just under the gear: taps open the pause menu's
             // configuration screen over the retail menu, so settings can be changed
             // before a mission starts. Same generous hit area as the gear. (The icon
             // is 28 units, centred on the gear; see DrawCheatsOverlay.)
             float stW = 28f * scale;
             float stH = 28f * scale;
             float stX = gearX + ((gearW - stW) * 0.5f);
-            float stY = kbY + kbH + (8f * scale);
+            float stY = gearY + gearH + (8f * scale);
             float stHitX = stX + (stW * 0.5f) - (hit * 0.5f);
             float stHitY = stY + (stH * 0.5f) - (hit * 0.5f);
             if (click && clickX >= stHitX && clickX <= stHitX + hit && clickY >= stHitY && clickY <= stHitY + hit)
@@ -274,39 +256,14 @@ public sealed partial class GameHost
         painter.FillRect(new UiRect(gCenterX - gRadius, gCenterY - gRadius, gRadius * 2f, gRadius * 2f), brightGreen);
         painter.FillRect(new UiRect(gCenterX - (gRadius * 0.4f), gCenterY - (gRadius * 0.4f), gRadius * 0.8f, gRadius * 0.8f), darkBg);
 
-        // ── 1b. Console icon just under the gear ────────────────────────────
-        // Tapping it toggles the developer console (the same open state the Grave
-        // key flips). It is drawn highlighted while the console is open. It is deliberately
-        // bigger and brighter than the gear (28 units, lighter green fill) so it
-        // cannot be missed against the dark menu background.
-        float kbW = 28f * scale;
-        float kbH = 28f * scale;
-        float kbX = gearX + ((gearW - kbW) * 0.5f);
-        float kbY = gearY + gearH + (8f * scale);
-        painter.FillRect(new UiRect(kbX, kbY, kbW, kbH), state.Console.IsOpen ? brightGreen : Bgra32.FromRgba(16, 44, 22, 245));
-        painter.StrokeRect(new UiRect(kbX, kbY, kbW, kbH), 2f * scale, brightGreen);
-        // Console prompt glyph ">_", centred by measurement. Dark glyph when
-        // highlighted, bright green otherwise. (The console's own prompt sigil is
-        // "›"; ">_" reads as a terminal prompt at 28 units.)
-        Bgra32 glyphColor = state.Console.IsOpen ? Bgra32.FromRgb(10, 24, 14) : brightGreen;
-        if (_shellType is { } type)
-        {
-            const string prompt = ">_";
-            float promptSize = 16f * scale;
-            UiVec2 promptExtent = type.Mono.Measure(prompt, promptSize);
-            painter.DrawText(type.Mono, prompt,
-                new UiVec2(kbX + ((kbW - promptExtent.X) * 0.5f), kbY + ((kbH - promptExtent.Y) * 0.5f)),
-                promptSize, glyphColor);
-        }
-
-        // ── 1c. Settings icon just under the console icon ───────────────────
+        // ── 1b. Settings icon just under the gear ───────────────────────────
         // Three slider tracks with a knob on each: the settings glyph, in the same
-        // 28-unit box as the console icon. Tapping it opens the configuration
+        // 28-unit box as the gear. Tapping it opens the configuration
         // screen over the retail menu (see UpdateCheatsOverlay).
         float stW = 28f * scale;
         float stH = 28f * scale;
         float stX = gearX + ((gearW - stW) * 0.5f);
-        float stY = kbY + kbH + (8f * scale);
+        float stY = gearY + gearH + (8f * scale);
         painter.FillRect(new UiRect(stX, stY, stW, stH), Bgra32.FromRgba(16, 44, 22, 245));
         painter.StrokeRect(new UiRect(stX, stY, stW, stH), 2f * scale, brightGreen);
         float trackX = stX + (5f * scale);
@@ -321,9 +278,9 @@ public sealed partial class GameHost
             painter.FillRect(new UiRect(knobX[i], trackY[i] - (1.5f * scale), knob, knob), brightGreen);
         }
 
-        // ── 1d. Co-op icon just under the settings icon ─────────────────────
-        // Two players side by side in the same 28-unit box as the console and
-        // settings icons: head and shoulders each. Tapping it opens the co-op
+        // ── 1c. Co-op icon just under the settings icon ─────────────────────
+        // Two players side by side in the same 28-unit box as the settings
+        // icon: head and shoulders each. Tapping it opens the co-op
         // screen over the retail menu (see UpdateCheatsOverlay).
         float coW = 28f * scale;
         float coH = 28f * scale;

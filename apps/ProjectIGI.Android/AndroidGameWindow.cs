@@ -140,7 +140,7 @@ public sealed class AndroidGameWindow : IGameWindow
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        // Release a Return synthesized from a soft-keyboard newline on the previous
+        // Release a Return synthesized from a newline in typed text on the previous
         // pump before the shadow is taken, so a newline in this pump is still a fresh
         // rising edge for WasPressed: BeginFrame copies the current state into the
         // shadow, and releasing after it would leave the shadow holding the key down
@@ -191,14 +191,13 @@ public sealed class AndroidGameWindow : IGameWindow
             }
         }
 
-        // Typed text from the Android soft keyboard (hidden EditText): feed the
-        // platform's decoded-character queue, which the shell's focused TextBox drains.
-        // A newline is not a character the console can use — PromptEditor drops it —
-        // it is the soft keyboard's Enter key, committed as text because the field has
-        // no IME action. Turn it into the Return press the console's submit trigger
-        // reads (DeveloperConsole checks WasPressed(Return)). The press is held until
-        // the next pump: a down+up in the same pump would leave the key up before the
-        // console reads the edge.
+        // Typed text from a hardware keyboard, decoded by Android: feed the
+        // platform's decoded-character queue, which the shell's focused TextBox
+        // drains and the console reads. A newline is not a character the console
+        // can use -- PromptEditor drops it -- so turn it into the Return press the
+        // console's submit trigger reads (DeveloperConsole checks WasPressed(Return)).
+        // The press is held until the next pump: a down+up in the same pump would
+        // leave the key up before the console reads the edge.
         while (_textQueue.TryDequeue(out string? text))
         {
             foreach (char c in text)
@@ -284,7 +283,7 @@ public sealed class AndroidGameWindow : IGameWindow
         {
             Input.Keyboard.SetKey(KeyCode.Escape, down);
         }
-        else if (keyCode == 67) // KEYCODE_DEL: the soft keyboard's delete key
+        else if (keyCode == 67) // KEYCODE_DEL: the delete key
         {
             Input.Keyboard.SetKey(KeyCode.Backspace, down);
         }

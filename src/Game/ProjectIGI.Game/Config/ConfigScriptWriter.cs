@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using System.Text;
+using ProjectIGI.Input;
 using ProjectIGI.Scripting.Qvm;
 
 namespace ProjectIGI.Game.Config;
@@ -80,6 +81,15 @@ public static class ConfigScriptWriter
             builder.Call("GOSoundSpeech", Real(profile.SpeechVolume));
             builder.Call("GOSoundMusic", Real(profile.MusicVolume));
             builder.Call("GOSoundFX", Real(profile.SoundEffectsVolume));
+
+            // ProjectIGI's own controller settings, after the retail calls: the
+            // loader registers them, and a retail file simply never emits them.
+            builder.Call("GOInPadSens", Real(profile.GamepadSensitivity));
+            builder.Call("GOInPadAimLock", Real(profile.AimLockRadius), Real(profile.AimLockStrength));
+            foreach (GamepadBinding binding in profile.GamepadBindings)
+            {
+                builder.Call("GOInPadRemap", Symbol(binding.Action), Symbol(GamepadControlNames.ToSymbol(binding.Control)));
+            }
         }
 
         // The script has to end with one, and a retail file does (its last two instructions are POP then

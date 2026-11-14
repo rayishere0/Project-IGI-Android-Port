@@ -1,4 +1,5 @@
 using ProjectIGI.Core.Diagnostics;
+using ProjectIGI.Input;
 using ProjectIGI.Scripting.Qvm;
 using ProjectIGI.Scripting.Runtime;
 
@@ -95,7 +96,7 @@ public sealed class ConfigScript
         return config;
     }
 
-    /// <summary>The names a configuration file may call: the retail file's, and ProjectIGI's own <c>GOControlsVersion</c>.</summary>
+    /// <summary>The names a configuration file may call: the retail file's, ProjectIGI's own <c>GOControlsVersion</c>, and the controller settings.</summary>
     /// <remarks>Listed in the order a retail file uses them, which is also the order the writer emits.</remarks>
     public static IReadOnlyList<string> NativeNames { get; } =
     [
@@ -117,6 +118,9 @@ public sealed class ConfigScript
         "GOSoundSpeech",
         "GOSoundMusic",
         "GOSoundFX",
+        "GOInPadSens",
+        "GOInPadAimLock",
+        "GOInPadRemap",
     ];
 
     /// <summary>Binds the <c>GO*</c> natives to a configuration being built.</summary>
@@ -186,6 +190,21 @@ public sealed class ConfigScript
             natives.RegisterFunction("GOSoundSpeech", c => OnProfile(p => p.SpeechVolume = c.GetSingle(0)), 1);
             natives.RegisterFunction("GOSoundMusic", c => OnProfile(p => p.MusicVolume = c.GetSingle(0)), 1);
             natives.RegisterFunction("GOSoundFX", c => OnProfile(p => p.SoundEffectsVolume = c.GetSingle(0)), 1);
+
+            // ProjectIGI's own controller settings; see PlayerProfile. The retail file never calls them.
+            natives.RegisterFunction("GOInPadSens", c => OnProfile(p => p.GamepadSensitivity = c.GetSingle(0)), 1);
+            natives.RegisterFunction("GOInPadAimLock", c => OnProfile(p =>
+            {
+                p.AimLockRadius = c.GetSingle(0);
+                p.AimLockStrength = c.GetSingle(1);
+            }), 2);
+            natives.RegisterFunction("GOInPadRemap", c => OnProfile(p =>
+            {
+                if (GamepadControlNames.TryParseSymbol(NameOf(c.GetInt32(1)), out GamepadControl control))
+                {
+                    p.GamepadBindings.Add(new GamepadBinding(NameOf(c.GetInt32(0)), control));
+                }
+            }), 2);
         }
 
         private static QvmValue Set(Action action)

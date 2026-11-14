@@ -39,6 +39,15 @@ public sealed class PlayerProfile
     /// </remarks>
     public const string UnboundKey = "KEY_NONE";
 
+    /// <summary>The controller sensitivity a fresh profile starts with: the mouse default, so a pad feels as it did before the setting existed.</summary>
+    public const float DefaultGamepadSensitivity = 0.4f;
+
+    /// <summary>The aim-lock reach a fresh profile starts with: sixty percent of the half field of view.</summary>
+    public const float DefaultAimLockRadius = 0.6f;
+
+    /// <summary>The aim-lock strength a fresh profile starts with.</summary>
+    public const float DefaultAimLockStrength = 0.7f;
+
     /// <summary>The bindings a fresh profile starts with.</summary>
     /// <remarks>
     /// The port keeps the retail action set but uses a conflict-free modern movement layout. They must
@@ -76,6 +85,32 @@ public sealed class PlayerProfile
         new("WeaponCategory9", "INPUTPORT_DEVICE_KEYBOARD", "KEY_9"),
         new("Flashlight", "INPUTPORT_DEVICE_KEYBOARD", "KEY_F"),
         new("WeaponWheel", "INPUTPORT_DEVICE_MOUSE", "MOUSE_BUTTON_3"),
+    ];
+
+    /// <summary>The controller bindings a fresh profile starts with: the standard shooter layout.</summary>
+    /// <remarks>
+    /// Peek holds two rows, one per side of the D-pad, because the retail action has no left/right
+    /// variant and either side leans. <c>Pause</c> is not a keyboard action: it opens the pause menu
+    /// and exists only in this list.
+    /// </remarks>
+    public static IReadOnlyList<GamepadBinding> DefaultGamepadBindings { get; } =
+    [
+        new("Fire", GamepadControl.RightTrigger),
+        new("AlternateFire", GamepadControl.LeftTrigger),
+        new("NextWeapon", GamepadControl.RightShoulder),
+        new("PrevWeapon", GamepadControl.LeftShoulder),
+        new("Jump", GamepadControl.South),
+        new("Crouch", GamepadControl.East),
+        new("Reload", GamepadControl.West),
+        new("Activate", GamepadControl.North),
+        new("Pause", GamepadControl.Start),
+        new("MapComputer", GamepadControl.Back),
+        new("Binoculars", GamepadControl.DpadUp),
+        new("Flashlight", GamepadControl.DpadDown),
+        new("Peek", GamepadControl.DpadLeft),
+        new("Peek", GamepadControl.DpadRight),
+        new("ToggleWalkRun", GamepadControl.LeftStick),
+        new("WeaponWheel", GamepadControl.RightStick),
     ];
 
     /// <summary>The bindings the original's own fresh profile starts with.</summary>
@@ -152,6 +187,15 @@ public sealed class PlayerProfile
     /// <summary>How fast the view turns per radian of phone tilt (gyroscope aim). 0 to 1, like mouse sensitivity.</summary>
     public float GyroSensitivity { get; set; } = 0.5f;
 
+    /// <summary>The controller's right-stick look sensitivity, 0 to 1, independent of the mouse sensitivity.</summary>
+    public float GamepadSensitivity { get; set; } = DefaultGamepadSensitivity;
+
+    /// <summary>How much of the half field of view the aim lock reaches across, 0 to 1: 0.6 is sixty percent of the half-FOV from the crosshair. 0 leaves the lock no reach.</summary>
+    public float AimLockRadius { get; set; } = DefaultAimLockRadius;
+
+    /// <summary>How strongly the aim lock pulls toward its target, 0 to 1. 0 turns the lock off entirely.</summary>
+    public float AimLockStrength { get; set; } = DefaultAimLockStrength;
+
     /// <summary>Whether blood is drawn.</summary>
     /// <remarks><c>GOIsBlood</c>. The German build forces this off; see <see cref="GameConfig.IsGermany"/>.</remarks>
     public bool BloodEnabled { get; set; } = true;
@@ -220,11 +264,20 @@ public sealed class PlayerProfile
     /// </remarks>
     public List<InputBinding> Bindings { get; } = [];
 
+    /// <summary>The controller bindings, in the order the save file lists them.</summary>
+    /// <remarks>
+    /// Each is an action name and a controller control — the two arguments of <c>GOInPadRemap</c>.
+    /// Kept apart from <see cref="Bindings"/> because the game reads those as keys and mouse buttons
+    /// and must never see a controller control there.
+    /// </remarks>
+    public List<GamepadBinding> GamepadBindings { get; } = [];
+
     /// <summary>Creates a profile with the retail input defaults.</summary>
     public static PlayerProfile CreateDefault()
     {
         PlayerProfile profile = new();
         profile.Bindings.AddRange(DefaultBindings);
+        profile.GamepadBindings.AddRange(DefaultGamepadBindings);
         return profile;
     }
 
@@ -245,6 +298,17 @@ public sealed class PlayerProfile
                 Bindings.Add(binding);
             }
         }
+    }
+
+    /// <summary>Restores every controller action to its current default assignment.</summary>
+    /// <remarks>
+    /// Rebuilt rather than patched in place: Peek legitimately holds two rows, so an
+    /// index-based patch cannot tell the two apart, and a reset means the defaults.
+    /// </remarks>
+    public void ResetGamepadBindingsToDefaults()
+    {
+        GamepadBindings.Clear();
+        GamepadBindings.AddRange(DefaultGamepadBindings);
     }
 
     /// <summary>Whether every original action is still on the key the original gave it.</summary>
@@ -289,6 +353,46 @@ public sealed class PlayerProfile
                 string.Equals(existing.Device, binding.Device, StringComparison.OrdinalIgnoreCase)
                 && string.Equals(existing.Key, binding.Key, StringComparison.OrdinalIgnoreCase));
             Bindings.Add(taken ? binding with { Key = UnboundKey } : binding);
+        }
+    }
+
+    /// <summary>Restores controller bindings missing from an older ProjectIGI profile.</summary>
+    /// <remarks>
+    /// <para>
+    /// Profiles saved before controller bindings existed carry none at all and take the full
+    /// defaults; a partially-filled list is topped up action by action, and existing rows are left
+    /// exactly as the player saved them.
+    /// </para>
+    /// <para>
+    /// A restored default whose control the player has already given to another action arrives
+    /// unbound instead: a new action must never make one control drive two actions behind the
+    /// player's back.
+    /// </para>
+    /// </remarks>
+    public void RestoreMissingDefaultGamepadBindings()
+    {
+        foreach (var group in DefaultGamepadBindings.GroupBy(binding => binding.Action, StringComparer.OrdinalIgnoreCase))
+        {
+            int present = GamepadBindings.Count(binding =>
+                string.Equals(binding.Action, group.Key, StringComparison.OrdinalIgnoreCase));
+            foreach (GamepadBinding fill in group)
+            {
+                if (present >= group.Count())
+                {
+                    break;
+                }
+
+                if (GamepadBindings.Exists(binding =>
+                        string.Equals(binding.Action, group.Key, StringComparison.OrdinalIgnoreCase)
+                        && binding.Control == fill.Control))
+                {
+                    continue;
+                }
+
+                bool taken = GamepadBindings.Exists(binding => binding.Control == fill.Control);
+                GamepadBindings.Add(taken ? fill with { Control = GamepadControl.None } : fill);
+                present++;
+            }
         }
     }
 
@@ -424,6 +528,48 @@ public sealed class PlayerProfile
         return conflict;
     }
 
+    /// <summary>Assigns a controller control to one action, swapping any conflicting assignment.</summary>
+    /// <param name="index">The binding row to change.</param>
+    /// <param name="control">The new control.</param>
+    /// <returns>The row that received the old assignment, or <c>-1</c> when there was no conflict.</returns>
+    /// <remarks>
+    /// A control must not silently drive two actions. Swapping preserves a complete, usable binding set.
+    /// </remarks>
+    public int RebindGamepad(int index, GamepadControl control)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, GamepadBindings.Count);
+
+        GamepadBinding previous = GamepadBindings[index];
+        int conflict = -1;
+        for (int i = 0; i < GamepadBindings.Count; i++)
+        {
+            if (i != index && GamepadBindings[i].Control == control)
+            {
+                conflict = i;
+                break;
+            }
+        }
+
+        GamepadBindings[index] = previous with { Control = control };
+
+        if (conflict >= 0)
+        {
+            GamepadBindings[conflict] = GamepadBindings[conflict] with { Control = previous.Control };
+        }
+
+        return conflict;
+    }
+
+    /// <summary>Restores the controller sensitivity, the aim lock and the controller bindings to their defaults.</summary>
+    public void ResetGamepadToDefaults()
+    {
+        GamepadSensitivity = DefaultGamepadSensitivity;
+        AimLockRadius = DefaultAimLockRadius;
+        AimLockStrength = DefaultAimLockStrength;
+        ResetGamepadBindingsToDefaults();
+    }
+
     /// <summary>Makes an independent copy.</summary>
     /// <returns>The copy.</returns>
     /// <remarks>
@@ -442,6 +588,9 @@ public sealed class PlayerProfile
             MouseSensitivity = MouseSensitivity,
             GyroEnabled = GyroEnabled,
             GyroSensitivity = GyroSensitivity,
+            GamepadSensitivity = GamepadSensitivity,
+            AimLockRadius = AimLockRadius,
+            AimLockStrength = AimLockStrength,
             BloodEnabled = BloodEnabled,
             DisplayMode = DisplayMode,
             DeviceGuid = DeviceGuid,
@@ -459,6 +608,7 @@ public sealed class PlayerProfile
         };
 
         copy.Bindings.AddRange(Bindings);
+        copy.GamepadBindings.AddRange(GamepadBindings);
         return copy;
     }
 
@@ -476,6 +626,15 @@ public sealed class PlayerProfile
 /// saved binding survive a change to the engine's key numbering.
 /// </remarks>
 public readonly record struct InputBinding(string Action, string Device, string Key);
+
+/// <summary>One controller binding.</summary>
+/// <param name="Action">The action name, such as <c>Jump</c>; <c>Pause</c> opens the pause menu and is not a keyboard action.</param>
+/// <param name="Control">The controller control bound to it.</param>
+/// <remarks>
+/// Stored by action name and control symbol in the save file, like <see cref="InputBinding"/>, which is
+/// what makes a saved binding survive a change to the engine's numbering.
+/// </remarks>
+public readonly record struct GamepadBinding(string Action, GamepadControl Control);
 
 /// <summary>Converts the retail config's input-constant names to the port's input names and back.</summary>
 /// <remarks>

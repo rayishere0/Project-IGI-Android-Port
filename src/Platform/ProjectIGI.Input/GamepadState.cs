@@ -21,8 +21,13 @@ public sealed class GamepadState
     private const int ButtonCount = 14;
     private const uint AllButtons = (1u << ButtonCount) - 1u;
 
+    /// <summary>The trigger pressure that counts as pressed (triggers are axes, 0..1).</summary>
+    public const float TriggerThreshold = 0.35f;
+
     private uint _current;
     private uint _previous;
+    private float _previousLeftTrigger;
+    private float _previousRightTrigger;
 
     /// <summary>Gets or sets a value indicating whether a controller is connected.</summary>
     public bool IsConnected { get; set; }
@@ -48,8 +53,13 @@ public sealed class GamepadState
     /// <summary>Gets the right trigger, 0 to 1.</summary>
     public float RightTrigger { get; private set; }
 
-    /// <summary>Takes the previous-frame shadow. Call before applying the frame's device state.</summary>
-    public void BeginFrame() => _previous = _current;
+    /// <summary>Takes the previous-frame shadow of the buttons and the triggers. Call before applying the frame's device state.</summary>
+    public void BeginFrame()
+    {
+        _previous = _current;
+        _previousLeftTrigger = LeftTrigger;
+        _previousRightTrigger = RightTrigger;
+    }
 
     /// <summary>Sets whether a button is held.</summary>
     /// <param name="button">The button.</param>
@@ -127,11 +137,55 @@ public sealed class GamepadState
         return (_current & bit) == 0 && (_previous & bit) != 0;
     }
 
+    /// <summary>Determines whether a bound control is held this frame: a button down, or a trigger past the threshold.</summary>
+    /// <param name="control">The control.</param>
+    /// <param name="triggerThreshold">The trigger pressure that counts as pressed.</param>
+    /// <returns><see langword="true"/> when it is held and input is not captured.</returns>
+    public bool IsDown(GamepadControl control, float triggerThreshold)
+    {
+        if (Captured)
+        {
+            return false;
+        }
+
+        return control switch
+        {
+            GamepadControl.LeftTrigger => LeftTrigger > triggerThreshold,
+            GamepadControl.RightTrigger => RightTrigger > triggerThreshold,
+            GamepadControl.None => false,
+            _ when control >= GamepadControl.South && control <= GamepadControl.DpadRight => IsDown((GamepadButton)control),
+            _ => false,
+        };
+    }
+
+    /// <summary>Determines whether a bound control went down this frame: a button edge, or a trigger crossing the threshold.</summary>
+    /// <param name="control">The control.</param>
+    /// <param name="triggerThreshold">The trigger pressure that counts as pressed.</param>
+    /// <returns><see langword="true"/> on the frame it was first pressed and input is not captured.</returns>
+    public bool WasPressed(GamepadControl control, float triggerThreshold)
+    {
+        if (Captured)
+        {
+            return false;
+        }
+
+        return control switch
+        {
+            GamepadControl.LeftTrigger => LeftTrigger > triggerThreshold && _previousLeftTrigger <= triggerThreshold,
+            GamepadControl.RightTrigger => RightTrigger > triggerThreshold && _previousRightTrigger <= triggerThreshold,
+            GamepadControl.None => false,
+            _ when control >= GamepadControl.South && control <= GamepadControl.DpadRight => WasPressed((GamepadButton)control),
+            _ => false,
+        };
+    }
+
     /// <summary>Clears all state.</summary>
     public void Reset()
     {
         _current = 0;
         _previous = 0;
+        _previousLeftTrigger = 0f;
+        _previousRightTrigger = 0f;
         LeftStickX = LeftStickY = RightStickX = RightStickY = 0f;
         LeftTrigger = RightTrigger = 0f;
         IsConnected = false;
@@ -142,6 +196,8 @@ public sealed class GamepadState
     {
         _previous = _current & AllButtons;
         _current = 0;
+        _previousLeftTrigger = LeftTrigger;
+        _previousRightTrigger = RightTrigger;
         LeftStickX = LeftStickY = RightStickX = RightStickY = 0f;
         LeftTrigger = RightTrigger = 0f;
     }
