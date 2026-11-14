@@ -711,7 +711,7 @@ public sealed partial class GameHost
             && sight.TanX < HumanView.DefaultTanX * 0.999f;
     }
 
-    /// <summary>Turns the view from the right stick, through the profile's controller look settings.</summary>
+    /// <summary>Turns the view from the right stick, at the profile's controller sensitivity.</summary>
     private void ApplyGamepadLook(GamepadState pad, PlayerProfile? profile, float elapsed)
     {
         float x = DeadZoned(pad.RightStickX, GamepadStickDeadZone);
@@ -721,17 +721,20 @@ public sealed partial class GameHost
             return;
         }
 
-        // Deflection becomes radians this frame at up to one full turn a second,
-        // then mouse counts through the controller's own sensitivity and the shared
-        // inversion — the same conversion as the gyro, so the Controller Sensitivity
-        // slider governs the stick and the zoom scaling in the first-person view
-        // applies for free. Stick down looks down, as mouse down does; if a
-        // direction feels backwards on a device, flip the sign of that line only.
-        float radiansPerCount = GamepadLookSettings(profile).RadiansPerCount;
+        // Deflection becomes radians this frame at up to one full turn a second, scaled by the
+        // controller sensitivity's gain, then mouse counts through the settings the view itself
+        // will apply — the profile's mouse sensitivity, resolved every frame in UpdateFlyingView —
+        // so the counts come back out as exactly the radians asked for and the zoom scaling in the
+        // first-person view applies for free. Converting through the controller's own rate instead
+        // divided the two rates and the slider worked backwards: up slowed the look, down sped it
+        // up, and the mouse slider moved the pad's speed too. Stick down looks down, as mouse down
+        // does; if a direction feels backwards on a device, flip the sign of that line only.
+        float gain = GamepadLookGain(profile);
+        float radiansPerCount = MouseLookSettings.FromProfile(profile).RadiansPerCount;
         float countsPerRadian = 1f / MathF.Max(0.00001f, radiansPerCount);
         _window.Input.Mouse.AddMotion(
-            x * GamepadMaxTurnRadiansPerSecond * elapsed * countsPerRadian,
-            y * GamepadMaxTurnRadiansPerSecond * elapsed * countsPerRadian);
+            x * GamepadMaxTurnRadiansPerSecond * gain * elapsed * countsPerRadian,
+            y * GamepadMaxTurnRadiansPerSecond * gain * elapsed * countsPerRadian);
     }
 
     /// <summary>Locks the controller's look onto the nearest visible guard near the crosshair, as far as the profile's aim-lock settings say.</summary>
@@ -917,10 +920,18 @@ public sealed partial class GameHost
         float yawRate = Math.Clamp((float)(target.YawError * gain) * fade, -cap, cap);
         float pitchRate = Math.Clamp((float)(target.PitchError * gain) * fade, -cap, cap);
 
-        // The stick's own deflection, dead-zoned as the look reads it.
+        // The stick's own deflection, dead-zoned as the look reads it, and the turn rate the stick
+        // itself is turning at — the sensitivity gain scales it, so the share clamp below compares
+        // the pull against what the player's hand is actually doing.
         float stickX = DeadZoned(pad.RightStickX, GamepadStickDeadZone);
         float stickY = DeadZoned(pad.RightStickY, GamepadStickDeadZone);
-        MouseLookSettings look = GamepadLookSettings(profile);
+        float stickTurnRate = GamepadMaxTurnRadiansPerSecond * GamepadLookGain(profile);
+
+        // The settings the view will apply to the counts: the profile's mouse sensitivity, as the
+        // look's conversion uses — converting through the controller's own rate would divide the
+        // two and let the sensitivity slider lean the lock backwards. The invert is the same one
+        // either way; it is the profile's.
+        MouseLookSettings look = MouseLookSettings.FromProfile(profile);
 
         if (stickX == 0f && stickY == 0f)
         {
@@ -934,8 +945,8 @@ public sealed partial class GameHost
         {
             // Steering away releases the pull on that axis: a stick deflection opposing the pull zeroes it for the
             // frame, so the lock never fights the player's hand.
-            float stickYawRate = stickX * GamepadMaxTurnRadiansPerSecond;
-            float stickPitchRate = (look.InvertPitch ? stickY : -stickY) * GamepadMaxTurnRadiansPerSecond;
+            float stickYawRate = stickX * stickTurnRate;
+            float stickPitchRate = (look.InvertPitch ? stickY : -stickY) * stickTurnRate;
             if (stickYawRate * yawRate < 0f)
             {
                 yawRate = 0f;
@@ -951,14 +962,14 @@ public sealed partial class GameHost
             float share = GamepadAimAssistMinStickShare
                 + ((GamepadAimAssistMaxStickShare - GamepadAimAssistMinStickShare) * strength);
             yawRate = Math.Clamp(yawRate,
-                -share * MathF.Abs(stickX) * GamepadMaxTurnRadiansPerSecond,
-                share * MathF.Abs(stickX) * GamepadMaxTurnRadiansPerSecond);
+                -share * MathF.Abs(stickX) * stickTurnRate,
+                share * MathF.Abs(stickX) * stickTurnRate);
             pitchRate = Math.Clamp(pitchRate,
-                -share * MathF.Abs(stickY) * GamepadMaxTurnRadiansPerSecond,
-                share * MathF.Abs(stickY) * GamepadMaxTurnRadiansPerSecond);
+                -share * MathF.Abs(stickY) * stickTurnRate,
+                share * MathF.Abs(stickY) * stickTurnRate);
         }
 
-        // The stick's own conversion back into mouse counts, with its sign rules: yaw counts turn right, and the pitch
+        // Back into mouse counts through the view's own settings, with its sign rules: yaw counts turn right, and the pitch
         // counts carry the profile's invert, so the lock leans exactly the way the stick would.
         float countsPerRadian = 1f / MathF.Max(0.00001f, look.RadiansPerCount);
         _window.Input.Mouse.AddMotion(
@@ -1052,10 +1063,21 @@ public sealed partial class GameHost
         }
     }
 
-    /// <summary>The look settings the controller's right stick and the aim lock use: the profile's controller sensitivity with the shared invert.</summary>
-    private static MouseLookSettings GamepadLookSettings(PlayerProfile? profile) => profile is null
-        ? MouseLookSettings.Default
-        : MouseLookSettings.FromSensitivity(profile.GamepadSensitivity, profile.InvertMouse);
+    /// <summary>The controller look's gain from the profile's controller sensitivity: the geometric mouse curve's ratio against the default, so 40% is exactly 1.</summary>
+    /// <remarks>
+    /// The slider is a multiplier on the stick's turn rate, not a radians-per-count of its own: the view
+    /// multiplies the counts back out by the mouse rate, so the sensitivity can only scale the radians
+    /// before the conversion. The curve is <see cref="MouseLookSettings"/>' geometric one — equal slider
+    /// steps are equal ratios — anchored at the default, so a pad feels exactly as it did before the
+    /// setting existed at 40%, about a third as fast at 0%, and about six times as fast at 100%.
+    /// </remarks>
+    private static float GamepadLookGain(PlayerProfile? profile)
+    {
+        float sensitivity = profile?.GamepadSensitivity ?? PlayerProfile.DefaultGamepadSensitivity;
+        return MathF.Pow(
+            MouseLookSettings.MaxRadiansPerCount / MouseLookSettings.MinRadiansPerCount,
+            Math.Clamp(sensitivity, 0f, 1f) - PlayerProfile.DefaultGamepadSensitivity);
+    }
 
     /// <summary>The controller bindings in force: the profile's, or the defaults before a profile loads.</summary>
     private static IReadOnlyList<GamepadBinding> GamepadBindings(PlayerProfile? profile) =>
