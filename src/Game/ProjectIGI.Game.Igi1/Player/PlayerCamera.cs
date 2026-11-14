@@ -494,6 +494,16 @@ public sealed partial class PlayerCamera : IHostedPlayer, IPlayerInteractionHost
         PoseChanged = true;
     }
 
+    /// <summary>
+    /// Marks the map key held in the input shadow, so the press that closed the computer is not read as a fresh press.
+    /// </summary>
+    /// <remarks>
+    /// The computer's capture blanks the frames the sampler takes while it is open, so the closing press never reaches
+    /// the shadow as held: without this the next tick reads the still-held key as a rising edge and the weapon machine
+    /// opens the computer again. A genuinely new press still opens it, because the shadow clears once the key is released.
+    /// </remarks>
+    public void MarkMapComputerHeld() => _input.MarkHeld(PlayerInputSlot.MapComputer);
+
     /// <inheritdoc cref="PlayerFirstPersonView.HoldStill"/>
     public void HoldStill() => _firstPerson.HoldStill();
 

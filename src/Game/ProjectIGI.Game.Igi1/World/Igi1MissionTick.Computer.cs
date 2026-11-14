@@ -62,6 +62,11 @@ public sealed partial class Igi1MissionTick
         {
             computer.Close();
             player.SetMapComputerOpen(false);
+
+            // The capture blanked every frame the sampler took while the computer was open, so the closing press
+            // never reached the shadow as held: mark it held, or the next tick reads the still-held key as a fresh
+            // rising edge and the weapon machine opens the computer again on the spot.
+            player.MarkMapComputerHeld();
             host.ComputerChanged(false);
             return;
         }

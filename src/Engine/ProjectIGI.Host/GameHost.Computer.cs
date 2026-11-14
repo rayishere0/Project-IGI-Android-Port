@@ -381,6 +381,13 @@ public sealed partial class GameHost
         {
             _computerOpenedFrame = _loop.Clock.FrameCount;
         }
+        else
+        {
+            // Let the pad's edge hold go with the close: its synthetic key stays down for 100 ms, and a catch-up
+            // tick in this frame would erase the sampler's seed, leaving the next tick to read the still-held key
+            // as a fresh press and open the computer again.
+            _padEdgeHoldUntilMs.Remove(PlayerInputBindings.ConfigName(PlayerAction.MapComputer));
+        }
 
         // The computer draws its own pointer; the platform's would be a second one over it.
         _window.CursorVisible = false;

@@ -67,4 +67,22 @@ public sealed class PlayerInputState
         Current = default;
         Previous = default;
     }
+
+    /// <summary>Marks a slot as held in the newest frame.</summary>
+    /// <param name="slot">The slot to mark.</param>
+    /// <remarks>
+    /// The next <see cref="Accept"/> shifts it into <see cref="Previous"/>, so a key still down reads as held rather
+    /// than freshly pressed. For a state change that consumed a press the sampler never saw held — the map computer's
+    /// close, whose frames the input capture blanks. Slots with no bound action (the look axes, the chords) are left
+    /// alone, and the value written is the sampler's own masked bit value for the slot's action.
+    /// </remarks>
+    public void MarkHeld(PlayerInputSlot slot)
+    {
+        if (PlayerInputBindings.TryGetAction(slot, out PlayerAction action))
+        {
+            PlayerInputFrame frame = Current;
+            frame[(int)slot] = (uint)action;
+            Current = frame;
+        }
+    }
 }
