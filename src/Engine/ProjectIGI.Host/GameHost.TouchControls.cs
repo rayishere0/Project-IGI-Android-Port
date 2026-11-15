@@ -66,6 +66,9 @@ public sealed partial class GameHost
     /// <summary>The turn rate at full right-stick deflection: one full turn a second.</summary>
     private const float GamepadMaxTurnRadiansPerSecond = MathF.Tau;
 
+    /// <summary>How steeply the controller sensitivity's gain falls below the default, in decades per unit of slider: 2.5 over the 0.4 span to 0%, so 0% is a tenth as fast as the default.</summary>
+    private const float GamepadLowSensitivitySlope = 2.5f;
+
     /// <summary>How far away a guard may be and still draw the aim lock, in metres.</summary>
     private const float GamepadAimAssistRangeMetres = 60f;
 
@@ -1082,20 +1085,26 @@ public sealed partial class GameHost
         }
     }
 
-    /// <summary>The controller look's gain from the profile's controller sensitivity: the geometric mouse curve's ratio against the default, so 40% is exactly 1.</summary>
+    /// <summary>The controller look's gain from the profile's controller sensitivity: a two-piece geometric curve anchored at the default, so 40% is exactly 1.</summary>
     /// <remarks>
     /// The slider is a multiplier on the stick's turn rate, not a radians-per-count of its own: the view
     /// multiplies the counts back out by the mouse rate, so the sensitivity can only scale the radians
-    /// before the conversion. The curve is <see cref="MouseLookSettings"/>' geometric one — equal slider
-    /// steps are equal ratios — anchored at the default, so a pad feels exactly as it did before the
-    /// setting existed at 40%, about a third as fast at 0%, and about six times as fast at 100%.
+    /// before the conversion. At and above the default the curve is <see cref="MouseLookSettings"/>'
+    /// geometric one — equal slider steps are equal ratios — so a pad feels exactly as it did before the
+    /// setting existed at 40%, and about six times as fast at 100%. Below the default the curve steepens
+    /// to a tenth at 0%, so the low end is unmistakably slow: a full turn takes ten seconds at full
+    /// deflection. Both pieces meet at 1 at the default, so the gain is continuous and rises
+    /// monotonically with the slider.
     /// </remarks>
     private static float GamepadLookGain(PlayerProfile? profile)
     {
         float sensitivity = profile?.GamepadSensitivity ?? PlayerProfile.DefaultGamepadSensitivity;
-        return MathF.Pow(
-            MouseLookSettings.MaxRadiansPerCount / MouseLookSettings.MinRadiansPerCount,
-            Math.Clamp(sensitivity, 0f, 1f) - PlayerProfile.DefaultGamepadSensitivity);
+        float offset = Math.Clamp(sensitivity, 0f, 1f) - PlayerProfile.DefaultGamepadSensitivity;
+        return offset <= 0f
+            ? MathF.Pow(10f, GamepadLowSensitivitySlope * offset)
+            : MathF.Pow(
+                MouseLookSettings.MaxRadiansPerCount / MouseLookSettings.MinRadiansPerCount,
+                offset);
     }
 
     /// <summary>The controller bindings in force: the profile's, or the defaults before a profile loads.</summary>
