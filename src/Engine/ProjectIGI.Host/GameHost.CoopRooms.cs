@@ -1,4 +1,6 @@
 using System.Globalization;
+using ProjectIGI.Core.Configuration;
+using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Frontend;
 using ProjectIGI.Game.Multiplayer;
 using ProjectIGI.Host.Multiplayer;

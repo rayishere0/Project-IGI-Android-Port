@@ -76,7 +76,7 @@ public interface ISoldierBodies : IDisposable
     int Load(LoadedMission mission, GameTask levelRoot, IGroundHeightField? terrain = null, WorldRayCast? cast = null);
 
     /// <summary>
-    /// Names the soldier under a crosshair ray by tracing its <b>skinned collision mesh</b> — the same
+    /// Names the soldier under a crosshair ray by tracing its <b>skinned collision mesh</b> ï¿½ the same
     /// geometry a round is scored against, so the readout hits exactly where a shot would.
     /// </summary>
     /// <param name="originUnits">The eye, in world units.</param>
@@ -104,8 +104,8 @@ public interface ISoldierBodies : IDisposable
     /// <remarks>
     /// <para>
     /// Three reads join up here. <b>What a soldier carries is authored</b>, as ordinary <c>Gun</c> child
-    /// tasks of the <c>HumanSoldier</c> carrying a <c>WEAPON_ID_*</c> — the same mechanism that arms the
-    /// player — and the <b>first</b> of them is the one in hand, because everything that asks a human what
+    /// tasks of the <c>HumanSoldier</c> carrying a <c>WEAPON_ID_*</c> ï¿½ the same mechanism that arms the
+    /// player ï¿½ and the <b>first</b> of them is the one in hand, because everything that asks a human what
     /// it is holding takes slot 0 of the list at <c>Human+1220</c> (see
     /// <c>PlayerLoadout.WeaponsOf</c>). <b>Which model</b> comes from that id's row of the weapon
     /// table, whose <c>GunModel</c> field is what the world draws it with. And <b>where it hangs</b> is
@@ -115,7 +115,7 @@ public interface ISoldierBodies : IDisposable
     /// <para>
     /// <b>Correction to the milestone's own framing.</b> The weapon is <em>not</em> resolved from the
     /// soldier's <c>AIType</c>. The AK in <c>AITYPE_PATROL_AK</c> is part of the <c>settings.qsc</c> key
-    /// <c>(AIType, Difficulty)</c>, and a level-1 guard whose type says AK routinely carries an MP5SD —
+    /// <c>(AIType, Difficulty)</c>, and a level-1 guard whose type says AK routinely carries an MP5SD ï¿½
     /// because its own child task says so. Nothing in the engine maps a type to a model.
     /// </para>
     /// </remarks>
@@ -134,30 +134,30 @@ public interface ISoldierBodies : IDisposable
     /// <summary>Resolves where every soldier is drawn for one rendered frame.</summary>
     /// <param name="tickFraction">How far the frame sits between the last two ticks, 0 to 1.</param>
     /// <param name="smooth">
-    /// Whether to draw between the two tick states. Off, every value is this tick's verbatim — the
+    /// Whether to draw between the two tick states. Off, every value is this tick's verbatim ï¿½ the
     /// original's stepped presentation, which the vanilla reference captures depend on being exact.
     /// </param>
     /// <remarks>
     /// Once per frame, before any pass draws. <see cref="Draw"/> runs once per shadow cascade and once
-    /// for the geometry pass, so anything resolved per frame — the blend, the ground snap, the motion
-    /// bookkeeping — has to be resolved here or the passes would disagree with each other.
+    /// for the geometry pass, so anything resolved per frame ï¿½ the blend, the ground snap, the motion
+    /// bookkeeping ï¿½ has to be resolved here or the passes would disagree with each other.
     /// </remarks>
     void BeginFrame(float tickFraction, bool smooth);
 
     /// <summary>Draws every soldier.</summary>
     /// <param name="camera">The eye the scene is drawn from.</param>
-    /// <param name="projection">The world's view-to-clip transform — soldiers use no other.</param>
+    /// <param name="projection">The world's view-to-clip transform ï¿½ soldiers use no other.</param>
     /// <remarks>
     /// Called once per shadow cascade and once for the geometry pass; everything per-frame was settled
     /// by <see cref="BeginFrame"/>, so every pass draws the same bodies in the same places.
     /// </remarks>
     void Draw(in Camera3D camera, in Matrix4f projection);
 
-    /// <summary>Draws the player's third-person body, when it is active — what the death camera looks at.</summary>
+    /// <summary>Draws the player's third-person body, when it is active ï¿½ what the death camera looks at.</summary>
     /// <param name="camera">The eye, which by now is the death camera pulled back off the body.</param>
     /// <param name="projection">The projection to draw with.</param>
     /// <remarks>
-    /// Drawn on its own, not in the soldier loop, and only when active — so it never appears in front of
+    /// Drawn on its own, not in the soldier loop, and only when active ï¿½ so it never appears in front of
     /// the first-person view during normal play. The body sits at its own position lifted by the death
     /// clip's root height, exactly as a fallen soldier is (see <see cref="Draw"/>).
     /// </remarks>
@@ -167,7 +167,7 @@ public interface ISoldierBodies : IDisposable
     /// <param name="camera">The eye the scene is drawn from.</param>
     /// <param name="projection">The world's view-to-clip transform.</param>
     /// <remarks>
-    /// Once per frame, in the <b>forward</b> pass — never from <see cref="Draw"/>, which serves the
+    /// Once per frame, in the <b>forward</b> pass ï¿½ never from <see cref="Draw"/>, which serves the
     /// geometry and shadow passes where an additive glow would be shaded like scenery. The flame is
     /// drawn at the same resolved weapon transform the body pass used, so the two halves of the gun
     /// agree to the pixel.
@@ -189,7 +189,7 @@ public interface ISoldierBodies : IDisposable
     /// followed or the rig has no such bone.
     /// </returns>
     /// <remarks>
-    /// <see cref="HumanAttachPoints.ThirdPersonWeapon"/> — bone 22, the arm <c>0x4600C0</c> resolves for
+    /// <see cref="HumanAttachPoints.ThirdPersonWeapon"/> ï¿½ bone 22, the arm <c>0x4600C0</c> resolves for
     /// a body seen from outside, which is the same bone a guard's rifle rides. Interpolated between the
     /// same two ticks the body itself is drawn between, or the gun steps at 30 Hz in a hand that glides.
     /// </remarks>
@@ -209,7 +209,7 @@ public interface ISoldierBodies : IDisposable
     /// stand in whichever pose was uploaded last and lag a step behind the body inside it.
     /// </para>
     /// <para>
-    /// The walk mirrors <see cref="Snapshot"/> exactly — group, then member — because that walk is what
+    /// The walk mirrors <see cref="Snapshot"/> exactly ï¿½ group, then member ï¿½ because that walk is what
     /// defines the handle the inspector asks with.
     /// </para>
     /// </remarks>
@@ -220,8 +220,8 @@ public interface ISoldierBodies : IDisposable
     void Snapshot(List<SoldierSnapshot> into);
 
     /// <summary>
-    /// Loads the player's third-person body — the model the level's <c>HumanPlayer</c> declares, on
-    /// skeleton 0's set, standing in clip 2 — so the death camera has a body to reveal.
+    /// Loads the player's third-person body ï¿½ the model the level's <c>HumanPlayer</c> declares, on
+    /// skeleton 0's set, standing in clip 2 ï¿½ so the death camera has a body to reveal.
     /// </summary>
     /// <param name="mission">The mission whose packs hold the model.</param>
     /// <param name="model">The player's model, from the <c>HumanPlayer</c> task's <c>Model</c> parameter.</param>
@@ -232,27 +232,27 @@ public interface ISoldierBodies : IDisposable
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <remarks>
     /// The body is built from a synthetic <c>HumanSoldierTask</c> because that is all
-    /// <c>SoldierView</c> needs — skeleton, stand clip, position and heading — and the player's
+    /// <c>SoldierView</c> needs ï¿½ skeleton, stand clip, position and heading ï¿½ and the player's
     /// constructor (<c>0x410370</c>) builds exactly that on <c>Human+104</c> (see <c>HumanPlayerBody</c>).
     /// It is kept out of <c>_groups</c> so nothing else draws or ticks it; only the death path does.
     /// </remarks>
     bool LoadPlayerBody(
-        LoadedMission mission, string model, BoneAnimationSet animations, Vector3d position, float gamma);
+        LoadedMission mission, string model, BoneAnimationSet animations, Vector3d position, float gamma, string? look = null);
 
     /// <summary>Stands the player's body at a place and draws it, outside death and outside climbing.</summary>
-    /// <param name="feetUnits">Where the body stands, in engine units — the level's own spawn.</param>
+    /// <param name="feetUnits">Where the body stands, in engine units ï¿½ the level's own spawn.</param>
     /// <param name="facing">Which way it faces, as the spawn's gamma.</param>
     /// <remarks>
     /// <para>
     /// A third reason to draw the body, and deliberately a separate flag rather than a reuse of either
     /// existing one. The mission-entry shot dives onto the character standing at their spawn and seats
-    /// the view inside their head, so it needs the body visible for a second — but it must not touch
+    /// the view inside their head, so it needs the body visible for a second ï¿½ but it must not touch
     /// <c>_playerBodyActive</c>, which is the death latch and also drives the fall's per-tick re-skin and
     /// the knock-back, nor the climbing latch, which the ladder code clears on its own schedule.
     /// </para>
     /// <para>
     /// <b>It has to place and re-skin, not merely make visible.</b> <c>LoadPlayerBody</c> uploads
-    /// the model's REST mesh and leaves the body unplaced — the death path places and poses it, the
+    /// the model's REST mesh and leaves the body unplaced ï¿½ the death path places and poses it, the
     /// climbing path places and poses it, and until one of them runs there is no pose in the vertex
     /// buffer at all. Drawing it in that state put enormous black shards across the middle of the descent,
     /// which is exactly what an unskinned rig looks like when its vertices are still at the origin.

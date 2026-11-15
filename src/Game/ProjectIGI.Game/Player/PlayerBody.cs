@@ -10,7 +10,7 @@ namespace ProjectIGI.Game.Player;
 /// <param name="PitchDelta">How far to look up or down this tick, in radians.</param>
 /// <param name="Run">Whether the latched walk/run toggle selects running.</param>
 /// <param name="Crouch">Whether the crouch modifier is held.</param>
-/// <param name="Jump">Whether jump was pressed this tick — the rising edge, not the level.</param>
+/// <param name="Jump">Whether jump was pressed this tick ï¿½ the rising edge, not the level.</param>
 public readonly record struct PlayerCommand(
     float Forward,
     float Strafe,
@@ -32,14 +32,14 @@ public readonly record struct PlayerCommand(
 /// <para>
 /// <b>What is faithful and what is not.</b> Gravity, the air control, the root-motion scale and
 /// rotation, the tick rate, the eye height, the ground query, the wall sweep and the slope slide are
-/// all read from the game — the tunables from <see cref="Parameters"/>, which is the script's own.
+/// all read from the game ï¿½ the tunables from <see cref="Parameters"/>, which is the script's own.
 /// What is <i>not</i> is the broad phase: <see cref="Walls"/> walks a flat list of placed objects
 /// rather than the octree <c>0x4C6940</c> commits into. It finds the same surfaces.
 /// <see cref="HumanBodyStateMachine"/> walks states 0 to 29 of the original's graph; the others belong to the systems that
 /// own them (ladder, wire, uses, death).
 /// </para>
 /// </remarks>
-public sealed class PlayerBody
+public sealed partial class PlayerBody
 {
     private float? _pendingLandingVelocityZ;
 
@@ -56,21 +56,21 @@ public sealed class PlayerBody
     // Set as the body lets go of a ladder: the tick it is let go in is state 0's, which only finds the ground gone.
     private bool _ladderReleaseTick;
 
-    /// <summary>Last tick's world-space root step — what <c>Human+1312</c> holds when a state entry reads it.</summary>
+    /// <summary>Last tick's world-space root step ï¿½ what <c>Human+1312</c> holds when a state entry reads it.</summary>
     private Vector3f _previousStep;
     private Action<HumanFallImpact>? _fallImpactSink;
 
-    /// <summary>How high the eye sits above the feet while standing, in world units — 1.637 m.</summary>
+    /// <summary>How high the eye sits above the feet while standing, in world units ï¿½ 1.637 m.</summary>
     /// <remarks>
     /// The view update (<c>sub_464BD0</c>) takes its eye from <c>sub_465820</c>: the Human's origin
-    /// (<c>+32</c>) raised 0.69 m standing / 0.35 m crouched — the same point the AI marks the player at.
+    /// (<c>+32</c>) raised 0.69 m standing / 0.35 m crouched ï¿½ the same point the AI marks the player at.
     /// Measured on mission 2's spawn: the origin stands 3877.2 units above the ground under the player
     /// (<c>Human+1704</c>), so the eye is 6703.4 units up, and every player round leaves from exactly there.
     /// The 1.8 m this used to be (the wall probe's top sample) put every shot 16 cm high.
     /// </remarks>
     public const double StandingEyeHeight = 3877.2 + 2826.24;
 
-    /// <summary>How high the eye sits while crouched, in world units — 0.778 m.</summary>
+    /// <summary>How high the eye sits while crouched, in world units ï¿½ 0.778 m.</summary>
     /// <remarks>
     /// Crouched the origin drops to 1753.8 units above the ground and the eye rides 0.35 m (1433.6) over
     /// it, measured the same way. The 1.3 m this used to be (the wall probe's crouched top sample) was
@@ -94,7 +94,7 @@ public sealed class PlayerBody
     /// <remarks>
     /// <para>
     /// Every number below comes from here when it is set. The fallbacks are the retail values, so a body
-    /// with no parameters behaves like the shipped player rather than like nothing — but the fallbacks
+    /// with no parameters behaves like the shipped player rather than like nothing ï¿½ but the fallbacks
     /// are a convenience for tests, not the contract. <b>The game is meant to run off the script.</b>
     /// </para>
     /// </remarks>
@@ -153,7 +153,7 @@ public sealed class PlayerBody
     public HumanFallImpact? LastFallImpact { get; private set; }
 
     /// <summary>
-    /// True for the tick a grounded jump actually left the floor — state 28's entry at
+    /// True for the tick a grounded jump actually left the floor ï¿½ state 28's entry at
     /// <c>0x40BBF7</c> plays <c>jump_1</c> on that edge, not while the key is held.
     /// </summary>
     public bool TookOffThisTick { get; private set; }
@@ -171,7 +171,7 @@ public sealed class PlayerBody
     /// <summary>Gets how much air control one tick adds, in units per tick.</summary>
     /// <remarks>
     /// <para>
-    /// <see cref="HumanPlayerParameters.Speed3"/> — argument 3, 0.5 km/h, about 19 units a tick. The
+    /// <see cref="HumanPlayerParameters.Speed3"/> ï¿½ argument 3, 0.5 km/h, about 19 units a tick. The
     /// airborne integrator adds this along each held movement axis every tick.
     /// </para>
     /// <para>
@@ -186,7 +186,7 @@ public sealed class PlayerBody
 
     /// <summary>Gets the horizontal speed a jump carries, in units per tick.</summary>
     /// <remarks>
-    /// <see cref="HumanPlayerParameters.JumpHorizontalSpeed"/> — 17.5 km/h, which is 663.7 units a
+    /// <see cref="HumanPlayerParameters.JumpHorizontalSpeed"/> ï¿½ 17.5 km/h, which is 663.7 units a
     /// tick, or 4.86 m/s. That is almost exactly the run speed the forward animation covers, so a
     /// running jump carries the pace you were already going.
     /// </remarks>
@@ -195,7 +195,7 @@ public sealed class PlayerBody
         * Cheats.SpeedMultiplier;
 
     /// <summary>Gets the factor the animation's delta translation is scaled by.</summary>
-    /// <remarks><see cref="HumanPlayerParameters.DeltaTranslationScale"/> — argument 0, 1.75 in retail.</remarks>
+    /// <remarks><see cref="HumanPlayerParameters.DeltaTranslationScale"/> ï¿½ argument 0, 1.75 in retail.</remarks>
     public float DeltaTranslationScale =>
         (Parameters?.DeltaTranslationScale ?? HumanMotion.DefaultDeltaTranslationScale)
         * Cheats.SpeedMultiplier;
@@ -219,7 +219,7 @@ public sealed class PlayerBody
     /// <remarks>
     /// <para>
     /// <c>Human+1832</c>. The jump entry adds it to the take-off velocity on all three axes, and
-    /// <c>0x4632D0</c> zeroes it in the same breath as it clears the on-ground bit — so it is consumed,
+    /// <c>0x4632D0</c> zeroes it in the same breath as it clears the on-ground bit ï¿½ so it is consumed,
     /// not carried. Nothing else in the airborne path reads it.
     /// </para>
     /// <para>
@@ -234,7 +234,7 @@ public sealed class PlayerBody
     /// <summary>Gets or sets the ray cast the wall sweep uses, or <see langword="null"/> for terrain only.</summary>
     /// <remarks>
     /// Build one with <see cref="ObjectCollisionIndex.Build"/> and hand over its
-    /// <see cref="ObjectCollisionIndex.Caster"/>. Left unset the body still stands, walks and falls —
+    /// <see cref="ObjectCollisionIndex.Caster"/>. Left unset the body still stands, walks and falls ï¿½
     /// it simply walks through anything placed, which is what it did before the sweep existed.
     /// </remarks>
     public WorldRayCast? Walls { get; set; }
@@ -254,7 +254,7 @@ public sealed class PlayerBody
 
     /// <summary>Gets the slope slide the body has accumulated, in units per tick.</summary>
     /// <remarks>
-    /// <see cref="HumanSlopeSlide"/>'s four bands, damped by 0.9 a tick. Zero on anything under 45°,
+    /// <see cref="HumanSlopeSlide"/>'s four bands, damped by 0.9 a tick. Zero on anything under 45ï¿½,
     /// which is most ground.
     /// </remarks>
     public Vector3f SlopeSlide { get; private set; }
@@ -263,15 +263,15 @@ public sealed class PlayerBody
     /// <remarks>
     /// <para>
     /// <b>Its own accumulator, not the slope's.</b> <c>0x4614B0</c> damps and adds two separate triples
-    /// into the same move — the slope slide at <c>Human+1660</c>, and this one at <c>Human+1648</c>.
+    /// into the same move ï¿½ the slope slide at <c>Human+1660</c>, and this one at <c>Human+1648</c>.
     /// They cannot share storage, because the slide is <i>rewritten from scratch every tick</i>: the
-    /// bands over 60° assign it outright and anything under 45° — which is most ground a player stands
-    /// on — zeroes it. A shove folded in there would be erased on the tick after it landed instead of
+    /// bands over 60ï¿½ assign it outright and anything under 45ï¿½ ï¿½ which is most ground a player stands
+    /// on ï¿½ zeroes it. A shove folded in there would be erased on the tick after it landed instead of
     /// decaying over the twenty-odd ticks 0.9 a tick buys it.
     /// </para>
     /// <para>
     /// Nothing rebuilds this one; it is only ever added to, damped, and cleared outright by the events
-    /// that zero all six velocity words — the landing at <c>0x40BE40</c> and the ladder mount at
+    /// that zero all six velocity words ï¿½ the landing at <c>0x40BE40</c> and the ladder mount at
     /// <c>0x4113E0</c>.
     /// </para>
     /// </remarks>
@@ -279,17 +279,17 @@ public sealed class PlayerBody
 
     /// <summary>The horizontal shove one connecting round gives the player, in units per tick.</summary>
     /// <remarks>
-    /// <c>189.62962</c> — exactly <b>5 km/h</b> on the 37.9259 units-per-tick-per-km/h grid. The
+    /// <c>189.62962</c> ï¿½ exactly <b>5 km/h</b> on the 37.9259 units-per-tick-per-km/h grid. The
     /// player's hit handler (<c>0x412440</c>) normalises the round's travel direction and adds
-    /// <c>x·189.62962</c> and <c>y·189.62962</c> into <c>Human+1648</c>/<c>+1652</c>, which decays by
+    /// <c>xï¿½189.62962</c> and <c>yï¿½189.62962</c> into <c>Human+1648</c>/<c>+1652</c>, which decays by
     /// 0.9 a tick on its own.
     /// </remarks>
     public const float HitShoveUnitsPerTick = 189.62962f;
 
-    /// <summary>Shoves the body horizontally — the per-hit knock of the player's hit handler.</summary>
+    /// <summary>Shoves the body horizontally ï¿½ the per-hit knock of the player's hit handler.</summary>
     /// <param name="x">The X to add to the shove accumulator, in units per tick.</param>
     /// <param name="y">The Y to add.</param>
-    /// <remarks>See <see cref="HitShoveUnitsPerTick"/>. Z is never written — the original adds only X and Y.</remarks>
+    /// <remarks>See <see cref="HitShoveUnitsPerTick"/>. Z is never written ï¿½ the original adds only X and Y.</remarks>
     public void AddHitShove(float x, float y) =>
         HitShove = new Vector3f(HitShove.X + x, HitShove.Y + y, HitShove.Z);
 
@@ -313,7 +313,7 @@ public sealed class PlayerBody
     /// <summary>Gets whether a ceiling is within 1.8 m of the feet, the roof bit (<c>0x10</c>) the last tick's probe raised.</summary>
     public bool UnderRoof { get; private set; }
 
-    /// <summary>Gets the eye's world position — where the view is taken from.</summary>
+    /// <summary>Gets the eye's world position ï¿½ where the view is taken from.</summary>
     public Vector3d Eye => new(Position.X, Position.Y, Position.Z + EyeHeight);
 
     /// <summary>How far the Human's origin (<c>+32</c>) stands above the feet: 3877.2 units, measured.</summary>
@@ -758,7 +758,7 @@ public sealed class PlayerBody
     /// <c>(cos, -sin, 0)</c> and forward as <c>(sin, cos, 0)</c>; putting those in as columns is what
     /// makes a delta of <c>(strafe, forward, 0)</c> come out along the axes the player is looking down.
     /// Building it the other way up transposes it, and the player then walks at right angles to the
-    /// view — which is exactly the bug this comment exists to stop recurring.
+    /// view ï¿½ which is exactly the bug this comment exists to stop recurring.
     /// </para>
     /// </remarks>
     private static Matrix3f FacingBasis(float yaw)
@@ -782,7 +782,7 @@ public sealed class PlayerBody
     /// <para>
     /// <b>Terrain and objects, in one query.</b> The original's downward ground cast (<c>0x4CBE40</c>)
     /// sweeps the placed models (<c>0x4CDB20</c>) <i>and</i> the terrain octree (<c>0x4CB050</c>) in the
-    /// same call, and keeps whichever surface sits nearest the probe — terrain overwrites an object hit
+    /// same call, and keeps whichever surface sits nearest the probe ï¿½ terrain overwrites an object hit
     /// only when it is the closer of the two. For a downward probe that is
     /// simply the higher of the two surfaces. Without the object half a body walks <i>through</i> a
     /// crate, a ramp or a building floor and stands on the terrain beneath it, which is the collision
@@ -952,7 +952,7 @@ public sealed class PlayerBody
         bool found = false;
         double height = double.NegativeInfinity;
 
-        // Terrain: walk down in whole probe lengths and take the first — the highest — ground found.
+        // Terrain: walk down in whole probe lengths and take the first ï¿½ the highest ï¿½ ground found.
         double probe = from;
         while (terrain is not null && probe > floor)
         {
@@ -968,7 +968,7 @@ public sealed class PlayerBody
 
         // Objects: one downward cast finds the highest floor or platform below the spawn, so a body a
         // level authors on a building floor lands on it rather than dropping through to the terrain
-        // beneath — the same object half the runtime ground query gained in Settle.
+        // beneath ï¿½ the same object half the runtime ground query gained in Settle.
         if (Walls is not null
             && Walls(
                 new Vector3d(Position.X, Position.Y, from),

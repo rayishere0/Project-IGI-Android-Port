@@ -875,7 +875,13 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private static void writeProfileJsonAtomic(File profile, JSONObject root) throws IOException {
         File tmp = new File(profile.getParentFile(), profile.getName() + ".tmp");
         try (FileOutputStream out = new FileOutputStream(tmp)) {
-            out.write(root.toString(2).getBytes(StandardCharsets.UTF_8));
+            String jsonText;
+            try {
+                jsonText = root.toString(2);
+            } catch (JSONException e) {
+                throw new IOException("Failed to format JSON profile", e);
+            }
+            out.write(jsonText.getBytes(StandardCharsets.UTF_8));
         }
         if (!tmp.renameTo(profile)) {
             if (profile.exists()) {

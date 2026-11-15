@@ -239,7 +239,7 @@ public sealed partial class GameHost
                 : null;
 
         _overrides = new ResourceOverrides(
-            ContentLayers.Resolve(_titleRuntime.Title.Id, dataRoot, _options, _logger, _titleRuntime.ContentFolders),
+            ProjectIGI.Host.Content.ContentLayers.Resolve(_titleRuntime.Title.Id, dataRoot, _options, _logger, _titleRuntime.ContentFolders),
             _logger)
         {
             // Carried across a title switch: F8 is the player's, not the title's.
@@ -265,7 +265,7 @@ public sealed partial class GameHost
     /// <para>
     /// Called once from start-up and again on every switch, which is what keeps the two honest: there is
     /// no separate boot path for a switch to drift away from. What it deliberately does NOT touch is
-    /// anything the process owns — the console has already wrapped the log, the settings are loaded, the
+    /// anything the process owns ï¿½ the console has already wrapped the log, the settings are loaded, the
     /// audio device is open, and none of that is a game's to replace.
     /// </para>
     /// <para>
@@ -354,8 +354,8 @@ public sealed partial class GameHost
 
     /// <summary>Rebuilds what a menu backdrop is built from on a worker.</summary>
     /// <remarks>
-    /// Half of it is the title's — its content modules, its structural task types, its format profile
-    /// and the service table its modules published — so a switch that left the old one standing would
+    /// Half of it is the title's ï¿½ its content modules, its structural task types, its format profile
+    /// and the service table its modules published ï¿½ so a switch that left the old one standing would
     /// have the menu previewing the incoming game's levels through the outgoing game's content.
     /// <para>
     /// Its own step because of when it is possible: the detail maps and the lamp manifest it also
@@ -396,11 +396,11 @@ public sealed partial class GameHost
     /// The <em>progression</em>, not the browser order. Both are the catalogue's to define and they
     /// differ: the progression is the campaign exactly, while the browser order is everything the
     /// install holds with the campaign first. The screen this fills is headed CAMPAIGN, so it wants the
-    /// former — and the distinction only started to matter when the sequel could be reached, because
+    /// former ï¿½ and the distinction only started to matter when the sequel could be reached, because
     /// its browser order ends with six deathmatch maps and the screen offered them as missions 20 to 25.
     /// </para>
     /// <para>
-    /// Not the scan's order either, which is a directory walk and therefore alphabetical — it listed
+    /// Not the scan's order either, which is a directory walk and therefore alphabetical ï¿½ it listed
     /// level 10 between level 1 and level 2. What the progression is, is the title's: one game chains
     /// each mission to the next and the other numbers them by location and level.
     /// </para>
@@ -464,7 +464,7 @@ public sealed partial class GameHost
     /// <summary>Drops the presenters a title owns, which a switch replaces rather than reuses.</summary>
     /// <remarks>
     /// <see cref="ReleasePlayedMission"/> already drops the world, ground and sky, because those go with
-    /// a level. These are the ones the menu keeps up behind it — a backdrop is a level too — and a
+    /// a level. These are the ones the menu keeps up behind it ï¿½ a backdrop is a level too ï¿½ and a
     /// switch that left them standing would draw the outgoing game's forest over the incoming one's.
     /// </remarks>
     private void ReleaseTitleScopedPresentation()
@@ -490,7 +490,7 @@ public sealed partial class GameHost
     /// <summary>The games the shell lists, each bound to its own installation.</summary>
     /// <remarks>
     /// Rebuilt whenever the shell is, because which entry is the current one moves with the running
-    /// title — and because a title's profile is a disk check, so a drive unplugged mid-session shows as
+    /// title ï¿½ and because a title's profile is a disk check, so a drive unplugged mid-session shows as
     /// what it is rather than as what it was at boot.
     /// </remarks>
     private IReadOnlyList<GameProfile> TitleCatalogue() =>

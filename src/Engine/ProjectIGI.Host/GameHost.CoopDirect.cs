@@ -1,5 +1,6 @@
 using System.Globalization;
 using ProjectIGI.Core.Configuration;
+using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Engine.Time;
 using ProjectIGI.Game.Multiplayer;
 using ProjectIGI.Host.Multiplayer;

@@ -1,6 +1,8 @@
 using System.Globalization;
+using ProjectIGI.Core.Configuration;
 using ProjectIGI.Core.Graphics;
 using ProjectIGI.Game;
+using ProjectIGI.Game.Player;
 using ProjectIGI.Input;
 using ProjectIGI.Rendering;
 using ProjectIGI.UI;
@@ -89,7 +91,7 @@ public sealed class SettingsScreen : ShellScreen
         _initialViewDistance = ReconstructionCVars.ViewDistance.Value;
         _initialShowFps = DisplayCVars.ShowFps.Value;
         _initialRagdoll = GameplayCVars.Ragdoll.Value;
-        _initialVoiceMode = ProjectIGI.Host.CoopVoiceCVars.Mode.Value;
+        _initialVoiceMode = context.Cvars.TryGet("coop_voice", out ICVar? v) && v is NumericCVar<int> n ? n.Value : 1;
         _initialGamma = PostCVars.Gamma.Value;
         _initialMotionBlur = PostCVars.MotionBlur.Value;
         _initialFieldOfView = GameplayCVars.FieldOfView.Value;
@@ -552,7 +554,7 @@ public sealed class SettingsScreen : ShellScreen
         };
         configStack.AddChild(coopHeader);
 
-        bool voiceState = ProjectIGI.Host.CoopVoiceCVars.Mode.Value != 0;
+        bool voiceState = (Context.Cvars.TryGet("coop_voice", out ICVar? vm) && vm is NumericCVar<int> n2) ? n2.Value != 0 : true;
         var voiceToggle = new Toggle(theme, "Co-op voice (push to talk)", voiceState)
         {
             Width = 980f,
@@ -561,7 +563,7 @@ public sealed class SettingsScreen : ShellScreen
         };
         voiceToggle.ValueChanged += val =>
         {
-            ProjectIGI.Host.CoopVoiceCVars.Mode.Value = val ? 1 : 0;
+            if (Context.Cvars.TryGet("coop_voice", out ICVar? cv) && cv is NumericCVar<int> mode) mode.Value = val ? 1 : 0;
         };
         configStack.AddChild(voiceToggle);
 
@@ -661,7 +663,7 @@ public sealed class SettingsScreen : ShellScreen
             ReconstructionCVars.DynamicTargetFps.Value = _initialDynamicTargetFps;
             ReconstructionCVars.ViewDistance.Value = _initialViewDistance;
             GameplayCVars.Ragdoll.Value = _initialRagdoll;
-            ProjectIGI.Host.CoopVoiceCVars.Mode.Value = _initialVoiceMode;
+            if (Context.Cvars.TryGet("coop_voice", out ICVar? v4) && v4 is NumericCVar<int> n4) n4.Value = _initialVoiceMode;
             // Siblings first, r_shadows last: restoring r_shadows re-derives the capture path and
             // the lighting model, and the frame after that reads the whole tier at once.
             ShadowCVars.ShadowCascades.Value = _initialShadowCascades;

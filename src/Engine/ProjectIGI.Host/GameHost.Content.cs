@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Core.Content;
 using ProjectIGI.Engine.Resources;
 using ProjectIGI.Frontend;

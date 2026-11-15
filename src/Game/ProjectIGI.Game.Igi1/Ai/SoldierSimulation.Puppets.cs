@@ -136,7 +136,8 @@ public sealed partial class SoldierSimulation
                     Travel: default,
                     ProjectIGI.Game.Weapons.WeaponCategory.Gun,
                     Velocity: default,
-                    DroppedWeapon: holder is not null && SoldierDamage.WeaponForDrop(holder.CarriedWeaponType, holder.WeaponType) is not null));
+                    DroppedWeapon: holder is not null && SoldierDamage.WeaponForDrop(holder.CarriedWeaponType, holder.WeaponType) is not null,
+                    DeathAnimation: puppet.Animation));
             }
 
             view.Tick();

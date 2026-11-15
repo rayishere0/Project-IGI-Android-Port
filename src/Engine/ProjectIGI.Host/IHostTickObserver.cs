@@ -1,3 +1,4 @@
+using ProjectIGI.Core.Diagnostics;
 using ProjectIGI.Game.Multiplayer;
 using ProjectIGI.Game.Player;
 
