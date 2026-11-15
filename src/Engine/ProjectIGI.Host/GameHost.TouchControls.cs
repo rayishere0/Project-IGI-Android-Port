@@ -277,7 +277,9 @@ public sealed partial class GameHost
         // Gyroscope aim: tilt the phone to turn the view. Only in Play mode and
         // only when the profile enables it. The window accumulates the gyro's
         // angle deltas (radians) each frame; here they become mouse counts so the
-        // existing look path (sensitivity, inversion, zoom scaling) applies.
+        // existing look path (sensitivity, zoom scaling) applies. The view's
+        // own inversion is cancelled for the gyroscope's pitch below, so the
+        // per-axis toggles are the only flips of the gyroscope's look.
         // The gyro has its own sensitivity (profile.GyroSensitivity, set by the
         // slider in Settings), separate from the mouse sensitivity.
         // Axis signs are a best guess for landscape and must be verified on a
@@ -297,14 +299,16 @@ public sealed partial class GameHost
                 float countsPerRadian = 1f / MathF.Max(0.00001f, radiansPerCount);
 
                 // The per-axis gyroscope inversions: each flips only its own axis. The
-                // pitch flip stacks with InvertMouse, which the view still applies on
-                // top of these counts, so both on is the unflipped pitch again.
+                // pitch flip is independent of InvertMouse: the view still applies the
+                // profile's inversion on top of these counts, so when InvertMouse is
+                // on the pitch is negated once more here and the two cancel, leaving
+                // this toggle as the only flip of the gyroscope's up/down look.
                 if (profile.GyroInvertYaw)
                 {
                     gyroYaw = -gyroYaw;
                 }
 
-                if (profile.GyroInvertPitch)
+                if (profile.GyroInvertPitch != profile.InvertMouse)
                 {
                     gyroPitch = -gyroPitch;
                 }
