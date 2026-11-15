@@ -86,6 +86,7 @@ public static class ConfigScriptWriter
             // loader registers them, and a retail file simply never emits them.
             builder.Call("GOInPadSens", Real(profile.GamepadSensitivity));
             builder.Call("GOInPadAimLock", Real(profile.AimLockRadius), Real(profile.AimLockStrength));
+            builder.Call("GOInGyroInv", Number(profile.GyroInvertYaw ? 1 : 0), Number(profile.GyroInvertPitch ? 1 : 0));
             foreach (GamepadBinding binding in profile.GamepadBindings)
             {
                 builder.Call("GOInPadRemap", Symbol(binding.Action), Symbol(GamepadControlNames.ToSymbol(binding.Control)));

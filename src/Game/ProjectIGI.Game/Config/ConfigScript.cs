@@ -198,6 +198,11 @@ public sealed class ConfigScript
                 p.AimLockRadius = c.GetSingle(0);
                 p.AimLockStrength = c.GetSingle(1);
             }), 2);
+            natives.RegisterFunction("GOInGyroInv", c => OnProfile(p =>
+            {
+                p.GyroInvertYaw = c.GetInt32(0) != 0;
+                p.GyroInvertPitch = c.GetInt32(1) != 0;
+            }), 2);
             natives.RegisterFunction("GOInPadRemap", c => OnProfile(p =>
             {
                 if (GamepadControlNames.TryParseSymbol(NameOf(c.GetInt32(1)), out GamepadControl control))

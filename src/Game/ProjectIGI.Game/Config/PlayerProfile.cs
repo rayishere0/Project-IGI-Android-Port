@@ -187,6 +187,12 @@ public sealed class PlayerProfile
     /// <summary>How fast the view turns per radian of phone tilt (gyroscope aim). 0 to 1, like mouse sensitivity.</summary>
     public float GyroSensitivity { get; set; } = 0.5f;
 
+    /// <summary>Whether the gyroscope's left/right look is reversed: tilting the phone turns the view the other way. Off by default.</summary>
+    public bool GyroInvertYaw { get; set; }
+
+    /// <summary>Whether the gyroscope's up/down look is reversed: tilting the phone aims the other way. Off by default, and independent of the left/right inversion; it stacks with <see cref="InvertMouse"/>, which the view still applies on top, so both on is the unflipped pitch again.</summary>
+    public bool GyroInvertPitch { get; set; }
+
     /// <summary>The controller's right-stick look sensitivity, 0 to 1, independent of the mouse sensitivity.</summary>
     public float GamepadSensitivity { get; set; } = DefaultGamepadSensitivity;
 
@@ -588,6 +594,8 @@ public sealed class PlayerProfile
             MouseSensitivity = MouseSensitivity,
             GyroEnabled = GyroEnabled,
             GyroSensitivity = GyroSensitivity,
+            GyroInvertYaw = GyroInvertYaw,
+            GyroInvertPitch = GyroInvertPitch,
             GamepadSensitivity = GamepadSensitivity,
             AimLockRadius = AimLockRadius,
             AimLockStrength = AimLockStrength,
