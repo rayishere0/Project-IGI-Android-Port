@@ -36,6 +36,8 @@ public sealed class SettingsScreen : ShellScreen
     private readonly bool _initialInvert;
     private readonly bool _initialGyro;
     private readonly float _initialGyroSensitivity;
+    private readonly bool _initialGyroInvertYaw;
+    private readonly bool _initialGyroInvertPitch;
     private readonly float _initialUiScale;
     private readonly float _initialTextScale;
     private readonly int _initialRenderScale;
@@ -77,6 +79,8 @@ public sealed class SettingsScreen : ShellScreen
         _initialInvert = context.Config.Active?.InvertMouse ?? false;
         _initialGyro = context.Config.Active?.GyroEnabled ?? false;
         _initialGyroSensitivity = context.Config.Active?.GyroSensitivity ?? 0.5f;
+        _initialGyroInvertYaw = context.Config.Active?.GyroInvertYaw ?? false;
+        _initialGyroInvertPitch = context.Config.Active?.GyroInvertPitch ?? false;
         _initialUiScale = LayoutContext.GlobalUiScale;
         _initialTextScale = LayoutContext.GlobalTextScale;
         _initialRenderScale = context.Host.RenderScaleMode;
@@ -466,6 +470,39 @@ public sealed class SettingsScreen : ShellScreen
         };
         configStack.AddChild(gyroSensSlider);
 
+        // ── Gyroscope inversions: each axis flips on its own ─────────────────
+        bool gyroInvertYawState = Context.Config.Active?.GyroInvertYaw ?? false;
+        var gyroInvertYawToggle = new Toggle(theme, "Invert gyroscope left/right", gyroInvertYawState)
+        {
+            Width = 980f,
+            Height = 56f,
+            Tooltip = "Tilting the phone left or right turns the view the other way.\n\nIndependent of the up/down inversion below.",
+        };
+        gyroInvertYawToggle.ValueChanged += val =>
+        {
+            if (Context.Config.Active is { } profile)
+            {
+                profile.GyroInvertYaw = val;
+            }
+        };
+        configStack.AddChild(gyroInvertYawToggle);
+
+        bool gyroInvertPitchState = Context.Config.Active?.GyroInvertPitch ?? false;
+        var gyroInvertPitchToggle = new Toggle(theme, "Invert gyroscope up/down", gyroInvertPitchState)
+        {
+            Width = 980f,
+            Height = 56f,
+            Tooltip = "Tilting the phone up or down aims the other way.\n\nIndependent of the left/right inversion above, and stacks with Invert Look / Mouse.",
+        };
+        gyroInvertPitchToggle.ValueChanged += val =>
+        {
+            if (Context.Config.Active is { } profile)
+            {
+                profile.GyroInvertPitch = val;
+            }
+        };
+        configStack.AddChild(gyroInvertPitchToggle);
+
         // ── Option 8: Show FPS Counter Overlay ───────────────────────────
         bool showFpsState = DisplayCVars.ShowFps.Value;
         var fpsToggle = new Toggle(theme, "Show FPS Counter", showFpsState)
@@ -638,6 +675,8 @@ public sealed class SettingsScreen : ShellScreen
                 profile.InvertMouse = _initialInvert;
                 profile.GyroEnabled = _initialGyro;
                 profile.GyroSensitivity = _initialGyroSensitivity;
+                profile.GyroInvertYaw = _initialGyroInvertYaw;
+                profile.GyroInvertPitch = _initialGyroInvertPitch;
             }
             CloseConfig();
         };

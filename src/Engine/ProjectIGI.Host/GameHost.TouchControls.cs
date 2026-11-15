@@ -281,7 +281,7 @@ public sealed partial class GameHost
         // The gyro has its own sensitivity (profile.GyroSensitivity, set by the
         // slider in Settings), separate from the mouse sensitivity.
         // Axis signs are a best guess for landscape and must be verified on a
-        // real device (flip yaw/pitch here if a direction feels backwards).
+        // real device (the per-axis inversions in Settings flip them per player).
         // The motion is drained every frame in Play even while disabled: the sensor keeps
         // feeding the window, and a stale pile-up would spin the view the moment
         // the toggle is switched on. It is applied only while no controller is
@@ -295,6 +295,20 @@ public sealed partial class GameHost
                 float radiansPerCount = MouseLookSettings.FromSensitivity(
                     profile.GyroSensitivity, profile.InvertMouse).RadiansPerCount;
                 float countsPerRadian = 1f / MathF.Max(0.00001f, radiansPerCount);
+
+                // The per-axis gyroscope inversions: each flips only its own axis. The
+                // pitch flip stacks with InvertMouse, which the view still applies on
+                // top of these counts, so both on is the unflipped pitch again.
+                if (profile.GyroInvertYaw)
+                {
+                    gyroYaw = -gyroYaw;
+                }
+
+                if (profile.GyroInvertPitch)
+                {
+                    gyroPitch = -gyroPitch;
+                }
+
                 input.Mouse.AddMotion(gyroYaw * countsPerRadian, gyroPitch * countsPerRadian);
             }
         }
