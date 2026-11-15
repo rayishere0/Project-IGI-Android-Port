@@ -190,7 +190,7 @@ public sealed class PlayerProfile
     /// <summary>Whether the gyroscope's left/right look is reversed: tilting the phone turns the view the other way. Off by default.</summary>
     public bool GyroInvertYaw { get; set; }
 
-    /// <summary>Whether the gyroscope's up/down look is reversed: tilting the phone aims the other way. Off by default, and independent of the left/right inversion; it stacks with <see cref="InvertMouse"/>, which the view still applies on top, so both on is the unflipped pitch again.</summary>
+    /// <summary>Whether the gyroscope's up/down look is reversed: tilting the phone aims the other way. Off by default, and independent of the left/right inversion and of <see cref="InvertMouse"/>: this toggle alone decides the gyroscope's up/down direction.</summary>
     public bool GyroInvertPitch { get; set; }
 
     /// <summary>The controller's right-stick look sensitivity, 0 to 1, independent of the mouse sensitivity.</summary>

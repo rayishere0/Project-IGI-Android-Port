@@ -492,7 +492,7 @@ public sealed class SettingsScreen : ShellScreen
         {
             Width = 980f,
             Height = 56f,
-            Tooltip = "Tilting the phone up or down aims the other way.\n\nIndependent of the left/right inversion above, and stacks with Invert Look / Mouse.",
+            Tooltip = "Tilting the phone up or down aims the other way.\n\nIndependent of the left/right inversion above, and of Invert Look / Mouse.",
         };
         gyroInvertPitchToggle.ValueChanged += val =>
         {
