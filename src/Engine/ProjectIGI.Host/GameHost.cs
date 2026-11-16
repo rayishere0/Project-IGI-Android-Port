@@ -570,7 +570,7 @@ public sealed partial class GameHost : IDisposable
                     // A borderless window is the desktop's size by definition, so there is
                     // nothing to resize — and on Android it is the only mode there is. What the
                     // player asked for is a smaller picture, not a smaller window: render at
-                    // the chosen height over the window's height and let the temporal upscaler
+                    // the chosen height over the window's height and let the resolve
                     // present it. That is what the synthetic entries in the resolution list
                     // are (see MenuConfigHost.GetDisplayModes), and the tier shown in Settings
                     // is re-synced so the two controls agree.

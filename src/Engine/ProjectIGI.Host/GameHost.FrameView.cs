@@ -282,8 +282,9 @@ public sealed partial class GameHost
         // shading stays dynamic -- the lighting the player asked for is not flattened -- only the grade
         // goes, so the blur-on frame is the dynamic picture ungraded rather than re-exposed. Shadows-on
         // frames are not this arm: with shadows the capture is open for the lighting, blur-off shows
-        // the same dynamic picture, and the grade stays. The shadow reading matches ApplyShadowCapture,
-        // which derives the capture flags from the blur and the shadows together.
+        // the same dynamic picture, and the grade stays. The shadow reading matches ApplyCapturePath,
+        // which derives the capture flags from the blur, the shadows, the render scale and dynamic
+        // resolution together.
         bool resolveIdentity = _gi.EffectiveLighting == LightingModel.Baked
             || (_gi.EffectiveLighting == LightingModel.Hybrid && ShadowCVars.Shadows.Value > 0)
             || (PostCVars.MotionBlur.Value > 0f && ShadowCVars.Shadows.Value <= 0);
