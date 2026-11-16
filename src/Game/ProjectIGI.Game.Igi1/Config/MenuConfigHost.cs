@@ -18,12 +18,14 @@ namespace ProjectIGI.Game.Igi1.Config;
 /// <param name="rendererName">The name the graphics device reports for itself.</param>
 /// <param name="displayModes">The sizes the monitor reports.</param>
 /// <param name="applyResolution">What picking a resolution does.</param>
+/// <param name="renderScale">The render scale in force, as a fraction of the window.</param>
 /// <param name="missions">The mission table the Select Mission screen reads.</param>
 /// <param name="strings">The table that resolves a descriptor's name and description keys.</param>
 public sealed class MenuConfigHost(
     Func<string> rendererName,
     Func<IEnumerable<(int Width, int Height)>> displayModes,
     Action<int, int> applyResolution,
+    Func<float> renderScale,
     Func<IMissionCatalogue<MissionDescriptor>?> missions,
     Func<MenuStringTable?> strings) : IConfigHost
 {
@@ -53,6 +55,48 @@ public sealed class MenuConfigHost(
     /// native mode, which is what issue #40 reports.
     /// </remarks>
     public IEnumerable<MenuListItem> GetDisplayModes(int device)
+    {
+        EnsureModes();
+        return _modes.Select((mode, index) => new MenuListItem(
+            index,
+            string.Create(CultureInfo.InvariantCulture, $"{mode.Width}x{mode.Height}")));
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// The entry whose height over the largest height is nearest the scale in force, so the list
+    /// opens on the size the frame actually renders at. Smallest height first, so a scale exactly
+    /// between two entries keeps the smaller one — the way the Settings tier sync prefers the lower
+    /// tier on a tie. The scale is clamped to the range the apply handler accepts, so a
+    /// supersampled scale still pre-selects the native entry.
+    /// </remarks>
+    public int GetCurrentDisplayMode()
+    {
+        EnsureModes();
+        if (_modes.Count == 0)
+        {
+            return DefaultDisplayMode;
+        }
+
+        int nativeHeight = _modes.Max(mode => mode.Height);
+        float scale = Math.Clamp(renderScale(), 0.25f, 1f);
+        int best = 0;
+        float bestDistance = float.MaxValue;
+        foreach (int index in Enumerable.Range(0, _modes.Count).OrderBy(i => _modes[i].Height))
+        {
+            float distance = Math.Abs((float)_modes[index].Height / nativeHeight - scale);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                best = index;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>Builds the cached mode list once, so the indices stay stable for the session.</summary>
+    private void EnsureModes()
     {
         if (_modes.Count == 0)
         {
@@ -88,15 +132,12 @@ public sealed class MenuConfigHost(
                 }
             }
         }
-
-        return _modes.Select((mode, index) => new MenuListItem(
-            index,
-            string.Create(CultureInfo.InvariantCulture, $"{mode.Width}x{mode.Height}")));
     }
 
     /// <inheritdoc/>
     public void SetResolution(int mode)
     {
+        EnsureModes();
         if (mode >= 0 && mode < _modes.Count)
         {
             // The original stores the choice on the profile and applies it when the screen is committed.

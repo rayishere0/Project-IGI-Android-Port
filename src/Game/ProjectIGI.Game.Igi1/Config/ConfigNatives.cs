@@ -150,8 +150,9 @@ public sealed class ConfigNatives : IMenuConfiguration, IMenuInputBindings
                 Apply(p, x => x.DeviceGuid = _host.GetDeviceGuid(arguments.GetInt32(0)));
                 return true;
 
+            // Pre-selects from the scale in force, not the stored mode: see IConfigHost.GetCurrentDisplayMode.
             case "Config_GraphicOptionsGetResolution":
-                result = QvmValue.FromInt32(p?.DisplayMode ?? 0);
+                result = QvmValue.FromInt32(_host.GetCurrentDisplayMode());
                 return true;
 
             case "Config_GraphicOptionsSetResolution":
@@ -352,6 +353,11 @@ public sealed class ConfigNatives : IMenuConfiguration, IMenuInputBindings
         profile.Gamma = 0f;
         profile.Transparency = true;
         profile.PerformanceFlags = GraphicsPerformance.FlagsForLevel(0);
+
+        // The list pre-selects from the scale in force rather than the stored mode, so resetting
+        // the stored value alone would leave the rendering — and the list — where they were.
+        // Applying the default mode resets both, the way the other fields reset here.
+        _host.SetResolution(_host.DefaultDisplayMode);
     }
 
     private PlayerProfile? ProfileAt(int index) =>
