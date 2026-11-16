@@ -586,7 +586,8 @@ public sealed partial class GameHost : IDisposable
 
                 _window.Resize(w, h);
                 _logger.Information("Config", $"Resolution set to {w}x{h}.");
-            });
+            },
+            () => ReconstructionCVars.RenderScale.Value);
 
         MenuStringTable strings = _menuStrings!;
 

@@ -12,14 +12,16 @@ using ProjectIGI.Scripting.Runtime;
 
 namespace ProjectIGI.Presentation;
 
-/// <summary>What the retail menus' settings screens ask of the shell: the renderer, the monitor's sizes, and a size applied.</summary>
+/// <summary>What the retail menus' settings screens ask of the shell: the renderer, the monitor's sizes, a size applied, and the scale in force.</summary>
 /// <param name="RendererName">The name the graphics device reports for itself.</param>
 /// <param name="DisplayModes">The sizes the monitor reports, in any order and with repeats.</param>
 /// <param name="ApplyResolution">What picking a resolution does.</param>
+/// <param name="RenderScale">The render scale in force, as a fraction of the window.</param>
 public sealed record RetailMenuDisplay(
     Func<string> RendererName,
     Func<IEnumerable<(int Width, int Height)>> DisplayModes,
-    Action<int, int> ApplyResolution);
+    Action<int, int> ApplyResolution,
+    Func<float> RenderScale);
 
 /// <summary>What a title's retail menus are started with.</summary>
 /// <param name="Device">The graphics device the screens are drawn with.</param>

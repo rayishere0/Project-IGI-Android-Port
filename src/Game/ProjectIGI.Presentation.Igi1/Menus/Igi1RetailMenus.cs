@@ -50,7 +50,7 @@ internal sealed class Igi1RetailMenus : IRetailMenus
         RetailMenuDisplay display = request.Display;
         menu.Manager.Configuration = new ConfigNatives(
             request.Configuration,
-            new MenuConfigHost(display.RendererName, display.DisplayModes, display.ApplyResolution, request.Missions, request.Strings));
+            new MenuConfigHost(display.RendererName, display.DisplayModes, display.ApplyResolution, display.RenderScale, request.Missions, request.Strings));
 
         // Game_SetMission belongs to the game, not the menu system, and a menu expression is evaluated
         // by the menu's own evaluator rather than by the script VM -- so registering it with the VM is

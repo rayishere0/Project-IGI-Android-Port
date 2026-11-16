@@ -44,6 +44,17 @@ public interface IConfigHost
     /// <param name="mode">The index into <see cref="GetDisplayModes"/>.</param>
     void SetResolution(int mode);
 
+    /// <summary>Gets the display mode the game is rendering at now, as an index into <see cref="GetDisplayModes"/>.</summary>
+    /// <returns>The index whose size matches the render scale in force.</returns>
+    /// <remarks>
+    /// The graphics screen pre-selects its resolution list from this rather than from the profile's
+    /// stored mode: on a borderless window the stored mode is only a record of the last choice made
+    /// in this menu, while the tier the Settings screen or a first-run preset set is what the frame
+    /// actually renders at. Pre-selecting the stored value would show native while the game renders
+    /// at 720p, and confirming the screen untouched would silently reset the tier to native.
+    /// </remarks>
+    int GetCurrentDisplayMode();
+
     /// <summary>Applies a gamma setting immediately, so the slider previews.</summary>
     /// <param name="gamma">The gamma, 0 to 1.</param>
     void SetGamma(float gamma);
@@ -88,6 +99,9 @@ public sealed class NullConfigHost : IConfigHost
     public void SetResolution(int mode)
     {
     }
+
+    /// <inheritdoc/>
+    public int GetCurrentDisplayMode() => DefaultDisplayMode;
 
     /// <inheritdoc/>
     public void SetGamma(float gamma)
