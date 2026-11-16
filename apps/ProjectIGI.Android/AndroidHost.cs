@@ -192,7 +192,7 @@ public static class AndroidHost
 
                 // Phones render far below native by default: a full-resolution 2400x1080
                 // frame is too much for a mid-range mobile GPU through WebGPU (10-20 fps).
-                // 720p-equivalent, upscaled by the temporal upscaler, is the performance tier;
+                // 720p-equivalent, rendered small and upscaled by the resolve, is the performance tier;
                 // the 540p ultra tier is one tap away in Settings for low-end devices.
                 _window?.RenderScaleMode = 1;
             }

@@ -261,6 +261,7 @@ public sealed class SettingsScreen : ShellScreen
             Width = 980f,
             Height = 56f,
             ContentWidth = 320f,
+            Tooltip = "Render the world smaller and upscale it to your screen: lower is faster, native is sharpest. Applies right away, in the menu and in missions.",
         };
         resCycler.SelectionChanged += index =>
         {

@@ -21,7 +21,7 @@ public sealed partial class GameHost
         _settingHandlers.Add((variable, subscription));
     }
 
-    /// <summary>Opens the offscreen path exactly while motion blur or sun shadows are on, and closes it when both are off.</summary>
+    /// <summary>Opens the offscreen path exactly while something needs it — motion blur, sun shadows, a sub-native render scale or dynamic resolution — and closes it when none of them do.</summary>
     /// <remarks>
     /// The blur is the only effect that used to need the capture: the Vanilla preset holds r_hdr and
     /// r_deferred at 0, so the frame is drawn straight to the back buffer and the resolve — blur and
@@ -35,6 +35,17 @@ public sealed partial class GameHost
     /// this one function derives them from both settings instead of each setting owning a handler that
     /// would switch the flags off under the other. The shadow cascades are fitted only while the capture
     /// is open (see FitSunShadows), and the shadow term is sampled only by the deferred shading pass.
+    /// </para>
+    /// <para>
+    /// A render scale below native is the third thing that needs the capture, and dynamic resolution
+    /// the fourth: the direct path draws straight to the back buffer at the window's size, so without
+    /// the capture the Resolution Quality tier — and the retail Resolution list, which sets the same
+    /// scale — change nothing the player can see, and the first-run 720p tier on Android renders at
+    /// native. The dynamic ladder only moves the effective scale, which the direct path never reads,
+    /// so with the path closed the ladder is dead too. Neither promotes the lighting model or turns
+    /// on the real-time structures: the capture opens with the lighting the player already has. The
+    /// manual tier stays the ceiling — the ladder never renders above it — and the archived render
+    /// scale is never written by either.
     /// </para>
     /// <para>
     /// Shadows also promote the lighting model to hybrid while they are on, and back to baked when they
@@ -60,10 +71,17 @@ public sealed partial class GameHost
     /// structures.
     /// </para>
     /// </remarks>
-    private static void ApplyShadowCapture()
+    private static void ApplyCapturePath()
     {
         bool shadowsOn = ShadowCVars.Shadows.StoredValue > 0;
-        bool on = shadowsOn || PostCVars.MotionBlur.Value > 0f;
+        bool effectsOn = shadowsOn || PostCVars.MotionBlur.Value > 0f;
+
+        // A sub-native render scale, or dynamic resolution on: both need the capture for the
+        // reasons the remarks give. Read through StoredValue, as the shadows read is: no override
+        // holds either today, and the stored choice is the player's own either way.
+        bool scaleNeedsCapture = ReconstructionCVars.RenderScale.StoredValue < 1f
+            || ReconstructionCVars.DynamicResolution.StoredValue;
+        bool on = effectsOn || scaleNeedsCapture;
         FrameCVars.OffscreenScene.Value = on;
         LightingCVars.Deferred.Value = on;
 
