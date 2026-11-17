@@ -292,6 +292,18 @@ public sealed partial class GameHost
         float exposure = resolveIdentity ? 1f : ExposureCVars.EffectiveExposure;
         bool autoExposure = resolveIdentity ? false : ExposureCVars.AutoExposure.Value;
 
+        // The grade goes with them. The pin above promises the resolve the identity -- no tone
+        // map, no exposure -- because the direct path shows the picture ungraded, but the
+        // resolve still applies the rest of the grade afterwards: the lookup, the contrast and
+        // saturation, the grain and the sharpening all read the player's Image Style, which the
+        // direct path never sees. Under the pin they are the untouched values instead, whatever
+        // the style says. Gamma stays the player's: it is a live slider, deliberately unpinned.
+        float contrast = resolveIdentity ? 1f : PostCVars.Contrast.Value;
+        float saturation = resolveIdentity ? 1f : PostCVars.Saturation.Value;
+        float grain = resolveIdentity ? 0f : PostCVars.Grain.Value;
+        float sharpen = resolveIdentity ? 0f : PostCVars.Sharpen.Value;
+        float colourLookup = resolveIdentity ? 0f : PostCVars.ColourLookup.Value;
+
         PostProcessSettings postProcess = new(
             toneMap,
 
@@ -309,17 +321,17 @@ public sealed partial class GameHost
             // baked and vanilla models keep the original's gamma-space compositing, whose buffer is
             // display-encoded and has to be decoded before the tone map.
             SceneIsDisplayEncoded: _gi.EffectiveLighting != LightingModel.Dynamic,
-            Contrast: PostCVars.Contrast.Value,
-            Saturation: PostCVars.Saturation.Value,
+            Contrast: contrast,
+            Saturation: saturation,
             Vignette: PostCVars.Vignette.Value,
-            Grain: PostCVars.Grain.Value,
+            Grain: grain,
             ChromaticAberration: MathF.Max(PostCVars.ChromaticAberration.Value, binocularAberration),
-            Sharpen: PostCVars.Sharpen.Value,
+            Sharpen: sharpen,
             Gamma: PostCVars.Gamma.Value,
             MotionBlur: MathF.Max(PostCVars.MotionBlur.Value, computerFlightBlur),
             SpatialAa: PostCVars.SpatialAa.Value,
             SpatialAaThreshold: PostCVars.SpatialAaThreshold.Value,
-            ColourLookup: PostCVars.ColourLookup.Value,
+            ColourLookup: colourLookup,
             AutoExposure: autoExposure,
             GreenPhosphor: false,
             Tactical: computerDisplay,
