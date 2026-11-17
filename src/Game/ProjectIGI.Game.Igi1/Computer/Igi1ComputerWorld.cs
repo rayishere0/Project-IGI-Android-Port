@@ -88,7 +88,10 @@ public sealed class Igi1ComputerWorld : IIgi1ComputerWorld
         _humans.Clear();
         if (_mission.Player is { } player && _mission.PlayerTask is { } playerTask)
         {
-            _humans.Add(new ComputerObject(playerTask, ComputerObjectKind.Player, player.Body.Position, player.Yaw, 0f)
+            // The marks turn by the engine's gamma, which is minus the camera's yaw (the eye is
+            // Z(-yaw)): feeding the camera yaw straight in mirrors the player's arrow across the
+            // map's north-south line, so it points backwards whenever the player faces east or west.
+            _humans.Add(new ComputerObject(playerTask, ComputerObjectKind.Player, player.Body.Position, -player.Yaw, 0f)
             {
                 Team = playerTask.Team,
                 IsLive = !_mission.IsPlayerDead,
@@ -100,7 +103,8 @@ public sealed class Igi1ComputerWorld : IIgi1ComputerWorld
         {
             foreach (Multiplayer.Igi1NetworkPlayer partner in _mission.Partners)
             {
-                _humans.Add(new ComputerObject(ownTask, ComputerObjectKind.Player, partner.Player.Body.Position, partner.Player.Yaw, 0f)
+                // The same negation: a partner's yaw is its camera's too.
+                _humans.Add(new ComputerObject(ownTask, ComputerObjectKind.Player, partner.Player.Body.Position, -partner.Player.Yaw, 0f)
                 {
                     Team = ownTask.Team,
                     IsLive = !partner.IsDead,
