@@ -24,7 +24,7 @@ fn SceneDistance_0( uv_0 : vec2<f32>) -> f32
 {
     var _S1 : vec3<i32> = vec3<i32>(clamp(vec2<i32>(uv_0 * p_0.sizes_0.zw), vec2<i32>(i32(0), i32(0)), vec2<i32>(p_0.sizes_0.zw) - vec2<i32>(i32(1))), i32(0));
     var depth_0 : f32 = (textureLoad((uDepth_0), ((_S1)).xy, ((_S1)).z));
-    if(depth_0 <= 0.0f)
+    if((depth_0 <= 0.0f))
     {
         return p_0.occlusion_0.y;
     }
@@ -54,13 +54,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
 {
     var _S2 : vec2<i32> = vec2<i32>(id_0.xy);
     var inside_0 : bool;
-    if((_S2.x) >= i32(p_0.size_0.x))
+    if(((_S2.x) >= i32(p_0.size_0.x)))
     {
         inside_0 = true;
     }
     else
     {
-        inside_0 = (_S2.y) >= i32(p_0.size_0.y);
+        inside_0 = ((_S2.y) >= i32(p_0.size_0.y));
     }
     if(inside_0)
     {
@@ -76,29 +76,29 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     {
         ring_0 = 1.0e+09f;
         r_0 = i32(0);
-        for(;;)
+        loop
         {
-            if(r_0 < i32(4))
+            if((r_0 < i32(4)))
             {
             }
             else
             {
                 break;
             }
-            var _S4 : f32 = min(ring_0, dot((textureSampleLevel((uSource_0), (uSourceSampler_0), (saturate(p_0.sun_0.xy + vec2<f32>(f32((r_0 & (i32(1)))) * 2.0f - 1.0f, f32((r_0 >> (u32(1)))) * 2.0f - 1.0f) * vec2<f32>(p_0.size_0.y / p_0.size_0.x, 1.0f) * vec2<f32>(0.03500000014901161f))), (0.0f))).xyz, vec3<f32>(0.2125999927520752f, 0.71520000696182251f, 0.07220000028610229f)));
+            var _S4 : f32 = min(ring_0, dot((textureSampleLevel((uSource_0), (uSourceSampler_0), (saturate(p_0.sun_0.xy + vec2<f32>(f32((r_0 & (i32(1)))) * 2.0f - 1.0f, f32((r_0 >> (u32(1)))) * 2.0f - 1.0f) * vec2<f32>(p_0.size_0.y / p_0.size_0.x, 1.0f) * vec2<f32>(0.035000000149011612f))), (0.0f))).xyz, vec3<f32>(0.2125999927520752f, 0.71520000696182251f, 0.072200000286102295f)));
             var _S5 : i32 = r_0 + i32(1);
             ring_0 = _S4;
             r_0 = _S5;
         }
         var _S6 : f32 = ring_0 * p_0.control_0.y;
-        var _S7 : f32 = max(ring_0 * 4.0f, 0.00009999999747379f);
+        var _S7 : f32 = max(ring_0 * 4.0f, 9.9999997473787516e-05f);
         const _S8 : vec3<f32> = vec3<f32>(0.0f, 0.0f, 0.0f);
         var k_0 : i32 = i32(0);
         var bright_0 : vec3<f32> = _S8;
         open_0 = 0.0f;
-        for(;;)
+        loop
         {
-            if(k_0 < i32(4))
+            if((k_0 < i32(4)))
             {
             }
             else
@@ -108,14 +108,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             var at_0 : vec2<f32> = uv_4 + vec2<f32>(f32((k_0 & (i32(1)))) - 0.5f, f32((k_0 >> (u32(1)))) - 0.5f) * p_0.size_0.zw * _S3;
             var haze_0 : f32 = HazeAt_0(at_0);
             var colour_0 : vec3<f32> = (textureSampleLevel((uSource_0), (uSourceSampler_0), (at_0), (0.0f))).xyz;
-            var luminance_0 : f32 = dot(colour_0, vec3<f32>(0.2125999927520752f, 0.71520000696182251f, 0.07220000028610229f));
-            var bright_1 : vec3<f32> = bright_0 + colour_0 * vec3<f32>((min(max(luminance_0 - _S6, 0.0f), _S7) / max(luminance_0, 0.00009999999747379f) * haze_0));
+            var luminance_0 : f32 = dot(colour_0, vec3<f32>(0.2125999927520752f, 0.71520000696182251f, 0.072200000286102295f));
+            var bright_1 : vec3<f32> = bright_0 + colour_0 * vec3<f32>((min(max(luminance_0 - _S6, 0.0f), _S7) / max(luminance_0, 9.9999997473787516e-05f) * haze_0));
             var open_1 : f32 = open_0 + haze_0;
             k_0 = k_0 + i32(1);
             bright_0 = bright_1;
             open_0 = open_1;
         }
-        textureStore((uTarget_0), (vec2<u32>(_S2)), (vec4<f32>(bright_0 * vec3<f32>((0.25f * pow(saturate(1.0f - SunDistance_0(uv_4) / max(p_0.control_0.z, 0.00100000004749745f)), 2.0f))), open_0 * 0.25f)));
+        textureStore((uTarget_0), (vec2<u32>(_S2)), (vec4<f32>(bright_0 * vec3<f32>((0.25f * pow(saturate(1.0f - SunDistance_0(uv_4) / max(p_0.control_0.z, 0.0010000000474974513f)), 2.0f))), open_0 * 0.25f)));
         return;
     }
     if(mode_0 == i32(1))
@@ -135,9 +135,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         ring_0 = 1.0f;
         var sum_0 : vec4<f32> = _S10;
         open_0 = 0.0f;
-        for(;;)
+        loop
         {
-            if(r_0 < i32(16))
+            if((r_0 < i32(16)))
             {
             }
             else
@@ -145,9 +145,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                 break;
             }
             var tap_0 : vec4<f32> = (textureSampleLevel((uSource_0), (uSourceSampler_0), (at_1), (0.0f)));
-            if((all((at_1 >= vec2<f32>(0.0f, 0.0f)))))
+            if((all(((at_1 >= vec2<f32>(0.0f, 0.0f))))))
             {
-                inside_0 = (all((at_1 <= vec2<f32>(1.0f, 1.0f))));
+                inside_0 = (all(((at_1 <= vec2<f32>(1.0f, 1.0f)))));
             }
             else
             {
@@ -173,7 +173,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             sum_0 = sum_1;
             open_0 = weightSum_0;
         }
-        textureStore((uTarget_0), (vec2<u32>(_S2)), (sum_0 / vec4<f32>(max(open_0, 0.00009999999747379f))));
+        textureStore((uTarget_0), (vec2<u32>(_S2)), (sum_0 / vec4<f32>(max(open_0, 9.9999997473787516e-05f))));
         return;
     }
     var shafts_0 : vec4<f32> = (textureSampleLevel((uShafts_0), (uShaftsSampler_0), (uv_4), (0.0f)));

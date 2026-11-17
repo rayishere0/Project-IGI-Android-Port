@@ -69,7 +69,7 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
 
 fn DecodeSrgb_0( c_0 : vec3<f32>) -> vec3<f32>
 {
-    return mix(pow(max((c_0 + vec3<f32>(0.05499999970197678f)) / vec3<f32>(1.0549999475479126f), vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(2.40000009536743164f, 2.40000009536743164f, 2.40000009536743164f)), c_0 / vec3<f32>(12.92000007629394531f), step(c_0, vec3<f32>(0.04044999927282333f, 0.04044999927282333f, 0.04044999927282333f)));
+    return mix(pow(max((c_0 + vec3<f32>(0.054999999701976776f)) / vec3<f32>(1.0549999475479126f), vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(2.4000000953674316f, 2.4000000953674316f, 2.4000000953674316f)), c_0 / vec3<f32>(12.920000076293945f), step(c_0, vec3<f32>(0.040449999272823334f, 0.040449999272823334f, 0.040449999272823334f)));
 }
 
 fn SampledLinear_0( sampled_0 : vec3<f32>) -> vec3<f32>
@@ -105,7 +105,7 @@ struct pixelInput_0
 fn fragmentMain( _S5 : pixelInput_0, @builtin(position) position_2 : vec4<f32>) -> CardTargets_0
 {
     var diffuse_0 : vec4<f32> = (textureSample((uDiffuse_0), (uDiffuseSampler_0), (_S5.diffuseUv_2)));
-    if((diffuse_0.w) < 0.5f)
+    if(((diffuse_0.w) < 0.5f))
     {
         discard;
     }

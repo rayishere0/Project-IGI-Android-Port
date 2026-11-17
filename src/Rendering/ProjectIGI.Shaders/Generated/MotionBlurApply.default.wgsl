@@ -25,12 +25,12 @@ struct Params_std140_0
 
 fn GradientNoise_0( q_0 : vec2<f32>) -> f32
 {
-    return fract(52.98291778564453125f * fract(0.06711056083440781f * q_0.x + 0.00583714991807938f * q_0.y));
+    return fract(52.982917785644531f * fract(0.067110560834407806f * q_0.x + 0.0058371499180793762f * q_0.y));
 }
 
 fn FrameNoise_0( pos_0 : vec2<f32>,  frame_0 : f32) -> f32
 {
-    return GradientNoise_0(pos_0 + vec2<f32>(frame_0) * vec2<f32>(12.07804298400878906f, 9.11744499206542969f));
+    return GradientNoise_0(pos_0 + vec2<f32>(frame_0) * vec2<f32>(12.078042984008789f, 9.1174449920654297f));
 }
 
 fn InterleavedGradientNoise_0( pos_1 : vec2<f32>,  frame_1 : f32) -> f32
@@ -80,13 +80,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(local_i
     var samples_0 : u32 = atomicLoad(&(sGroupSamples_0));
     var halfSamples_0 : u32 = samples_0 / u32(2);
     var _S6 : bool;
-    if((_S2.x) >= i32(p_0.size_0.x))
+    if(((_S2.x) >= i32(p_0.size_0.x)))
     {
         _S6 = true;
     }
     else
     {
-        _S6 = (_S2.y) >= i32(p_0.size_0.y);
+        _S6 = ((_S2.y) >= i32(p_0.size_0.y));
     }
     if(_S6)
     {
@@ -94,7 +94,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(local_i
     }
     var uv_1 : vec2<f32> = (_S3 + _S4) * p_0.size_0.zw;
     var centre_0 : vec4<f32> = (textureSampleLevel((uColour_0), (uColourSampler_0), (uv_1), (0.0f)));
-    if(speed_0 < 0.5f)
+    if((speed_0 < 0.5f))
     {
         textureStore((uTarget_0), (vec2<u32>(_S2)), (centre_0));
         return;
@@ -105,14 +105,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(local_i
     var sides_0 : f32 = f32(halfSamples_0);
     var s_0 : u32;
     var sum_0 : vec4<f32>;
-    if((dot(slowest_0, slowest_0)) > (0.40000000596046448f * speed_0 * speed_0))
+    if(((dot(slowest_0, slowest_0)) > (0.40000000596046448f * speed_0 * speed_0)))
     {
         const _S10 : vec4<f32> = vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f);
         s_0 = u32(0);
         sum_0 = _S10;
-        for(;;)
+        loop
         {
-            if(s_0 < halfSamples_0)
+            if((s_0 < halfSamples_0))
             {
             }
             else
@@ -135,9 +135,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(local_i
     s_0 = u32(0);
     sum_0 = _S16;
     var weightSum_0 : f32 = 0.0f;
-    for(;;)
+    loop
     {
-        if(s_0 < halfSamples_0)
+        if((s_0 < halfSamples_0))
         {
         }
         else
@@ -156,8 +156,8 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(local_i
         var steps_2 : f32 = _S17 + 0.5f;
         var weightAhead_0 : f32 = SampleWeight_0(_S14, flatAhead_0.xz, steps_2, _S15);
         var weightBehind_0 : f32 = SampleWeight_0(_S14, flatBehind_0.xz, steps_2, _S15);
-        var furtherAhead_0 : bool = (flatAhead_0.z) > (flatBehind_0.z);
-        var slowerAhead_0 : bool = (flatAhead_0.x) < (flatBehind_0.x);
+        var furtherAhead_0 : bool = ((flatAhead_0.z) > (flatBehind_0.z));
+        var slowerAhead_0 : bool = ((flatAhead_0.x) < (flatBehind_0.x));
         if(furtherAhead_0)
         {
             _S6 = slowerAhead_0;

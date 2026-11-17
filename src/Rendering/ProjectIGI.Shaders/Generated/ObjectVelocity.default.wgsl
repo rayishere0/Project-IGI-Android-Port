@@ -78,7 +78,7 @@ struct pixelInput_0
 @fragment
 fn fragmentMain( _S4 : pixelInput_0, @builtin(position) position_2 : vec4<f32>) -> pixelOutput_0
 {
-    if((_S4.previousClip_1.w) < 0.00100000004749745f)
+    if(((_S4.previousClip_1.w) < 0.0010000000474974513f))
     {
         var _S5 : pixelOutput_0 = pixelOutput_0( vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f) );
         return _S5;

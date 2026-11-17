@@ -22,6 +22,10 @@ struct Params_std140_0
 
 @binding(4) @group(0) var uNormal_0 : texture_2d<f32>;
 
+@binding(1) @group(0) var uAccumulatedSampler_0 : sampler;
+
+@binding(5) @group(0) var uNormalSampler_0 : sampler;
+
 fn AccumulatedAt_0( px_0 : vec2<i32>) -> vec4<f32>
 {
     var _S1 : vec3<i32> = vec3<i32>(px_0, i32(0));
@@ -129,13 +133,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var _S41 : vec2<i32> = vec2<i32>(p_0.resolution_0.xy);
     var _S42 : i32 = _S40.x;
     var inPenumbra_0 : bool;
-    if(_S42 >= (_S41.x))
+    if((_S42 >= (_S41.x)))
     {
         inPenumbra_0 = true;
     }
     else
     {
-        inPenumbra_0 = (_S40.y) >= (_S41.y);
+        inPenumbra_0 = ((_S40.y) >= (_S41.y));
     }
     if(inPenumbra_0)
     {
@@ -143,20 +147,20 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     }
     var centre_0 : vec4<f32> = AccumulatedAt_0(_S40);
     var _S43 : f32 = centre_0.y;
-    if(_S43 <= 0.0f)
+    if((_S43 <= 0.0f))
     {
         textureStore((uOutput_0), (vec2<u32>(_S40)), (vec4<f32>(1.0f, 0.0f, 0.0f, 0.0f)));
         return;
     }
     var _S44 : f32 = centre_0.z;
-    if(_S44 <= 0.0f)
+    if((_S44 <= 0.0f))
     {
         textureStore((uOutput_0), (vec2<u32>(_S40)), (vec4<f32>(centre_0.x, _S43, 0.0f, 0.0f)));
         return;
     }
     var depthUv_0 : vec2<f32> = JitteredDepthUv_0(_S40);
     var depth_4 : f32 = DepthBilinear_0(uDepth_0, uDepthSampler_0, depthUv_0);
-    if(depth_4 <= 0.0f)
+    if((depth_4 <= 0.0f))
     {
         textureStore((uOutput_0), (vec2<u32>(_S40)), (vec4<f32>(centre_0.x, _S43, 0.0f, 0.0f)));
         return;
@@ -166,17 +170,17 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var _S46 : vec3<f32> = NormalAt_0(depthUv_0);
     var disocclusion_0 : f32 = 1.0f - saturate((_S44 - 1.0f) * 0.5f);
     var _S47 : vec2<i32> = _S41 - vec2<i32>(i32(1));
-    for(;;)
+    loop
     {
-        for(;;)
+        loop
         {
-            for(;;)
+            loop
             {
-                for(;;)
+                loop
                 {
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var _S48 : vec2<i32> = _S40 + vec2<i32>(i32(-2), i32(-2));
                             const _S49 : vec2<i32> = vec2<i32>(i32(0), i32(0));
@@ -184,14 +188,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                             var tap_0 : vec2<f32> = AccumulatedAt_0(clamp(_S48, _S49, _S47)).xy;
                             var _S50 : f32 = tap_0.y;
                             _S15 = max(_S43, _S50);
-                            if(_S50 <= 0.0f)
+                            if((_S50 <= 0.0f))
                             {
                                 weightSum_0 = 0.0f;
                                 visSum_0 = 0.0f;
                                 visSquares_0 = 0.0f;
                                 break;
                             }
-                            var weight_1 : f32 = exp2(-1.77777779102325439f);
+                            var weight_1 : f32 = exp2(-1.7777777910232544f);
                             var _S51 : f32 = tap_0.x;
                             var _S52 : f32 = _S51 * weight_1;
                             var _S53 : f32 = _S51 * _S51 * weight_1;
@@ -202,18 +206,18 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_1 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(-1), i32(-2)), _S14, _S47)).xy;
                             var _S54 : f32 = tap_1.y;
                             _S16 = max(_S15, _S54);
-                            if(_S54 <= 0.0f)
+                            if((_S54 <= 0.0f))
                             {
                                 break;
                             }
-                            var weight_2 : f32 = exp2(-1.11111116409301758f);
+                            var weight_2 : f32 = exp2(-1.1111111640930176f);
                             var _S55 : f32 = tap_1.x;
                             var visSum_1 : f32 = visSum_0 + _S55 * weight_2;
                             var visSquares_1 : f32 = visSquares_0 + _S55 * _S55 * weight_2;
@@ -224,14 +228,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_2 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(0), i32(-2)), _S14, _S47)).xy;
                             var _S56 : f32 = tap_2.y;
                             _S17 = max(_S16, _S56);
-                            if(_S56 <= 0.0f)
+                            if((_S56 <= 0.0f))
                             {
                                 break;
                             }
@@ -246,18 +250,18 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_3 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(1), i32(-2)), _S14, _S47)).xy;
                             var _S58 : f32 = tap_3.y;
                             _S18 = max(_S17, _S58);
-                            if(_S58 <= 0.0f)
+                            if((_S58 <= 0.0f))
                             {
                                 break;
                             }
-                            var weight_4 : f32 = exp2(-1.11111116409301758f);
+                            var weight_4 : f32 = exp2(-1.1111111640930176f);
                             var _S59 : f32 = tap_3.x;
                             var visSum_3 : f32 = visSum_0 + _S59 * weight_4;
                             var visSquares_3 : f32 = visSquares_0 + _S59 * _S59 * weight_4;
@@ -268,18 +272,18 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_4 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(2), i32(-2)), _S14, _S47)).xy;
                             var _S60 : f32 = tap_4.y;
                             _S19 = max(_S18, _S60);
-                            if(_S60 <= 0.0f)
+                            if((_S60 <= 0.0f))
                             {
                                 break;
                             }
-                            var weight_5 : f32 = exp2(-1.77777779102325439f);
+                            var weight_5 : f32 = exp2(-1.7777777910232544f);
                             var _S61 : f32 = tap_4.x;
                             var visSum_4 : f32 = visSum_0 + _S61 * weight_5;
                             var visSquares_4 : f32 = visSquares_0 + _S61 * _S61 * weight_5;
@@ -296,24 +300,24 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             }
             break;
         }
-        for(;;)
+        loop
         {
-            for(;;)
+            loop
             {
-                for(;;)
+                loop
                 {
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_5 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(-2), i32(-1)), _S14, _S47)).xy;
                             var _S62 : f32 = tap_5.y;
                             _S20 = max(_S19, _S62);
-                            if(_S62 <= 0.0f)
+                            if((_S62 <= 0.0f))
                             {
                                 break;
                             }
-                            var weight_6 : f32 = exp2(-1.11111116409301758f);
+                            var weight_6 : f32 = exp2(-1.1111111640930176f);
                             var _S63 : f32 = tap_5.x;
                             var visSum_5 : f32 = visSum_0 + _S63 * weight_6;
                             var visSquares_5 : f32 = visSquares_0 + _S63 * _S63 * weight_6;
@@ -324,14 +328,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_6 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(-1), i32(-1)), _S14, _S47)).xy;
                             var _S64 : f32 = tap_6.y;
                             _S21 = max(_S20, _S64);
-                            if(_S64 <= 0.0f)
+                            if((_S64 <= 0.0f))
                             {
                                 break;
                             }
@@ -346,14 +350,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_7 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(0), i32(-1)), _S14, _S47)).xy;
                             var _S66 : f32 = tap_7.y;
                             _S22 = max(_S21, _S66);
-                            if(_S66 <= 0.0f)
+                            if((_S66 <= 0.0f))
                             {
                                 break;
                             }
@@ -368,14 +372,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_8 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(1), i32(-1)), _S14, _S47)).xy;
                             var _S68 : f32 = tap_8.y;
                             _S23 = max(_S22, _S68);
-                            if(_S68 <= 0.0f)
+                            if((_S68 <= 0.0f))
                             {
                                 break;
                             }
@@ -390,18 +394,18 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_9 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(2), i32(-1)), _S14, _S47)).xy;
                             var _S70 : f32 = tap_9.y;
                             _S24 = max(_S23, _S70);
-                            if(_S70 <= 0.0f)
+                            if((_S70 <= 0.0f))
                             {
                                 break;
                             }
-                            var weight_10 : f32 = exp2(-1.11111116409301758f);
+                            var weight_10 : f32 = exp2(-1.1111111640930176f);
                             var _S71 : f32 = tap_9.x;
                             var visSum_9 : f32 = visSum_0 + _S71 * weight_10;
                             var visSquares_9 : f32 = visSquares_0 + _S71 * _S71 * weight_10;
@@ -418,20 +422,20 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             }
             break;
         }
-        for(;;)
+        loop
         {
-            for(;;)
+            loop
             {
-                for(;;)
+                loop
                 {
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_10 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(-2), i32(0)), _S14, _S47)).xy;
                             var _S72 : f32 = tap_10.y;
                             _S25 = max(_S24, _S72);
-                            if(_S72 <= 0.0f)
+                            if((_S72 <= 0.0f))
                             {
                                 break;
                             }
@@ -446,14 +450,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_11 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(-1), i32(0)), _S14, _S47)).xy;
                             var _S74 : f32 = tap_11.y;
                             _S26 = max(_S25, _S74);
-                            if(_S74 <= 0.0f)
+                            if((_S74 <= 0.0f))
                             {
                                 break;
                             }
@@ -468,14 +472,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_12 : vec2<f32> = AccumulatedAt_0(clamp(_S40, _S14, _S47)).xy;
                             var _S76 : f32 = tap_12.y;
                             _S27 = max(_S26, _S76);
-                            if(_S76 <= 0.0f)
+                            if((_S76 <= 0.0f))
                             {
                                 break;
                             }
@@ -490,14 +494,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_13 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(1), i32(0)), _S14, _S47)).xy;
                             var _S78 : f32 = tap_13.y;
                             _S28 = max(_S27, _S78);
-                            if(_S78 <= 0.0f)
+                            if((_S78 <= 0.0f))
                             {
                                 break;
                             }
@@ -512,14 +516,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_14 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(2), i32(0)), _S14, _S47)).xy;
                             var _S80 : f32 = tap_14.y;
                             _S29 = max(_S28, _S80);
-                            if(_S80 <= 0.0f)
+                            if((_S80 <= 0.0f))
                             {
                                 break;
                             }
@@ -540,24 +544,24 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             }
             break;
         }
-        for(;;)
+        loop
         {
-            for(;;)
+            loop
             {
-                for(;;)
+                loop
                 {
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_15 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(-2), i32(1)), _S14, _S47)).xy;
                             var _S82 : f32 = tap_15.y;
                             _S30 = max(_S29, _S82);
-                            if(_S82 <= 0.0f)
+                            if((_S82 <= 0.0f))
                             {
                                 break;
                             }
-                            var weight_16 : f32 = exp2(-1.11111116409301758f);
+                            var weight_16 : f32 = exp2(-1.1111111640930176f);
                             var _S83 : f32 = tap_15.x;
                             var visSum_15 : f32 = visSum_0 + _S83 * weight_16;
                             var visSquares_15 : f32 = visSquares_0 + _S83 * _S83 * weight_16;
@@ -568,14 +572,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_16 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(-1), i32(1)), _S14, _S47)).xy;
                             var _S84 : f32 = tap_16.y;
                             _S31 = max(_S30, _S84);
-                            if(_S84 <= 0.0f)
+                            if((_S84 <= 0.0f))
                             {
                                 break;
                             }
@@ -590,14 +594,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_17 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(0), i32(1)), _S14, _S47)).xy;
                             var _S86 : f32 = tap_17.y;
                             _S32 = max(_S31, _S86);
-                            if(_S86 <= 0.0f)
+                            if((_S86 <= 0.0f))
                             {
                                 break;
                             }
@@ -612,14 +616,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_18 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(1), i32(1)), _S14, _S47)).xy;
                             var _S88 : f32 = tap_18.y;
                             _S33 = max(_S32, _S88);
-                            if(_S88 <= 0.0f)
+                            if((_S88 <= 0.0f))
                             {
                                 break;
                             }
@@ -634,18 +638,18 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_19 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(2), i32(1)), _S14, _S47)).xy;
                             var _S90 : f32 = tap_19.y;
                             _S34 = max(_S33, _S90);
-                            if(_S90 <= 0.0f)
+                            if((_S90 <= 0.0f))
                             {
                                 break;
                             }
-                            var weight_20 : f32 = exp2(-1.11111116409301758f);
+                            var weight_20 : f32 = exp2(-1.1111111640930176f);
                             var _S91 : f32 = tap_19.x;
                             var visSum_19 : f32 = visSum_0 + _S91 * weight_20;
                             var visSquares_19 : f32 = visSquares_0 + _S91 * _S91 * weight_20;
@@ -662,24 +666,24 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             }
             break;
         }
-        for(;;)
+        loop
         {
-            for(;;)
+            loop
             {
-                for(;;)
+                loop
                 {
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_20 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(-2), i32(2)), _S14, _S47)).xy;
                             var _S92 : f32 = tap_20.y;
                             _S35 = max(_S34, _S92);
-                            if(_S92 <= 0.0f)
+                            if((_S92 <= 0.0f))
                             {
                                 break;
                             }
-                            var weight_21 : f32 = exp2(-1.77777779102325439f);
+                            var weight_21 : f32 = exp2(-1.7777777910232544f);
                             var _S93 : f32 = tap_20.x;
                             var visSum_20 : f32 = visSum_0 + _S93 * weight_21;
                             var visSquares_20 : f32 = visSquares_0 + _S93 * _S93 * weight_21;
@@ -690,18 +694,18 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_21 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(-1), i32(2)), _S14, _S47)).xy;
                             var _S94 : f32 = tap_21.y;
                             _S36 = max(_S35, _S94);
-                            if(_S94 <= 0.0f)
+                            if((_S94 <= 0.0f))
                             {
                                 break;
                             }
-                            var weight_22 : f32 = exp2(-1.11111116409301758f);
+                            var weight_22 : f32 = exp2(-1.1111111640930176f);
                             var _S95 : f32 = tap_21.x;
                             var visSum_21 : f32 = visSum_0 + _S95 * weight_22;
                             var visSquares_21 : f32 = visSquares_0 + _S95 * _S95 * weight_22;
@@ -712,14 +716,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_22 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(0), i32(2)), _S14, _S47)).xy;
                             var _S96 : f32 = tap_22.y;
                             _S37 = max(_S36, _S96);
-                            if(_S96 <= 0.0f)
+                            if((_S96 <= 0.0f))
                             {
                                 break;
                             }
@@ -734,18 +738,18 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_23 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(1), i32(2)), _S14, _S47)).xy;
                             var _S98 : f32 = tap_23.y;
                             _S38 = max(_S37, _S98);
-                            if(_S98 <= 0.0f)
+                            if((_S98 <= 0.0f))
                             {
                                 break;
                             }
-                            var weight_24 : f32 = exp2(-1.11111116409301758f);
+                            var weight_24 : f32 = exp2(-1.1111111640930176f);
                             var _S99 : f32 = tap_23.x;
                             var visSum_23 : f32 = visSum_0 + _S99 * weight_24;
                             var visSquares_23 : f32 = visSquares_0 + _S99 * _S99 * weight_24;
@@ -756,18 +760,18 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var tap_24 : vec2<f32> = AccumulatedAt_0(clamp(_S40 + vec2<i32>(i32(2), i32(2)), _S14, _S47)).xy;
                             var _S100 : f32 = tap_24.y;
                             _S39 = max(_S38, _S100);
-                            if(_S100 <= 0.0f)
+                            if((_S100 <= 0.0f))
                             {
                                 break;
                             }
-                            var weight_25 : f32 = exp2(-1.77777779102325439f);
+                            var weight_25 : f32 = exp2(-1.7777777910232544f);
                             var _S101 : f32 = tap_24.x;
                             var visSum_24 : f32 = visSum_0 + _S101 * weight_25;
                             var visSquares_24 : f32 = visSquares_0 + _S101 * _S101 * weight_25;
@@ -791,10 +795,10 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var sigma_0 : f32 = sqrt(max(visSquares_0 / _S102 - mean_0 * mean_0, 0.0f)) * mix(1.0f, 2.0f, disocclusion_0);
     var relative_0 : f32 = sigma_0 / max(mean_0, 0.10000000149011612f);
     var _S103 : f32 = viewPos_0.z;
-    var penumbraRadius_0 : f32 = clamp(0.5f * _S39 * (p_0.unproject_0.x * 0.5f * p_0.resolution_0.x / max(_S103, 0.00100000004749745f)), 1.0f, 24.0f);
-    if(mean_0 > 0.01999999955296516f)
+    var penumbraRadius_0 : f32 = clamp(0.5f * _S39 * (p_0.unproject_0.x * 0.5f * p_0.resolution_0.x / max(_S103, 0.0010000000474974513f)), 1.0f, 24.0f);
+    if((mean_0 > 0.019999999552965164f))
     {
-        inPenumbra_0 = mean_0 < 0.98000001907348633f;
+        inPenumbra_0 = (mean_0 < 0.98000001907348633f);
     }
     else
     {
@@ -802,16 +806,16 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     }
     if(inPenumbra_0)
     {
-        inPenumbra_0 = penumbraRadius_0 > 1.5f;
+        inPenumbra_0 = (penumbraRadius_0 > 1.5f);
     }
     else
     {
         inPenumbra_0 = false;
     }
-    var noisy_0 : bool = relative_0 > (mix(0.15000000596046448f, 0.10000000149011612f, disocclusion_0));
+    var noisy_0 : bool = (relative_0 > (mix(0.15000000596046448f, 0.10000000149011612f, disocclusion_0)));
     var _S104 : vec2<f32> = centre_0.xy;
     var _S105 : bool;
-    if((p_0.jitter_0.w) > 0.5f)
+    if(((p_0.jitter_0.w) > 0.5f))
     {
         if(inPenumbra_0)
         {
@@ -848,39 +852,39 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         }
         if(!inPenumbra_0)
         {
-            inPenumbra_0 = _S44 >= 6.0f;
+            inPenumbra_0 = (_S44 >= 6.0f);
         }
         else
         {
             inPenumbra_0 = false;
         }
-        var _S107 : f32 = UnitFloat_0(MixBits_0((((u32((_S42 & (i32(1)))) | (((u32(((_S40.y) & (i32(1)))) << (u32(1))))))) | (((u32(p_0.jitter_0.z) << (u32(2)))))))) * 6.28318548202514648f;
+        var _S107 : f32 = UnitFloat_0(MixBits_0((((u32((_S42 & (i32(1)))) | (((u32(((_S40.y) & (i32(1)))) << (u32(1))))))) | (((u32(p_0.jitter_0.z) << (u32(2)))))))) * 6.2831854820251465f;
         var i_0 : i32 = i32(0);
         result_0 = _S104;
         var total_0 : f32 = 1.0f;
-        for(;;)
+        loop
         {
-            if(i_0 < i32(24))
+            if((i_0 < i32(24)))
             {
             }
             else
             {
                 break;
             }
-            if(i_0 >= _S106)
+            if((i_0 >= _S106))
             {
                 break;
             }
             var _S108 : f32 = f32(i_0);
             var angle_0 : f32 = _S107 + _S108 * 2.3999631404876709f;
             var _S109 : vec2<i32> = vec2<i32>(floor(vec2<f32>(_S40) + vec2<f32>(cos(angle_0), sin(angle_0)) * vec2<f32>((weightSum_0 * sqrt((_S108 + 0.5f) / f32(_S106)))) + vec2<f32>(0.5f)));
-            if((any((_S109 < _S14))))
+            if((any(((_S109 < _S14)))))
             {
                 _S105 = true;
             }
             else
             {
-                _S105 = (any((_S109 >= _S41)));
+                _S105 = (any(((_S109 >= _S41))));
             }
             if(_S105)
             {
@@ -888,25 +892,25 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                 continue;
             }
             var tap_25 : vec2<f32> = AccumulatedAt_0(_S109).xy;
-            if((tap_25.y) <= 0.0f)
+            if(((tap_25.y) <= 0.0f))
             {
                 i_0 = i_0 + i32(1);
                 continue;
             }
             var tapUv_0 : vec2<f32> = JitteredDepthUv_0(_S109);
             var tapDepth_0 : f32 = DepthBilinear_0(uDepth_0, uDepthSampler_0, tapUv_0);
-            if(tapDepth_0 <= 0.0f)
+            if((tapDepth_0 <= 0.0f))
             {
                 i_0 = i_0 + i32(1);
                 continue;
             }
-            var planeDistance_0 : f32 = abs(dot((((vec4<f32>(ViewPositionAt_0(tapUv_0, tapDepth_0, p_0.unproject_0), 0.0f)) * (mat4x4<f32>(p_0.viewToWorld_0.data_0[i32(0)][i32(0)], p_0.viewToWorld_0.data_0[i32(1)][i32(0)], p_0.viewToWorld_0.data_0[i32(2)][i32(0)], p_0.viewToWorld_0.data_0[i32(3)][i32(0)], p_0.viewToWorld_0.data_0[i32(0)][i32(1)], p_0.viewToWorld_0.data_0[i32(1)][i32(1)], p_0.viewToWorld_0.data_0[i32(2)][i32(1)], p_0.viewToWorld_0.data_0[i32(3)][i32(1)], p_0.viewToWorld_0.data_0[i32(0)][i32(2)], p_0.viewToWorld_0.data_0[i32(1)][i32(2)], p_0.viewToWorld_0.data_0[i32(2)][i32(2)], p_0.viewToWorld_0.data_0[i32(3)][i32(2)], p_0.viewToWorld_0.data_0[i32(0)][i32(3)], p_0.viewToWorld_0.data_0[i32(1)][i32(3)], p_0.viewToWorld_0.data_0[i32(2)][i32(3)], p_0.viewToWorld_0.data_0[i32(3)][i32(3)])))).xyz - _S45, _S46)) / max(_S103, 0.00009999999747379f);
+            var planeDistance_0 : f32 = abs(dot((((vec4<f32>(ViewPositionAt_0(tapUv_0, tapDepth_0, p_0.unproject_0), 0.0f)) * (mat4x4<f32>(p_0.viewToWorld_0.data_0[i32(0)][i32(0)], p_0.viewToWorld_0.data_0[i32(1)][i32(0)], p_0.viewToWorld_0.data_0[i32(2)][i32(0)], p_0.viewToWorld_0.data_0[i32(3)][i32(0)], p_0.viewToWorld_0.data_0[i32(0)][i32(1)], p_0.viewToWorld_0.data_0[i32(1)][i32(1)], p_0.viewToWorld_0.data_0[i32(2)][i32(1)], p_0.viewToWorld_0.data_0[i32(3)][i32(1)], p_0.viewToWorld_0.data_0[i32(0)][i32(2)], p_0.viewToWorld_0.data_0[i32(1)][i32(2)], p_0.viewToWorld_0.data_0[i32(2)][i32(2)], p_0.viewToWorld_0.data_0[i32(3)][i32(2)], p_0.viewToWorld_0.data_0[i32(0)][i32(3)], p_0.viewToWorld_0.data_0[i32(1)][i32(3)], p_0.viewToWorld_0.data_0[i32(2)][i32(3)], p_0.viewToWorld_0.data_0[i32(3)][i32(3)])))).xyz - _S45, _S46)) / max(_S103, 9.9999997473787516e-05f);
             var planeWeight_0 : f32 = exp2(-10000.0f * planeDistance_0 * planeDistance_0);
             var normalWeight_0 : f32 = 1.0f - saturate(acos(clamp(dot(_S46, NormalAt_0(tapUv_0)), -1.0f, 1.0f)));
             var valueWeight_0 : f32;
             if(inPenumbra_0)
             {
-                valueWeight_0 = exp2(- abs(centre_0.x - tap_25.x) / max(sigma_0, 0.00100000004749745f));
+                valueWeight_0 = exp2(- abs(centre_0.x - tap_25.x) / max(sigma_0, 0.0010000000474974513f));
             }
             else
             {

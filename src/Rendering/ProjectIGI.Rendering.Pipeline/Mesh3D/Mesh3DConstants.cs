@@ -58,6 +58,15 @@ public static class Mesh3DConstants
     /// <summary>Its blue channel.</summary>
     public const int SunColourBlue = 11;
 
+    /// <summary>The x component of the world-space direction towards the fixed-function sun.</summary>
+    public const int SunDirectionX = 13;
+
+    /// <summary>Its y component.</summary>
+    public const int SunDirectionY = 14;
+
+    /// <summary>Its z component.</summary>
+    public const int SunDirectionZ = 15;
+
     /// <summary>Whether the target holds the scene in linear light, before exposure.</summary>
     /// <remarks>
     /// The lit image a capture's forward pass draws into. Each draw is still composited at the display

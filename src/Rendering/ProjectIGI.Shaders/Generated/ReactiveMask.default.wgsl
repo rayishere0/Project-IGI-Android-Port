@@ -10,13 +10,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var height_0 : u32;
     {var dim = textureDimensions((uMask_0));((width_0)) = dim.x;((height_0)) = dim.y;};
     var _S1 : bool;
-    if((id_0.x) >= width_0)
+    if(((id_0.x) >= width_0))
     {
         _S1 = true;
     }
     else
     {
-        _S1 = (id_0.y) >= height_0;
+        _S1 = ((id_0.y) >= height_0);
     }
     if(_S1)
     {

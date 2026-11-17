@@ -12,6 +12,7 @@ namespace ProjectIGI.Rendering.Mesh3D;
 /// <param name="DetailFade">The terrain's level-of-detail slide.</param>
 /// <param name="TerrainCameraOffset">Where a terrain page sits relative to the camera, for that slide.</param>
 /// <param name="GroundDetail">Whether the lightmap slot holds the ground's detail map.</param>
+/// <param name="ModelSun">Whether this draw is an unbaked model lit by the level's fixed-function sun.</param>
 /// <param name="PaintedSky">Whether this draw is a sky the title painted rather than a surface.</param>
 /// <param name="Exposure">What the resolve will multiply by, which a painted sky is divided by first.</param>
 public readonly record struct GBufferDrawState(
@@ -24,6 +25,7 @@ public readonly record struct GBufferDrawState(
     DetailFade DetailFade = default,
     Vector3f TerrainCameraOffset = default,
     bool GroundDetail = false,
+    bool ModelSun = false,
     bool PaintedSky = false,
     float Exposure = 1f);
 
@@ -57,6 +59,13 @@ public static class GBufferPushBlock
 
     /// <summary>The mode that says this draw is the ground's bake, for the baked attachment.</summary>
     public const float GroundBakeMode = 4f;
+
+    /// <summary>The mode that says this draw is an unbaked model lit by the level's fixed-function sun.</summary>
+    /// <remarks>
+    /// A quarter, between the normal nought and the terrain's one: it trips none of the
+    /// greater-than branches the slot is read with, and no less-than one either.
+    /// </remarks>
+    public const float ModelSunMode = 0.25f;
 
     /// <summary>The mode that says this draw is matte: no specular, no reflection, no standing water.</summary>
     /// <remarks>
@@ -118,7 +127,10 @@ public static class GBufferPushBlock
             // ground's BAKE and belongs in the baked attachment rather than in the colour. Nothing but
             // I.G.I. 2's ground asks for either. Minus one is a matte surface -- a body -- which the
             // ground is already, by its own mode.
-            block[19] = blend == BlendMode.Modulate2X
+            // A quarter is an unbaked model: the fragment stage replaces its neutral bake with the
+            // level's fixed-function sun (see GBuffer.slang).
+            block[19] = state.ModelSun ? ModelSunMode
+                : blend == BlendMode.Modulate2X
                 ? GroundBakeMode
                 : state.GroundDetail ? GroundDetailMode
                 : state.Material.Matte ? MatteMode : 0f;

@@ -55,7 +55,7 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
     var localPosition_0 : vec3<f32> = _S2.position_1 + vec3<f32>(push_0.terrainOffset_0.w) * (_S2.previousPosition_0 - _S2.position_1);
     var localPosition_1 : vec3<f32>;
     var diffuseUv_2 : vec2<f32>;
-    if((push_0.terrainRamp_0.w) > 0.5f)
+    if(((push_0.terrainRamp_0.w) > 0.5f))
     {
         var target_0 : vec3<f32> = localPosition_0 + push_0.terrainOffset_0.xyz + _S2.normal_0;
         var morph_0 : f32 = clamp((max(abs(target_0.x), max(abs(target_0.y), abs(target_0.z))) * push_0.terrainRamp_0.x - push_0.terrainRamp_0.y) * push_0.terrainRamp_0.z, 0.0f, 1.0f);
@@ -75,7 +75,7 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
     output_0.position_0 = clip_0;
     output_0.diffuseUv_0 = diffuseUv_2;
     var _S4 : f32;
-    if((push_0.terrainRamp_0.w) > 0.5f)
+    if(((push_0.terrainRamp_0.w) > 0.5f))
     {
         _S4 = 1.0f;
     }
@@ -98,7 +98,7 @@ struct pixelInput_0
 @fragment
 fn fragmentMain( _S5 : pixelInput_0, @builtin(position) position_2 : vec4<f32>)
 {
-    if(((textureSample((uDiffuse_0), (uDiffuseSampler_0), (_S5.diffuseUv_4))).w * _S5.alpha_1) < cAlphaReference_0)
+    if((((textureSample((uDiffuse_0), (uDiffuseSampler_0), (_S5.diffuseUv_4))).w * _S5.alpha_1) < cAlphaReference_0))
     {
         discard;
     }

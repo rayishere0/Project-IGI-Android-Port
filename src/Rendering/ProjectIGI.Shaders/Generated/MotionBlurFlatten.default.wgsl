@@ -51,7 +51,7 @@ fn ToPolar_0( v_0 : vec2<f32>) -> vec2<f32>
 {
     var len_0 : f32 = length(v_0);
     var _S8 : f32;
-    if(len_0 > 0.0f)
+    if((len_0 > 0.0f))
     {
         _S8 = atan2(v_0.y, v_0.x);
     }
@@ -78,9 +78,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(workgro
 {
     var _S10 : vec2<i32> = vec2<i32>(id_0.xy);
     var inFrame_0 : bool;
-    if((_S10.x) < i32(p_0.size_0.x))
+    if(((_S10.x) < i32(p_0.size_0.x)))
     {
-        inFrame_0 = (_S10.y) < i32(p_0.size_0.y);
+        inFrame_0 = ((_S10.y) < i32(p_0.size_0.y));
     }
     else
     {
@@ -113,21 +113,21 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(workgro
     sSlowest_0[lane_0] = polar_1;
     workgroupBarrier();
     var stride_0 : u32 = u32(128);
-    for(;;)
+    loop
     {
-        if(stride_0 > u32(0))
+        if((stride_0 > u32(0)))
         {
         }
         else
         {
             break;
         }
-        if(lane_0 < stride_0)
+        if((lane_0 < stride_0))
         {
             var fastA_0 : vec2<f32> = sFastest_0[lane_0];
             var _S14 : u32 = lane_0 + stride_0;
             var fastB_0 : vec2<f32> = sFastest_0[_S14];
-            if((sFastest_0[lane_0].x) > (sFastest_0[_S14].x))
+            if(((sFastest_0[lane_0].x) > (sFastest_0[_S14].x)))
             {
                 velocity_0 = fastA_0;
             }
@@ -139,7 +139,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(workgro
             var slowA_0 : vec2<f32> = sSlowest_0[lane_0];
             var slowB_0 : vec2<f32> = sSlowest_0[_S14];
             var _S15 : vec2<f32>;
-            if((sSlowest_0[lane_0].x) > (sSlowest_0[_S14].x))
+            if(((sSlowest_0[lane_0].x) > (sSlowest_0[_S14].x)))
             {
                 _S15 = slowB_0;
             }

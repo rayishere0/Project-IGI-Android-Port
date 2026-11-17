@@ -31,11 +31,6 @@ struct SurfaceSettings_std140_0
 
 @binding(5) @group(0) var uDetailSampler_0 : sampler;
 
-fn rsqrt_0( x_0 : f32) -> f32
-{
-    return 1.0f / sqrt(x_0);
-}
-
 @id(66) override cSamplerDecodes_0 : i32 = i32(0);
 
 @id(64) override cClipYDown_0 : i32 = i32(1);
@@ -83,9 +78,9 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
     var output_0 : Varyings_0;
     var terrain_0 : f32 = push_0.normal0_0.w;
     var ramped_0 : bool;
-    if(terrain_0 > 0.5f)
+    if((terrain_0 > 0.5f))
     {
-        ramped_0 = terrain_0 < 2.5f;
+        ramped_0 = (terrain_0 < 2.5f);
     }
     else
     {
@@ -103,19 +98,19 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
         var morph_1 : f32 = clamp((max(abs(target_0.x), max(abs(target_0.y), abs(target_0.z))) * ramp_0.x - ramp_0.y) * ramp_0.z, 0.0f, 1.0f);
         var localPosition_2 : vec3<f32> = localPosition_0 + _S2.normal_0 * vec3<f32>(morph_1);
         var selector_0 : f32 = _S2.colorBgra_0.w * 3.0f;
-        if(selector_0 < 0.5f)
+        if((selector_0 < 0.5f))
         {
             morph_0 = 0.0f;
         }
         else
         {
-            if(selector_0 < 1.5f)
+            if((selector_0 < 1.5f))
             {
                 morph_0 = morph_1;
             }
             else
             {
-                if(selector_0 < 2.5f)
+                if((selector_0 < 2.5f))
                 {
                     morph_0 = 1.0f - morph_1;
                 }
@@ -125,14 +120,14 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
                 }
             }
         }
-        if(terrain_0 > 2.5f)
+        if((terrain_0 > 2.5f))
         {
             morph_0 = 1.0f;
         }
         else
         {
             var _S4 : f32;
-            if(terrain_0 > 1.5f)
+            if((terrain_0 > 1.5f))
             {
                 _S4 = 1.0f - morph_1;
             }
@@ -161,7 +156,7 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
     var rotate2_0 : vec3<f32> = push_0.normal2_0.xyz;
     var posedNormal_0 : vec3<f32> = _S2.normal_0 + _S3 * (_S2.previousNormal_0 - _S2.normal_0);
     var localNormal_0 : vec3<f32>;
-    if((_S2.surfaceNormal_0.w) > 0.5f)
+    if(((_S2.surfaceNormal_0.w) > 0.5f))
     {
         localNormal_0 = _S2.surfaceNormal_0.xyz * vec3<f32>(2.0f) - vec3<f32>(1.0f);
     }
@@ -214,7 +209,7 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
 
 fn DecodeSrgb_0( c_0 : vec3<f32>) -> vec3<f32>
 {
-    return mix(pow(max((c_0 + vec3<f32>(0.05499999970197678f)) / vec3<f32>(1.0549999475479126f), vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(2.40000009536743164f, 2.40000009536743164f, 2.40000009536743164f)), c_0 / vec3<f32>(12.92000007629394531f), step(c_0, vec3<f32>(0.04044999927282333f, 0.04044999927282333f, 0.04044999927282333f)));
+    return mix(pow(max((c_0 + vec3<f32>(0.054999999701976776f)) / vec3<f32>(1.0549999475479126f), vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(2.4000000953674316f, 2.4000000953674316f, 2.4000000953674316f)), c_0 / vec3<f32>(12.920000076293945f), step(c_0, vec3<f32>(0.040449999272823334f, 0.040449999272823334f, 0.040449999272823334f)));
 }
 
 fn SampledLinear_0( sampled_0 : vec3<f32>) -> vec3<f32>
@@ -231,6 +226,24 @@ fn SampledLinear_0( sampled_0 : vec3<f32>) -> vec3<f32>
     return _S8;
 }
 
+@id(13) override cSunDirectionX_0 : f32 = 0.0f;
+
+@id(14) override cSunDirectionY_0 : f32 = 0.0f;
+
+@id(15) override cSunDirectionZ_0 : f32 = 0.0f;
+
+@id(6) override cSunAmbientRed_0 : f32 = 0.0f;
+
+@id(7) override cSunAmbientGreen_0 : f32 = 0.0f;
+
+@id(8) override cSunAmbientBlue_0 : f32 = 0.0f;
+
+@id(9) override cSunRed_0 : f32 = 0.0f;
+
+@id(10) override cSunGreen_0 : f32 = 0.0f;
+
+@id(11) override cSunBlue_0 : f32 = 0.0f;
+
 fn CotangentFrame_0( normal_1 : vec3<f32>,  position_2 : vec3<f32>,  uv_0 : vec2<f32>,  tangentAxis_0 : ptr<function, vec3<f32>>,  bitangentAxis_0 : ptr<function, vec3<f32>>)
 {
     var dUvX_0 : vec2<f32> = dpdx(uv_0);
@@ -239,7 +252,7 @@ fn CotangentFrame_0( normal_1 : vec3<f32>,  position_2 : vec3<f32>,  uv_0 : vec2
     var crossX_0 : vec3<f32> = cross(normal_1, dpdx(position_2));
     var tangent_0 : vec3<f32> = crossY_0 * vec3<f32>(dUvX_0.x) + crossX_0 * vec3<f32>(dUvY_0.x);
     var bitangent_0 : vec3<f32> = crossY_0 * vec3<f32>(dUvX_0.y) + crossX_0 * vec3<f32>(dUvY_0.y);
-    var _S9 : vec3<f32> = vec3<f32>(rsqrt_0(max(max(dot(tangent_0, tangent_0), dot(bitangent_0, bitangent_0)), 9.99999993922529029e-09f)));
+    var _S9 : vec3<f32> = vec3<f32>(inverseSqrt(max(max(dot(tangent_0, tangent_0), dot(bitangent_0, bitangent_0)), 9.99999993922529029e-09f)));
     (*tangentAxis_0) = tangent_0 * _S9;
     (*bitangentAxis_0) = bitangent_0 * _S9;
     return;
@@ -287,9 +300,9 @@ fn fragmentMain( _S11 : pixelInput_0, @builtin(position) position_3 : vec4<f32>)
     var alpha_0 : f32 = diffuse_0.w * _S11.color_1.w;
     var alphaGradient_0 : f32 = (fwidth((alpha_0)));
     var _S12 : bool;
-    if((push_0.normal2_0.w) > 0.0f)
+    if(((push_0.normal2_0.w) > 0.0f))
     {
-        _S12 = alphaGradient_0 > 0.0020000000949949f;
+        _S12 = (alphaGradient_0 > 0.0020000000949949026f);
     }
     else
     {
@@ -297,14 +310,14 @@ fn fragmentMain( _S11 : pixelInput_0, @builtin(position) position_3 : vec4<f32>)
     }
     if(_S12)
     {
-        if((fract(sin(dot(position_3.xy, vec2<f32>(12.98980045318603516f, 78.233001708984375f)) + push_0.normal2_0.w) * 43758.546875f)) > (clamp((alpha_0 - cAlphaReference_0) / alphaGradient_0 + 0.5f, 0.0f, 1.0f)))
+        if(((fract(sin(dot(position_3.xy, vec2<f32>(12.989800453186035f, 78.233001708984375f)) + push_0.normal2_0.w) * 43758.546875f)) > (clamp((alpha_0 - cAlphaReference_0) / alphaGradient_0 + 0.5f, 0.0f, 1.0f))))
         {
             discard;
         }
     }
     else
     {
-        if(alpha_0 < cAlphaReference_0)
+        if((alpha_0 < cAlphaReference_0))
         {
             discard;
         }
@@ -313,7 +326,7 @@ fn fragmentMain( _S11 : pixelInput_0, @builtin(position) position_3 : vec4<f32>)
     var albedo_0 : vec3<f32> = _S13 * vec3<f32>(_S11.fade_1);
     var _S14 : vec3<f32> = SampledLinear_0((textureSample((uLightmap_0), (uLightmapSampler_0), (_S11.lightmapUv_2))).xyz);
     var _S15 : vec3<f32> = _S14 * vec3<f32>(push_0.material_0.w);
-    if((push_0.normal0_0.w) > 3.5f)
+    if(((push_0.normal0_0.w) > 3.5f))
     {
         const _S16 : vec4<f32> = vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f);
         output_1.baseColour_0 = _S16;
@@ -324,7 +337,7 @@ fn fragmentMain( _S11 : pixelInput_0, @builtin(position) position_3 : vec4<f32>)
     }
     var baked_1 : vec3<f32>;
     var albedo_1 : vec3<f32>;
-    if((push_0.normal0_0.w) > 2.5f)
+    if(((push_0.normal0_0.w) > 2.5f))
     {
         var albedo_2 : vec3<f32> = albedo_0 * _S14;
         baked_1 = vec3<f32>(push_0.material_0.w, push_0.material_0.w, push_0.material_0.w);
@@ -336,13 +349,29 @@ fn fragmentMain( _S11 : pixelInput_0, @builtin(position) position_3 : vec4<f32>)
         albedo_1 = albedo_0;
     }
     var normal_3 : vec3<f32> = normalize(_S11.worldNormal_2);
-    var matte_0 : bool = (push_0.normal0_0.w) < -0.5f;
+    if(((push_0.normal0_0.w) > 0.10000000149011612f))
+    {
+        _S12 = ((push_0.normal0_0.w) < 0.5f);
+    }
+    else
+    {
+        _S12 = false;
+    }
+    if(_S12)
+    {
+        const sunDirection_0 : vec3<f32> = vec3<f32>(cSunDirectionX_0, cSunDirectionY_0, cSunDirectionZ_0);
+        if(((dot(sunDirection_0, sunDirection_0)) > 9.99999993922529029e-09f))
+        {
+            baked_1 = clamp(vec3<f32>(cSunAmbientRed_0, cSunAmbientGreen_0, cSunAmbientBlue_0) + vec3<f32>(cSunRed_0, cSunGreen_0, cSunBlue_0) * vec3<f32>(max(dot(normal_3, normalize(sunDirection_0)), 0.0f)), vec3<f32>(0.0f), vec3<f32>(1.0f));
+        }
+    }
+    var matte_0 : bool = ((push_0.normal0_0.w) < -0.5f);
     var roughness_1 : f32 = push_0.material_0.x;
     var _S17 : f32 = push_0.material_0.y;
     var normal_4 : vec3<f32>;
     var roughness_2 : f32;
     var occlusion_0 : f32;
-    if((frame_0.surface_0.x) > 0.0f)
+    if(((frame_0.surface_0.x) > 0.0f))
     {
         var detail_0 : vec4<f32> = (textureSample((uDetail_0), (uDetailSampler_0), (_S11.diffuseUv_2)));
         var _S18 : vec3<f32> = vec3<f32>(detail_0.xy * vec2<f32>(2.0f) - vec2<f32>(1.0f), 0.0f);
@@ -352,7 +381,7 @@ fn fragmentMain( _S11 : pixelInput_0, @builtin(position) position_3 : vec4<f32>)
         var tangentAxis_1 : vec3<f32>;
         var bitangentAxis_1 : vec3<f32>;
         CotangentFrame_0(normal_3, _S11.surfacePosition_1, _S11.diffuseUv_2, &(tangentAxis_1), &(bitangentAxis_1));
-        var _S20 : f32 = clamp(roughness_1 * mix(1.0f, detail_0.z * 2.0f, saturate(frame_0.surface_0.x)), 0.01999999955296516f, 1.0f);
+        var _S20 : f32 = clamp(roughness_1 * mix(1.0f, detail_0.z * 2.0f, saturate(frame_0.surface_0.x)), 0.019999999552965164f, 1.0f);
         var _S21 : f32 = detail_0.w;
         normal_4 = normalize(mix(normal_3, tangentAxis_1 * vec3<f32>(tangentNormal_0.x) + bitangentAxis_1 * vec3<f32>(tangentNormal_0.y) + normal_3 * vec3<f32>(tangentNormal_0.z), vec3<f32>(frame_0.surface_0.x)));
         roughness_2 = _S20;
@@ -382,7 +411,7 @@ fn fragmentMain( _S11 : pixelInput_0, @builtin(position) position_3 : vec4<f32>)
     output_1.baseColour_0 = vec4<f32>(albedo_1, occlusion_0);
     output_1.normal_2 = EncodeGBufferNormal_0(normal_4, 0.0f);
     var shadingModel_1 : i32;
-    if((push_0.material_0.z) > 0.0f)
+    if(((push_0.material_0.z) > 0.0f))
     {
         shadingModel_1 = i32(0);
     }
@@ -399,7 +428,7 @@ fn fragmentMain( _S11 : pixelInput_0, @builtin(position) position_3 : vec4<f32>)
         roughness_2 = 0.5f;
     }
     var specular_1 : f32;
-    if((push_0.normal0_0.w) > 0.5f)
+    if(((push_0.normal0_0.w) > 0.5f))
     {
         specular_1 = 0.0f;
         roughness_2 = 1.0f;

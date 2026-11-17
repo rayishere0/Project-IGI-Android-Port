@@ -13,8 +13,8 @@ struct OcclusionPush_std140_0
 @binding(0) @group(3) var<uniform> push_0 : OcclusionPush_std140_0;
 @id(64) override cClipYDown_0 : i32 = i32(1);
 
-var<private> kCorners_0 : array<vec3<f32>, i32(8)> = array<vec3<f32>, i32(8)>( vec3<f32>(0.0f, 0.0f, 0.0f), vec3<f32>(1.0f, 0.0f, 0.0f), vec3<f32>(1.0f, 1.0f, 0.0f), vec3<f32>(0.0f, 1.0f, 0.0f), vec3<f32>(0.0f, 0.0f, 1.0f), vec3<f32>(1.0f, 0.0f, 1.0f), vec3<f32>(1.0f, 1.0f, 1.0f), vec3<f32>(0.0f, 1.0f, 1.0f) );
-var<private> kIndices_0 : array<i32, i32(36)> = array<i32, i32(36)>( i32(0), i32(2), i32(1), i32(0), i32(3), i32(2), i32(4), i32(5), i32(6), i32(4), i32(6), i32(7), i32(0), i32(1), i32(5), i32(0), i32(5), i32(4), i32(1), i32(2), i32(6), i32(1), i32(6), i32(5), i32(2), i32(3), i32(7), i32(2), i32(7), i32(6), i32(3), i32(0), i32(4), i32(3), i32(4), i32(7) );
+const kCorners_0 : array<vec3<f32>, i32(8)> = array<vec3<f32>, i32(8)>( vec3<f32>(0.0f, 0.0f, 0.0f), vec3<f32>(1.0f, 0.0f, 0.0f), vec3<f32>(1.0f, 1.0f, 0.0f), vec3<f32>(0.0f, 1.0f, 0.0f), vec3<f32>(0.0f, 0.0f, 1.0f), vec3<f32>(1.0f, 0.0f, 1.0f), vec3<f32>(1.0f, 1.0f, 1.0f), vec3<f32>(0.0f, 1.0f, 1.0f) );
+const kIndices_0 : array<i32, i32(36)> = array<i32, i32(36)>( i32(0), i32(2), i32(1), i32(0), i32(3), i32(2), i32(4), i32(5), i32(6), i32(4), i32(6), i32(7), i32(0), i32(1), i32(5), i32(0), i32(5), i32(4), i32(1), i32(2), i32(6), i32(1), i32(6), i32(5), i32(2), i32(3), i32(7), i32(2), i32(7), i32(6), i32(3), i32(0), i32(4), i32(3), i32(4), i32(7) );
 fn OpenIgiClipY_0( y_0 : f32) -> f32
 {
     var _S1 : f32;

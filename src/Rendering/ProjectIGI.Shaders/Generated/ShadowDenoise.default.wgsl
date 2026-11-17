@@ -22,7 +22,9 @@ struct Params_std140_0
 
 @binding(9) @group(0) var uNormalSampler_0 : sampler;
 
-var<private> kSampleSet_0 : array<vec2<f32>, i32(8)> = array<vec2<f32>, i32(8)>( vec2<f32>(0.93999999761581421f, 0.34200000762939453f), vec2<f32>(-0.9649999737739563f, -0.26199999451637268f), vec2<f32>(0.13500000536441803f, -0.42899999022483826f), vec2<f32>(-0.13699999451637268f, 0.42899999022483826f), vec2<f32>(0.34900000691413879f, -0.93699997663497925f), vec2<f32>(-0.27399998903274536f, 0.96200001239776611f), vec2<f32>(-0.40700000524520874f, -0.19200000166893005f), vec2<f32>(0.43500000238418579f, 0.11599999666213989f) );
+@binding(5) @group(0) var uHistorySampler_0 : sampler;
+
+const kSampleSet_0 : array<vec2<f32>, i32(8)> = array<vec2<f32>, i32(8)>( vec2<f32>(0.93999999761581421f, 0.34200000762939453f), vec2<f32>(-0.9649999737739563f, -0.26199999451637268f), vec2<f32>(0.13500000536441803f, -0.42899999022483826f), vec2<f32>(-0.13699999451637268f, 0.42899999022483826f), vec2<f32>(0.34900000691413879f, -0.93699997663497925f), vec2<f32>(-0.27399998903274536f, 0.96200001239776611f), vec2<f32>(-0.40700000524520874f, -0.19200000166893005f), vec2<f32>(0.43500000238418579f, 0.11599999666213989f) );
 fn ViewDepthAt_0( depth_0 : f32,  unproject_1 : vec4<f32>) -> f32
 {
     var _S1 : f32 = unproject_1.z;
@@ -38,13 +40,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var _S4 : vec2<i32> = vec2<i32>(p_0.size_0.xy);
     var _S5 : i32 = _S3.x;
     var _S6 : bool;
-    if(_S5 >= (_S4.x))
+    if((_S5 >= (_S4.x)))
     {
         _S6 = true;
     }
     else
     {
-        _S6 = (_S3.y) >= (_S4.y);
+        _S6 = ((_S3.y) >= (_S4.y));
     }
     if(_S6)
     {
@@ -56,13 +58,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var _S8 : vec3<f32> = vec3<f32>(2.0f);
     var _S9 : vec3<f32> = vec3<f32>(1.0f);
     var _S10 : vec3<f32> = normalize((textureLoad((uNormal_0), ((_S7)).xy, ((_S7)).z)).xyz * _S8 - _S9);
-    if(centreDepth_0 <= 0.0f)
+    if((centreDepth_0 <= 0.0f))
     {
         _S6 = true;
     }
     else
     {
-        _S6 = (centre_0.y) <= 0.0f;
+        _S6 = ((centre_0.y) <= 0.0f);
     }
     if(_S6)
     {
@@ -70,10 +72,10 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         textureStore((uShadow_0), (vec2<u32>(_S3)), (vec4<f32>(_S11, _S11, _S11, _S11)));
         return;
     }
-    var _S12 : f32 = max(ViewDepthAt_0(centreDepth_0, p_0.unproject_0), 0.00009999999747379f);
+    var _S12 : f32 = max(ViewDepthAt_0(centreDepth_0, p_0.unproject_0), 9.9999997473787516e-05f);
     var pixelRadius_0 : f32 = p_0.sun_0.x * centre_0.y * p_0.unproject_0.x * (0.5f * p_0.size_0.x) / _S12;
     var pixelRadius_1 : f32 = mix(pixelRadius_0, max(2.0f, 0.34999999403953552f * pixelRadius_0), smoothstep(0.25f, 0.89999997615814209f, clamp((textureLoad((uHistory_0), ((_S7)).xy, ((_S7)).z)).z * p_0.sun_0.y, 0.0f, 1.0f)));
-    if(pixelRadius_1 < 0.5f)
+    if((pixelRadius_1 < 0.5f))
     {
         var _S13 : f32 = centre_0.x;
         textureStore((uShadow_0), (vec2<u32>(_S3)), (vec4<f32>(_S13, _S13, _S13, _S13)));
@@ -88,9 +90,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var i_0 : i32 = i32(0);
     var visibility_0 : f32 = _S17;
     var weightSum_0 : f32 = 1.0f;
-    for(;;)
+    loop
     {
-        if(i_0 < i32(8))
+        if((i_0 < i32(8)))
         {
         }
         else
@@ -101,9 +103,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         var tapVisibility_0 : f32 = (textureSampleLevel((uRaw_0), (uRawSampler_0), (tapUv_0), (0.0f))).x;
         var tapDepth_0 : f32 = (textureSampleLevel((uDepth_0), (uDepthSampler_0), (tapUv_0), (0.0f))).x;
         var tapViewZ_0 : f32 = ViewDepthAt_0(tapDepth_0, p_0.unproject_0);
-        if(tapDepth_0 > 0.0f)
+        if((tapDepth_0 > 0.0f))
         {
-            _S6 = (abs(tapViewZ_0 - _S12)) < (_S12 * 0.01999999955296516f);
+            _S6 = ((abs(tapViewZ_0 - _S12)) < (_S12 * 0.019999999552965164f));
         }
         else
         {

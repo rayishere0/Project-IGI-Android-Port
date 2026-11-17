@@ -30,7 +30,7 @@ fn DepthAt_0( px_0 : vec2<i32>,  size_1 : vec2<i32>) -> f32
     var _S1 : vec3<i32> = vec3<i32>(clamp(px_0, vec2<i32>(i32(0), i32(0)), size_1 - vec2<i32>(i32(1))), i32(0));
     var d_0 : f32 = (textureLoad((uDepth_0), ((_S1)).xy, ((_S1)).z));
     var _S2 : f32;
-    if(d_0 <= 0.0f)
+    if((d_0 <= 0.0f))
     {
         _S2 = p_0.unproject_0.w;
     }
@@ -44,7 +44,7 @@ fn DepthAt_0( px_0 : vec2<i32>,  size_1 : vec2<i32>) -> f32
 fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
 {
     var _S3 : vec3<i32> = vec3<i32>(clamp(c_0, vec2<i32>(i32(0), i32(0)), size_2 - vec2<i32>(i32(1))), i32(0));
-    if((textureLoad((uDepth_0), ((_S3)).xy, ((_S3)).z)) <= 0.0f)
+    if(((textureLoad((uDepth_0), ((_S3)).xy, ((_S3)).z)) <= 0.0f))
     {
         return 0.0f;
     }
@@ -63,7 +63,7 @@ fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
     d_1[i32(8)] = DepthAt_0(c_0 + vec2<i32>(i32(1), i32(1)), size_2);
     var tolerance_0 : f32 = _S6 * p_0.control_0.x;
     var horizontal_0 : f32;
-    if((_S4 - _S5) > tolerance_0)
+    if(((_S4 - _S5) > tolerance_0))
     {
         horizontal_0 = 1.0f;
     }
@@ -72,7 +72,7 @@ fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
         horizontal_0 = 0.0f;
     }
     var vertical_0 : f32;
-    if((d_1[i32(6)] - d_1[i32(3)]) > tolerance_0)
+    if(((d_1[i32(6)] - d_1[i32(3)]) > tolerance_0))
     {
         vertical_0 = 1.0f;
     }
@@ -81,7 +81,7 @@ fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
         vertical_0 = 0.0f;
     }
     var h_0 : f32 = horizontal_0 + vertical_0;
-    if((d_1[i32(0)] - d_1[i32(1)]) > tolerance_0)
+    if(((d_1[i32(0)] - d_1[i32(1)]) > tolerance_0))
     {
         horizontal_0 = 1.0f;
     }
@@ -89,7 +89,7 @@ fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
     {
         horizontal_0 = 0.0f;
     }
-    if((d_1[i32(2)] - d_1[i32(1)]) > tolerance_0)
+    if(((d_1[i32(2)] - d_1[i32(1)]) > tolerance_0))
     {
         vertical_0 = 1.0f;
     }
@@ -98,7 +98,7 @@ fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
         vertical_0 = 0.0f;
     }
     var v_0 : f32 = horizontal_0 + vertical_0;
-    if((d_1[i32(1)] - d_1[i32(4)]) > tolerance_0)
+    if(((d_1[i32(1)] - d_1[i32(4)]) > tolerance_0))
     {
         horizontal_0 = 1.0f;
     }
@@ -106,7 +106,7 @@ fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
     {
         horizontal_0 = 0.0f;
     }
-    if((d_1[i32(7)] - d_1[i32(4)]) > tolerance_0)
+    if(((d_1[i32(7)] - d_1[i32(4)]) > tolerance_0))
     {
         vertical_0 = 1.0f;
     }
@@ -115,7 +115,7 @@ fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
         vertical_0 = 0.0f;
     }
     var h_1 : f32 = horizontal_0 + vertical_0;
-    if((d_1[i32(3)] - d_1[i32(4)]) > tolerance_0)
+    if(((d_1[i32(3)] - d_1[i32(4)]) > tolerance_0))
     {
         horizontal_0 = 1.0f;
     }
@@ -123,7 +123,7 @@ fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
     {
         horizontal_0 = 0.0f;
     }
-    if((d_1[i32(5)] - d_1[i32(4)]) > tolerance_0)
+    if(((d_1[i32(5)] - d_1[i32(4)]) > tolerance_0))
     {
         vertical_0 = 1.0f;
     }
@@ -132,7 +132,7 @@ fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
         vertical_0 = 0.0f;
     }
     var v_1 : f32 = horizontal_0 + vertical_0;
-    if((d_1[i32(2)] - d_1[i32(5)]) > tolerance_0)
+    if(((d_1[i32(2)] - d_1[i32(5)]) > tolerance_0))
     {
         horizontal_0 = 1.0f;
     }
@@ -140,7 +140,7 @@ fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
     {
         horizontal_0 = 0.0f;
     }
-    if((d_1[i32(8)] - d_1[i32(5)]) > tolerance_0)
+    if(((d_1[i32(8)] - d_1[i32(5)]) > tolerance_0))
     {
         vertical_0 = 1.0f;
     }
@@ -149,7 +149,7 @@ fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
         vertical_0 = 0.0f;
     }
     var h_2 : f32 = horizontal_0 + vertical_0;
-    if((d_1[i32(6)] - d_1[i32(7)]) > tolerance_0)
+    if(((d_1[i32(6)] - d_1[i32(7)]) > tolerance_0))
     {
         horizontal_0 = 1.0f;
     }
@@ -157,7 +157,7 @@ fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
     {
         horizontal_0 = 0.0f;
     }
-    if((d_1[i32(8)] - d_1[i32(7)]) > tolerance_0)
+    if(((d_1[i32(8)] - d_1[i32(7)]) > tolerance_0))
     {
         vertical_0 = 1.0f;
     }
@@ -166,7 +166,7 @@ fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
         vertical_0 = 0.0f;
     }
     var v_2 : f32 = horizontal_0 + vertical_0;
-    if(h_1 < 2.0f)
+    if((h_1 < 2.0f))
     {
         horizontal_0 = 0.0f;
     }
@@ -174,7 +174,7 @@ fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
     {
         horizontal_0 = saturate((h_0 + h_2 - 2.0f) * 0.5f);
     }
-    if(v_1 < 2.0f)
+    if((v_1 < 2.0f))
     {
         vertical_0 = 0.0f;
     }
@@ -183,8 +183,8 @@ fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
         vertical_0 = saturate((v_0 + v_2 - 2.0f) * 0.5f);
     }
     var ridge_0 : f32 = saturate(horizontal_0 + vertical_0);
-    var _S7 : bool = (abs(d_1[i32(4)] - d_1[i32(3)])) > tolerance_0;
-    var differs_0 : bool = (abs(d_1[i32(4)] - d_1[i32(0)])) > tolerance_0;
+    var _S7 : bool = ((abs(d_1[i32(4)] - d_1[i32(3)])) > tolerance_0);
+    var differs_0 : bool = ((abs(d_1[i32(4)] - d_1[i32(0)])) > tolerance_0);
     var transitions_0 : i32;
     if(differs_0 != _S7)
     {
@@ -194,32 +194,32 @@ fn LineAt_0( c_0 : vec2<i32>,  size_2 : vec2<i32>) -> f32
     {
         transitions_0 = i32(0);
     }
-    var differs_1 : bool = (abs(d_1[i32(4)] - d_1[i32(1)])) > tolerance_0;
+    var differs_1 : bool = ((abs(d_1[i32(4)] - d_1[i32(1)])) > tolerance_0);
     if(differs_1 != differs_0)
     {
         transitions_0 = transitions_0 + i32(1);
     }
-    var differs_2 : bool = (abs(d_1[i32(4)] - d_1[i32(2)])) > tolerance_0;
+    var differs_2 : bool = ((abs(d_1[i32(4)] - d_1[i32(2)])) > tolerance_0);
     if(differs_2 != differs_1)
     {
         transitions_0 = transitions_0 + i32(1);
     }
-    var differs_3 : bool = (abs(d_1[i32(4)] - d_1[i32(5)])) > tolerance_0;
+    var differs_3 : bool = ((abs(d_1[i32(4)] - d_1[i32(5)])) > tolerance_0);
     if(differs_3 != differs_2)
     {
         transitions_0 = transitions_0 + i32(1);
     }
-    var differs_4 : bool = (abs(d_1[i32(4)] - d_1[i32(8)])) > tolerance_0;
+    var differs_4 : bool = ((abs(d_1[i32(4)] - d_1[i32(8)])) > tolerance_0);
     if(differs_4 != differs_3)
     {
         transitions_0 = transitions_0 + i32(1);
     }
-    var differs_5 : bool = (abs(d_1[i32(4)] - d_1[i32(7)])) > tolerance_0;
+    var differs_5 : bool = ((abs(d_1[i32(4)] - d_1[i32(7)])) > tolerance_0);
     if(differs_5 != differs_4)
     {
         transitions_0 = transitions_0 + i32(1);
     }
-    var differs_6 : bool = (abs(d_1[i32(4)] - d_1[i32(6)])) > tolerance_0;
+    var differs_6 : bool = ((abs(d_1[i32(4)] - d_1[i32(6)])) > tolerance_0);
     if(differs_6 != differs_5)
     {
         transitions_0 = transitions_0 + i32(1);
@@ -240,9 +240,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(workgro
     const _S10 : vec2<i32> = vec2<i32>(i32(1), i32(1));
     var _S11 : vec2<i32> = vec2<i32>(groupId_0.xy) * vec2<i32>(i32(8)) - _S10;
     var i_0 : u32 = localIndex_0;
-    for(;;)
+    loop
     {
-        if(i_0 < u32(100))
+        if((i_0 < u32(100)))
         {
         }
         else
@@ -255,20 +255,20 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(workgro
     }
     workgroupBarrier();
     var _S13 : bool;
-    if((_S8.x) >= (_S9.x))
+    if(((_S8.x) >= (_S9.x)))
     {
         _S13 = true;
     }
     else
     {
-        _S13 = (_S8.y) >= (_S9.y);
+        _S13 = ((_S8.y) >= (_S9.y));
     }
     if(_S13)
     {
         return;
     }
     var believable_0 : f32;
-    if((p_0.control_0.z) > 0.5f)
+    if(((p_0.control_0.z) > 0.5f))
     {
         var _S14 : vec3<i32> = vec3<i32>(_S8, i32(0));
         believable_0 = (textureLoad((uRejection_0), ((_S14)).xy, ((_S14)).z)).x;
@@ -285,7 +285,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(workgro
     var _S20 : i32 = (_S16 + i32(1)) * i32(10) + _S17;
     var _S21 : f32 = max(max(max(max(max(max(max(max(max(0.0f, sLine_0[_S18 + i32(-1)]), sLine_0[_S18]), sLine_0[_S18 + i32(1)]), sLine_0[_S19 + i32(-1)]), sLine_0[_S19]), sLine_0[_S19 + i32(1)]), sLine_0[_S20 + i32(-1)]), sLine_0[_S20]), sLine_0[_S20 + i32(1)]);
     var speedPx_0 : f32;
-    if((p_0.control_0.w) > 0.5f)
+    if(((p_0.control_0.w) > 0.5f))
     {
         speedPx_0 = length((textureSampleLevel((uVelocity_0), (uVelocitySampler_0), ((vec2<f32>(_S8) + vec2<f32>(0.5f)) * p_0.size_0.zw), (0.0f))).xy * p_0.size_0.xy);
     }

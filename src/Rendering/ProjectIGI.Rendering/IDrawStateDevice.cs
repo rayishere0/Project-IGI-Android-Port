@@ -111,6 +111,22 @@ public interface IDrawStateDevice
         _ = colour;
     }
 
+    /// <summary>Sets the world-space direction towards the level's fixed-function sun.</summary>
+    /// <param name="direction">The unit vector towards the light, in world space; zero when the level authors none.</param>
+    /// <remarks>
+    /// <para>
+    /// Only the deferred path reads it: the G-buffer's normals are world-space, so the direction is
+    /// a level constant there, alongside <see cref="SetSceneSun"/>'s colours. The forward path applies
+    /// the same direction per draw in each object's own space instead (see
+    /// <see cref="IGraphicsDevice.SetVertexSun"/>), which is why <see cref="SetSceneSun"/>'s own
+    /// remarks say the direction is not a level constant -- that holds for the forward path alone.
+    /// </para>
+    /// </remarks>
+    void SetSunDirection(Vector3f direction)
+    {
+        _ = direction;
+    }
+
     /// <summary>Sets how the following draws respond to light.</summary>
     /// <param name="material">The surface properties, from the port's own material table.</param>
     /// <remarks>

@@ -12,11 +12,6 @@ struct OutlinePush_std140_0
 };
 
 @binding(0) @group(3) var<uniform> push_0 : OutlinePush_std140_0;
-fn rsqrt_0( x_0 : f32) -> f32
-{
-    return 1.0f / sqrt(x_0);
-}
-
 @id(64) override cClipYDown_0 : i32 = i32(1);
 
 fn OpenIgiClipY_0( y_0 : f32) -> f32
@@ -59,9 +54,9 @@ fn vertexMain( _S2 : vertexInput_0) -> vertexOutput_0
     var direction_0 : vec2<f32> = vec2<f32>(clipNormal_0.x, - clipNormal_0.y);
     var lengthSquared_0 : f32 = dot(direction_0, direction_0);
     var direction_1 : vec2<f32>;
-    if(lengthSquared_0 > 9.999999960041972e-13f)
+    if((lengthSquared_0 > 9.999999960041972e-13f))
     {
-        direction_1 = direction_0 * vec2<f32>(rsqrt_0(lengthSquared_0));
+        direction_1 = direction_0 * vec2<f32>(inverseSqrt(lengthSquared_0));
     }
     else
     {

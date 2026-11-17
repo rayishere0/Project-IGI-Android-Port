@@ -18,10 +18,10 @@ struct Params_std140_0
 fn SkyViewUv_0( worldDir_0 : vec3<f32>,  viewHeight_0 : f32) -> vec2<f32>
 {
     var beta_0 : f32 = acos(clamp(sqrt(max(0.0f, viewHeight_0 * viewHeight_0 - 4.04496e+07f)) / viewHeight_0, -1.0f, 1.0f));
-    var zenithHorizonAngle_0 : f32 = 3.14159274101257324f - beta_0;
+    var zenithHorizonAngle_0 : f32 = 3.1415927410125732f - beta_0;
     var viewZenithAngle_0 : f32 = acos(clamp(worldDir_0.z, -1.0f, 1.0f));
     var v_0 : f32;
-    if(viewZenithAngle_0 < zenithHorizonAngle_0)
+    if((viewZenithAngle_0 < zenithHorizonAngle_0))
     {
         v_0 = (1.0f - sqrt(max(0.0f, 1.0f - viewZenithAngle_0 / zenithHorizonAngle_0))) * 0.5f;
     }
@@ -31,15 +31,15 @@ fn SkyViewUv_0( worldDir_0 : vec3<f32>,  viewHeight_0 : f32) -> vec2<f32>
     }
     var azimuth_0 : f32 = atan2(worldDir_0.y, worldDir_0.x);
     var azimuth_1 : f32;
-    if(azimuth_0 < 0.0f)
+    if((azimuth_0 < 0.0f))
     {
-        azimuth_1 = azimuth_0 + 6.28318548202514648f;
+        azimuth_1 = azimuth_0 + 6.2831854820251465f;
     }
     else
     {
         azimuth_1 = azimuth_0;
     }
-    return vec2<f32>(azimuth_1 / 6.28318548202514648f, v_0);
+    return vec2<f32>(azimuth_1 / 6.2831854820251465f, v_0);
 }
 
 fn SkyViewInset_0( uv_0 : vec2<f32>,  size_1 : vec2<f32>) -> vec2<f32>
@@ -68,7 +68,7 @@ fn computeMain(@builtin(local_invocation_id) localId_0 : vec3<u32>)
 {
     var index_0 : u32 = localId_0.y * u32(8) + localId_0.x;
     var e_0 : vec2<f32> = (vec2<f32>(localId_0.xy) + vec2<f32>(0.5f)) / vec2<f32>(8.0f);
-    var phi_0 : f32 = 6.28318548202514648f * e_0.x;
+    var phi_0 : f32 = 6.2831854820251465f * e_0.x;
     var cosTheta_0 : f32 = 1.0f - 2.0f * e_0.y;
     var sinTheta_0 : f32 = sqrt(max(0.0f, 1.0f - cosTheta_0 * cosTheta_0));
     var _S1 : f32 = sinTheta_0 * cos(phi_0);
@@ -79,15 +79,15 @@ fn computeMain(@builtin(local_invocation_id) localId_0 : vec3<u32>)
     basis_0[i32(1)] = -0.48860299587249756f * _S2;
     basis_0[i32(2)] = 0.48860299587249756f * cosTheta_0;
     basis_0[i32(3)] = -0.48860299587249756f * _S1;
-    basis_0[i32(4)] = 1.09254801273345947f * _S1 * _S2;
-    basis_0[i32(5)] = -1.09254801273345947f * _S2 * cosTheta_0;
+    basis_0[i32(4)] = 1.0925480127334595f * _S1 * _S2;
+    basis_0[i32(5)] = -1.0925480127334595f * _S2 * cosTheta_0;
     basis_0[i32(6)] = 0.31539198756217957f * (3.0f * cosTheta_0 * cosTheta_0 - 1.0f);
-    basis_0[i32(7)] = -1.09254801273345947f * _S1 * cosTheta_0;
+    basis_0[i32(7)] = -1.0925480127334595f * _S1 * cosTheta_0;
     basis_0[i32(8)] = 0.54627400636672974f * (_S1 * _S1 - _S2 * _S2);
     var i_0 : i32 = i32(0);
-    for(;;)
+    loop
     {
-        if(i_0 < i32(9))
+        if((i_0 < i32(9)))
         {
         }
         else
@@ -99,21 +99,21 @@ fn computeMain(@builtin(local_invocation_id) localId_0 : vec3<u32>)
     }
     workgroupBarrier();
     var stride_0 : u32 = u32(32);
-    for(;;)
+    loop
     {
-        if(stride_0 > u32(0))
+        if((stride_0 > u32(0)))
         {
         }
         else
         {
             break;
         }
-        if(index_0 < stride_0)
+        if((index_0 < stride_0))
         {
             i_0 = i32(0);
-            for(;;)
+            loop
             {
-                if(i_0 < i32(9))
+                if((i_0 < i32(9)))
                 {
                 }
                 else
@@ -133,9 +133,9 @@ fn computeMain(@builtin(local_invocation_id) localId_0 : vec3<u32>)
     }
     var c_0 : array<vec3<f32>, i32(9)>;
     i_0 = i32(0);
-    for(;;)
+    loop
     {
-        if(i_0 < i32(9))
+        if((i_0 < i32(9)))
         {
         }
         else
@@ -145,9 +145,9 @@ fn computeMain(@builtin(local_invocation_id) localId_0 : vec3<u32>)
         c_0[i_0] = sCoefficients_0[i32(0)][i_0];
         i_0 = i_0 + i32(1);
     }
-    textureStore((uIrradiance_0), (vec2<u32>(vec2<i32>(i32(0), i32(0)))), (vec4<f32>(-0.32573500275611877f * c_0[i32(3)].x, -0.32573500275611877f * c_0[i32(1)].x, 0.32573500275611877f * c_0[i32(2)].x, 0.282094806432724f * c_0[i32(0)].x - 0.07884784042835236f * c_0[i32(6)].x)));
-    textureStore((uIrradiance_0), (vec2<u32>(vec2<i32>(i32(1), i32(0)))), (vec4<f32>(-0.32573500275611877f * c_0[i32(3)].y, -0.32573500275611877f * c_0[i32(1)].y, 0.32573500275611877f * c_0[i32(2)].y, 0.282094806432724f * c_0[i32(0)].y - 0.07884784042835236f * c_0[i32(6)].y)));
-    textureStore((uIrradiance_0), (vec2<u32>(vec2<i32>(i32(2), i32(0)))), (vec4<f32>(-0.32573500275611877f * c_0[i32(3)].z, -0.32573500275611877f * c_0[i32(1)].z, 0.32573500275611877f * c_0[i32(2)].z, 0.282094806432724f * c_0[i32(0)].z - 0.07884784042835236f * c_0[i32(6)].z)));
+    textureStore((uIrradiance_0), (vec2<u32>(vec2<i32>(i32(0), i32(0)))), (vec4<f32>(-0.32573500275611877f * c_0[i32(3)].x, -0.32573500275611877f * c_0[i32(1)].x, 0.32573500275611877f * c_0[i32(2)].x, 0.282094806432724f * c_0[i32(0)].x - 0.078847840428352356f * c_0[i32(6)].x)));
+    textureStore((uIrradiance_0), (vec2<u32>(vec2<i32>(i32(1), i32(0)))), (vec4<f32>(-0.32573500275611877f * c_0[i32(3)].y, -0.32573500275611877f * c_0[i32(1)].y, 0.32573500275611877f * c_0[i32(2)].y, 0.282094806432724f * c_0[i32(0)].y - 0.078847840428352356f * c_0[i32(6)].y)));
+    textureStore((uIrradiance_0), (vec2<u32>(vec2<i32>(i32(2), i32(0)))), (vec4<f32>(-0.32573500275611877f * c_0[i32(3)].z, -0.32573500275611877f * c_0[i32(1)].z, 0.32573500275611877f * c_0[i32(2)].z, 0.282094806432724f * c_0[i32(0)].z - 0.078847840428352356f * c_0[i32(6)].z)));
     textureStore((uIrradiance_0), (vec2<u32>(vec2<i32>(i32(3), i32(0)))), (vec4<f32>(0.27313712239265442f * c_0[i32(4)].x, -0.27313712239265442f * c_0[i32(5)].x, 0.23654352128505707f * c_0[i32(6)].x, -0.27313712239265442f * c_0[i32(7)].x)));
     textureStore((uIrradiance_0), (vec2<u32>(vec2<i32>(i32(4), i32(0)))), (vec4<f32>(0.27313712239265442f * c_0[i32(4)].y, -0.27313712239265442f * c_0[i32(5)].y, 0.23654352128505707f * c_0[i32(6)].y, -0.27313712239265442f * c_0[i32(7)].y)));
     textureStore((uIrradiance_0), (vec2<u32>(vec2<i32>(i32(5), i32(0)))), (vec4<f32>(0.27313712239265442f * c_0[i32(4)].z, -0.27313712239265442f * c_0[i32(5)].z, 0.23654352128505707f * c_0[i32(6)].z, -0.27313712239265442f * c_0[i32(7)].z)));

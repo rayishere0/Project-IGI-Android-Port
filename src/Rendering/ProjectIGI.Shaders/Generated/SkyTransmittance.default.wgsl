@@ -38,7 +38,7 @@ fn RayIntersectSphere_0( origin_0 : vec3<f32>,  direction_0 : vec3<f32>,  radius
     var a_0 : f32 = dot(direction_0, direction_0);
     var b_0 : f32 = 2.0f * dot(origin_0, direction_0);
     var discriminant_0 : f32 = b_0 * b_0 - 4.0f * a_0 * (dot(origin_0, origin_0) - radius_0 * radius_0);
-    if(discriminant_0 < 0.0f)
+    if((discriminant_0 < 0.0f))
     {
         return vec2<f32>(-1.0f, -1.0f);
     }
@@ -52,12 +52,12 @@ fn MiePhase_0( g_0 : f32,  cosTheta_0 : f32) -> f32
 {
     var _S6 : f32 = g_0 * g_0;
     var denominator_0 : f32 = 1.0f + _S6 + 2.0f * g_0 * cosTheta_0;
-    return (1.0f - _S6) / (12.56637096405029297f * denominator_0 * sqrt(max(denominator_0, 9.99999993922529029e-09f)));
+    return (1.0f - _S6) / (12.566370964050293f * denominator_0 * sqrt(max(denominator_0, 9.99999993922529029e-09f)));
 }
 
 fn RayleighPhase_0( cosTheta_1 : f32) -> f32
 {
-    return 0.05968310311436653f * (1.0f + cosTheta_1 * cosTheta_1);
+    return 0.059683103114366531f * (1.0f + cosTheta_1 * cosTheta_1);
 }
 
 struct AtmosphereSample_0
@@ -73,25 +73,25 @@ fn SampleAtmosphere_0( position_0 : vec3<f32>) -> AtmosphereSample_0
     var _S7 : f32 = max(0.0f, length(position_0) - 6360.0f);
     var _S8 : f32 = - _S7;
     var rayleighDensity_0 : f32 = exp(_S8 / 8.0f);
-    var mieDensity_0 : f32 = exp(_S8 / 1.20000004768371582f);
+    var mieDensity_0 : f32 = exp(_S8 / 1.2000000476837158f);
     var ozoneDensity_0 : f32;
-    if(_S7 < 25.0f)
+    if((_S7 < 25.0f))
     {
         ozoneDensity_0 = saturate(_S7 / 15.0f - 0.66666668653488159f);
     }
     else
     {
-        ozoneDensity_0 = saturate(_S8 / 15.0f + 2.66666674613952637f);
+        ozoneDensity_0 = saturate(_S8 / 15.0f + 2.6666667461395264f);
     }
     var s_0 : AtmosphereSample_0;
-    var _S9 : vec3<f32> = vec3<f32>(0.00580199994146824f, 0.01355800032615662f, 0.03310000151395798f) * vec3<f32>(rayleighDensity_0);
+    var _S9 : vec3<f32> = vec3<f32>(0.0058019999414682388f, 0.013558000326156616f, 0.033100001513957977f) * vec3<f32>(rayleighDensity_0);
     s_0.rayleighScattering_0 = _S9;
-    var mieScattering_1 : f32 = 0.00399600015953183f * mieDensity_0;
-    var mieExtinction_0 : f32 = 0.00443999981507659f * mieDensity_0;
+    var mieScattering_1 : f32 = 0.0039960001595318317f * mieDensity_0;
+    var mieExtinction_0 : f32 = 0.0044399998150765896f * mieDensity_0;
     var _S10 : vec3<f32> = vec3<f32>(mieScattering_1, mieScattering_1, mieScattering_1);
     s_0.mieScattering_0 = _S10;
     s_0.scattering_0 = _S10 + _S9;
-    s_0.extinction_0 = vec3<f32>(mieExtinction_0, mieExtinction_0, mieExtinction_0) + _S9 + vec3<f32>(0.00065000000176951f, 0.00188100000377744f, 0.00008499999967171f) * vec3<f32>(ozoneDensity_0);
+    s_0.extinction_0 = vec3<f32>(mieExtinction_0, mieExtinction_0, mieExtinction_0) + _S9 + vec3<f32>(0.00065000000176951289f, 0.0018810000037774444f, 8.4999999671708792e-05f) * vec3<f32>(ozoneDensity_0);
     return s_0;
 }
 
@@ -103,11 +103,11 @@ fn SampleTransmittanceLut_0( viewHeight_1 : f32,  lightZenithCos_0 : f32) -> vec
 fn NearestHit_0( roots_0 : vec2<f32>) -> f32
 {
     var _S11 : f32 = roots_0.x;
-    var _S12 : bool = _S11 < 0.0f;
+    var _S12 : bool = (_S11 < 0.0f);
     var _S13 : bool;
     if(_S12)
     {
-        _S13 = (roots_0.y) < 0.0f;
+        _S13 = ((roots_0.y) < 0.0f);
     }
     else
     {
@@ -122,7 +122,7 @@ fn NearestHit_0( roots_0 : vec2<f32>) -> f32
         return max(0.0f, roots_0.y);
     }
     var _S14 : f32 = roots_0.y;
-    if(_S14 < 0.0f)
+    if((_S14 < 0.0f))
     {
         return max(0.0f, _S11);
     }
@@ -151,15 +151,15 @@ fn IntegrateScatteredLuminance_0( worldPos_1 : vec3<f32>,  worldDir_0 : vec3<f32
     const _S16 : vec3<f32> = vec3<f32>(1.0f, 1.0f, 1.0f);
     result_0.transmittance_0 = _S16;
     result_0.multiScatteringAs1_0 = _S15;
-    if((dot(worldPos_1, worldPos_1)) <= 4.04496e+07f)
+    if(((dot(worldPos_1, worldPos_1)) <= 4.04496e+07f))
     {
         return result_0;
     }
     var topHits_0 : vec2<f32> = RayIntersectSphere_0(worldPos_1, worldDir_0, 6420.0f);
     var _S17 : bool;
-    if((topHits_0.x) < 0.0f)
+    if(((topHits_0.x) < 0.0f))
     {
-        _S17 = (topHits_0.y) < 0.0f;
+        _S17 = ((topHits_0.y) < 0.0f);
     }
     else
     {
@@ -171,9 +171,9 @@ fn IntegrateScatteredLuminance_0( worldPos_1 : vec3<f32>,  worldDir_0 : vec3<f32
     }
     var groundHits_0 : vec2<f32> = RayIntersectSphere_0(worldPos_1, worldDir_0, 6360.0f);
     var _S18 : f32 = groundHits_0.x;
-    if(_S18 < 0.0f)
+    if((_S18 < 0.0f))
     {
-        _S17 = (groundHits_0.y) < 0.0f;
+        _S17 = ((groundHits_0.y) < 0.0f);
     }
     else
     {
@@ -218,9 +218,9 @@ fn IntegrateScatteredLuminance_0( worldPos_1 : vec3<f32>,  worldDir_0 : vec3<f32
     var throughput_0 : vec3<f32> = _S16;
     var multiScatteringAs1_1 : vec3<f32> = _S15;
     var luminance_1 : vec3<f32> = _S15;
-    for(;;)
+    loop
     {
-        if(i_0 < count_0)
+        if((i_0 < count_0))
         {
         }
         else
@@ -235,7 +235,7 @@ fn IntegrateScatteredLuminance_0( worldPos_1 : vec3<f32>,  worldDir_0 : vec3<f32
             var t1_0 : f32 = (i_0 + 1.0f) / countFloor_0;
             var t1_1 : f32 = t1_0 * t1_0;
             var t0_1 : f32 = tMaxFloor_0 * (t0_0 * t0_0);
-            if(t1_1 > 1.0f)
+            if((t1_1 > 1.0f))
             {
                 t_0 = tMax_0;
             }
@@ -272,7 +272,7 @@ fn IntegrateScatteredLuminance_0( worldPos_1 : vec3<f32>,  worldDir_0 : vec3<f32
             phaseScattering_0 = medium_0.scattering_0 * vec3<f32>(0.07957746833562851f);
         }
         var planetShadow_0 : f32;
-        if((NearestHit_0(RayIntersectSphere_0(position_1 + vec3<f32>(0.00100000004749745f) * up_0, sunDir_1, 6360.0f))) >= 0.0f)
+        if(((NearestHit_0(RayIntersectSphere_0(position_1 + vec3<f32>(0.0010000000474974513f) * up_0, sunDir_1, 6360.0f))) >= 0.0f))
         {
             planetShadow_0 = 0.0f;
         }
@@ -309,7 +309,7 @@ fn IntegrateScatteredLuminance_0( worldPos_1 : vec3<f32>,  worldDir_0 : vec3<f32
     }
     if(_S17)
     {
-        _S17 = tBottom_0 > 0.0f;
+        _S17 = (tBottom_0 > 0.0f);
     }
     else
     {
@@ -320,7 +320,7 @@ fn IntegrateScatteredLuminance_0( worldPos_1 : vec3<f32>,  worldDir_0 : vec3<f32
         var groundPos_0 : vec3<f32> = worldPos_1 + vec3<f32>(tBottom_0) * worldDir_0;
         var groundHeight_0 : f32 = length(groundPos_0);
         var groundUp_0 : vec3<f32> = groundPos_0 / vec3<f32>(groundHeight_0);
-        luminance_1 = luminance_1 + sunIlluminance_0 * SampleTransmittanceLut_0(groundHeight_0, dot(sunDir_1, groundUp_0)) * throughput_0 * vec3<f32>(saturate(dot(groundUp_0, sunDir_1))) * vec3<f32>(0.40000000596046448f) / vec3<f32>(3.14159274101257324f);
+        luminance_1 = luminance_1 + sunIlluminance_0 * SampleTransmittanceLut_0(groundHeight_0, dot(sunDir_1, groundUp_0)) * throughput_0 * vec3<f32>(saturate(dot(groundUp_0, sunDir_1))) * vec3<f32>(0.40000000596046448f) / vec3<f32>(3.1415927410125732f);
     }
     result_0.luminance_0 = luminance_1;
     result_0.opticalDepth_0 = opticalDepth_1;
@@ -340,13 +340,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
 {
     var _S24 : vec2<i32> = vec2<i32>(id_0.xy);
     var _S25 : bool;
-    if((_S24.x) >= i32(p_0.size_0.x))
+    if(((_S24.x) >= i32(p_0.size_0.x)))
     {
         _S25 = true;
     }
     else
     {
-        _S25 = (_S24.y) >= i32(p_0.size_0.y);
+        _S25 = ((_S24.y) >= i32(p_0.size_0.y));
     }
     if(_S25)
     {

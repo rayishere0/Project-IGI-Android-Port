@@ -162,6 +162,7 @@ public sealed partial class GameHost
         _modelLod = _presentation.ReadModelLod(levelRoot, _resources, _title?.Services);
 
         _device.SetSceneSun(shading.Sun?.Ambient ?? Vector3f.Zero, shading.Sun?.Colour ?? Vector3f.Zero);
+        _device.SetSunDirection(shading.Sun?.Direction ?? Vector3f.Zero);
         if (shading.Sun is { } fixedFunctionSun)
         {
             _logger.Information(

@@ -17,6 +17,22 @@ struct GlassPush_std140_0
 
 @binding(1) @group(0) var uDiffuseSampler_0 : sampler;
 
+@binding(2) @group(0) var uLightmap_0 : texture_2d<f32>;
+
+@binding(3) @group(0) var uLightmapSampler_0 : sampler;
+
+@binding(4) @group(0) var uDetail_0 : texture_2d<f32>;
+
+@binding(5) @group(0) var uDetailSampler_0 : sampler;
+
+@binding(0) @group(1) var uSceneDepth_0 : texture_depth_2d;
+
+struct GlassParams_std140_0
+{
+    @align(16) fog_0 : vec4<f32>,
+};
+
+@binding(1) @group(1) var<uniform> p_0 : GlassParams_std140_0;
 @id(64) override cClipYDown_0 : i32 = i32(1);
 
 fn OpenIgiClipY_0( y_0 : f32) -> f32
@@ -92,7 +108,7 @@ fn vertexMain( _S3 : vertexInput_0) -> GlassVaryings_0
 
 fn GlassPaneReflectance_0( cosine_0 : f32) -> f32
 {
-    var face_0 : f32 = 0.03999999910593033f + 0.95999997854232788f * pow(1.0f - saturate(cosine_0), 5.0f);
+    var face_0 : f32 = 0.039999999105930328f + 0.95999997854232788f * pow(1.0f - saturate(cosine_0), 5.0f);
     return 2.0f * face_0 / (1.0f + face_0);
 }
 
@@ -115,17 +131,17 @@ struct pixelInput_0
 fn fragmentMain( _S5 : pixelInput_0, @builtin(position) position_3 : vec4<f32>) -> pixelOutput_0
 {
     var alpha_0 : f32 = (textureSample((uDiffuse_0), (uDiffuseSampler_0), (_S5.diffuseUv_3))).w * _S5.color_1.w;
-    if(alpha_0 >= 0.5f)
+    if((alpha_0 >= 0.5f))
     {
         discard;
     }
-    if(alpha_0 < 0.01999999955296516f)
+    if((alpha_0 < 0.019999999552965164f))
     {
         discard;
     }
     var cosine_1 : f32 = abs(dot(normalize(_S5.worldNormal_1), normalize(_S5.fromEye_1)));
     var sinRefracted_0 : f32 = sqrt(saturate(1.0f - cosine_1 * cosine_1)) / 1.5f;
-    var _S6 : pixelOutput_0 = pixelOutput_0( vec4<f32>(0.0f, 0.0f, 0.0f, 1.0f - (1.0f - GlassPaneReflectance_0(cosine_1)) * exp(-0.01999999955296516f / max(sqrt(saturate(1.0f - sinRefracted_0 * sinRefracted_0)), 0.05000000074505806f))) );
+    var _S6 : pixelOutput_0 = pixelOutput_0( vec4<f32>(0.0f, 0.0f, 0.0f, 1.0f - (1.0f - GlassPaneReflectance_0(cosine_1)) * exp(-0.019999999552965164f / max(sqrt(saturate(1.0f - sinRefracted_0 * sinRefracted_0)), 0.05000000074505806f))) );
     return _S6;
 }
 

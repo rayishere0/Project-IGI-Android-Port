@@ -41,6 +41,7 @@ public sealed partial class GraphicsDevice : ISdfTextDevice
     private float _objectFogFar;
     private Vector3f _sceneSunAmbient;
     private Vector3f _sceneSunColour;
+    private Vector3f _sceneSunDirection;
     private bool _firstPerson;
 
     /// <inheritdoc/>
@@ -337,6 +338,14 @@ public sealed partial class GraphicsDevice : ISdfTextDevice
         _sceneSunColour = colour;
         _pipelines.SetSun(ambient, colour);
         _forwardPipelines?.SetSun(ambient, colour);
+        _geometryPipelines?.SetSun(ambient, colour, _sceneSunDirection);
+    }
+
+    /// <inheritdoc/>
+    public void SetSunDirection(Vector3f direction)
+    {
+        _sceneSunDirection = direction;
+        _geometryPipelines?.SetSun(_sceneSunAmbient, _sceneSunColour, direction);
     }
 
     /// <inheritdoc/>

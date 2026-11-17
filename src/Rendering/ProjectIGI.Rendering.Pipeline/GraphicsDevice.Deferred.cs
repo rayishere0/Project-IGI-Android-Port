@@ -419,7 +419,7 @@ public sealed partial class GraphicsDevice
         }
 
         Span<float> push = stackalloc float[GBufferPushBlock.Floats];
-        GBufferPushBlock.Write(push, GeometryState(modelView), modelView, blend);
+        GBufferPushBlock.Write(push, GeometryState(modelView, lightmap.IsValid), modelView, blend);
 
         _meshes.DrawRanges(
             pass,
@@ -432,7 +432,8 @@ public sealed partial class GraphicsDevice
     }
 
     /// <summary>What a geometry draw is told about the frame it is in.</summary>
-    private GBufferDrawState GeometryState(in Matrix4f modelView) => new(
+    /// <param name="hasLightmap">Whether the draw's sub-mesh carries a baked lightmap.</param>
+    private GBufferDrawState GeometryState(in Matrix4f modelView, bool hasLightmap) => new(
         _projection,
         _viewToWorld,
         _material,
@@ -442,6 +443,13 @@ public sealed partial class GraphicsDevice
         _detailFade,
         GBufferPushBlock.TerrainCameraOffset(modelView, _viewToWorld),
         _groundDetail,
+        // An unbaked model under the Baked model takes the level's fixed-function sun into its
+        // baked attachment; a baked one already carries its light, and under Hybrid/Dynamic the
+        // shading pass adds its own sun, so those keep the sampled bake. A zero direction means
+        // the level authored no sun, and the draw keeps its neutral bake as before.
+        ModelSun: !hasLightmap
+            && _lighting.Model == LightingModel.Baked
+            && Vector3f.Dot(_sceneSunDirection, _sceneSunDirection) > 1e-8f,
         _paintedSky,
         _sceneExposure);
 
@@ -458,7 +466,7 @@ public sealed partial class GraphicsDevice
         }
 
         Span<float> push = stackalloc float[GBufferPushBlock.Floats];
-        GBufferPushBlock.Write(push, GeometryState(modelView), modelView, blend);
+        GBufferPushBlock.Write(push, GeometryState(modelView, call.Lightmap.IsValid), modelView, blend);
 
         return _meshes.Draw(
             pass,
@@ -593,6 +601,9 @@ public sealed partial class GraphicsDevice
             _surfaceLayout,
             [.. GBufferTargets.Select(id => SceneTargetSet.FormatOf(id))],
             SceneTargetSet.FormatOf(SceneTargetId.Depth));
+
+        // The level's sun, for unbaked models: SetSceneSun may have run before this cache existed.
+        _geometryPipelines.SetSun(_sceneSunAmbient, _sceneSunColour, _sceneSunDirection);
 
         _shading = new DeferredLighting(
             _device, FramesInFlight, SceneTargetSet.FormatOf(SceneTargetId.Lit), traced: TracedWorld is not null);

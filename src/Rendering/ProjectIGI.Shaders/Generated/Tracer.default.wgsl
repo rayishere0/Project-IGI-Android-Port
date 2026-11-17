@@ -10,6 +10,18 @@ struct TracerPush_std140_0
 };
 
 @binding(0) @group(3) var<uniform> push_0 : TracerPush_std140_0;
+@binding(0) @group(0) var uDiffuse_0 : texture_2d<f32>;
+
+@binding(1) @group(0) var uDiffuseSampler_0 : sampler;
+
+@binding(2) @group(0) var uLightmap_0 : texture_2d<f32>;
+
+@binding(3) @group(0) var uLightmapSampler_0 : sampler;
+
+@binding(4) @group(0) var uDetail_0 : texture_2d<f32>;
+
+@binding(5) @group(0) var uDetailSampler_0 : sampler;
+
 @id(65) override cTargetEncodes_0 : i32 = i32(0);
 
 @id(64) override cClipYDown_0 : i32 = i32(1);
@@ -62,7 +74,7 @@ fn vertexMain( _S2 : vertexInput_0) -> TracerVaryings_0
 
 fn DecodeSrgb_0( c_0 : vec3<f32>) -> vec3<f32>
 {
-    return mix(pow(max((c_0 + vec3<f32>(0.05499999970197678f)) / vec3<f32>(1.0549999475479126f), vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(2.40000009536743164f, 2.40000009536743164f, 2.40000009536743164f)), c_0 / vec3<f32>(12.92000007629394531f), step(c_0, vec3<f32>(0.04044999927282333f, 0.04044999927282333f, 0.04044999927282333f)));
+    return mix(pow(max((c_0 + vec3<f32>(0.054999999701976776f)) / vec3<f32>(1.0549999475479126f), vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(2.4000000953674316f, 2.4000000953674316f, 2.4000000953674316f)), c_0 / vec3<f32>(12.920000076293945f), step(c_0, vec3<f32>(0.040449999272823334f, 0.040449999272823334f, 0.040449999272823334f)));
 }
 
 fn ToTarget_0( display_0 : vec4<f32>) -> vec4<f32>
@@ -91,7 +103,7 @@ fn RetailLine_0( input_0 : TracerVaryings_0) -> vec4<f32>
 
 fn EncodeSrgb_0( c_1 : vec3<f32>) -> vec3<f32>
 {
-    return mix(vec3<f32>(1.0549999475479126f) * pow(max(c_1, vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(0.4166666567325592f, 0.4166666567325592f, 0.4166666567325592f)) - vec3<f32>(0.05499999970197678f), c_1 * vec3<f32>(12.92000007629394531f), step(c_1, vec3<f32>(0.00313080009073019f, 0.00313080009073019f, 0.00313080009073019f)));
+    return mix(vec3<f32>(1.0549999475479126f) * pow(max(c_1, vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(0.4166666567325592f, 0.4166666567325592f, 0.4166666567325592f)) - vec3<f32>(0.054999999701976776f), c_1 * vec3<f32>(12.920000076293945f), step(c_1, vec3<f32>(0.0031308000907301903f, 0.0031308000907301903f, 0.0031308000907301903f)));
 }
 
 fn RemasteredStreak_0( input_1 : TracerVaryings_0) -> vec4<f32>
@@ -129,7 +141,7 @@ fn fragmentMain( _S6 : pixelInput_0, @builtin(position) position_2 : vec4<f32>) 
 {
     var _S7 : TracerVaryings_0 = TracerVaryings_0( position_2, _S6.strip_1, _S6.color_1 );
     var _S8 : vec4<f32>;
-    if((push_0.style_0.x) < 0.5f)
+    if(((push_0.style_0.x) < 0.5f))
     {
         _S8 = RetailLine_0(_S7);
     }

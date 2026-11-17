@@ -34,7 +34,7 @@ fn Sprite2DTransform_0( input_0 : Sprite2DVertexInput_0,  projectionSize_1 : vec
     var _S1 : f32 = projectionSize_1.y;
     var ndc_0 : vec2<f32> = input_0.position_1 / vec2<f32>(projectionSize_1.x, abs(_S1)) * vec2<f32>(2.0f) - vec2<f32>(1.0f);
     var _S2 : f32;
-    if(_S1 < 0.0f)
+    if((_S1 < 0.0f))
     {
         _S2 = - ndc_0.y;
     }
@@ -73,12 +73,12 @@ fn ScreenPixelRange_0( texCoord_3 : vec2<f32>) -> f32
 
 fn Hash_0( v_0 : vec2<f32>) -> f32
 {
-    return fract(sin(dot(v_0, vec2<f32>(127.09999847412109375f, 311.70001220703125f))) * 43758.546875f);
+    return fract(sin(dot(v_0, vec2<f32>(127.09999847412109f, 311.70001220703125f))) * 43758.546875f);
 }
 
 fn DecodeSrgb_0( c_0 : vec3<f32>) -> vec3<f32>
 {
-    return mix(pow(max((c_0 + vec3<f32>(0.05499999970197678f)) / vec3<f32>(1.0549999475479126f), vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(2.40000009536743164f, 2.40000009536743164f, 2.40000009536743164f)), c_0 / vec3<f32>(12.92000007629394531f), step(c_0, vec3<f32>(0.04044999927282333f, 0.04044999927282333f, 0.04044999927282333f)));
+    return mix(pow(max((c_0 + vec3<f32>(0.054999999701976776f)) / vec3<f32>(1.0549999475479126f), vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(2.4000000953674316f, 2.4000000953674316f, 2.4000000953674316f)), c_0 / vec3<f32>(12.920000076293945f), step(c_0, vec3<f32>(0.040449999272823334f, 0.040449999272823334f, 0.040449999272823334f)));
 }
 
 fn ToTarget_0( display_0 : vec4<f32>) -> vec4<f32>
@@ -113,11 +113,11 @@ fn fragmentMain( _S6 : pixelInput_0, @builtin(position) position_3 : vec4<f32>) 
     var range_1 : f32 = ScreenPixelRange_0(_S6.texCoord_4);
     var dissolve_0 : f32 = clamp(push_0.range_0.y, 0.0f, 1.0f);
     var grain_0 : f32 = Hash_0(floor(_S6.texCoord_4 * vec2<f32>(1024.0f)) + vec2<f32>(push_0.range_0.z * 17.0f, push_0.range_0.z * 5.0f));
-    var _S7 : bool = dissolve_0 > 0.0f;
+    var _S7 : bool = (dissolve_0 > 0.0f);
     var _S8 : bool;
     if(_S7)
     {
-        _S8 = grain_0 < dissolve_0;
+        _S8 = (grain_0 < dissolve_0);
     }
     else
     {
@@ -138,9 +138,9 @@ fn fragmentMain( _S6 : pixelInput_0, @builtin(position) position_3 : vec4<f32>) 
     }
     var fill_0 : f32 = clamp((d_0 - 0.5f - dissolve_0 * 0.2199999988079071f) * range_1 + 0.5f, 0.0f, 1.0f);
     var result_0 : vec4<f32> = vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f);
-    if((push_0.glow_0.w) > 0.0f)
+    if(((push_0.glow_0.w) > 0.0f))
     {
-        _S8 = (push_0.glowWidth_0.x) > 0.0f;
+        _S8 = ((push_0.glowWidth_0.x) > 0.0f);
     }
     else
     {
@@ -150,7 +150,7 @@ fn fragmentMain( _S6 : pixelInput_0, @builtin(position) position_3 : vec4<f32>) 
     {
         result_0 = vec4<f32>(push_0.glow_0.xyz, smoothstep(0.5f - push_0.glowWidth_0.x, 0.5f, d_0) * push_0.glow_0.w);
     }
-    if((push_0.outline_0.w) > 0.0f)
+    if(((push_0.outline_0.w) > 0.0f))
     {
         result_0 = mix(result_0, vec4<f32>(push_0.outline_0.xyz, 1.0f), vec4<f32>(clamp((d_0 - (0.5f - push_0.outline_0.w)) * range_1 + 0.5f, 0.0f, 1.0f)));
     }

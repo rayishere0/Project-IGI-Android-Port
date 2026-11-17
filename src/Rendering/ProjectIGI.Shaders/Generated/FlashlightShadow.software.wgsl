@@ -79,9 +79,9 @@ fn ScreenBlocked_0( from_0 : vec3<f32>,  direction_0 : vec3<f32>,  segment_0 : f
     var _S8 : i32 = i32(p_0.reach_0.z + 0.5f);
     var _S9 : vec2<i32> = vec2<i32>(p_0.resolution_0.xy) - vec2<i32>(i32(1));
     var i_0 : i32 = i32(0);
-    for(;;)
+    loop
     {
-        if(i_0 < _S8)
+        if((i_0 < _S8))
         {
         }
         else
@@ -92,19 +92,19 @@ fn ScreenBlocked_0( from_0 : vec3<f32>,  direction_0 : vec3<f32>,  segment_0 : f
         var t_0 : f32 = segment_0 * s_0 * s_0;
         var view_0 : vec3<f32> = from_0 + direction_0 * vec3<f32>(t_0);
         var _S10 : f32 = view_0.z;
-        if(_S10 <= (p_0.unproject_0.z))
+        if((_S10 <= (p_0.unproject_0.z)))
         {
             break;
         }
         var uv_1 : vec2<f32> = ProjectToUv_0(view_0);
         var _S11 : bool;
-        if((any((uv_1 < vec2<f32>(0.0f, 0.0f)))))
+        if((any(((uv_1 < vec2<f32>(0.0f, 0.0f))))))
         {
             _S11 = true;
         }
         else
         {
-            _S11 = (any((uv_1 > vec2<f32>(1.0f, 1.0f))));
+            _S11 = (any(((uv_1 > vec2<f32>(1.0f, 1.0f)))));
         }
         if(_S11)
         {
@@ -112,7 +112,7 @@ fn ScreenBlocked_0( from_0 : vec3<f32>,  direction_0 : vec3<f32>,  segment_0 : f
         }
         var _S12 : vec3<i32> = vec3<i32>(clamp(vec2<i32>(uv_1 * p_0.resolution_0.xy), vec2<i32>(i32(0), i32(0)), _S9), i32(0));
         var depth_2 : f32 = (textureLoad((uDepth_0), ((_S12)).xy, ((_S12)).z));
-        if(depth_2 <= 0.0f)
+        if((depth_2 <= 0.0f))
         {
             i_0 = i_0 + i32(1);
             continue;
@@ -120,9 +120,9 @@ fn ScreenBlocked_0( from_0 : vec3<f32>,  direction_0 : vec3<f32>,  segment_0 : f
         var sceneZ_0 : f32 = ViewDepthAt_0(depth_2, p_0.unproject_0);
         var behind_0 : f32 = _S10 - sceneZ_0;
         var _S13 : bool;
-        if(behind_0 > (0.01999999955296516f + 0.0020000000949949f * sceneZ_0))
+        if((behind_0 > (0.019999999552965164f + 0.0020000000949949026f * sceneZ_0)))
         {
-            _S13 = behind_0 < (max(0.30000001192092896f, 0.05999999865889549f * sceneZ_0));
+            _S13 = (behind_0 < (max(0.30000001192092896f, 0.059999998658895493f * sceneZ_0)));
         }
         else
         {
@@ -144,13 +144,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
 {
     var _S14 : vec2<i32> = vec2<i32>(id_0.xy);
     var _S15 : bool;
-    if((_S14.x) >= i32(p_0.resolution_0.x))
+    if(((_S14.x) >= i32(p_0.resolution_0.x)))
     {
         _S15 = true;
     }
     else
     {
-        _S15 = (_S14.y) >= i32(p_0.resolution_0.y);
+        _S15 = ((_S14.y) >= i32(p_0.resolution_0.y));
     }
     if(_S15)
     {
@@ -158,7 +158,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     }
     var _S16 : vec3<i32> = vec3<i32>(_S14, i32(0));
     var depth_3 : f32 = (textureLoad((uDepth_0), ((_S16)).xy, ((_S16)).z));
-    if(depth_3 <= 0.0f)
+    if((depth_3 <= 0.0f))
     {
         textureStore((uRaw_0), (vec2<u32>(_S14)), (vec4<f32>(1.0f, 0.0f, 0.0f, 0.0f)));
         return;
@@ -166,14 +166,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var viewPos_0 : vec3<f32> = ViewPositionAt_0((vec2<f32>(_S14) + vec2<f32>(0.5f)) * p_0.resolution_0.zw, depth_3, p_0.unproject_0);
     var toLens_0 : vec3<f32> = p_0.sourceLens_0.xyz - viewPos_0;
     var distance_0 : f32 = length(toLens_0);
-    var toLensDir_0 : vec3<f32> = toLens_0 / vec3<f32>(max(distance_0, 0.00000999999974738f));
-    if(distance_0 >= (p_0.reach_0.x))
+    var toLensDir_0 : vec3<f32> = toLens_0 / vec3<f32>(max(distance_0, 9.9999997473787516e-06f));
+    if((distance_0 >= (p_0.reach_0.x)))
     {
         _S15 = true;
     }
     else
     {
-        _S15 = (dot(p_0.axisCull_0.xyz, (vec3<f32>(0) - toLensDir_0))) <= (p_0.axisCull_0.w);
+        _S15 = ((dot(p_0.axisCull_0.xyz, (vec3<f32>(0) - toLensDir_0))) <= (p_0.axisCull_0.w));
     }
     if(_S15)
     {
@@ -181,14 +181,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         return;
     }
     var normalView_0 : vec3<f32> = (((mat4x4<f32>(p_0.viewToWorld_0.data_0[i32(0)][i32(0)], p_0.viewToWorld_0.data_0[i32(1)][i32(0)], p_0.viewToWorld_0.data_0[i32(2)][i32(0)], p_0.viewToWorld_0.data_0[i32(3)][i32(0)], p_0.viewToWorld_0.data_0[i32(0)][i32(1)], p_0.viewToWorld_0.data_0[i32(1)][i32(1)], p_0.viewToWorld_0.data_0[i32(2)][i32(1)], p_0.viewToWorld_0.data_0[i32(3)][i32(1)], p_0.viewToWorld_0.data_0[i32(0)][i32(2)], p_0.viewToWorld_0.data_0[i32(1)][i32(2)], p_0.viewToWorld_0.data_0[i32(2)][i32(2)], p_0.viewToWorld_0.data_0[i32(3)][i32(2)], p_0.viewToWorld_0.data_0[i32(0)][i32(3)], p_0.viewToWorld_0.data_0[i32(1)][i32(3)], p_0.viewToWorld_0.data_0[i32(2)][i32(3)], p_0.viewToWorld_0.data_0[i32(3)][i32(3)])) * (vec4<f32>(DecodeGBufferNormal_0((textureLoad((uNormal_0), ((_S16)).xy, ((_S16)).z))), 0.0f)))).xyz;
-    if((dot(normalView_0, toLensDir_0)) <= 0.0f)
+    if(((dot(normalView_0, toLensDir_0)) <= 0.0f))
     {
         textureStore((uRaw_0), (vec2<u32>(_S14)), (vec4<f32>(1.0f, 0.0f, 0.0f, 0.0f)));
         return;
     }
     var frame_2 : f32 = p_0.cameraFrame_0.w;
     var random_0 : vec3<f32>;
-    if((p_0.reach_0.w) > 0.5f)
+    if(((p_0.reach_0.w) > 0.5f))
     {
         random_0 = WhiteNoise3_0(_S14, u32(frame_2), u32(61861));
     }
@@ -198,7 +198,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     }
     var axis_0 : vec3<f32> = p_0.axisCull_0.xyz;
     var helper_0 : vec3<f32>;
-    if((abs(axis_0.y)) < 0.89999997615814209f)
+    if(((abs(axis_0.y)) < 0.89999997615814209f))
     {
         helper_0 = vec3<f32>(0.0f, 1.0f, 0.0f);
     }
@@ -208,13 +208,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     }
     var across_0 : vec3<f32> = normalize(cross(helper_0, axis_0));
     var spread_0 : f32 = sqrt(random_0.x) * p_0.sourceLens_0.w;
-    var around_0 : f32 = 6.28318548202514648f * random_0.y;
-    var origin_0 : vec3<f32> = viewPos_0 + normalView_0 * vec3<f32>((0.02999999932944775f + 0.00100000004749745f * viewPos_0.z));
+    var around_0 : f32 = 6.2831854820251465f * random_0.y;
+    var origin_0 : vec3<f32> = viewPos_0 + normalView_0 * vec3<f32>((0.029999999329447746f + 0.0010000000474974513f * viewPos_0.z));
     var toTarget_0 : vec3<f32> = p_0.sourceLens_0.xyz + across_0 * vec3<f32>((spread_0 * cos(around_0))) + cross(axis_0, across_0) * vec3<f32>((spread_0 * sin(around_0))) - origin_0;
     var span_0 : f32 = length(toTarget_0);
-    var direction_1 : vec3<f32> = toTarget_0 / vec3<f32>(max(span_0, 0.00000999999974738f));
+    var direction_1 : vec3<f32> = toTarget_0 / vec3<f32>(max(span_0, 9.9999997473787516e-06f));
     var segment_1 : f32 = span_0 - p_0.reach_0.y;
-    if(segment_1 <= 0.01999999955296516f)
+    if((segment_1 <= 0.019999999552965164f))
     {
         textureStore((uRaw_0), (vec2<u32>(_S14)), (vec4<f32>(1.0f, 0.0f, 0.0f, 0.0f)));
         return;
@@ -224,7 +224,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var ratio_0 : f32;
     if(hit_0)
     {
-        ratio_0 = clamp(t_1 / max(span_0 - t_1, 0.05000000074505806f), 0.00999999977648258f, 64.0f);
+        ratio_0 = clamp(t_1 / max(span_0 - t_1, 0.05000000074505806f), 0.0099999997764825821f, 64.0f);
     }
     else
     {

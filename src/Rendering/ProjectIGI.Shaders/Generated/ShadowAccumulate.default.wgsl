@@ -58,7 +58,7 @@ fn SampleHistoryCatmullRom_0( uv_1 : vec2<f32>) -> vec4<f32>
     var w12_0 : vec2<f32> = _S3 + _S5 * (vec2<f32>(-2.5f) + _S6) + w2_0;
     var pos0_0 : vec2<f32> = (texel1_0 - _S3) * invSize_0;
     var pos3_0 : vec2<f32> = (texel1_0 + _S7) * invSize_0;
-    var pos12_0 : vec2<f32> = (texel1_0 + w2_0 / max(w12_0, vec2<f32>(0.00000999999974738f, 0.00000999999974738f))) * invSize_0;
+    var pos12_0 : vec2<f32> = (texel1_0 + w2_0 / max(w12_0, vec2<f32>(9.9999997473787516e-06f, 9.9999997473787516e-06f))) * invSize_0;
     var _S8 : f32 = pos0_0.x;
     var _S9 : f32 = pos0_0.y;
     var _S10 : vec4<f32> = vec4<f32>(w0_0.x);
@@ -83,9 +83,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(local_i
     var _S20 : vec2<i32> = vec2<i32>(id_0.xy);
     var _S21 : vec2<i32> = vec2<i32>(p_0.resolution_0.xy);
     var inside_0 : bool;
-    if((_S20.x) < (_S21.x))
+    if(((_S20.x) < (_S21.x)))
     {
-        inside_0 = (_S20.y) < (_S21.y);
+        inside_0 = ((_S20.y) < (_S21.y));
     }
     else
     {
@@ -110,9 +110,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(local_i
     var currentMin_1 : f32 = current_0;
     var currentMax_1 : f32 = current_0;
     var ny_0 : i32 = i32(-1);
-    for(;;)
+    loop
     {
-        if(ny_0 <= i32(1))
+        if((ny_0 <= i32(1)))
         {
         }
         else
@@ -122,9 +122,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(local_i
         currentMin_0 = currentMin_1;
         currentMax_0 = currentMax_1;
         var nx_0 : i32 = i32(-1);
-        for(;;)
+        loop
         {
-            if(nx_0 <= i32(1))
+            if((nx_0 <= i32(1)))
             {
             }
             else
@@ -132,9 +132,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(local_i
                 break;
             }
             var n_0 : vec2<i32> = vec2<i32>(local_0.xy) + vec2<i32>(nx_0, ny_0);
-            if((all((n_0 >= vec2<i32>(i32(0), i32(0))))))
+            if((all(((n_0 >= vec2<i32>(i32(0), i32(0)))))))
             {
-                inside_0 = (all((n_0 < vec2<i32>(i32(8), i32(8)))));
+                inside_0 = (all(((n_0 < vec2<i32>(i32(8), i32(8))))));
             }
             else
             {
@@ -157,16 +157,16 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(local_i
     var depth_1 : f32 = (textureLoad((uDepth_0), ((_S25)).xy, ((_S25)).z)).x;
     var _S26 : vec2<f32> = vec2<f32>(0.5f);
     var uv_2 : vec2<f32> = (vec2<f32>(_S20) + _S26 - p_0.jitter_0.xy) * p_0.resolution_0.zw;
-    if(depth_1 <= 0.0f)
+    if((depth_1 <= 0.0f))
     {
         textureStore((uHistory_0), (vec2<u32>(_S20)), (vec4<f32>(current_0, 0.0f, 0.0f, 0.0f)));
         return;
     }
     var viewPos_0 : vec3<f32> = ViewPositionAt_0(uv_2, depth_1);
     var prevView_0 : vec3<f32> = (((vec4<f32>((((vec4<f32>(viewPos_0, 0.0f)) * (mat4x4<f32>(p_0.viewToWorld_0.data_0[i32(0)][i32(0)], p_0.viewToWorld_0.data_0[i32(1)][i32(0)], p_0.viewToWorld_0.data_0[i32(2)][i32(0)], p_0.viewToWorld_0.data_0[i32(3)][i32(0)], p_0.viewToWorld_0.data_0[i32(0)][i32(1)], p_0.viewToWorld_0.data_0[i32(1)][i32(1)], p_0.viewToWorld_0.data_0[i32(2)][i32(1)], p_0.viewToWorld_0.data_0[i32(3)][i32(1)], p_0.viewToWorld_0.data_0[i32(0)][i32(2)], p_0.viewToWorld_0.data_0[i32(1)][i32(2)], p_0.viewToWorld_0.data_0[i32(2)][i32(2)], p_0.viewToWorld_0.data_0[i32(3)][i32(2)], p_0.viewToWorld_0.data_0[i32(0)][i32(3)], p_0.viewToWorld_0.data_0[i32(1)][i32(3)], p_0.viewToWorld_0.data_0[i32(2)][i32(3)], p_0.viewToWorld_0.data_0[i32(3)][i32(3)])))).xyz + p_0.cameraDelta_0.xyz, 0.0f)) * (mat4x4<f32>(p_0.prevWorldToView_0.data_0[i32(0)][i32(0)], p_0.prevWorldToView_0.data_0[i32(1)][i32(0)], p_0.prevWorldToView_0.data_0[i32(2)][i32(0)], p_0.prevWorldToView_0.data_0[i32(3)][i32(0)], p_0.prevWorldToView_0.data_0[i32(0)][i32(1)], p_0.prevWorldToView_0.data_0[i32(1)][i32(1)], p_0.prevWorldToView_0.data_0[i32(2)][i32(1)], p_0.prevWorldToView_0.data_0[i32(3)][i32(1)], p_0.prevWorldToView_0.data_0[i32(0)][i32(2)], p_0.prevWorldToView_0.data_0[i32(1)][i32(2)], p_0.prevWorldToView_0.data_0[i32(2)][i32(2)], p_0.prevWorldToView_0.data_0[i32(3)][i32(2)], p_0.prevWorldToView_0.data_0[i32(0)][i32(3)], p_0.prevWorldToView_0.data_0[i32(1)][i32(3)], p_0.prevWorldToView_0.data_0[i32(2)][i32(3)], p_0.prevWorldToView_0.data_0[i32(3)][i32(3)])))).xyz;
-    if((p_0.control_0.y) > 0.5f)
+    if(((p_0.control_0.y) > 0.5f))
     {
-        inside_0 = (prevView_0.z) > (p_0.prevProjection_0.z);
+        inside_0 = ((prevView_0.z) > (p_0.prevProjection_0.z));
     }
     else
     {
@@ -178,11 +178,11 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(local_i
         var prevUnjittered_0 : vec2<f32> = vec2<f32>(prevView_0.x * p_0.prevProjection_0.x / _S27, - prevView_0.y * p_0.prevProjection_0.y / _S27) * _S26 + _S26;
         var ownMotion_0 : bool;
         var prevUnjittered_1 : vec2<f32>;
-        if((p_0.control_0.w) > 0.5f)
+        if(((p_0.control_0.w) > 0.5f))
         {
             var motion_0 : vec2<f32> = (textureLoad((uVelocity_0), ((_S25)).xy, ((_S25)).z)).xy;
             var apart_0 : vec2<f32> = (motion_0 - (uv_2 - prevUnjittered_0)) * p_0.resolution_0.xy;
-            var _S28 : bool = (dot(apart_0, apart_0)) > 2.25f;
+            var _S28 : bool = ((dot(apart_0, apart_0)) > 2.25f);
             if(_S28)
             {
                 prevUnjittered_1 = uv_2 - motion_0;
@@ -199,9 +199,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(local_i
             ownMotion_0 = false;
         }
         var prevUv_0 : vec2<f32> = prevUnjittered_1 + p_0.jitter_0.zw * p_0.resolution_0.zw;
-        if((all((prevUv_0 >= vec2<f32>(0.0f, 0.0f)))))
+        if((all(((prevUv_0 >= vec2<f32>(0.0f, 0.0f))))))
         {
-            inside_0 = (all((prevUv_0 <= vec2<f32>(1.0f, 1.0f))));
+            inside_0 = (all(((prevUv_0 <= vec2<f32>(1.0f, 1.0f)))));
         }
         else
         {
@@ -220,11 +220,11 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(local_i
             }
             else
             {
-                sameSurface_0 = _S30 <= (_S27 * p_0.control_0.z);
+                sameSurface_0 = (_S30 <= (_S27 * p_0.control_0.z));
             }
             if(sameSurface_0)
             {
-                inside_0 = (history_0.z) > 0.0f;
+                inside_0 = ((history_0.z) > 0.0f);
             }
             else
             {

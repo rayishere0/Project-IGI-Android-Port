@@ -39,7 +39,7 @@ fn SampleInstance_0( instance_0 : i32,  world_0 : vec3<f32>) -> f32
     var fieldOrigin_0 : vec4<f32> = uInstances_0[at_0 + i32(5)];
     var voxelSize_0 : vec4<f32> = uInstances_0[at_0 + i32(6)];
     var _S1 : f32 = slotCorner_0.w;
-    if(_S1 <= 0.0f)
+    if((_S1 <= 0.0f))
     {
         return 1.0e+06f;
     }
@@ -55,7 +55,7 @@ fn SampleInstance_0( instance_0 : i32,  world_0 : vec3<f32>) -> f32
     var distance_0 : f32 = (ComputeSample_0(uAtlas_1, uAtlasSampler_0, (slotCorner_0.xyz + clamped_0) / vec3<f32>(f32(width_0), f32(height_0), f32(depth_0))).x * 2.0f - 1.0f) * _S1;
     var beyond_0 : f32 = length((clamped_0 - voxel_0) * _S2);
     var _S4 : f32;
-    if(beyond_0 > 0.0f)
+    if((beyond_0 > 0.0f))
     {
         _S4 = beyond_0;
     }
@@ -71,7 +71,7 @@ fn SampleInstance_0( instance_0 : i32,  world_0 : vec3<f32>) -> f32
 fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
 {
     var _S5 : vec3<i32> = vec3<i32>(id_0);
-    if((any((_S5 >= vec3<i32>(g_0.uResolution_0, g_0.uResolution_0, g_0.uResolution_0)))))
+    if((any(((_S5 >= vec3<i32>(g_0.uResolution_0, g_0.uResolution_0, g_0.uResolution_0))))))
     {
         return;
     }
@@ -82,9 +82,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var _S6 : i32 = uCellOffsets_0[cellIndex_0 + i32(1)];
     var nearest_0 : f32 = g_0.uRange_0;
     var i_0 : i32 = first_0;
-    for(;;)
+    loop
     {
-        if(i_0 < _S6)
+        if((i_0 < _S6))
         {
         }
         else

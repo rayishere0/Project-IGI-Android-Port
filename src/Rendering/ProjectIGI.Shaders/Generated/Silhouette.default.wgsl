@@ -63,13 +63,13 @@ fn Mask_0( pixel_0 : vec2<i32>) -> vec4<f32>
 {
     var _S6 : vec2<i32> = vec2<i32>(p_0.frame_0.xy);
     var _S7 : bool;
-    if((any((pixel_0 < vec2<i32>(i32(0), i32(0))))))
+    if((any(((pixel_0 < vec2<i32>(i32(0), i32(0)))))))
     {
         _S7 = true;
     }
     else
     {
-        _S7 = (any((pixel_0 >= _S6)));
+        _S7 = (any(((pixel_0 >= _S6))));
     }
     if(_S7)
     {
@@ -82,7 +82,7 @@ fn Mask_0( pixel_0 : vec2<i32>) -> vec4<f32>
 fn Lay_0( under_0 : ptr<function, vec4<f32>>,  inside_0 : bool,  n_0 : f32,  offsets_0 : vec2<f32>,  least_0 : f32,  fill_0 : vec4<f32>,  outline_0 : vec4<f32>,  scale_1 : f32,  fade_0 : f32)
 {
     var mean_0 : f32;
-    if(n_0 > 0.0f)
+    if((n_0 > 0.0f))
     {
         mean_0 = length(offsets_0) / n_0;
     }
@@ -124,14 +124,14 @@ fn fragmentMain( _S10 : pixelInput_0, @builtin(position) position_2 : vec4<f32>)
     var position_3 : vec2<f32> = position_2.xy;
     var hostileFade_0 : f32 = EdgeFade_0(position_3, p_0.vignettes_0.xy);
     var otherFade_0 : f32 = EdgeFade_0(position_3, p_0.vignettes_0.zw);
-    if((max(hostileFade_0, otherFade_0)) <= 0.0f)
+    if(((max(hostileFade_0, otherFade_0)) <= 0.0f))
     {
         var _S11 : pixelOutput_0 = pixelOutput_0( vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f) );
         return _S11;
     }
     var _S12 : vec2<i32> = vec2<i32>(position_3);
     var _S13 : vec3<f32> = vec3<f32>(0.5f);
-    var inside_1 : vec3<bool> = (Mask_0(_S12).xyz) > _S13;
+    var inside_1 : vec3<bool> = ((Mask_0(_S12).xyz) > _S13);
     var n_1 : vec3<f32> = vec3<f32>(0.0f, 0.0f, 0.0f);
     const _S14 : vec2<f32> = vec2<f32>(0.0f, 0.0f);
     var least_1 : vec3<f32> = vec3<f32>(100.0f, 100.0f, 100.0f);
@@ -139,9 +139,9 @@ fn fragmentMain( _S10 : pixelInput_0, @builtin(position) position_2 : vec4<f32>)
     var s0_0 : vec2<f32> = _S14;
     var s1_0 : vec2<f32> = _S14;
     var s2_0 : vec2<f32> = _S14;
-    for(;;)
+    loop
     {
-        if(dy_0 >= i32(-2))
+        if((dy_0 >= i32(-2)))
         {
         }
         else
@@ -152,9 +152,9 @@ fn fragmentMain( _S10 : pixelInput_0, @builtin(position) position_2 : vec4<f32>)
         var s0_1 : vec2<f32> = s0_0;
         var s1_1 : vec2<f32> = s1_0;
         var s2_1 : vec2<f32> = s2_0;
-        for(;;)
+        loop
         {
-            if(dx_0 >= i32(-2))
+            if((dx_0 >= i32(-2)))
             {
             }
             else
@@ -175,7 +175,7 @@ fn fragmentMain( _S10 : pixelInput_0, @builtin(position) position_2 : vec4<f32>)
                 dx_0 = dx_0 - i32(1);
                 continue;
             }
-            var there_0 : vec3<bool> = (Mask_0(_S12 + vec2<i32>(dx_0, dy_0)).xyz) > _S13;
+            var there_0 : vec3<bool> = ((Mask_0(_S12 + vec2<i32>(dx_0, dy_0)).xyz) > _S13);
             var offset_0 : vec2<f32> = vec2<f32>(f32(dx_0), f32(dy_0));
             var squared_0 : f32 = dot(offset_0, offset_0);
             var s0_2 : vec2<f32>;

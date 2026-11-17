@@ -19,6 +19,8 @@ struct Params_std140_0
 
 @binding(2) @group(0) var uVelocity_0 : texture_storage_2d<rgba32float, write>;
 
+@binding(1) @group(0) var uDepthSampler_0 : sampler;
+
 fn DepthBilinearLoaded_0( depth_0 : texture_depth_2d,  uv_0 : vec2<f32>) -> f32
 {
     var width_0 : u32;
@@ -59,13 +61,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var _S10 : vec2<i32> = vec2<i32>(id_0.xy);
     var _S11 : vec2<i32> = vec2<i32>(p_0.resolution_0.xy);
     var _S12 : bool;
-    if((_S10.x) >= (_S11.x))
+    if(((_S10.x) >= (_S11.x)))
     {
         _S12 = true;
     }
     else
     {
-        _S12 = (_S10.y) >= (_S11.y);
+        _S12 = ((_S10.y) >= (_S11.y));
     }
     if(_S12)
     {
@@ -74,13 +76,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var _S13 : vec2<f32> = vec2<f32>(0.5f);
     var rasterUv_0 : vec2<f32> = (vec2<f32>(_S10) + _S13) * p_0.resolution_0.zw;
     var depth_3 : f32 = DepthBilinearLoaded_0(uDepth_0, rasterUv_0);
-    if(depth_3 <= 0.0f)
+    if((depth_3 <= 0.0f))
     {
         var skyUv_0 : vec2<f32> = rasterUv_0 - p_0.jitter_0.xy * p_0.resolution_0.zw;
         var ndc_1 : vec2<f32> = skyUv_0 * vec2<f32>(2.0f) - vec2<f32>(1.0f);
         var prevDirection_0 : vec3<f32> = (((vec4<f32>((((vec4<f32>(vec3<f32>(ndc_1.x / p_0.unproject_0.x, - ndc_1.y / p_0.unproject_0.y, 1.0f), 0.0f)) * (mat4x4<f32>(p_0.viewToWorld_0.data_0[i32(0)][i32(0)], p_0.viewToWorld_0.data_0[i32(1)][i32(0)], p_0.viewToWorld_0.data_0[i32(2)][i32(0)], p_0.viewToWorld_0.data_0[i32(3)][i32(0)], p_0.viewToWorld_0.data_0[i32(0)][i32(1)], p_0.viewToWorld_0.data_0[i32(1)][i32(1)], p_0.viewToWorld_0.data_0[i32(2)][i32(1)], p_0.viewToWorld_0.data_0[i32(3)][i32(1)], p_0.viewToWorld_0.data_0[i32(0)][i32(2)], p_0.viewToWorld_0.data_0[i32(1)][i32(2)], p_0.viewToWorld_0.data_0[i32(2)][i32(2)], p_0.viewToWorld_0.data_0[i32(3)][i32(2)], p_0.viewToWorld_0.data_0[i32(0)][i32(3)], p_0.viewToWorld_0.data_0[i32(1)][i32(3)], p_0.viewToWorld_0.data_0[i32(2)][i32(3)], p_0.viewToWorld_0.data_0[i32(3)][i32(3)])))).xyz, 0.0f)) * (mat4x4<f32>(p_0.prevWorldToView_0.data_0[i32(0)][i32(0)], p_0.prevWorldToView_0.data_0[i32(1)][i32(0)], p_0.prevWorldToView_0.data_0[i32(2)][i32(0)], p_0.prevWorldToView_0.data_0[i32(3)][i32(0)], p_0.prevWorldToView_0.data_0[i32(0)][i32(1)], p_0.prevWorldToView_0.data_0[i32(1)][i32(1)], p_0.prevWorldToView_0.data_0[i32(2)][i32(1)], p_0.prevWorldToView_0.data_0[i32(3)][i32(1)], p_0.prevWorldToView_0.data_0[i32(0)][i32(2)], p_0.prevWorldToView_0.data_0[i32(1)][i32(2)], p_0.prevWorldToView_0.data_0[i32(2)][i32(2)], p_0.prevWorldToView_0.data_0[i32(3)][i32(2)], p_0.prevWorldToView_0.data_0[i32(0)][i32(3)], p_0.prevWorldToView_0.data_0[i32(1)][i32(3)], p_0.prevWorldToView_0.data_0[i32(2)][i32(3)], p_0.prevWorldToView_0.data_0[i32(3)][i32(3)])))).xyz;
         var _S14 : f32 = prevDirection_0.z;
-        if(_S14 <= 0.00009999999747379f)
+        if((_S14 <= 9.9999997473787516e-05f))
         {
             textureStore((uVelocity_0), (vec2<u32>(_S10)), (vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f)));
             return;
@@ -88,7 +90,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         textureStore((uVelocity_0), (vec2<u32>(_S10)), (vec4<f32>(skyUv_0 - (vec2<f32>(prevDirection_0.x * p_0.prevProjection_0.x / _S14, - prevDirection_0.y * p_0.prevProjection_0.y / _S14) * _S13 + _S13), 0.0f, 0.0f)));
         return;
     }
-    if(depth_3 >= 0.89999997615814209f)
+    if((depth_3 >= 0.89999997615814209f))
     {
         textureStore((uVelocity_0), (vec2<u32>(_S10)), (vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f)));
         return;
@@ -96,7 +98,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var currentUv_0 : vec2<f32> = rasterUv_0 - p_0.jitter_0.xy * p_0.resolution_0.zw;
     var prevView_0 : vec3<f32> = (((vec4<f32>((((vec4<f32>(ViewPositionAt_0(currentUv_0, depth_3, p_0.unproject_0), 0.0f)) * (mat4x4<f32>(p_0.viewToWorld_0.data_0[i32(0)][i32(0)], p_0.viewToWorld_0.data_0[i32(1)][i32(0)], p_0.viewToWorld_0.data_0[i32(2)][i32(0)], p_0.viewToWorld_0.data_0[i32(3)][i32(0)], p_0.viewToWorld_0.data_0[i32(0)][i32(1)], p_0.viewToWorld_0.data_0[i32(1)][i32(1)], p_0.viewToWorld_0.data_0[i32(2)][i32(1)], p_0.viewToWorld_0.data_0[i32(3)][i32(1)], p_0.viewToWorld_0.data_0[i32(0)][i32(2)], p_0.viewToWorld_0.data_0[i32(1)][i32(2)], p_0.viewToWorld_0.data_0[i32(2)][i32(2)], p_0.viewToWorld_0.data_0[i32(3)][i32(2)], p_0.viewToWorld_0.data_0[i32(0)][i32(3)], p_0.viewToWorld_0.data_0[i32(1)][i32(3)], p_0.viewToWorld_0.data_0[i32(2)][i32(3)], p_0.viewToWorld_0.data_0[i32(3)][i32(3)])))).xyz + p_0.cameraDelta_0.xyz, 0.0f)) * (mat4x4<f32>(p_0.prevWorldToView_0.data_0[i32(0)][i32(0)], p_0.prevWorldToView_0.data_0[i32(1)][i32(0)], p_0.prevWorldToView_0.data_0[i32(2)][i32(0)], p_0.prevWorldToView_0.data_0[i32(3)][i32(0)], p_0.prevWorldToView_0.data_0[i32(0)][i32(1)], p_0.prevWorldToView_0.data_0[i32(1)][i32(1)], p_0.prevWorldToView_0.data_0[i32(2)][i32(1)], p_0.prevWorldToView_0.data_0[i32(3)][i32(1)], p_0.prevWorldToView_0.data_0[i32(0)][i32(2)], p_0.prevWorldToView_0.data_0[i32(1)][i32(2)], p_0.prevWorldToView_0.data_0[i32(2)][i32(2)], p_0.prevWorldToView_0.data_0[i32(3)][i32(2)], p_0.prevWorldToView_0.data_0[i32(0)][i32(3)], p_0.prevWorldToView_0.data_0[i32(1)][i32(3)], p_0.prevWorldToView_0.data_0[i32(2)][i32(3)], p_0.prevWorldToView_0.data_0[i32(3)][i32(3)])))).xyz;
     var _S15 : f32 = prevView_0.z;
-    if(_S15 <= (p_0.prevProjection_0.z))
+    if((_S15 <= (p_0.prevProjection_0.z)))
     {
         textureStore((uVelocity_0), (vec2<u32>(_S10)), (vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f)));
         return;

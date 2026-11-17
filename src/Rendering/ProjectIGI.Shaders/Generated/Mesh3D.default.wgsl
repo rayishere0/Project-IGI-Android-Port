@@ -98,7 +98,7 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
     }
     output_0.fade_0 = 1.0f;
     var terrain_0 : f32;
-    if((abs(push_0.markerExposure_0.x)) > 0.5f)
+    if(((abs(push_0.markerExposure_0.x)) > 0.5f))
     {
         terrain_0 = push_0.normalKey0_0.w;
     }
@@ -106,7 +106,7 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
     {
         terrain_0 = 0.0f;
     }
-    var _S4 : bool = terrain_0 > 0.5f;
+    var _S4 : bool = (terrain_0 > 0.5f);
     var fogDensity_0 : f32;
     var facing_0 : f32;
     var localPosition_1 : vec3<f32>;
@@ -119,19 +119,19 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
         var _S5 : vec3<f32> = _S2.position_1 + _S2.normal_1 * vec3<f32>(morph_0);
         var diffuseUv_3 : vec2<f32> = _S2.diffuseUv_1 + _S2.lightmapUv_1 * vec2<f32>(morph_0);
         var selector_0 : f32 = _S2.colorBgra_0.w * 3.0f;
-        if(selector_0 < 0.5f)
+        if((selector_0 < 0.5f))
         {
             fogDensity_0 = 0.0f;
         }
         else
         {
-            if(selector_0 < 1.5f)
+            if((selector_0 < 1.5f))
             {
                 fogDensity_0 = morph_0;
             }
             else
             {
-                if(selector_0 < 2.5f)
+                if((selector_0 < 2.5f))
                 {
                     fogDensity_0 = 1.0f - morph_0;
                 }
@@ -141,13 +141,13 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
                 }
             }
         }
-        if(terrain_0 > 2.5f)
+        if((terrain_0 > 2.5f))
         {
             fogDensity_0 = 1.0f;
         }
         else
         {
-            if(terrain_0 > 1.5f)
+            if((terrain_0 > 1.5f))
             {
                 facing_0 = 1.0f - morph_0;
             }
@@ -168,9 +168,9 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
     }
     var clip_0 : vec4<f32> = (((vec4<f32>(localPosition_1, 1.0f)) * (mat4x4<f32>(push_0.modelViewProjection_0.data_0[i32(0)][i32(0)], push_0.modelViewProjection_0.data_0[i32(1)][i32(0)], push_0.modelViewProjection_0.data_0[i32(2)][i32(0)], push_0.modelViewProjection_0.data_0[i32(3)][i32(0)], push_0.modelViewProjection_0.data_0[i32(0)][i32(1)], push_0.modelViewProjection_0.data_0[i32(1)][i32(1)], push_0.modelViewProjection_0.data_0[i32(2)][i32(1)], push_0.modelViewProjection_0.data_0[i32(3)][i32(1)], push_0.modelViewProjection_0.data_0[i32(0)][i32(2)], push_0.modelViewProjection_0.data_0[i32(1)][i32(2)], push_0.modelViewProjection_0.data_0[i32(2)][i32(2)], push_0.modelViewProjection_0.data_0[i32(3)][i32(2)], push_0.modelViewProjection_0.data_0[i32(0)][i32(3)], push_0.modelViewProjection_0.data_0[i32(1)][i32(3)], push_0.modelViewProjection_0.data_0[i32(2)][i32(3)], push_0.modelViewProjection_0.data_0[i32(3)][i32(3)]))));
     var _S6 : bool;
-    if((abs(push_0.markerExposure_0.x)) > 0.5f)
+    if(((abs(push_0.markerExposure_0.x)) > 0.5f))
     {
-        _S6 = (push_0.markerExposure_0.x) < 1.5f;
+        _S6 = ((push_0.markerExposure_0.x) < 1.5f);
     }
     else
     {
@@ -184,7 +184,7 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
     {
         fogDensity_0 = 0.0f;
     }
-    var _S7 : bool = fogDensity_0 > 0.0f;
+    var _S7 : bool = (fogDensity_0 > 0.0f);
     if(_S7)
     {
         facing_0 = clamp(exp(- fogDensity_0 * max(clip_0.w, 0.0f)), 0.0f, 1.0f);
@@ -196,7 +196,7 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
     output_0.fog_0 = facing_0;
     if(_S7)
     {
-        _S6 = terrain_0 < 0.5f;
+        _S6 = (terrain_0 < 0.5f);
     }
     else
     {
@@ -204,7 +204,7 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
     }
     if(_S6)
     {
-        _S6 = (push_0.normalKey1_0.w) > 0.0f;
+        _S6 = ((push_0.normalKey1_0.w) > 0.0f);
     }
     else
     {
@@ -230,9 +230,9 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
     }
     output_0.color_0 = _S8;
     var sunModel_0 : vec3<f32> = push_0.normalKey0_0.xyz;
-    if((abs(push_0.markerExposure_0.x)) > 0.5f)
+    if(((abs(push_0.markerExposure_0.x)) > 0.5f))
     {
-        _S6 = terrain_0 < 0.5f;
+        _S6 = (terrain_0 < 0.5f);
     }
     else
     {
@@ -240,7 +240,7 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
     }
     if(_S6)
     {
-        _S6 = (push_0.normalKey0_0.w) >= 0.0f;
+        _S6 = ((push_0.normalKey0_0.w) >= 0.0f);
     }
     else
     {
@@ -248,7 +248,7 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
     }
     if(_S6)
     {
-        _S6 = (dot(sunModel_0, sunModel_0)) > 9.99999993922529029e-09f;
+        _S6 = ((dot(sunModel_0, sunModel_0)) > 9.99999993922529029e-09f);
     }
     else
     {
@@ -257,7 +257,7 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
     if(_S6)
     {
         var normalLength_0 : f32 = length(localNormal_0);
-        if(normalLength_0 > 0.0f)
+        if((normalLength_0 > 0.0f))
         {
             facing_0 = dot(localNormal_0 / vec3<f32>(normalLength_0), sunModel_0);
         }
@@ -278,7 +278,7 @@ fn vertexMain( _S2 : vertexInput_0) -> Varyings_0
 
 fn EncodeSrgb_0( c_0 : vec3<f32>) -> vec3<f32>
 {
-    return mix(vec3<f32>(1.0549999475479126f) * pow(max(c_0, vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(0.4166666567325592f, 0.4166666567325592f, 0.4166666567325592f)) - vec3<f32>(0.05499999970197678f), c_0 * vec3<f32>(12.92000007629394531f), step(c_0, vec3<f32>(0.00313080009073019f, 0.00313080009073019f, 0.00313080009073019f)));
+    return mix(vec3<f32>(1.0549999475479126f) * pow(max(c_0, vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(0.4166666567325592f, 0.4166666567325592f, 0.4166666567325592f)) - vec3<f32>(0.054999999701976776f), c_0 * vec3<f32>(12.920000076293945f), step(c_0, vec3<f32>(0.0031308000907301903f, 0.0031308000907301903f, 0.0031308000907301903f)));
 }
 
 fn SampledDisplay_0( sampled_0 : vec3<f32>) -> vec3<f32>
@@ -297,7 +297,7 @@ fn SampledDisplay_0( sampled_0 : vec3<f32>) -> vec3<f32>
 
 fn DecodeSrgb_0( c_1 : vec3<f32>) -> vec3<f32>
 {
-    return mix(pow(max((c_1 + vec3<f32>(0.05499999970197678f)) / vec3<f32>(1.0549999475479126f), vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(2.40000009536743164f, 2.40000009536743164f, 2.40000009536743164f)), c_1 / vec3<f32>(12.92000007629394531f), step(c_1, vec3<f32>(0.04044999927282333f, 0.04044999927282333f, 0.04044999927282333f)));
+    return mix(pow(max((c_1 + vec3<f32>(0.054999999701976776f)) / vec3<f32>(1.0549999475479126f), vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(2.4000000953674316f, 2.4000000953674316f, 2.4000000953674316f)), c_1 / vec3<f32>(12.920000076293945f), step(c_1, vec3<f32>(0.040449999272823334f, 0.040449999272823334f, 0.040449999272823334f)));
 }
 
 struct pixelOutput_0
@@ -321,11 +321,11 @@ fn fragmentMain( _S11 : pixelInput_0, @builtin(position) position_2 : vec4<f32>)
 {
     var diffuse_0 : vec4<f32> = (textureSample((uDiffuse_0), (uDiffuseSampler_0), (_S11.diffuseUv_4)));
     var marker_0 : f32 = push_0.markerExposure_0.x;
-    var translucent_0 : bool = marker_0 < 0.0f;
+    var translucent_0 : bool = (marker_0 < 0.0f);
     var _S12 : bool;
     if(!translucent_0)
     {
-        _S12 = (diffuse_0.w) < cAlphaReference_0;
+        _S12 = ((diffuse_0.w) < cAlphaReference_0);
     }
     else
     {
@@ -336,13 +336,13 @@ fn fragmentMain( _S11 : pixelInput_0, @builtin(position) position_2 : vec4<f32>)
         discard;
     }
     var lightmap_0 : vec3<f32> = SampledDisplay_0((textureSample((uLightmap_0), (uLightmapSampler_0), (_S11.lightmapUv_2))).xyz);
-    if((abs(push_0.normalKey0_0.w)) > 0.5f)
+    if(((abs(push_0.normalKey0_0.w)) > 0.5f))
     {
         _S12 = true;
     }
     else
     {
-        _S12 = marker_0 < 0.5f;
+        _S12 = (marker_0 < 0.5f);
     }
     var modelTint_0 : vec3<f32>;
     if(_S12)
@@ -353,7 +353,7 @@ fn fragmentMain( _S11 : pixelInput_0, @builtin(position) position_2 : vec4<f32>)
     {
         modelTint_0 = push_0.normalKey1_0.xyz;
     }
-    var _S13 : bool = (abs(marker_0)) > 0.5f;
+    var _S13 : bool = ((abs(marker_0)) > 0.5f);
     if(_S13)
     {
         _S12 = cLinearScene_0 == i32(0);
@@ -388,7 +388,7 @@ fn fragmentMain( _S11 : pixelInput_0, @builtin(position) position_2 : vec4<f32>)
     }
     else
     {
-        if(marker_0 > 1.5f)
+        if((marker_0 > 1.5f))
         {
             lightmapGain_0 = 0.0f;
         }
@@ -401,7 +401,7 @@ fn fragmentMain( _S11 : pixelInput_0, @builtin(position) position_2 : vec4<f32>)
     if(_S13)
     {
         var fogShare_0 : f32;
-        if((push_0.normalKey0_0.w) < -0.5f)
+        if(((push_0.normalKey0_0.w) < -0.5f))
         {
             fogShare_0 = _S11.color_1.x;
         }
@@ -427,8 +427,8 @@ fn fragmentMain( _S11 : pixelInput_0, @builtin(position) position_2 : vec4<f32>)
     const toEye_1 : vec3<f32> = vec3<f32>(0.0f, 0.0f, -1.0f);
     var keyColour_0 : vec3<f32> = vec3<f32>(push_0.normalKey0_0.w, push_0.normalKey1_0.w, push_0.normalKey2_0.w);
     var _S16 : vec3<f32> = vec3<f32>(max(dot(normal_3, keyDirection_0), 0.0f));
-    var gloss_0 : f32 = exp2(7.05000019073486328f);
-    var _S17 : vec3<f32> = mix(vec3<f32>(0.03999999910593033f, 0.03999999910593033f, 0.03999999910593033f), base_1, vec3<f32>(0.34999999403953552f)) * keyColour_0;
+    var gloss_0 : f32 = exp2(7.0500001907348633f);
+    var _S17 : vec3<f32> = mix(vec3<f32>(0.039999999105930328f, 0.039999999105930328f, 0.039999999105930328f), base_1, vec3<f32>(0.34999999403953552f)) * keyColour_0;
     var _S18 : pixelOutput_0 = pixelOutput_0( vec4<f32>((base_1 * vec3<f32>(0.64999997615814209f) * (vec3<f32>(push_0.markerExposure_0.w, push_0.markerExposure_0.w, push_0.markerExposure_0.w) + keyColour_0 * _S16 + keyColour_0 * vec3<f32>(0.25f) * vec3<f32>(max(dot(normal_3, normalize(vec3<f32>(0.55000001192092896f, -0.20000000298023224f, -0.55000001192092896f))), 0.0f))) + _S17 * vec3<f32>((pow(max(dot(normal_3, normalize(keyDirection_0 + toEye_1)), 0.0f), gloss_0) * (gloss_0 + 8.0f) / 25.0f)) * _S16 + _S17 * vec3<f32>(pow(1.0f - max(dot(normal_3, toEye_1), 0.0f), 4.0f)) * vec3<f32>(0.34999999403953552f) * vec3<f32>(0.60000002384185791f)) * vec3<f32>(push_0.markerExposure_0.y), alpha_0) );
     return _S18;
 }

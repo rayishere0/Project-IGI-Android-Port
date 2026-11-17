@@ -19,6 +19,20 @@ struct GlassPush_std140_0
 
 @binding(0) @group(1) var uSceneDepth_0 : texture_depth_2d;
 
+@binding(2) @group(0) var uLightmap_0 : texture_2d<f32>;
+
+@binding(3) @group(0) var uLightmapSampler_0 : sampler;
+
+@binding(4) @group(0) var uDetail_0 : texture_2d<f32>;
+
+@binding(5) @group(0) var uDetailSampler_0 : sampler;
+
+struct GlassParams_std140_0
+{
+    @align(16) fog_0 : vec4<f32>,
+};
+
+@binding(1) @group(1) var<uniform> p_0 : GlassParams_std140_0;
 @id(64) override cClipYDown_0 : i32 = i32(1);
 
 fn OpenIgiClipY_0( y_0 : f32) -> f32
@@ -112,24 +126,24 @@ fn fragmentMain( _S5 : pixelInput_0, @builtin(position) position_3 : vec4<f32>) 
 {
     var alpha_0 : f32 = (textureSample((uDiffuse_0), (uDiffuseSampler_0), (_S5.diffuseUv_3))).w * _S5.color_1.w;
     var _S6 : bool;
-    if(alpha_0 >= 0.5f)
+    if((alpha_0 >= 0.5f))
     {
         _S6 = true;
     }
     else
     {
-        _S6 = alpha_0 < 0.01999999955296516f;
+        _S6 = (alpha_0 < 0.019999999552965164f);
     }
     if(_S6)
     {
         discard;
     }
     var _S7 : vec3<i32> = vec3<i32>(vec2<i32>(position_3.xy), i32(0));
-    if((position_3.z) < (textureLoad((uSceneDepth_0), ((_S7)).xy, ((_S7)).z)))
+    if(((position_3.z) < (textureLoad((uSceneDepth_0), ((_S7)).xy, ((_S7)).z))))
     {
         discard;
     }
-    var _S8 : pixelOutput_0 = pixelOutput_0( vec4<f32>(normalize(_S5.worldNormal_1), max(_S5.viewDepth_1, 0.00009999999747379f)) );
+    var _S8 : pixelOutput_0 = pixelOutput_0( vec4<f32>(normalize(_S5.worldNormal_1), max(_S5.viewDepth_1, 9.9999997473787516e-05f)) );
     return _S8;
 }
 

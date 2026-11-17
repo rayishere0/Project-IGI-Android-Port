@@ -82,7 +82,9 @@ struct Params_std140_0
 
 @binding(23) @group(0) var uFinalSampler_0 : sampler;
 
-var<private> kRippleOffset_0 : array<vec2<f32>, i32(4)> = array<vec2<f32>, i32(4)>( vec2<f32>(0.0f, 0.0f), vec2<f32>(0.43000000715255737f, 0.70999997854232788f), vec2<f32>(0.79000002145767212f, 0.23999999463558197f), vec2<f32>(0.17000000178813934f, 0.46000000834465027f) );
+@binding(11) @group(0) var uShelterMapSampler_0 : sampler;
+
+const kRippleOffset_0 : array<vec2<f32>, i32(4)> = array<vec2<f32>, i32(4)>( vec2<f32>(0.0f, 0.0f), vec2<f32>(0.43000000715255737f, 0.70999997854232788f), vec2<f32>(0.79000002145767212f, 0.23999999463558197f), vec2<f32>(0.17000000178813934f, 0.46000000834465027f) );
 fn DepthBilinearLoaded_0( depth_0 : texture_depth_2d,  uv_0 : vec2<f32>) -> f32
 {
     var width_0 : u32;
@@ -186,9 +188,9 @@ fn ShelterTexel_0( m_1 : ShelterMap_0,  worldXY_0 : vec2<f32>) -> vec2<i32>
 fn ShelterHolds_0( m_2 : ShelterMap_0,  texel_0 : vec2<i32>) -> bool
 {
     var _S10 : bool;
-    if((m_2.present_0) > 0.5f)
+    if(((m_2.present_0) > 0.5f))
     {
-        _S10 = (texel_0.x) >= i32(0);
+        _S10 = ((texel_0.x) >= i32(0));
     }
     else
     {
@@ -196,7 +198,7 @@ fn ShelterHolds_0( m_2 : ShelterMap_0,  texel_0 : vec2<i32>) -> bool
     }
     if(_S10)
     {
-        _S10 = (texel_0.y) >= i32(0);
+        _S10 = ((texel_0.y) >= i32(0));
     }
     else
     {
@@ -204,7 +206,7 @@ fn ShelterHolds_0( m_2 : ShelterMap_0,  texel_0 : vec2<i32>) -> bool
     }
     if(_S10)
     {
-        _S10 = (texel_0.x) < i32(m_2.size_0.x);
+        _S10 = ((texel_0.x) < i32(m_2.size_0.x));
     }
     else
     {
@@ -212,7 +214,7 @@ fn ShelterHolds_0( m_2 : ShelterMap_0,  texel_0 : vec2<i32>) -> bool
     }
     if(_S10)
     {
-        _S10 = (texel_0.y) < i32(m_2.size_0.y);
+        _S10 = ((texel_0.y) < i32(m_2.size_0.y));
     }
     else
     {
@@ -225,7 +227,7 @@ fn ShelterSurface_0( m_3 : ShelterMap_0,  texel_1 : vec4<f32>) -> f32
 {
     var packed_0 : f32 = floor(texel_1.z * 255.0f + 0.5f) + floor(texel_1.y * 255.0f + 0.5f) * 256.0f;
     var _S11 : f32;
-    if(packed_0 < 0.5f)
+    if((packed_0 < 0.5f))
     {
         _S11 = -1.00000001504746622e+30f;
     }
@@ -239,9 +241,9 @@ fn ShelterSurface_0( m_3 : ShelterMap_0,  texel_1 : vec4<f32>) -> f32
 fn ShelterCovers_0( m_4 : ShelterMap_0,  surfaceZ_0 : f32,  worldZ_0 : f32) -> bool
 {
     var _S12 : bool;
-    if(surfaceZ_0 > (worldZ_0 + m_4.headroom_0))
+    if((surfaceZ_0 > (worldZ_0 + m_4.headroom_0)))
     {
-        _S12 = surfaceZ_0 < (worldZ_0 + m_4.reach_0);
+        _S12 = (surfaceZ_0 < (worldZ_0 + m_4.reach_0));
     }
     else
     {
@@ -314,7 +316,7 @@ fn WetGridAt_1( w_2 : WetParams_0,  relative_2 : vec3<f32>,  size_2 : f32) -> We
 fn PuddleHeight_0( w_3 : WetParams_0,  relative_3 : vec3<f32>,  size_3 : f32) -> f32
 {
     var fine_0 : WetGrid_0 = WetGridAt_0(w_3, relative_3, size_3 * 0.46000000834465027f, vec2<f32>(0.80000001192092896f, 0.60000002384185791f));
-    var detail_0 : f32 = WetNoise_0(fine_0.uv_3 + vec2<f32>(11.30000019073486328f), fine_0.base_0);
+    var detail_0 : f32 = WetNoise_0(fine_0.uv_3 + vec2<f32>(11.300000190734863f), fine_0.base_0);
     var coarse_0 : WetGrid_0 = WetGridAt_1(w_3, relative_3, size_3);
     return WetNoise_0(coarse_0.uv_3 + vec2<f32>(((detail_0 - 0.5f) * 0.40000000596046448f)), coarse_0.base_0) * 0.64999997615814209f + detail_0 * 0.34999999403953552f;
 }
@@ -336,7 +338,7 @@ fn PuddleMask_0( w_5 : WetParams_0,  relative_5 : vec3<f32>,  normal_1 : vec3<f3
 
 fn WetFootprint_0( ndcPerPixel_0 : f32,  viewZ_1 : f32,  xScale_0 : f32,  nDotV_0 : f32) -> f32
 {
-    return abs(ndcPerPixel_0 * viewZ_1) / max(xScale_0, 0.00009999999747379f) / max(nDotV_0, 0.07999999821186066f);
+    return abs(ndcPerPixel_0 * viewZ_1) / max(xScale_0, 9.9999997473787516e-05f) / max(nDotV_0, 0.079999998211860657f);
 }
 
 fn WetHash3_0( cell_4 : vec2<f32>) -> vec3<f32>
@@ -353,7 +355,7 @@ fn WetHash3_0( cell_4 : vec2<f32>) -> vec3<f32>
 
 fn RippleLayer_0( uv_4 : vec2<f32>,  base_2 : vec2<f32>,  phase_0 : f32,  weight_1 : f32) -> vec2<f32>
 {
-    if(weight_1 <= 0.0f)
+    if((weight_1 <= 0.0f))
     {
         return vec2<f32>(0.0f, 0.0f);
     }
@@ -363,9 +365,9 @@ fn RippleLayer_0( uv_4 : vec2<f32>,  base_2 : vec2<f32>,  phase_0 : f32,  weight
     var _S25 : vec2<f32> = floor(uv_4 - _S24);
     var j_0 : i32 = i32(0);
     var slope_0 : vec2<f32> = _S23;
-    for(;;)
+    loop
     {
-        if(j_0 < i32(2))
+        if((j_0 < i32(2)))
         {
         }
         else
@@ -374,9 +376,9 @@ fn RippleLayer_0( uv_4 : vec2<f32>,  base_2 : vec2<f32>,  phase_0 : f32,  weight
         }
         var i_0 : i32 = i32(0);
         var slope_1 : vec2<f32> = slope_0;
-        for(;;)
+        loop
         {
-            if(i_0 < i32(2))
+            if((i_0 < i32(2)))
             {
             }
             else
@@ -385,7 +387,7 @@ fn RippleLayer_0( uv_4 : vec2<f32>,  base_2 : vec2<f32>,  phase_0 : f32,  weight
             }
             var cell_5 : vec2<f32> = _S25 + vec2<f32>(f32(i_0), f32(j_0));
             var fromCentre_0 : vec2<f32> = uv_4 - (cell_5 + _S24);
-            if((dot(fromCentre_0, fromCentre_0)) > 0.60839992761611938f)
+            if(((dot(fromCentre_0, fromCentre_0)) > 0.60839992761611938f))
             {
                 i_0 = i_0 + i32(1);
                 continue;
@@ -394,10 +396,10 @@ fn RippleLayer_0( uv_4 : vec2<f32>,  base_2 : vec2<f32>,  phase_0 : f32,  weight
             var t_0 : f32 = fract(phase_0 + h_5.x);
             var fromStrike_0 : vec2<f32> = fromCentre_0 - (h_5.yz - _S24) * _S24;
             var distance_0 : f32 = length(fromStrike_0);
-            var wave_0 : f32 = sin(3.14159274101257324f * clamp((t_0 - 1.0f + (1.0f - clamp(distance_0 / 0.46000000834465027f, 0.0f, 1.0f))) * 24.0f, 0.0f, 4.0f));
+            var wave_0 : f32 = sin(3.1415927410125732f * clamp((t_0 - 1.0f + (1.0f - clamp(distance_0 / 0.46000000834465027f, 0.0f, 1.0f))) * 24.0f, 0.0f, 4.0f));
             var envelope_0 : f32 = clamp(_S22 - t_0, 0.0f, 1.0f);
             var outward_0 : vec2<f32>;
-            if(distance_0 > 0.00000999999974738f)
+            if((distance_0 > 9.9999997473787516e-06f))
             {
                 outward_0 = fromStrike_0 / vec2<f32>(distance_0);
             }
@@ -419,9 +421,9 @@ fn RainRippleSlope_0( w_6 : WetParams_0,  relative_6 : vec3<f32>,  size_4 : f32,
     const _S26 : vec2<f32> = vec2<f32>(0.0f, 0.0f);
     var k_1 : i32 = i32(0);
     var slope_2 : vec2<f32> = _S26;
-    for(;;)
+    loop
     {
-        if(k_1 < i32(4))
+        if((k_1 < i32(4)))
         {
         }
         else
@@ -429,12 +431,12 @@ fn RainRippleSlope_0( w_6 : WetParams_0,  relative_6 : vec3<f32>,  size_4 : f32,
             break;
         }
         var weight_2 : f32 = clamp((intensity_0 - vec4<f32>(0.0f, 0.2199999988079071f, 0.43999999761581421f, 0.6600000262260437f)[k_1]) / 0.25f, 0.0f, 1.0f);
-        if(weight_2 <= 0.0f)
+        if((weight_2 <= 0.0f))
         {
             k_1 = k_1 + i32(1);
             continue;
         }
-        var grid_1 : WetGrid_0 = WetGridAt_1(w_6, relative_6, size_4 * vec4<f32>(0.51999998092651367f, 0.74000000953674316f, 0.97000002861022949f, 1.27999997138977051f)[k_1]);
+        var grid_1 : WetGrid_0 = WetGridAt_1(w_6, relative_6, size_4 * vec4<f32>(0.51999998092651367f, 0.74000000953674316f, 0.97000002861022949f, 1.2799999713897705f)[k_1]);
         slope_2 = slope_2 + RippleLayer_0(grid_1.uv_3 + kRippleOffset_0[k_1], grid_1.base_0, fract(time_0 * vec4<f32>(0.95999997854232788f, 0.81000000238418579f, 0.88999998569488525f, 0.72000002861022949f)[k_1] + vec4<f32>(0.0f, 0.31000000238418579f, 0.57999998331069946f, 0.82999998331069946f)[k_1]), weight_2);
         k_1 = k_1 + i32(1);
     }
@@ -443,8 +445,8 @@ fn RainRippleSlope_0( w_6 : WetParams_0,  relative_6 : vec3<f32>,  size_4 : f32,
 
 fn WindRippleSlope_0( w_7 : WetParams_0,  relative_7 : vec3<f32>,  time_1 : f32) -> vec2<f32>
 {
-    var grid_2 : WetGrid_0 = WetGridAt_1(w_7, relative_7, 1.79999995231628418f);
-    var p_2 : vec2<f32> = grid_2.uv_3 + vec2<f32>(time_1 * 0.07999999821186066f, time_1 * 0.05000000074505806f);
+    var grid_2 : WetGrid_0 = WetGridAt_1(w_7, relative_7, 1.7999999523162842f);
+    var p_2 : vec2<f32> = grid_2.uv_3 + vec2<f32>(time_1 * 0.079999998211860657f, time_1 * 0.05000000074505806f);
     var here_0 : f32 = WetNoise_0(p_2, grid_2.base_0);
     return vec2<f32>(WetNoise_0(p_2 + vec2<f32>(0.15000000596046448f, 0.0f), grid_2.base_0) - here_0, WetNoise_0(p_2 + vec2<f32>(0.0f, 0.15000000596046448f), grid_2.base_0) - here_0);
 }
@@ -458,8 +460,8 @@ struct WaterSurface_0
 
 fn WaterSurfaceAt_0( w_8 : WetParams_0,  relative_8 : vec3<f32>,  footprint_0 : f32) -> WaterSurface_0
 {
-    var _S27 : f32 = max(w_8.rippleSize_0, 0.01999999955296516f);
-    var slope_3 : vec2<f32> = RainRippleSlope_0(w_8, relative_8, _S27, w_8.seconds_0 * 0.60000002384185791f, w_8.rippleStrength_0) + WindRippleSlope_0(w_8, relative_8, w_8.seconds_0) * vec2<f32>(w_8.windStrength_0) * vec2<f32>(1.60000002384185791f);
+    var _S27 : f32 = max(w_8.rippleSize_0, 0.019999999552965164f);
+    var slope_3 : vec2<f32> = RainRippleSlope_0(w_8, relative_8, _S27, w_8.seconds_0 * 0.60000002384185791f, w_8.rippleStrength_0) + WindRippleSlope_0(w_8, relative_8, w_8.seconds_0) * vec2<f32>(w_8.windStrength_0) * vec2<f32>(1.6000000238418579f);
     var blur_0 : f32 = clamp(footprint_0 / (_S27 * 0.5f), 0.0f, 1.0f);
     var surface_0 : WaterSurface_0;
     var _S28 : f32 = 1.0f - blur_0;
@@ -473,14 +475,14 @@ fn WaterFresnel_0( normal_3 : vec3<f32>,  toEye_0 : vec3<f32>) -> f32
 {
     var grazing_0 : f32 = 1.0f - clamp(dot(normal_3, toEye_0), 0.0f, 1.0f);
     var squared_0 : f32 = grazing_0 * grazing_0;
-    return 0.01999999955296516f + 0.98000001907348633f * squared_0 * squared_0 * grazing_0;
+    return 0.019999999552965164f + 0.98000001907348633f * squared_0 * squared_0 * grazing_0;
 }
 
 fn EnvironmentBrdf_0( roughness_1 : f32,  cosNV_0 : f32) -> vec2<f32>
 {
     var smoothness_0 : f32 = 1.0f - roughness_1;
-    var _S29 : f32 = 1.03999996185302734f * (min(smoothness_0 * smoothness_0, exp2(-9.27999973297119141f * cosNV_0)) * smoothness_0 + 0.04250000044703484f - 0.02749999985098839f * roughness_1);
-    return vec2<f32>(1.03999996185302734f - 0.57200002670288086f * roughness_1 - _S29, 0.02199999988079071f * roughness_1 - 0.03999999910593033f + _S29);
+    var _S29 : f32 = 1.0399999618530273f * (min(smoothness_0 * smoothness_0, exp2(-9.2799997329711914f * cosNV_0)) * smoothness_0 + 0.042500000447034836f - 0.027499999850988388f * roughness_1);
+    return vec2<f32>(1.0399999618530273f - 0.57200002670288086f * roughness_1 - _S29, 0.02199999988079071f * roughness_1 - 0.039999999105930328f + _S29);
 }
 
 fn Pcg3d_0( v_1 : vec3<u32>) -> vec3<u32>
@@ -505,12 +507,12 @@ fn WhiteNoise3_0( px_0 : vec2<i32>,  frame_0 : u32,  salt_0 : u32) -> vec3<f32>
 
 fn GradientNoise_0( q_0 : vec2<f32>) -> f32
 {
-    return fract(52.98291778564453125f * fract(0.06711056083440781f * q_0.x + 0.00583714991807938f * q_0.y));
+    return fract(52.982917785644531f * fract(0.067110560834407806f * q_0.x + 0.0058371499180793762f * q_0.y));
 }
 
 fn FrameNoise_0( pos_0 : vec2<f32>,  frame_1 : f32) -> f32
 {
-    return GradientNoise_0(pos_0 + vec2<f32>(frame_1) * vec2<f32>(12.07804298400878906f, 9.11744499206542969f));
+    return GradientNoise_0(pos_0 + vec2<f32>(frame_1) * vec2<f32>(12.078042984008789f, 9.1174449920654297f));
 }
 
 fn Dither_0( pos_1 : vec2<f32>,  frame_2 : f32) -> f32
@@ -547,7 +549,7 @@ fn SampleSceneViewZ_0( uv_6 : vec2<f32>) -> f32
     var _S36 : vec3<i32> = vec3<i32>(clamp(vec2<i32>(uv_6 * vec2<f32>(f32(width_2), f32(height_2))), vec2<i32>(i32(0), i32(0)), vec2<i32>(i32(width_2) - i32(1), i32(height_2) - i32(1))), i32(0));
     var d_0 : f32 = (textureLoad((uSceneDepth_0), ((_S36)).xy, ((_S36)).z));
     var _S37 : f32;
-    if(d_0 > 0.0f)
+    if((d_0 > 0.0f))
     {
         _S37 = SceneViewZ_0(d_0);
     }
@@ -561,10 +563,10 @@ fn SampleSceneViewZ_0( uv_6 : vec2<f32>) -> f32
 fn SkyViewUv_0( worldDir_0 : vec3<f32>,  viewHeight_0 : f32) -> vec2<f32>
 {
     var beta_0 : f32 = acos(clamp(sqrt(max(0.0f, viewHeight_0 * viewHeight_0 - 4.04496e+07f)) / viewHeight_0, -1.0f, 1.0f));
-    var zenithHorizonAngle_0 : f32 = 3.14159274101257324f - beta_0;
+    var zenithHorizonAngle_0 : f32 = 3.1415927410125732f - beta_0;
     var viewZenithAngle_0 : f32 = acos(clamp(worldDir_0.z, -1.0f, 1.0f));
     var v_3 : f32;
-    if(viewZenithAngle_0 < zenithHorizonAngle_0)
+    if((viewZenithAngle_0 < zenithHorizonAngle_0))
     {
         v_3 = (1.0f - sqrt(max(0.0f, 1.0f - viewZenithAngle_0 / zenithHorizonAngle_0))) * 0.5f;
     }
@@ -574,15 +576,15 @@ fn SkyViewUv_0( worldDir_0 : vec3<f32>,  viewHeight_0 : f32) -> vec2<f32>
     }
     var azimuth_0 : f32 = atan2(worldDir_0.y, worldDir_0.x);
     var azimuth_1 : f32;
-    if(azimuth_0 < 0.0f)
+    if((azimuth_0 < 0.0f))
     {
-        azimuth_1 = azimuth_0 + 6.28318548202514648f;
+        azimuth_1 = azimuth_0 + 6.2831854820251465f;
     }
     else
     {
         azimuth_1 = azimuth_0;
     }
-    return vec2<f32>(azimuth_1 / 6.28318548202514648f, v_3);
+    return vec2<f32>(azimuth_1 / 6.2831854820251465f, v_3);
 }
 
 fn SkyViewInset_0( uv_7 : vec2<f32>,  size_5 : vec2<f32>) -> vec2<f32>
@@ -618,12 +620,12 @@ fn LosesCeiling_0( m_6 : ShelterMap_0,  map_0 : texture_2d<f32>,  worldXY_1 : ve
     var _S38 : vec3<i32> = vec3<i32>(at_1, i32(0));
     var roof_0 : f32 = ShelterSurface_0(m_6, (textureLoad((map_0), ((_S38)).xy, ((_S38)).z)));
     var _S39 : f32 = worldZ_1 + m_6.headroom_0;
-    if(roof_0 <= _S39)
+    if((roof_0 <= _S39))
     {
         return false;
     }
     var _S40 : f32 = rayW_0.z;
-    if(_S40 <= 0.05000000074505806f)
+    if((_S40 <= 0.05000000074505806f))
     {
         return false;
     }
@@ -633,7 +635,7 @@ fn LosesCeiling_0( m_6 : ShelterMap_0,  map_0 : texture_2d<f32>,  worldXY_1 : ve
         return false;
     }
     var _S41 : vec3<i32> = vec3<i32>(above_0, i32(0));
-    return (ShelterSurface_0(m_6, (textureLoad((map_0), ((_S41)).xy, ((_S41)).z)))) > _S39;
+    return ((ShelterSurface_0(m_6, (textureLoad((map_0), ((_S41)).xy, ((_S41)).z)))) > _S39);
 }
 
 fn DistanceAt_0( world_0 : vec3<f32>,  known_0 : ptr<function, bool>,  raw_0 : ptr<function, f32>,  resolved_0 : ptr<function, f32>) -> f32
@@ -642,9 +644,9 @@ fn DistanceAt_0( world_0 : vec3<f32>,  known_0 : ptr<function, bool>,  raw_0 : p
     (*raw_0) = 0.0f;
     (*resolved_0) = p_0.sdfOrigin_0[i32(0)].w;
     var level_0 : i32 = i32(0);
-    for(;;)
+    loop
     {
-        if(level_0 < i32(p_0.field_0.x))
+        if((level_0 < i32(p_0.field_0.x)))
         {
         }
         else
@@ -654,13 +656,13 @@ fn DistanceAt_0( world_0 : vec3<f32>,  known_0 : ptr<function, bool>,  raw_0 : p
         var _S42 : f32 = p_0.sdfOrigin_0[level_0].w;
         var voxel_0 : vec3<f32> = (world_0 - p_0.sdfOrigin_0[level_0].xyz) / vec3<f32>(_S42);
         var _S43 : bool;
-        if((any((voxel_0 < vec3<f32>(0.5f, 0.5f, 0.5f)))))
+        if((any(((voxel_0 < vec3<f32>(0.5f, 0.5f, 0.5f))))))
         {
             _S43 = true;
         }
         else
         {
-            _S43 = (any((voxel_0 > vec3<f32>(f32(i32(p_0.field_0.y)) - 0.5f, f32(i32(p_0.field_0.y)) - 0.5f, f32(i32(p_0.field_0.y)) - 0.5f))));
+            _S43 = (any(((voxel_0 > vec3<f32>(f32(i32(p_0.field_0.y)) - 0.5f, f32(i32(p_0.field_0.y)) - 0.5f, f32(i32(p_0.field_0.y)) - 0.5f)))));
         }
         if(_S43)
         {
@@ -681,9 +683,9 @@ fn Settle_0( at_2 : vec3<f32>,  direction_0 : vec3<f32>,  travelled_0 : f32,  vo
     (*voxel_1) = p_0.sdfOrigin_0[i32(0)].w;
     var pass_0 : i32 = i32(0);
     var _S44 : f32 = travelled_0;
-    for(;;)
+    loop
     {
-        if(pass_0 < i32(2))
+        if((pass_0 < i32(2)))
         {
         }
         else
@@ -710,7 +712,7 @@ fn SurfaceAt_0( world_1 : vec3<f32>,  normal_4 : vec3<f32>,  direction_1 : vec3<
 {
     (*hit_0) = world_1;
     (*voxel_2) = p_0.sdfOrigin_0[i32(0)].w;
-    if(i32(p_0.field_0.x) <= i32(0))
+    if((i32(p_0.field_0.x) <= i32(0)))
     {
         return false;
     }
@@ -720,12 +722,12 @@ fn SurfaceAt_0( world_1 : vec3<f32>,  normal_4 : vec3<f32>,  direction_1 : vec3<
     var previousDistance_0 : f32 = 0.0f;
     var step_0 : i32 = i32(0);
     var travelled_1 : f32 = 0.0f;
-    for(;;)
+    loop
     {
         var _S47 : bool;
-        if(step_0 < i32(96))
+        if((step_0 < i32(96)))
         {
-            _S47 = travelled_1 < reach_1;
+            _S47 = (travelled_1 < reach_1);
         }
         else
         {
@@ -748,12 +750,12 @@ fn SurfaceAt_0( world_1 : vec3<f32>,  normal_4 : vec3<f32>,  direction_1 : vec3<
         }
         if(started_0)
         {
-            if(distance_2 <= 0.0f)
+            if((distance_2 <= 0.0f))
             {
                 var span_0 : f32 = travelled_1 - previous_0;
                 var fall_0 : f32 = previousDistance_0 - distance_2;
                 var crossing_0 : f32;
-                if(fall_0 > 0.00000999999974738f)
+                if((fall_0 > 9.9999997473787516e-06f))
                 {
                     crossing_0 = previous_0 + span_0 * (previousDistance_0 / fall_0);
                 }
@@ -766,9 +768,9 @@ fn SurfaceAt_0( world_1 : vec3<f32>,  normal_4 : vec3<f32>,  direction_1 : vec3<
                 return true;
             }
             var _S49 : bool;
-            if(distance_2 > previousDistance_0)
+            if((distance_2 > previousDistance_0))
             {
-                _S49 = previousDistance_0 < (resolved_2 * 0.05000000074505806f);
+                _S49 = (previousDistance_0 < (resolved_2 * 0.05000000074505806f));
             }
             else
             {
@@ -805,19 +807,19 @@ fn LitAtHitWithin_0( hitRelative_0 : vec3<f32>,  slack_0 : f32,  radiance_0 : pt
     var _S53 : mat4x4<f32> = mat4x4<f32>(p_0.viewToWorld_0.data_0[i32(0)][i32(0)], p_0.viewToWorld_0.data_0[i32(1)][i32(0)], p_0.viewToWorld_0.data_0[i32(2)][i32(0)], p_0.viewToWorld_0.data_0[i32(3)][i32(0)], p_0.viewToWorld_0.data_0[i32(0)][i32(1)], p_0.viewToWorld_0.data_0[i32(1)][i32(1)], p_0.viewToWorld_0.data_0[i32(2)][i32(1)], p_0.viewToWorld_0.data_0[i32(3)][i32(1)], p_0.viewToWorld_0.data_0[i32(0)][i32(2)], p_0.viewToWorld_0.data_0[i32(1)][i32(2)], p_0.viewToWorld_0.data_0[i32(2)][i32(2)], p_0.viewToWorld_0.data_0[i32(3)][i32(2)], p_0.viewToWorld_0.data_0[i32(0)][i32(3)], p_0.viewToWorld_0.data_0[i32(1)][i32(3)], p_0.viewToWorld_0.data_0[i32(2)][i32(3)], p_0.viewToWorld_0.data_0[i32(3)][i32(3)]);
     var hitView_0 : vec3<f32> = (((hitRelative_0) * (transpose(mat3x3<f32>(_S53[i32(0)].xyz, _S53[i32(1)].xyz, _S53[i32(2)].xyz)))));
     var _S54 : f32 = hitView_0.z;
-    if(_S54 <= (p_0.unproject_0.z))
+    if((_S54 <= (p_0.unproject_0.z)))
     {
         return false;
     }
     var uv_10 : vec2<f32> = ViewToUv_0(hitView_0);
     var _S55 : bool;
-    if((any((uv_10 < vec2<f32>(0.0f, 0.0f)))))
+    if((any(((uv_10 < vec2<f32>(0.0f, 0.0f))))))
     {
         _S55 = true;
     }
     else
     {
-        _S55 = (any((uv_10 > vec2<f32>(1.0f, 1.0f))));
+        _S55 = (any(((uv_10 > vec2<f32>(1.0f, 1.0f)))));
     }
     if(_S55)
     {
@@ -825,16 +827,16 @@ fn LitAtHitWithin_0( hitRelative_0 : vec3<f32>,  slack_0 : f32,  radiance_0 : pt
     }
     var _S56 : vec3<i32> = vec3<i32>(vec2<i32>(uv_10 * p_0.resolution_0.xy), i32(0));
     var _S57 : f32 = (textureLoad((uSceneDepth_0), ((_S56)).xy, ((_S56)).z));
-    if(_S57 <= 0.0f)
+    if((_S57 <= 0.0f))
     {
         return false;
     }
-    if(_S57 >= 0.89999997615814209f)
+    if((_S57 >= 0.89999997615814209f))
     {
         return false;
     }
     var sceneZ_0 : f32 = SceneViewZ_0(_S57);
-    if((abs(_S54 - sceneZ_0)) > (0.01999999955296516f * max(sceneZ_0, 1.0f) + slack_0))
+    if(((abs(_S54 - sceneZ_0)) > (0.019999999552965164f * max(sceneZ_0, 1.0f) + slack_0)))
     {
         return false;
     }
@@ -853,7 +855,7 @@ fn MoverPages_0( headers_0 : i32,  index_0 : i32,  world_2 : vec3<f32>,  bias_0 
     var reach_2 : f32 = (bitcast<f32>((uCellPages_0[at_3 + i32(3)]))) + bias_0;
     var toCentre_0 : vec3<f32> = world_2 - vec3<f32>((bitcast<f32>((uCellPages_0[at_3]))), (bitcast<f32>((uCellPages_0[at_3 + i32(1)]))), (bitcast<f32>((uCellPages_0[at_3 + i32(2)]))));
     var _S58 : vec2<i32>;
-    if((dot(toCentre_0, toCentre_0)) > (reach_2 * reach_2))
+    if(((dot(toCentre_0, toCentre_0)) > (reach_2 * reach_2)))
     {
         _S58 = vec2<i32>(i32(0), i32(0));
     }
@@ -900,7 +902,7 @@ fn LookupCardWithin_0( world_4 : vec3<f32>,  arrivingW_0 : vec3<f32>,  skin_0 : 
     (*found_0) = _S65;
     (*litFound_0) = _S65;
     (*agreement_0) = 1.0e+09f;
-    if(i32(p_0.cacheGrid_0.w) <= i32(0))
+    if((i32(p_0.cacheGrid_0.w) <= i32(0)))
     {
         return false;
     }
@@ -913,10 +915,10 @@ fn LookupCardWithin_0( world_4 : vec3<f32>,  arrivingW_0 : vec3<f32>,  skin_0 : 
     var settled_0 : bool = false;
     var anyFound_0 : bool = false;
     var walk_0 : i32 = i32(0);
-    for(;;)
+    loop
     {
         var _S69 : bool;
-        if(walk_0 <= (_S68.y))
+        if((walk_0 <= (_S68.y)))
         {
             _S69 = !settled_0;
         }
@@ -944,10 +946,10 @@ fn LookupCardWithin_0( world_4 : vec3<f32>,  arrivingW_0 : vec3<f32>,  skin_0 : 
         var settled_1 : bool = settled_0;
         var anyFound_1 : bool = anyFound_0;
         var slot_0 : i32 = i32(0);
-        for(;;)
+        loop
         {
             var _S72 : bool;
-            if(slot_0 < (_S71.y))
+            if((slot_0 < (_S71.y)))
             {
                 _S72 = !settled_1;
             }
@@ -972,7 +974,7 @@ fn LookupCardWithin_0( world_4 : vec3<f32>,  arrivingW_0 : vec3<f32>,  skin_0 : 
             var bound_0 : vec4<f32> = uPages_0[_S73 + i32(9)];
             var toCentre_1 : vec3<f32> = world_4 - bound_0.xyz;
             var _S74 : f32 = bound_0.w;
-            if((dot(toCentre_1, toCentre_1)) > (_S74 * _S74))
+            if(((dot(toCentre_1, toCentre_1)) > (_S74 * _S74)))
             {
                 slot_0 = slot_0 + i32(1);
                 continue;
@@ -987,13 +989,13 @@ fn LookupCardWithin_0( world_4 : vec3<f32>,  arrivingW_0 : vec3<f32>,  skin_0 : 
             var cardPage_1 : vec4<f32>;
             ProjectOntoCard_0(page_1, world_4, (vec3<f32>(0) - arrivingW_0), &(across_1), &(halfSize_1), &(behind_1), &(depth_6), &(facing_1), &(arrivingLocal_0), &(litRect_1), &(cardPage_1));
             var _S75 : bool;
-            if((abs(across_1.x)) > 1.0f)
+            if(((abs(across_1.x)) > 1.0f))
             {
                 _S75 = true;
             }
             else
             {
-                _S75 = (abs(across_1.y)) > 1.0f;
+                _S75 = ((abs(across_1.y)) > 1.0f);
             }
             if(_S75)
             {
@@ -1001,9 +1003,9 @@ fn LookupCardWithin_0( world_4 : vec3<f32>,  arrivingW_0 : vec3<f32>,  skin_0 : 
                 continue;
             }
             var _S76 : bool;
-            if((dot(arrivingW_0, arrivingW_0)) > 0.5f)
+            if(((dot(arrivingW_0, arrivingW_0)) > 0.5f))
             {
-                _S76 = (dot(facing_1, arrivingLocal_0)) < -0.05000000074505806f;
+                _S76 = ((dot(facing_1, arrivingLocal_0)) < -0.05000000074505806f);
             }
             else
             {
@@ -1015,13 +1017,13 @@ fn LookupCardWithin_0( world_4 : vec3<f32>,  arrivingW_0 : vec3<f32>,  skin_0 : 
                 continue;
             }
             var _S77 : bool;
-            if(behind_1 < (- skin_0))
+            if((behind_1 < (- skin_0)))
             {
                 _S77 = true;
             }
             else
             {
-                _S77 = behind_1 > (depth_6 + skin_0);
+                _S77 = (behind_1 > (depth_6 + skin_0));
             }
             if(_S77)
             {
@@ -1031,7 +1033,7 @@ fn LookupCardWithin_0( world_4 : vec3<f32>,  arrivingW_0 : vec3<f32>,  skin_0 : 
             var _S78 : vec2<f32> = vec2<f32>(0.5f);
             var uv_11 : vec2<f32> = across_1 * _S78 + _S78;
             var texel_2 : vec2<f32> = (cardPage_1.xy + uv_11 * cardPage_1.zw) / _S67;
-            if(((textureSampleLevel((uAlbedo_0), (uAlbedoSampler_0), (texel_2), (0.0f))).w) < 0.5f)
+            if((((textureSampleLevel((uAlbedo_0), (uAlbedoSampler_0), (texel_2), (0.0f))).w) < 0.5f))
             {
                 slot_0 = slot_0 + i32(1);
                 continue;
@@ -1039,12 +1041,12 @@ fn LookupCardWithin_0( world_4 : vec3<f32>,  arrivingW_0 : vec3<f32>,  skin_0 : 
             var error_0 : f32 = abs((textureSampleLevel((uDepth_0), (uDepthSampler_0), (texel_2), (0.0f))).x * depth_6 - behind_1);
             var settled_2 : bool;
             var anyFound_2 : bool;
-            if(error_0 < (*agreement_0))
+            if((error_0 < (*agreement_0)))
             {
                 (*agreement_0) = error_0;
                 (*cardDepth_0) = depth_6;
                 (*found_0) = texel_2;
-                var _S79 : bool = error_0 < 0.01999999955296516f;
+                var _S79 : bool = (error_0 < 0.019999999552965164f);
                 (*litFound_0) = (litRect_1.xy + uv_11 * litRect_1.zw) / vec3<f32>(p_0.cacheAtlas_0.xy, 0.0f).xy;
                 settled_2 = _S79;
                 anyFound_2 = true;
@@ -1076,13 +1078,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var replaced_0 : vec3<f32>;
     var _S81 : vec2<i32> = vec2<i32>(id_0.xy);
     var marches_0 : bool;
-    if((_S81.x) >= i32(p_0.resolution_0.x))
+    if(((_S81.x) >= i32(p_0.resolution_0.x)))
     {
         marches_0 = true;
     }
     else
     {
-        marches_0 = (_S81.y) >= i32(p_0.resolution_0.y);
+        marches_0 = ((_S81.y) >= i32(p_0.resolution_0.y));
     }
     if(marches_0)
     {
@@ -1090,12 +1092,12 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     }
     var _S82 : vec2<f32> = vec2<f32>(_S81);
     var uv_12 : vec2<f32> = (_S82 + vec2<f32>(0.5f)) * p_0.resolution_0.zw;
-    var raw_3 : bool = (p_0.wet2_0.z) > 0.5f;
+    var raw_3 : bool = ((p_0.wet2_0.z) > 0.5f);
     const reflection_1 : vec3<f32> = vec3<f32>(0.0f, 0.0f, 0.0f);
     var depth_7 : f32 = DepthBilinear_0(uSceneDepth_0, uSceneDepthSampler_0, uv_12);
     var material_1 : vec4<f32> = (textureSampleLevel((uMaterial_0), (uMaterialSampler_0), (uv_12), (0.0f)));
     var model_0 : i32 = (i32(material_1.w * 255.0f + 0.5f) & (i32(15)));
-    if(depth_7 <= 0.0f)
+    if((depth_7 <= 0.0f))
     {
         marches_0 = true;
     }
@@ -1109,7 +1111,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     }
     else
     {
-        marches_0 = depth_7 >= 0.89999997615814209f;
+        marches_0 = (depth_7 >= 0.89999997615814209f);
     }
     if(marches_0)
     {
@@ -1124,11 +1126,11 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         textureStore((uReflection_0), (vec2<u32>(_S81)), (vec4<f32>(reflection_1, 0.0f)));
         return;
     }
-    var traces_0 : bool = (p_0.trace_0.x) > 0.5f;
+    var traces_0 : bool = ((p_0.trace_0.x) > 0.5f);
     var _S83 : bool = !traces_0;
     if(_S83)
     {
-        marches_0 = (p_0.field_0.x) > 0.5f;
+        marches_0 = ((p_0.field_0.x) > 0.5f);
     }
     else
     {
@@ -1141,14 +1143,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var _S84 : mat4x4<f32> = mat4x4<f32>(p_0.viewToWorld_0.data_0[i32(0)][i32(0)], p_0.viewToWorld_0.data_0[i32(1)][i32(0)], p_0.viewToWorld_0.data_0[i32(2)][i32(0)], p_0.viewToWorld_0.data_0[i32(3)][i32(0)], p_0.viewToWorld_0.data_0[i32(0)][i32(1)], p_0.viewToWorld_0.data_0[i32(1)][i32(1)], p_0.viewToWorld_0.data_0[i32(2)][i32(1)], p_0.viewToWorld_0.data_0[i32(3)][i32(1)], p_0.viewToWorld_0.data_0[i32(0)][i32(2)], p_0.viewToWorld_0.data_0[i32(1)][i32(2)], p_0.viewToWorld_0.data_0[i32(2)][i32(2)], p_0.viewToWorld_0.data_0[i32(3)][i32(2)], p_0.viewToWorld_0.data_0[i32(0)][i32(3)], p_0.viewToWorld_0.data_0[i32(1)][i32(3)], p_0.viewToWorld_0.data_0[i32(2)][i32(3)], p_0.viewToWorld_0.data_0[i32(3)][i32(3)]);
     var worldRayToPixel_0 : vec3<f32> = normalize((((viewPos_0) * (mat3x3<f32>(_S84[i32(0)].xyz, _S84[i32(1)].xyz, _S84[i32(2)].xyz)))));
     var _S85 : vec3<f32> = (vec3<f32>(0) - worldRayToPixel_0);
-    var _S86 : f32 = max(dot(groundNormal_0, _S85), 0.00100000004749745f);
+    var _S86 : f32 = max(dot(groundNormal_0, _S85), 0.0010000000474974513f);
     var _S87 : mat4x4<f32> = mat4x4<f32>(p_0.viewToWorld_0.data_0[i32(0)][i32(0)], p_0.viewToWorld_0.data_0[i32(1)][i32(0)], p_0.viewToWorld_0.data_0[i32(2)][i32(0)], p_0.viewToWorld_0.data_0[i32(3)][i32(0)], p_0.viewToWorld_0.data_0[i32(0)][i32(1)], p_0.viewToWorld_0.data_0[i32(1)][i32(1)], p_0.viewToWorld_0.data_0[i32(2)][i32(1)], p_0.viewToWorld_0.data_0[i32(3)][i32(1)], p_0.viewToWorld_0.data_0[i32(0)][i32(2)], p_0.viewToWorld_0.data_0[i32(1)][i32(2)], p_0.viewToWorld_0.data_0[i32(2)][i32(2)], p_0.viewToWorld_0.data_0[i32(3)][i32(2)], p_0.viewToWorld_0.data_0[i32(0)][i32(3)], p_0.viewToWorld_0.data_0[i32(1)][i32(3)], p_0.viewToWorld_0.data_0[i32(2)][i32(3)], p_0.viewToWorld_0.data_0[i32(3)][i32(3)]);
     var relative_10 : vec3<f32> = (((viewPos_0) * (mat3x3<f32>(_S87[i32(0)].xyz, _S87[i32(1)].xyz, _S87[i32(2)].xyz))));
     var w_9 : WetParams_0 = Weather_0();
     var screenAllowed_0 : bool;
-    if((w_9.amount_0) > 0.0f)
+    if(((w_9.amount_0) > 0.0f))
     {
-        screenAllowed_0 = (groundNormal_0.z) > 0.86000001430511475f;
+        screenAllowed_0 = ((groundNormal_0.z) > 0.86000001430511475f);
     }
     else
     {
@@ -1171,7 +1173,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     {
         puddle_0 = 0.0f;
     }
-    var water_0 : bool = puddle_0 > 0.00999999977648258f;
+    var water_0 : bool = (puddle_0 > 0.0099999997764825821f);
     var previousDiff_0 : f32;
     var t_1 : f32;
     var hitUv_0 : vec2<f32>;
@@ -1204,13 +1206,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         {
             previousDiff_0 = p_0.ssr_0.z;
         }
-        var _S88 : bool = roughness_3 <= (p_0.ssr_0.z);
-        if(roughness_3 > previousDiff_0)
+        var _S88 : bool = (roughness_3 <= (p_0.ssr_0.z));
+        if((roughness_3 > previousDiff_0))
         {
             textureStore((uReflection_0), (vec2<u32>(_S81)), (vec4<f32>(reflection_1, 0.0f)));
             return;
         }
-        var _S89 : f32 = 0.07999999821186066f * material_1.y;
+        var _S89 : f32 = 0.079999998211860657f * material_1.y;
         var f0_0 : vec3<f32> = mix(vec3<f32>(_S89, _S89, _S89), (textureSampleLevel((uBaseColour_0), (uBaseColourSampler_0), (uv_12), (0.0f))).xyz, vec3<f32>(metallic_0));
         var f90_0 : f32 = clamp(50.0f * f0_0.y, 0.0f, 1.0f);
         var environmentBrdf_0 : vec2<f32> = EnvironmentBrdf_0(roughness_3, _S86);
@@ -1225,14 +1227,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         }
         if(screenAllowed_0)
         {
-            t_1 = clamp((previousDiff_0 - roughness_3) / max(previousDiff_0 * 0.25f, 0.00100000004749745f), 0.0f, 1.0f);
+            t_1 = clamp((previousDiff_0 - roughness_3) / max(previousDiff_0 * 0.25f, 0.0010000000474974513f), 0.0f, 1.0f);
         }
         else
         {
-            t_1 = clamp((previousDiff_0 - roughness_3) / max(previousDiff_0, 0.00100000004749745f), 0.0f, 1.0f);
+            t_1 = clamp((previousDiff_0 - roughness_3) / max(previousDiff_0, 0.0010000000474974513f), 0.0f, 1.0f);
         }
         var _S90 : vec3<f32> = fresnel_0 * vec3<f32>(t_1);
-        if(roughness_3 > 0.05000000074505806f)
+        if((roughness_3 > 0.05000000074505806f))
         {
             var alpha_0 : f32 = roughness_3 * roughness_3;
             if(raw_3)
@@ -1246,8 +1248,8 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             var u1_0 : f32 = hitUv_0.x;
             var cosTheta_0 : f32 = sqrt((1.0f - u1_0) / max(1.0f + (alpha_0 * alpha_0 - 1.0f) * u1_0, 9.99999997475242708e-07f));
             var sinTheta_0 : f32 = sqrt(max(1.0f - cosTheta_0 * cosTheta_0, 0.0f));
-            var phi_0 : f32 = 6.28318548202514648f * hitUv_0.y;
-            if((abs(groundNormal_0.z)) < 0.99900001287460327f)
+            var phi_0 : f32 = 6.2831854820251465f * hitUv_0.y;
+            if(((abs(groundNormal_0.z)) < 0.99900001287460327f))
             {
                 reflectance_0 = vec3<f32>(0.0f, 0.0f, 1.0f);
             }
@@ -1257,7 +1259,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             }
             var tangent_0 : vec3<f32> = normalize(cross(reflectance_0, groundNormal_0));
             var facet_0 : vec3<f32> = normalize(tangent_0 * vec3<f32>((sinTheta_0 * cos(phi_0))) + cross(groundNormal_0, tangent_0) * vec3<f32>((sinTheta_0 * sin(phi_0))) + groundNormal_0 * vec3<f32>(cosTheta_0));
-            if((dot(reflect(worldRayToPixel_0, facet_0), groundNormal_0)) > 0.01999999955296516f)
+            if(((dot(reflect(worldRayToPixel_0, facet_0), groundNormal_0)) > 0.019999999552965164f))
             {
                 normalW_0 = facet_0;
             }
@@ -1273,7 +1275,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         reflectance_0 = _S90;
         screenAllowed_0 = _S88;
     }
-    if((max(reflectance_0.x, max(reflectance_0.y, reflectance_0.z))) <= 0.00300000002607703f)
+    if(((max(reflectance_0.x, max(reflectance_0.y, reflectance_0.z))) <= 0.0030000000260770321f))
     {
         textureStore((uReflection_0), (vec2<u32>(_S81)), (vec4<f32>(reflection_1, 0.0f)));
         return;
@@ -1283,7 +1285,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var have_0 : bool;
     if(_S83)
     {
-        have_0 = (rayView_0.z) > 0.0f;
+        have_0 = ((rayView_0.z) > 0.0f);
     }
     else
     {
@@ -1305,11 +1307,11 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var previous_1 : vec3<f32> = viewPos_0;
     var i_1 : i32 = i32(0);
     t_1 = _S94;
-    for(;;)
+    loop
     {
         if(screenAllowed_0)
         {
-            resolved_3 = i_1 < _S92;
+            resolved_3 = (i_1 < _S92);
         }
         else
         {
@@ -1327,13 +1329,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         var pv_0 : vec3<f32> = viewPos_0 + rayView_0 * vec3<f32>(t_1);
         var _S96 : f32 = pv_0.z;
         var met_0 : bool;
-        if(_S96 <= (p_0.unproject_0.z))
+        if((_S96 <= (p_0.unproject_0.z)))
         {
             met_0 = true;
         }
         else
         {
-            met_0 = t_1 > _S93;
+            met_0 = (t_1 > _S93);
         }
         if(met_0)
         {
@@ -1341,16 +1343,16 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             hitUv_0 = _S95;
             break;
         }
-        var t_2 : f32 = t_1 + max(0.20000000298023224f, t_1 * 0.07999999821186066f);
+        var t_2 : f32 = t_1 + max(0.20000000298023224f, t_1 * 0.079999998211860657f);
         var huv_0 : vec2<f32> = ViewToUv_0(pv_0);
         var _S97 : bool;
-        if((any((huv_0 < _S95))))
+        if((any(((huv_0 < _S95)))))
         {
             _S97 = true;
         }
         else
         {
-            _S97 = (any((huv_0 > vec2<f32>(1.0f, 1.0f))));
+            _S97 = (any(((huv_0 > vec2<f32>(1.0f, 1.0f)))));
         }
         if(_S97)
         {
@@ -1359,7 +1361,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             break;
         }
         var d_1 : f32 = PointDepth_0(huv_0);
-        if(d_1 <= 0.0f)
+        if((d_1 <= 0.0f))
         {
             previousDiff_0 = -1.0f;
             var _S98 : i32 = i_1 + i32(1);
@@ -1370,12 +1372,12 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             continue;
         }
         var diff_0 : f32 = _S96 - SceneViewZ_0(d_1);
-        if(diff_0 > 0.0f)
+        if((diff_0 > 0.0f))
         {
             var _S99 : f32 = max(p_0.ssr_0.w, _S96 * 0.05000000074505806f);
             if(have_0)
             {
-                resolved_3 = previousDiff_0 < 0.0f;
+                resolved_3 = (previousDiff_0 < 0.0f);
             }
             else
             {
@@ -1387,16 +1389,16 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             }
             else
             {
-                screenAllowed_0 = diff_0 < _S99;
+                screenAllowed_0 = (diff_0 < _S99);
             }
             if(screenAllowed_0)
             {
                 reflection_0 = previous_1;
                 replaced_0 = pv_0;
                 var k_2 : i32 = i32(0);
-                for(;;)
+                loop
                 {
-                    if(k_2 < i32(5))
+                    if((k_2 < i32(5)))
                     {
                     }
                     else
@@ -1405,9 +1407,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                     }
                     var mid_0 : vec3<f32> = (reflection_0 + replaced_0) * vec3<f32>(0.5f);
                     var md_0 : f32 = PointDepth_0(ViewToUv_0(mid_0));
-                    if(md_0 > 0.0f)
+                    if((md_0 > 0.0f))
                     {
-                        screenAllowed_0 = (mid_0.z - SceneViewZ_0(md_0)) > 0.0f;
+                        screenAllowed_0 = ((mid_0.z - SceneViewZ_0(md_0)) > 0.0f);
                     }
                     else
                     {
@@ -1425,9 +1427,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                 }
                 var hitUv_1 : vec2<f32> = ViewToUv_0(replaced_0);
                 var landed_0 : f32 = SampleSceneViewZ_0(hitUv_1);
-                if(landed_0 > 0.0f)
+                if((landed_0 > 0.0f))
                 {
-                    met_0 = (replaced_0.z - landed_0) < _S99;
+                    met_0 = ((replaced_0.z - landed_0) < _S99);
                 }
                 else
                 {
@@ -1460,7 +1462,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         t_1 = t_2;
     }
     var screenWeight_0 : f32;
-    if(hitEdge_0 > 0.0f)
+    if((hitEdge_0 > 0.0f))
     {
         var hit_1 : vec4<f32> = (textureSampleLevel((uLit_0), (uLitSampler_0), (hitUv_0), (0.0f)));
         var world_5 : f32 = step(0.5f, hit_1.w);
@@ -1495,7 +1497,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     }
     if(marches_0)
     {
-        screenAllowed_0 = screenWeight_0 < 0.99900001287460327f;
+        screenAllowed_0 = (screenWeight_0 < 0.99900001287460327f);
     }
     else
     {
@@ -1507,12 +1509,12 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         var lostCeiling_0 : bool = LosesCeiling_0(Roofs_0(), uShelterMap_0, relative_10.xy + p_0.wet1_0.zw, relative_10.z + p_0.wet2_0.y, rayW_1);
         var hitRelative_1 : vec3<f32>;
         var voxel_3 : f32;
-        var struck_0 : bool = SurfaceAt_0(relative_10 + normalW_0 * vec3<f32>((0.01999999955296516f + 0.00050000002374873f * viewPos_0.z)), normalW_0, rayW_1, p_0.trace_0.y, &(hitRelative_1), &(voxel_3));
+        var struck_0 : bool = SurfaceAt_0(relative_10 + normalW_0 * vec3<f32>((0.019999999552965164f + 0.00050000002374872565f * viewPos_0.z)), normalW_0, rayW_1, p_0.trace_0.y, &(hitRelative_1), &(voxel_3));
         var radiance_1 : vec3<f32> = reflection_1;
         if(!struck_0)
         {
             var sky_0 : vec3<f32> = SampleSkyView_0(uSkyView_0, uSkyViewSampler_0, rayW_1, p_0.misc_0.w);
-            var grey_0 : f32 = dot(sky_0, vec3<f32>(0.2125999927520752f, 0.71520000696182251f, 0.07220000028610229f)) * 0.30000001192092896f;
+            var grey_0 : f32 = dot(sky_0, vec3<f32>(0.2125999927520752f, 0.71520000696182251f, 0.072200000286102295f)) * 0.30000001192092896f;
             if(lostCeiling_0)
             {
                 normalW_0 = vec3<f32>(grey_0, grey_0, grey_0);
@@ -1536,7 +1538,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
                 var _S102 : bool = LookupCardWithin_0(hitRelative_1 + p_0.cacheOrigin_0.xyz, reflection_1, tolerance_0, &(found_1), &(litFound_1), &(agreement_1), &(cardDepth_1));
                 if(_S102)
                 {
-                    screenAllowed_0 = agreement_1 <= (tolerance_0 + cardDepth_1 * 0.5f);
+                    screenAllowed_0 = (agreement_1 <= (tolerance_0 + cardDepth_1 * 0.5f));
                 }
                 else
                 {
@@ -1559,7 +1561,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             if(!resolved_3)
             {
                 var sky_1 : vec3<f32> = SampleSkyView_0(uSkyView_0, uSkyViewSampler_0, rayW_1, p_0.misc_0.w);
-                var grey_1 : f32 = dot(sky_1, vec3<f32>(0.2125999927520752f, 0.71520000696182251f, 0.07220000028610229f)) * 0.30000001192092896f;
+                var grey_1 : f32 = dot(sky_1, vec3<f32>(0.2125999927520752f, 0.71520000696182251f, 0.072200000286102295f)) * 0.30000001192092896f;
                 if(lostCeiling_0)
                 {
                     normalW_0 = vec3<f32>(grey_1, grey_1, grey_1);
@@ -1572,7 +1574,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             }
         }
         var _S103 : f32 = max(radiance_1.x, max(radiance_1.y, radiance_1.z));
-        if(_S103 > (p_0.trace_0.z))
+        if((_S103 > (p_0.trace_0.z)))
         {
             radiance_1 = radiance_1 * vec3<f32>((p_0.trace_0.z / _S103));
         }
@@ -1599,7 +1601,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     }
     if(screenAllowed_0)
     {
-        screenAllowed_0 = roughness_3 > 0.05000000074505806f;
+        screenAllowed_0 = (roughness_3 > 0.05000000074505806f);
     }
     else
     {

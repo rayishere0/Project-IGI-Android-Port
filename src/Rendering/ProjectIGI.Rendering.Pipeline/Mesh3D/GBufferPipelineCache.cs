@@ -1,4 +1,5 @@
 using ProjectIGI.Core.Graphics;
+using ProjectIGI.Core.Numerics;
 using ProjectIGI.Rendering.Rhi;
 using ProjectIGI.Shaders;
 
@@ -53,6 +54,9 @@ public sealed class GBufferPipelineCache : IDisposable
     private readonly string _vertexEntryPoint;
     private readonly string _fragmentEntryPoint;
     private readonly Dictionary<GBufferPipelineKey, IRhiRenderPipeline> _pipelines = [];
+    private Vector3f _sunAmbient;
+    private Vector3f _sunColour;
+    private Vector3f _sunDirection;
     private bool _disposed;
 
     /// <summary>Initialises a new instance of the <see cref="GBufferPipelineCache"/> class.</summary>
@@ -103,6 +107,34 @@ public sealed class GBufferPipelineCache : IDisposable
 
     /// <summary>Gets how many variants have been built.</summary>
     public int Count => _pipelines.Count;
+
+    /// <summary>Sets the level's fixed-function sun, for unbaked models under the Baked model.</summary>
+    /// <param name="ambient">The flat light an unlightmapped vertex receives, linear.</param>
+    /// <param name="colour">The sun's diffuse colour, linear.</param>
+    /// <param name="direction">The unit vector towards the sun, in world space; zero when the level authors none.</param>
+    /// <remarks>
+    /// The sun is a level constant, like the forward path's (Mesh3DConstants.Describe). Pipelines
+    /// built with other values are discarded, so a mission change cannot leave stale light behind;
+    /// variants rebuild lazily on next use. Unchanged values keep the built variants.
+    /// </remarks>
+    public void SetSun(Vector3f ambient, Vector3f colour, Vector3f direction)
+    {
+        if (ambient == _sunAmbient && colour == _sunColour && direction == _sunDirection)
+        {
+            return;
+        }
+
+        _sunAmbient = ambient;
+        _sunColour = colour;
+        _sunDirection = direction;
+
+        foreach (IRhiRenderPipeline pipeline in _pipelines.Values)
+        {
+            pipeline.Dispose();
+        }
+
+        _pipelines.Clear();
+    }
 
     /// <summary>Gets the pipeline for a draw's state, building it on first use.</summary>
     /// <param name="depth">The draw's depth test and write.</param>
@@ -252,13 +284,25 @@ public sealed class GBufferPipelineCache : IDisposable
     private IRhiRenderPipeline Create(GBufferPipelineKey key)
     {
         // Only the fragment stage tests the cut-out, so only it is specialised -- unlike the forward
-        // shader, whose vertex stage reads the reflection constant too.
+        // shader, whose vertex stage reads the reflection constant too. The fragment stage also reads
+        // the level's sun, for unbaked models under the Baked model; the vertex stage never sees it.
         IReadOnlyDictionary<int, RhiConstant> constants = ShaderConstants.Declared(
             _reflection,
             new Dictionary<int, RhiConstant>
             {
                 [Mesh3DConstants.ClipYDown] = RhiConstant.Of(0),
                 [Mesh3DConstants.AlphaReference] = RhiConstant.Of(key.AlphaReference / 255f),
+
+                // The fixed-function sun, as level constants (Mesh3DConstants ids 6-11 and 13-15).
+                [Mesh3DConstants.SunAmbientRed] = RhiConstant.Of(_sunAmbient.X),
+                [Mesh3DConstants.SunAmbientGreen] = RhiConstant.Of(_sunAmbient.Y),
+                [Mesh3DConstants.SunAmbientBlue] = RhiConstant.Of(_sunAmbient.Z),
+                [Mesh3DConstants.SunColourRed] = RhiConstant.Of(_sunColour.X),
+                [Mesh3DConstants.SunColourGreen] = RhiConstant.Of(_sunColour.Y),
+                [Mesh3DConstants.SunColourBlue] = RhiConstant.Of(_sunColour.Z),
+                [Mesh3DConstants.SunDirectionX] = RhiConstant.Of(_sunDirection.X),
+                [Mesh3DConstants.SunDirectionY] = RhiConstant.Of(_sunDirection.Y),
+                [Mesh3DConstants.SunDirectionZ] = RhiConstant.Of(_sunDirection.Z),
 
                 // Every texture here is an sRGB image, so it arrives linear already.
                 [Mesh3DConstants.SamplerDecodes] = RhiConstant.Of(1),

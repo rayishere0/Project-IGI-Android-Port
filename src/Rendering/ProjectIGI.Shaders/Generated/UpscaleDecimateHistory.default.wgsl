@@ -27,6 +27,8 @@ struct Params_std140_0
 
 @binding(7) @group(0) var<storage, read> uOccluder_0 : array<u32>;
 
+@binding(1) @group(0) var uDepthSampler_0 : sampler;
+
 fn DepthBilinearLoaded_0( depth_0 : texture_depth_2d,  uv_0 : vec2<f32>) -> f32
 {
     var width_0 : u32;
@@ -59,7 +61,7 @@ fn ViewDistance_0( d_1 : f32) -> f32
 fn DistanceOrFar_0( d_2 : f32) -> f32
 {
     var _S8 : f32;
-    if(d_2 <= 0.0f)
+    if((d_2 <= 0.0f))
     {
         _S8 = p_0.unproject_0.w;
     }
@@ -99,7 +101,7 @@ fn OccluderMask_0( prevRasterUv_0 : vec2<f32>,  zRef_0 : f32,  eOcc_0 : f32,  si
     else
     {
         var zOcc_0 : f32 = (bitcast<f32>((~word_0)));
-        mask_0 = weight_1 * saturate(2.0f - (zRef_0 - zOcc_0) / (max(6.0f * PixelHeight_0(zOcc_0), 0.00009999999747379f) + eOcc_0));
+        mask_0 = weight_1 * saturate(2.0f - (zRef_0 - zOcc_0) / (max(6.0f * PixelHeight_0(zOcc_0), 9.9999997473787516e-05f) + eOcc_0));
     }
     var weight_2 : f32 = _S12 * _S15;
     var at_1 : vec2<i32> = clamp(_S11 + vec2<i32>(i32(1), i32(0)), _S16, _S9);
@@ -111,7 +113,7 @@ fn OccluderMask_0( prevRasterUv_0 : vec2<f32>,  zRef_0 : f32,  eOcc_0 : f32,  si
     else
     {
         var zOcc_1 : f32 = (bitcast<f32>((~word_1)));
-        mask_0 = mask_0 + weight_2 * saturate(2.0f - (zRef_0 - zOcc_1) / (max(6.0f * PixelHeight_0(zOcc_1), 0.00009999999747379f) + eOcc_0));
+        mask_0 = mask_0 + weight_2 * saturate(2.0f - (zRef_0 - zOcc_1) / (max(6.0f * PixelHeight_0(zOcc_1), 9.9999997473787516e-05f) + eOcc_0));
     }
     var weight_3 : f32 = _S13 * _S14;
     var at_2 : vec2<i32> = clamp(_S11 + vec2<i32>(i32(0), i32(1)), _S16, _S9);
@@ -123,7 +125,7 @@ fn OccluderMask_0( prevRasterUv_0 : vec2<f32>,  zRef_0 : f32,  eOcc_0 : f32,  si
     else
     {
         var zOcc_2 : f32 = (bitcast<f32>((~word_2)));
-        mask_0 = mask_0 + weight_3 * saturate(2.0f - (zRef_0 - zOcc_2) / (max(6.0f * PixelHeight_0(zOcc_2), 0.00009999999747379f) + eOcc_0));
+        mask_0 = mask_0 + weight_3 * saturate(2.0f - (zRef_0 - zOcc_2) / (max(6.0f * PixelHeight_0(zOcc_2), 9.9999997473787516e-05f) + eOcc_0));
     }
     var weight_4 : f32 = _S12 * _S14;
     var at_3 : vec2<i32> = clamp(_S11 + vec2<i32>(i32(1), i32(1)), _S16, _S9);
@@ -135,7 +137,7 @@ fn OccluderMask_0( prevRasterUv_0 : vec2<f32>,  zRef_0 : f32,  eOcc_0 : f32,  si
     else
     {
         var zOcc_3 : f32 = (bitcast<f32>((~word_3)));
-        mask_0 = mask_0 + weight_4 * saturate(2.0f - (zRef_0 - zOcc_3) / (max(6.0f * PixelHeight_0(zOcc_3), 0.00009999999747379f) + eOcc_0));
+        mask_0 = mask_0 + weight_4 * saturate(2.0f - (zRef_0 - zOcc_3) / (max(6.0f * PixelHeight_0(zOcc_3), 9.9999997473787516e-05f) + eOcc_0));
     }
     return mask_0;
 }
@@ -166,13 +168,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var _S23 : vec2<i32> = vec2<i32>(id_0.xy);
     var _S24 : vec2<i32> = vec2<i32>(p_0.resolution_0.xy);
     var _S25 : bool;
-    if((_S23.x) >= (_S24.x))
+    if(((_S23.x) >= (_S24.x)))
     {
         _S25 = true;
     }
     else
     {
-        _S25 = (_S23.y) >= (_S24.y);
+        _S25 = ((_S23.y) >= (_S24.y));
     }
     if(_S25)
     {
@@ -183,13 +185,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var d_4 : f32 = DepthBilinearLoaded_0(uDepth_0, rasterUv_0);
     var currentUv_0 : vec2<f32> = rasterUv_0 - p_0.jitter_0.xy * p_0.resolution_0.zw;
     var prevRasterUv_1 : vec2<f32> = currentUv_0 - (textureSampleLevel((uDilatedVelocity_0), (uDilatedVelocitySampler_0), (rasterUv_0), (0.0f))).xy + p_0.jitter_0.zw * p_0.resolution_0.zw;
-    if((any((prevRasterUv_1 < vec2<f32>(0.0f)))))
+    if((any(((prevRasterUv_1 < vec2<f32>(0.0f))))))
     {
         _S25 = true;
     }
     else
     {
-        _S25 = (any((prevRasterUv_1 > vec2<f32>(1.0f))));
+        _S25 = (any(((prevRasterUv_1 > vec2<f32>(1.0f)))));
     }
     if(_S25)
     {
@@ -204,18 +206,18 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var _S32 : f32 = DistanceOrFar_0(d_4);
     var _S33 : vec3<i32> = vec3<i32>(_S23, i32(0));
     var _S34 : vec2<f32> = (textureLoad((uDilatedVelocity_0), ((_S33)).xy, ((_S33)).z)).xy * p_0.resolution_0.xy;
-    for(;;)
+    loop
     {
-        for(;;)
+        loop
         {
-            for(;;)
+            loop
             {
                 var _S35 : vec2<i32> = _S23 + _S28;
                 const _S36 : vec2<i32> = vec2<i32>(i32(0), i32(0));
                 _S18 = _S36;
                 var _S37 : vec3<i32> = vec3<i32>(clamp(_S35, _S36, _S26), i32(0));
                 _S19 = _S37;
-                if((length((textureLoad((uDilatedVelocity_0), ((_S37)).xy, ((_S37)).z)).xy * p_0.resolution_0.xy - _S34)) > 0.5f)
+                if(((length((textureLoad((uDilatedVelocity_0), ((_S37)).xy, ((_S37)).z)).xy * p_0.resolution_0.xy - _S34)) > 0.5f))
                 {
                     eOcc_1 = 0.0f;
                     break;
@@ -225,13 +227,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             }
             break;
         }
-        for(;;)
+        loop
         {
-            for(;;)
+            loop
             {
                 var _S38 : vec3<i32> = vec3<i32>(clamp(_S23 + _S29, _S18, _S26), i32(0));
                 _S20 = _S38;
-                if((length((textureLoad((uDilatedVelocity_0), ((_S38)).xy, ((_S38)).z)).xy * p_0.resolution_0.xy - _S34)) > 0.5f)
+                if(((length((textureLoad((uDilatedVelocity_0), ((_S38)).xy, ((_S38)).z)).xy * p_0.resolution_0.xy - _S34)) > 0.5f))
                 {
                     break;
                 }
@@ -240,13 +242,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             }
             break;
         }
-        for(;;)
+        loop
         {
-            for(;;)
+            loop
             {
                 var _S39 : vec3<i32> = vec3<i32>(clamp(_S23 + _S30, _S18, _S26), i32(0));
                 _S21 = _S39;
-                if((length((textureLoad((uDilatedVelocity_0), ((_S39)).xy, ((_S39)).z)).xy * p_0.resolution_0.xy - _S34)) > 0.5f)
+                if(((length((textureLoad((uDilatedVelocity_0), ((_S39)).xy, ((_S39)).z)).xy * p_0.resolution_0.xy - _S34)) > 0.5f))
                 {
                     break;
                 }
@@ -255,13 +257,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             }
             break;
         }
-        for(;;)
+        loop
         {
-            for(;;)
+            loop
             {
                 var _S40 : vec3<i32> = vec3<i32>(clamp(_S23 + _S31, _S18, _S26), i32(0));
                 _S22 = _S40;
-                if((length((textureLoad((uDilatedVelocity_0), ((_S40)).xy, ((_S40)).z)).xy * p_0.resolution_0.xy - _S34)) > 0.5f)
+                if(((length((textureLoad((uDilatedVelocity_0), ((_S40)).xy, ((_S40)).z)).xy * p_0.resolution_0.xy - _S34)) > 0.5f))
                 {
                     break;
                 }
@@ -273,10 +275,10 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         break;
     }
     var wasSky_0 : f32;
-    if(d_4 <= 0.0f)
+    if((d_4 <= 0.0f))
     {
         var _S41 : vec3<i32> = vec3<i32>(clamp(_S27 + vec2<i32>(i32(-1), i32(-1)), _S18, _S26), i32(0));
-        if(((textureLoad((uPrevDepth_0), ((_S41)).xy, ((_S41)).z)).x) <= 0.0f)
+        if((((textureLoad((uPrevDepth_0), ((_S41)).xy, ((_S41)).z)).x) <= 0.0f))
         {
             wasSky_0 = 1.0f;
         }
@@ -285,7 +287,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             wasSky_0 = 0.0f;
         }
         var _S42 : vec3<i32> = vec3<i32>(clamp(_S27 + vec2<i32>(i32(0), i32(-1)), _S18, _S26), i32(0));
-        if(((textureLoad((uPrevDepth_0), ((_S42)).xy, ((_S42)).z)).x) <= 0.0f)
+        if((((textureLoad((uPrevDepth_0), ((_S42)).xy, ((_S42)).z)).x) <= 0.0f))
         {
             wasSky_0 = 1.0f;
         }
@@ -293,7 +295,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         {
         }
         var _S43 : vec3<i32> = vec3<i32>(clamp(_S27 + vec2<i32>(i32(1), i32(-1)), _S18, _S26), i32(0));
-        if(((textureLoad((uPrevDepth_0), ((_S43)).xy, ((_S43)).z)).x) <= 0.0f)
+        if((((textureLoad((uPrevDepth_0), ((_S43)).xy, ((_S43)).z)).x) <= 0.0f))
         {
             wasSky_0 = 1.0f;
         }
@@ -301,7 +303,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         {
         }
         var _S44 : vec3<i32> = vec3<i32>(clamp(_S27 + vec2<i32>(i32(-1), i32(0)), _S18, _S26), i32(0));
-        if(((textureLoad((uPrevDepth_0), ((_S44)).xy, ((_S44)).z)).x) <= 0.0f)
+        if((((textureLoad((uPrevDepth_0), ((_S44)).xy, ((_S44)).z)).x) <= 0.0f))
         {
             wasSky_0 = 1.0f;
         }
@@ -309,7 +311,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         {
         }
         var _S45 : vec3<i32> = vec3<i32>(clamp(_S27, _S18, _S26), i32(0));
-        if(((textureLoad((uPrevDepth_0), ((_S45)).xy, ((_S45)).z)).x) <= 0.0f)
+        if((((textureLoad((uPrevDepth_0), ((_S45)).xy, ((_S45)).z)).x) <= 0.0f))
         {
             wasSky_0 = 1.0f;
         }
@@ -317,7 +319,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         {
         }
         var _S46 : vec3<i32> = vec3<i32>(clamp(_S27 + vec2<i32>(i32(1), i32(0)), _S18, _S26), i32(0));
-        if(((textureLoad((uPrevDepth_0), ((_S46)).xy, ((_S46)).z)).x) <= 0.0f)
+        if((((textureLoad((uPrevDepth_0), ((_S46)).xy, ((_S46)).z)).x) <= 0.0f))
         {
             wasSky_0 = 1.0f;
         }
@@ -325,7 +327,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         {
         }
         var _S47 : vec3<i32> = vec3<i32>(clamp(_S27 + vec2<i32>(i32(-1), i32(1)), _S18, _S26), i32(0));
-        if(((textureLoad((uPrevDepth_0), ((_S47)).xy, ((_S47)).z)).x) <= 0.0f)
+        if((((textureLoad((uPrevDepth_0), ((_S47)).xy, ((_S47)).z)).x) <= 0.0f))
         {
             wasSky_0 = 1.0f;
         }
@@ -333,7 +335,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         {
         }
         var _S48 : vec3<i32> = vec3<i32>(clamp(_S27 + vec2<i32>(i32(0), i32(1)), _S18, _S26), i32(0));
-        if(((textureLoad((uPrevDepth_0), ((_S48)).xy, ((_S48)).z)).x) <= 0.0f)
+        if((((textureLoad((uPrevDepth_0), ((_S48)).xy, ((_S48)).z)).x) <= 0.0f))
         {
             wasSky_0 = 1.0f;
         }
@@ -341,7 +343,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         {
         }
         var _S49 : vec3<i32> = vec3<i32>(clamp(_S27 + vec2<i32>(i32(1), i32(1)), _S18, _S26), i32(0));
-        if(((textureLoad((uPrevDepth_0), ((_S49)).xy, ((_S49)).z)).x) <= 0.0f)
+        if((((textureLoad((uPrevDepth_0), ((_S49)).xy, ((_S49)).z)).x) <= 0.0f))
         {
             wasSky_0 = 1.0f;
         }
@@ -353,20 +355,20 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     }
     var viewPos_1 : vec3<f32> = ViewPosition_0(currentUv_0, d_4);
     var prevViewZ_0 : f32 = PreviousViewZ_0(viewPos_1);
-    if(prevViewZ_0 <= (p_0.prevProjection_0.z))
+    if((prevViewZ_0 <= (p_0.prevProjection_0.z)))
     {
         textureStore((uRejection_0), (vec2<u32>(_S23)), (vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f)));
         return;
     }
-    for(;;)
+    loop
     {
-        for(;;)
+        loop
         {
-            for(;;)
+            loop
             {
                 var _S50 : vec3<i32> = _S19;
                 var nd_0 : f32 = (textureLoad((uDepth_0), ((_S50)).xy, ((_S50)).z));
-                if(nd_0 <= 0.0f)
+                if((nd_0 <= 0.0f))
                 {
                     wasSky_0 = 0.0f;
                     break;
@@ -376,13 +378,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             }
             break;
         }
-        for(;;)
+        loop
         {
-            for(;;)
+            loop
             {
                 var _S51 : vec3<i32> = _S20;
                 var nd_1 : f32 = (textureLoad((uDepth_0), ((_S51)).xy, ((_S51)).z));
-                if(nd_1 <= 0.0f)
+                if((nd_1 <= 0.0f))
                 {
                     break;
                 }
@@ -391,13 +393,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             }
             break;
         }
-        for(;;)
+        loop
         {
-            for(;;)
+            loop
             {
                 var _S52 : vec3<i32> = _S21;
                 var nd_2 : f32 = (textureLoad((uDepth_0), ((_S52)).xy, ((_S52)).z));
-                if(nd_2 <= 0.0f)
+                if((nd_2 <= 0.0f))
                 {
                     break;
                 }
@@ -406,13 +408,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             }
             break;
         }
-        for(;;)
+        loop
         {
-            for(;;)
+            loop
             {
                 var _S53 : vec3<i32> = _S22;
                 var nd_3 : f32 = (textureLoad((uDepth_0), ((_S53)).xy, ((_S53)).z));
-                if(nd_3 <= 0.0f)
+                if((nd_3 <= 0.0f))
                 {
                     break;
                 }
@@ -423,59 +425,59 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         }
         break;
     }
-    for(;;)
+    loop
     {
-        for(;;)
+        loop
         {
-            for(;;)
+            loop
             {
-                for(;;)
+                loop
                 {
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var _S54 : vec3<i32> = vec3<i32>(clamp(_S27 + vec2<i32>(i32(-1), i32(-1)), _S18, _S26), i32(0));
                             var prevD_0 : f32 = (textureLoad((uPrevDepth_0), ((_S54)).xy, ((_S54)).z)).x;
-                            if(prevD_0 <= 0.0f)
+                            if((prevD_0 <= 0.0f))
                             {
                                 agreement_0 = 0.0f;
                                 break;
                             }
                             var zHist_0 : f32 = ViewDistanceWith_0(prevD_0, p_0.prevProjection_0.z, p_0.prevProjection_0.w);
-                            agreement_0 = max(0.0f, saturate(2.0f - abs(zHist_0 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_0), 0.00009999999747379f) + wasSky_0)));
+                            agreement_0 = max(0.0f, saturate(2.0f - abs(zHist_0 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_0), 9.9999997473787516e-05f) + wasSky_0)));
                             break;
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var _S55 : vec3<i32> = vec3<i32>(clamp(_S27 + vec2<i32>(i32(0), i32(-1)), _S18, _S26), i32(0));
                             var prevD_1 : f32 = (textureLoad((uPrevDepth_0), ((_S55)).xy, ((_S55)).z)).x;
-                            if(prevD_1 <= 0.0f)
+                            if((prevD_1 <= 0.0f))
                             {
                                 break;
                             }
                             var zHist_1 : f32 = ViewDistanceWith_0(prevD_1, p_0.prevProjection_0.z, p_0.prevProjection_0.w);
-                            agreement_0 = max(agreement_0, saturate(2.0f - abs(zHist_1 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_1), 0.00009999999747379f) + wasSky_0)));
+                            agreement_0 = max(agreement_0, saturate(2.0f - abs(zHist_1 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_1), 9.9999997473787516e-05f) + wasSky_0)));
                             break;
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var _S56 : vec3<i32> = vec3<i32>(clamp(_S27 + vec2<i32>(i32(1), i32(-1)), _S18, _S26), i32(0));
                             var prevD_2 : f32 = (textureLoad((uPrevDepth_0), ((_S56)).xy, ((_S56)).z)).x;
-                            if(prevD_2 <= 0.0f)
+                            if((prevD_2 <= 0.0f))
                             {
                                 break;
                             }
                             var zHist_2 : f32 = ViewDistanceWith_0(prevD_2, p_0.prevProjection_0.z, p_0.prevProjection_0.w);
-                            agreement_0 = max(agreement_0, saturate(2.0f - abs(zHist_2 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_2), 0.00009999999747379f) + wasSky_0)));
+                            agreement_0 = max(agreement_0, saturate(2.0f - abs(zHist_2 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_2), 9.9999997473787516e-05f) + wasSky_0)));
                             break;
                         }
                         break;
@@ -486,56 +488,56 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             }
             break;
         }
-        for(;;)
+        loop
         {
-            for(;;)
+            loop
             {
-                for(;;)
+                loop
                 {
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var _S57 : vec3<i32> = vec3<i32>(clamp(_S27 + vec2<i32>(i32(-1), i32(0)), _S18, _S26), i32(0));
                             var prevD_3 : f32 = (textureLoad((uPrevDepth_0), ((_S57)).xy, ((_S57)).z)).x;
-                            if(prevD_3 <= 0.0f)
+                            if((prevD_3 <= 0.0f))
                             {
                                 break;
                             }
                             var zHist_3 : f32 = ViewDistanceWith_0(prevD_3, p_0.prevProjection_0.z, p_0.prevProjection_0.w);
-                            agreement_0 = max(agreement_0, saturate(2.0f - abs(zHist_3 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_3), 0.00009999999747379f) + wasSky_0)));
+                            agreement_0 = max(agreement_0, saturate(2.0f - abs(zHist_3 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_3), 9.9999997473787516e-05f) + wasSky_0)));
                             break;
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var _S58 : vec3<i32> = vec3<i32>(clamp(_S27, _S18, _S26), i32(0));
                             var prevD_4 : f32 = (textureLoad((uPrevDepth_0), ((_S58)).xy, ((_S58)).z)).x;
-                            if(prevD_4 <= 0.0f)
+                            if((prevD_4 <= 0.0f))
                             {
                                 break;
                             }
                             var zHist_4 : f32 = ViewDistanceWith_0(prevD_4, p_0.prevProjection_0.z, p_0.prevProjection_0.w);
-                            agreement_0 = max(agreement_0, saturate(2.0f - abs(zHist_4 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_4), 0.00009999999747379f) + wasSky_0)));
+                            agreement_0 = max(agreement_0, saturate(2.0f - abs(zHist_4 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_4), 9.9999997473787516e-05f) + wasSky_0)));
                             break;
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var _S59 : vec3<i32> = vec3<i32>(clamp(_S27 + vec2<i32>(i32(1), i32(0)), _S18, _S26), i32(0));
                             var prevD_5 : f32 = (textureLoad((uPrevDepth_0), ((_S59)).xy, ((_S59)).z)).x;
-                            if(prevD_5 <= 0.0f)
+                            if((prevD_5 <= 0.0f))
                             {
                                 break;
                             }
                             var zHist_5 : f32 = ViewDistanceWith_0(prevD_5, p_0.prevProjection_0.z, p_0.prevProjection_0.w);
-                            agreement_0 = max(agreement_0, saturate(2.0f - abs(zHist_5 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_5), 0.00009999999747379f) + wasSky_0)));
+                            agreement_0 = max(agreement_0, saturate(2.0f - abs(zHist_5 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_5), 9.9999997473787516e-05f) + wasSky_0)));
                             break;
                         }
                         break;
@@ -546,56 +548,56 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             }
             break;
         }
-        for(;;)
+        loop
         {
-            for(;;)
+            loop
             {
-                for(;;)
+                loop
                 {
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var _S60 : vec3<i32> = vec3<i32>(clamp(_S27 + vec2<i32>(i32(-1), i32(1)), _S18, _S26), i32(0));
                             var prevD_6 : f32 = (textureLoad((uPrevDepth_0), ((_S60)).xy, ((_S60)).z)).x;
-                            if(prevD_6 <= 0.0f)
+                            if((prevD_6 <= 0.0f))
                             {
                                 break;
                             }
                             var zHist_6 : f32 = ViewDistanceWith_0(prevD_6, p_0.prevProjection_0.z, p_0.prevProjection_0.w);
-                            agreement_0 = max(agreement_0, saturate(2.0f - abs(zHist_6 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_6), 0.00009999999747379f) + wasSky_0)));
+                            agreement_0 = max(agreement_0, saturate(2.0f - abs(zHist_6 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_6), 9.9999997473787516e-05f) + wasSky_0)));
                             break;
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var _S61 : vec3<i32> = vec3<i32>(clamp(_S27 + vec2<i32>(i32(0), i32(1)), _S18, _S26), i32(0));
                             var prevD_7 : f32 = (textureLoad((uPrevDepth_0), ((_S61)).xy, ((_S61)).z)).x;
-                            if(prevD_7 <= 0.0f)
+                            if((prevD_7 <= 0.0f))
                             {
                                 break;
                             }
                             var zHist_7 : f32 = ViewDistanceWith_0(prevD_7, p_0.prevProjection_0.z, p_0.prevProjection_0.w);
-                            agreement_0 = max(agreement_0, saturate(2.0f - abs(zHist_7 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_7), 0.00009999999747379f) + wasSky_0)));
+                            agreement_0 = max(agreement_0, saturate(2.0f - abs(zHist_7 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_7), 9.9999997473787516e-05f) + wasSky_0)));
                             break;
                         }
                         break;
                     }
-                    for(;;)
+                    loop
                     {
-                        for(;;)
+                        loop
                         {
                             var _S62 : vec3<i32> = vec3<i32>(clamp(_S27 + vec2<i32>(i32(1), i32(1)), _S18, _S26), i32(0));
                             var prevD_8 : f32 = (textureLoad((uPrevDepth_0), ((_S62)).xy, ((_S62)).z)).x;
-                            if(prevD_8 <= 0.0f)
+                            if((prevD_8 <= 0.0f))
                             {
                                 break;
                             }
                             var zHist_8 : f32 = ViewDistanceWith_0(prevD_8, p_0.prevProjection_0.z, p_0.prevProjection_0.w);
-                            agreement_0 = max(agreement_0, saturate(2.0f - abs(zHist_8 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_8), 0.00009999999747379f) + wasSky_0)));
+                            agreement_0 = max(agreement_0, saturate(2.0f - abs(zHist_8 - prevViewZ_0) / (max(6.0f * PixelHeight_0(zHist_8), 9.9999997473787516e-05f) + wasSky_0)));
                             break;
                         }
                         break;

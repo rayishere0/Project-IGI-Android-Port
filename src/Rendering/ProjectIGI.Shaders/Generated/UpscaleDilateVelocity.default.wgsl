@@ -70,13 +70,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var _S3 : vec2<i32> = vec2<i32>(p_0.resolution_0.xy);
     var _S4 : i32 = _S3.x;
     var _S5 : bool;
-    if((_S2.x) >= _S4)
+    if(((_S2.x) >= _S4))
     {
         _S5 = true;
     }
     else
     {
-        _S5 = (_S2.y) >= (_S3.y);
+        _S5 = ((_S2.y) >= (_S3.y));
     }
     if(_S5)
     {
@@ -92,9 +92,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var s1_0 : f32 = LoadDepth_0(_S2 - _S8, _S3);
     var bestDepth_0 : f32;
     var bestOffset_0 : vec2<i32>;
-    if(((s0_0 + s1_0) * 0.5f - c_0) > (max(0.25f * abs(s1_0 - s0_0), _S6)))
+    if((((s0_0 + s1_0) * 0.5f - c_0) > (max(0.25f * abs(s1_0 - s0_0), _S6))))
     {
-        if(s0_0 > c_0)
+        if((s0_0 > c_0))
         {
             bestDepth_0 = s0_0;
             bestOffset_0 = _S8;
@@ -104,7 +104,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
             bestDepth_0 = c_0;
             bestOffset_0 = _S7;
         }
-        if(s1_0 > bestDepth_0)
+        if((s1_0 > bestDepth_0))
         {
             var _S10 : vec2<i32> = (vec2<i32>(0) - _S8);
             bestDepth_0 = s1_0;
@@ -118,14 +118,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     }
     var s0_1 : f32 = LoadDepth_0(_S2 + _S9, _S3);
     var s1_1 : f32 = LoadDepth_0(_S2 - _S9, _S3);
-    if(((s0_1 + s1_1) * 0.5f - c_0) > (max(0.25f * abs(s1_1 - s0_1), _S6)))
+    if((((s0_1 + s1_1) * 0.5f - c_0) > (max(0.25f * abs(s1_1 - s0_1), _S6))))
     {
-        if(s0_1 > bestDepth_0)
+        if((s0_1 > bestDepth_0))
         {
             bestDepth_0 = s0_1;
             bestOffset_0 = _S9;
         }
-        if(s1_1 > bestDepth_0)
+        if((s1_1 > bestDepth_0))
         {
             var _S11 : vec2<i32> = (vec2<i32>(0) - _S9);
             bestDepth_0 = s1_1;
@@ -141,7 +141,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var currentUv_0 : vec2<f32> = (vec2<f32>(_S2) + _S14) * p_0.resolution_0.zw - p_0.jitter_0.xy * p_0.resolution_0.zw;
     var _S15 : f32 = p_0.prevProjection_0.w;
     var prevViewZ_0 : f32;
-    if(c_0 > 0.0f)
+    if((c_0 > 0.0f))
     {
         prevViewZ_0 = PreviousViewZ_0(ViewPosition_0(currentUv_0, c_0));
     }
@@ -149,14 +149,14 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     {
         prevViewZ_0 = _S15;
     }
-    if(prevViewZ_0 > (p_0.prevProjection_0.z))
+    if((prevViewZ_0 > (p_0.prevProjection_0.z)))
     {
         var _S16 : vec2<i32> = vec2<i32>(floor((currentUv_0 - dilated_0 + p_0.jitter_0.zw * p_0.resolution_0.zw) * p_0.resolution_0.xy - _S14));
         var _S17 : u32 = ~(bitcast<u32>((prevViewZ_0)));
         var _S18 : i32 = _S16.x;
-        if(_S18 >= i32(0))
+        if((_S18 >= i32(0)))
         {
-            _S5 = (_S16.y) >= i32(0);
+            _S5 = ((_S16.y) >= i32(0));
         }
         else
         {
@@ -164,7 +164,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         }
         if(_S5)
         {
-            _S5 = _S18 < _S4;
+            _S5 = (_S18 < _S4);
         }
         else
         {
@@ -172,7 +172,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         }
         if(_S5)
         {
-            _S5 = (_S16.y) < (_S3.y);
+            _S5 = ((_S16.y) < (_S3.y));
         }
         else
         {
@@ -184,9 +184,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         }
         var at_1 : vec2<i32> = _S16 + vec2<i32>(i32(1), i32(0));
         var _S20 : i32 = at_1.x;
-        if(_S20 >= i32(0))
+        if((_S20 >= i32(0)))
         {
-            _S5 = (at_1.y) >= i32(0);
+            _S5 = ((at_1.y) >= i32(0));
         }
         else
         {
@@ -194,7 +194,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         }
         if(_S5)
         {
-            _S5 = _S20 < _S4;
+            _S5 = (_S20 < _S4);
         }
         else
         {
@@ -202,7 +202,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         }
         if(_S5)
         {
-            _S5 = (at_1.y) < (_S3.y);
+            _S5 = ((at_1.y) < (_S3.y));
         }
         else
         {
@@ -214,9 +214,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         }
         var at_2 : vec2<i32> = _S16 + vec2<i32>(i32(0), i32(1));
         var _S22 : i32 = at_2.x;
-        if(_S22 >= i32(0))
+        if((_S22 >= i32(0)))
         {
-            _S5 = (at_2.y) >= i32(0);
+            _S5 = ((at_2.y) >= i32(0));
         }
         else
         {
@@ -224,7 +224,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         }
         if(_S5)
         {
-            _S5 = _S22 < _S4;
+            _S5 = (_S22 < _S4);
         }
         else
         {
@@ -232,7 +232,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         }
         if(_S5)
         {
-            _S5 = (at_2.y) < (_S3.y);
+            _S5 = ((at_2.y) < (_S3.y));
         }
         else
         {
@@ -244,9 +244,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         }
         var at_3 : vec2<i32> = _S16 + vec2<i32>(i32(1), i32(1));
         var _S24 : i32 = at_3.x;
-        if(_S24 >= i32(0))
+        if((_S24 >= i32(0)))
         {
-            _S5 = (at_3.y) >= i32(0);
+            _S5 = ((at_3.y) >= i32(0));
         }
         else
         {
@@ -254,7 +254,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         }
         if(_S5)
         {
-            _S5 = _S24 < _S4;
+            _S5 = (_S24 < _S4);
         }
         else
         {
@@ -262,7 +262,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         }
         if(_S5)
         {
-            _S5 = (at_3.y) < (_S3.y);
+            _S5 = ((at_3.y) < (_S3.y));
         }
         else
         {

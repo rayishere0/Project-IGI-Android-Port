@@ -47,9 +47,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(workgro
     const _S17 : vec2<i32> = vec2<i32>(i32(1), i32(1));
     var _S18 : vec2<i32> = vec2<i32>(groupId_0.xy) * vec2<i32>(i32(8)) - _S17;
     var i_0 : u32 = localIndex_0;
-    for(;;)
+    loop
     {
-        if(i_0 < u32(100))
+        if((i_0 < u32(100)))
         {
         }
         else
@@ -62,13 +62,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>, @builtin(workgro
     }
     workgroupBarrier();
     var _S20 : bool;
-    if((_S15.x) >= (_S16.x))
+    if(((_S15.x) >= (_S16.x)))
     {
         _S20 = true;
     }
     else
     {
-        _S20 = (_S15.y) >= (_S16.y);
+        _S20 = ((_S15.y) >= (_S16.y));
     }
     if(_S20)
     {

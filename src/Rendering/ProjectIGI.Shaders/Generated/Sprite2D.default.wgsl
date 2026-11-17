@@ -32,7 +32,7 @@ fn Sprite2DTransform_0( input_0 : Sprite2DVertexInput_0,  projectionSize_1 : vec
     var _S1 : f32 = projectionSize_1.y;
     var ndc_0 : vec2<f32> = input_0.position_1 / vec2<f32>(projectionSize_1.x, abs(_S1)) * vec2<f32>(2.0f) - vec2<f32>(1.0f);
     var _S2 : f32;
-    if(_S1 < 0.0f)
+    if((_S1 < 0.0f))
     {
         _S2 = - ndc_0.y;
     }
@@ -63,7 +63,7 @@ fn vertexMain( _S3 : vertexInput_0) -> Sprite2DVaryings_0
 
 fn EncodeSrgb_0( c_0 : vec3<f32>) -> vec3<f32>
 {
-    return mix(vec3<f32>(1.0549999475479126f) * pow(max(c_0, vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(0.4166666567325592f, 0.4166666567325592f, 0.4166666567325592f)) - vec3<f32>(0.05499999970197678f), c_0 * vec3<f32>(12.92000007629394531f), step(c_0, vec3<f32>(0.00313080009073019f, 0.00313080009073019f, 0.00313080009073019f)));
+    return mix(vec3<f32>(1.0549999475479126f) * pow(max(c_0, vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(0.4166666567325592f, 0.4166666567325592f, 0.4166666567325592f)) - vec3<f32>(0.054999999701976776f), c_0 * vec3<f32>(12.920000076293945f), step(c_0, vec3<f32>(0.0031308000907301903f, 0.0031308000907301903f, 0.0031308000907301903f)));
 }
 
 fn SampledDisplay_0( sampled_0 : vec3<f32>) -> vec3<f32>
@@ -82,7 +82,7 @@ fn SampledDisplay_0( sampled_0 : vec3<f32>) -> vec3<f32>
 
 fn DecodeSrgb_0( c_1 : vec3<f32>) -> vec3<f32>
 {
-    return mix(pow(max((c_1 + vec3<f32>(0.05499999970197678f)) / vec3<f32>(1.0549999475479126f), vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(2.40000009536743164f, 2.40000009536743164f, 2.40000009536743164f)), c_1 / vec3<f32>(12.92000007629394531f), step(c_1, vec3<f32>(0.04044999927282333f, 0.04044999927282333f, 0.04044999927282333f)));
+    return mix(pow(max((c_1 + vec3<f32>(0.054999999701976776f)) / vec3<f32>(1.0549999475479126f), vec3<f32>(0.0f, 0.0f, 0.0f)), vec3<f32>(2.4000000953674316f, 2.4000000953674316f, 2.4000000953674316f)), c_1 / vec3<f32>(12.920000076293945f), step(c_1, vec3<f32>(0.040449999272823334f, 0.040449999272823334f, 0.040449999272823334f)));
 }
 
 fn ToTarget_0( display_0 : vec4<f32>) -> vec4<f32>

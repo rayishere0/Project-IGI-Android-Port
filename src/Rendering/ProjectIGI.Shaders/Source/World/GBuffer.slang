@@ -51,6 +51,22 @@ struct SurfaceSettings
 // same value here as in the shadow pass and the forward mesh, or the passes disagree.
 [vk::constant_id(0)] const float cAlphaReference = 0.5019608;
 
+// The fixed-function sun an object with no baked lightmap is lit by: the level's object
+// ambient, its Dirlight's front colour, and the direction towards it in WORLD space. The
+// G-buffer's normals are world-space, so no per-draw model-space sun is needed and the push
+// block, which has no room, is not touched. Constants of the LEVEL, like the forward path's
+// (Mesh3D.slang ids 6-11, whose values these reuse). A title without the light leaves them
+// black, and black lights nothing; a zero direction means no sun was authored at all.
+[vk::constant_id(6)] const float cSunAmbientRed = 0.0;
+[vk::constant_id(7)] const float cSunAmbientGreen = 0.0;
+[vk::constant_id(8)] const float cSunAmbientBlue = 0.0;
+[vk::constant_id(9)] const float cSunRed = 0.0;
+[vk::constant_id(10)] const float cSunGreen = 0.0;
+[vk::constant_id(11)] const float cSunBlue = 0.0;
+[vk::constant_id(13)] const float cSunDirectionX = 0.0;
+[vk::constant_id(14)] const float cSunDirectionY = 0.0;
+[vk::constant_id(15)] const float cSunDirectionZ = 0.0;
+
 struct VertexInput
 {
     [[vk::location(0)]] float3 position : TEXCOORD0;
@@ -319,6 +335,26 @@ GBufferTargets fragmentMain(Varyings input)
     }
 
     float3 normal = normalize(input.worldNormal);
+
+    // An object with no bake, under the Baked model, is lit by the level's fixed-function sun:
+    // the ambient plus the sun's diffuse times the cosine to the normal, saturated to one --
+    // Mesh3D.slang's vertex-stage sum (Direct3D's vertex pipeline, sub_49F1C0), here in the
+    // fragment stage against the world normal. The push block's first row says so with 0.25:
+    // between the normal nought and the terrain's one, so it trips none of the terrain, bake,
+    // detail or matte branches. The C# side only writes it for unbaked draws while the Baked
+    // model is in force and a sun is authored; under Hybrid/Dynamic the shading pass already
+    // adds its own sun, so those models keep the sampled bake exactly as before.
+    if (push.normal0.w > 0.1 && push.normal0.w < 0.5)
+    {
+        float3 sunDirection = float3(cSunDirectionX, cSunDirectionY, cSunDirectionZ);
+        if (dot(sunDirection, sunDirection) > 1e-8)
+        {
+            float facing = max(dot(normal, normalize(sunDirection)), 0.0);
+            float3 sunlight = float3(cSunAmbientRed, cSunAmbientGreen, cSunAmbientBlue)
+                + float3(cSunRed, cSunGreen, cSunBlue) * facing;
+            baked = clamp(sunlight, 0.0, 1.0);
+        }
+    }
 
     // A body: cloth and skin, which do not shine. See the end of this stage for what it is given.
     bool matte = push.normal0.w < -0.5;

@@ -71,13 +71,13 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var _S13 : vec2<i32> = vec2<i32>(id_0.xy);
     var _S14 : vec2<i32> = vec2<i32>(p_0.size_0.xy);
     var _S15 : bool;
-    if((_S13.x) >= (_S14.x))
+    if(((_S13.x) >= (_S14.x)))
     {
         _S15 = true;
     }
     else
     {
-        _S15 = (_S13.y) >= (_S14.y);
+        _S15 = ((_S13.y) >= (_S14.y));
     }
     if(_S15)
     {

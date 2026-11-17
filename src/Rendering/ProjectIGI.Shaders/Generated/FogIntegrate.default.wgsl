@@ -72,7 +72,7 @@ fn ViewPositionAt_0( uv_0 : vec2<f32>,  viewZ_0 : f32) -> vec3<f32>
 
 fn FlashlightOn_0( f_0 : ptr<function, FlashlightParams_std140_0>) -> bool
 {
-    return ((*f_0).position_0.w) > 0.0f;
+    return (((*f_0).position_0.w) > 0.0f);
 }
 
 fn FlashlightCookie_0( f_1 : ptr<function, FlashlightParams_std140_0>,  direction_0 : vec3<f32>) -> f32
@@ -80,29 +80,29 @@ fn FlashlightCookie_0( f_1 : ptr<function, FlashlightParams_std140_0>,  directio
     var _S1 : vec3<f32> = (*f_1).axis_0.xyz;
     var c_0 : f32 = dot(_S1, direction_0);
     var _S2 : bool;
-    if(c_0 <= ((*f_1).axis_0.w))
+    if((c_0 <= ((*f_1).axis_0.w)))
     {
         _S2 = true;
     }
     else
     {
-        _S2 = c_0 <= 0.0f;
+        _S2 = (c_0 <= 0.0f);
     }
     if(_S2)
     {
         return 0.0f;
     }
-    var r_0 : f32 = sqrt(max(1.0f - c_0 * c_0, 0.0f)) / c_0 / max((*f_1).cone_0.x, 0.00009999999747379f);
+    var r_0 : f32 = sqrt(max(1.0f - c_0 * c_0, 0.0f)) / c_0 / max((*f_1).cone_0.x, 9.9999997473787516e-05f);
     var inner_0 : f32 = (*f_1).cone_0.y;
-    var hot_0 : f32 = exp(- (r_0 * r_0 / max(0.30000001192092896f * inner_0 * inner_0, 0.00009999999747379f)));
+    var hot_0 : f32 = exp(- (r_0 * r_0 / max(0.30000001192092896f * inner_0 * inner_0, 9.9999997473787516e-05f)));
     var body_0 : f32 = 1.0f - smoothstep(inner_0, 1.0f, r_0);
     var _S3 : f32 = r_0 - 0.86000001430511475f;
-    var ring_0 : f32 = exp(- (_S3 * _S3 / 0.00400000018998981f));
+    var ring_0 : f32 = exp(- (_S3 * _S3 / 0.0040000001899898052f));
     var spill_0 : f32 = (1.0f - smoothstep(1.0f, (*f_1).cone_0.z, r_0)) * (*f_1).cone_0.w;
     var side_0 : vec3<f32> = cross((*f_1).up_0.xyz, _S1);
     var sideLength_0 : f32 = length(side_0);
     var across_0 : vec3<f32>;
-    if(sideLength_0 > 0.00009999999747379f)
+    if((sideLength_0 > 9.9999997473787516e-05f))
     {
         across_0 = side_0 / vec3<f32>(sideLength_0);
     }
@@ -111,7 +111,7 @@ fn FlashlightCookie_0( f_1 : ptr<function, FlashlightParams_std140_0>,  directio
         across_0 = vec3<f32>(1.0f, 0.0f, 0.0f);
     }
     var around_0 : f32 = atan2(dot(direction_0, cross(_S1, across_0)), dot(direction_0, across_0) + 9.99999997475242708e-07f);
-    return max((0.55000001192092896f * hot_0 + 0.44999998807907104f * body_0 + 0.07000000029802322f * ring_0) * (1.0f + 0.04500000178813934f * r_0 * sin(5.0f * around_0 + 1.29999995231628418f) + 0.02999999932944775f * sin(33.0f * r_0 + 2.0f * around_0)) + spill_0, 0.0f);
+    return max((0.55000001192092896f * hot_0 + 0.44999998807907104f * body_0 + 0.070000000298023224f * ring_0) * (1.0f + 0.045000001788139343f * r_0 * sin(5.0f * around_0 + 1.2999999523162842f) + 0.029999999329447746f * sin(33.0f * r_0 + 2.0f * around_0)) + spill_0, 0.0f);
 }
 
 fn FlashlightIrradiance_0( f_2 : ptr<function, FlashlightParams_std140_0>,  viewPos_0 : vec3<f32>,  thrown_0 : bool,  toLight_0 : ptr<function, vec3<f32>>,  distance_0 : ptr<function, f32>) -> vec3<f32>
@@ -124,20 +124,20 @@ fn FlashlightIrradiance_0( f_2 : ptr<function, FlashlightParams_std140_0>,  view
     (*toLight_0) = (vec3<f32>(0) - fromLens_0) / vec3<f32>(_S5);
     var range_0 : f32 = _S4.w;
     var _S6 : bool;
-    if(range_0 <= 0.0f)
+    if((range_0 <= 0.0f))
     {
         _S6 = true;
     }
     else
     {
-        _S6 = (*distance_0) >= range_0;
+        _S6 = ((*distance_0) >= range_0);
     }
     if(_S6)
     {
         return vec3<f32>(0.0f, 0.0f, 0.0f);
     }
     var _S7 : f32 = FlashlightCookie_0(&((*f_2)), (vec3<f32>(0) - (*toLight_0)));
-    if(_S7 <= 0.0f)
+    if((_S7 <= 0.0f))
     {
         return vec3<f32>(0.0f, 0.0f, 0.0f);
     }
@@ -146,7 +146,7 @@ fn FlashlightIrradiance_0( f_2 : ptr<function, FlashlightParams_std140_0>,  view
     var window_1 : f32 = window_0 * window_0;
     if(thrown_0)
     {
-        _S6 = (*distance_0) > 5.0f;
+        _S6 = ((*distance_0) > 5.0f);
     }
     else
     {
@@ -176,7 +176,7 @@ fn FlashlightInScatter_0( here_0 : vec3<f32>,  mediumExtinction_0 : f32,  dust_1
     }
     else
     {
-        _S10 = (_S8.control_0.y) <= 0.0f;
+        _S10 = ((_S8.control_0.y) <= 0.0f);
     }
     if(_S10)
     {
@@ -186,19 +186,19 @@ fn FlashlightInScatter_0( here_0 : vec3<f32>,  mediumExtinction_0 : f32,  dust_1
     var distance_1 : f32;
     var _S11 : vec3<f32> = FlashlightIrradiance_0(&(_S8), here_0, false, &(toLight_1), &(distance_1));
     const _S12 : vec3<f32> = vec3<f32>(0.0f, 0.0f, 0.0f);
-    if((all((_S11 <= _S12))))
+    if((all(((_S11 <= _S12)))))
     {
         return _S12;
     }
     var irradiance_0 : vec3<f32> = _S11 * vec3<f32>(saturate(distance_1 * distance_1));
     var fadeIn_0 : f32 = smoothstep(0.75f, 4.0f, distance_1);
-    const _S13 : vec3<f32> = vec3<f32>(0.2125999927520752f, 0.71520000696182251f, 0.07220000028610229f);
-    var _S14 : f32 = _S8.control_0.w * saturate(dot(irradiance_0, _S13) * max(distance_1 * distance_1, 1.0f) / max(dot(_S8.colour_0.xyz, _S13), 0.00000999999974738f)) * fadeIn_0 * (1.0f - smoothstep(5.0f, 12.0f, distance_1));
+    const _S13 : vec3<f32> = vec3<f32>(0.2125999927520752f, 0.71520000696182251f, 0.072200000286102295f);
+    var _S14 : f32 = _S8.control_0.w * saturate(dot(irradiance_0, _S13) * max(distance_1 * distance_1, 1.0f) / max(dot(_S8.colour_0.xyz, _S13), 9.9999997473787516e-06f)) * fadeIn_0 * (1.0f - smoothstep(5.0f, 12.0f, distance_1));
     (*dust_1) = _S14;
     var g_0 : f32 = p_0.medium_0.w;
     var _S15 : f32 = g_0 * g_0;
-    var _S16 : f32 = max(1.0f + _S15 - 2.0f * g_0 * dot((vec3<f32>(0) - toLight_1), normalize((vec3<f32>(0) - here_0))), 0.00009999999747379f);
-    return irradiance_0 * p_0.albedo_0.xyz * vec3<f32>((mediumExtinction_0 + _S14)) * vec3<f32>(mix((1.0f - _S15) / (12.56637096405029297f * _S16 * sqrt(_S16)), 0.07957746833562851f, 0.5f)) * vec3<f32>(_S8.control_0.y) * vec3<f32>(fadeIn_0);
+    var _S16 : f32 = max(1.0f + _S15 - 2.0f * g_0 * dot((vec3<f32>(0) - toLight_1), normalize((vec3<f32>(0) - here_0))), 9.9999997473787516e-05f);
+    return irradiance_0 * p_0.albedo_0.xyz * vec3<f32>((mediumExtinction_0 + _S14)) * vec3<f32>(mix((1.0f - _S15) / (12.566370964050293f * _S16 * sqrt(_S16)), 0.07957746833562851f, 0.5f)) * vec3<f32>(_S8.control_0.y) * vec3<f32>(fadeIn_0);
 }
 
 @compute
@@ -207,7 +207,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
 {
     var _S17 : vec2<i32> = vec2<i32>(id_0.xy);
     var _S18 : vec3<i32> = vec3<i32>(p_0.grid_0.xyz + vec3<f32>(0.5f));
-    if((any((_S17 >= (_S18.xy)))))
+    if((any(((_S17 >= (_S18.xy))))))
     {
         return;
     }
@@ -217,9 +217,9 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
     var z_0 : i32 = i32(0);
     var transmittance_0 : f32 = 1.0f;
     var accumulated_0 : vec3<f32> = _S19;
-    for(;;)
+    loop
     {
-        if(z_0 < (_S18.z))
+        if((z_0 < (_S18.z)))
         {
         }
         else
@@ -240,7 +240,7 @@ fn computeMain(@builtin(global_invocation_id) id_0 : vec3<u32>)
         medium_1.z = _S24.z;
         medium_1[i32(3)] = medium_1[i32(3)] + dust_2;
         var slabTransmittance_0 : f32 = exp(- medium_1.w * stepLength_0);
-        var accumulated_1 : vec3<f32> = accumulated_0 + (medium_1.xyz - medium_1.xyz * vec3<f32>(slabTransmittance_0)) / vec3<f32>(max(medium_1.w, 0.00000999999974738f)) * vec3<f32>(transmittance_0);
+        var accumulated_1 : vec3<f32> = accumulated_0 + (medium_1.xyz - medium_1.xyz * vec3<f32>(slabTransmittance_0)) / vec3<f32>(max(medium_1.w, 9.9999997473787516e-06f)) * vec3<f32>(transmittance_0);
         var transmittance_1 : f32 = transmittance_0 * slabTransmittance_0;
         textureStore((uIntegrated_0), (vec3<u32>(vec3<i32>(_S17, z_0))), (vec4<f32>(accumulated_1, transmittance_1)));
         var _S25 : i32 = z_0 + i32(1);
