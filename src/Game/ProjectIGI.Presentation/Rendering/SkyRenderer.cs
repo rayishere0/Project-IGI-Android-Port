@@ -192,6 +192,19 @@ public sealed class SkyRenderer : ISkyPresenter
     /// <summary>Gets a value indicating whether the level declared a sky at all.</summary>
     public bool HasSky => _dome.IsValid;
 
+    /// <summary>Gets whether this sky is the game's own painted one, to be kept rather than replaced.</summary>
+    /// <remarks>
+    /// The dome carries the mission's authored sky, and the cloud layers over it. A deferred frame
+    /// otherwise substitutes its own marched atmosphere wherever no geometry wrote depth, which a
+    /// dome never does -- and an atmosphere cannot carry a mood the level authors in the dome
+    /// alone: a mission the dome paints as night keeps a noon sun in its <c>Dirlight</c>, so the
+    /// substitution returns a black sky with stars over a world the bakes light as its artists
+    /// drew it. Claimed only where a dome was built, so a level with no <c>FlatSky</c> keeps the
+    /// atmosphere as it does today. This deliberately overrides the interface default, which
+    /// leaves the substitution in place for this game.
+    /// </remarks>
+    public bool IsGameOwnSky => HasSky;
+
     /// <summary>Gets the level's authored fog amount, from its <c>FlatSky</c> task.</summary>
     /// <remarks>Public so the volumetric fog can be seeded from what the level actually asked for.</remarks>
     public float FogAmount { get; }
