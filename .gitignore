@@ -24,3 +24,6 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
+
+# Local upstream checkout (ShaderBuild tooling; not part of the repo)
+OpenIGI/
