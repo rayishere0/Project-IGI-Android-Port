@@ -2,7 +2,8 @@
 
 A ground-up, high-performance native Android port of the classic tactical stealth first-person shooter **Project I.G.I.: I'm Going In** (2000).
 
-<img width="1024" height="1024" alt="image" src="https://github.com/user-attachments/assets/95963bea-95a6-4048-8d92-259b3e301c6c" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/3e0879f1-68d6-4522-bc65-83535260cf89" />
+
 
 This project runs the complete game natively on Android ARM64 devices (`com.projectigi.app`) without emulation or compatibility layers, combining an embedded **.NET 10.0 CoreCLR** runtime, **Vulkan 1.1** graphics, and **OpenAL Soft** spatial audio with authentic retail game logic, assets, and QVM menu system.
 
@@ -224,6 +225,8 @@ The generated APK will be located at:
 <img width="400" height="600" alt="image" src="https://github.com/user-attachments/assets/f56ae050-50dd-4537-8c10-57dea78125b5" />
 <img width="400" height="600" alt="image" src="https://github.com/user-attachments/assets/b5f55f4d-2e06-47e6-8934-d98b2ca77c4b" />
 <img width="400" height="600" alt="image" src="https://github.com/user-attachments/assets/c1884a07-a8da-473c-ae34-66bdb1913515" />
+
+![Activity Graph](https://github-readme-activity-graph.ashutosh-dwivedi0710.workers.dev/graph?username=rayishere0&theme=github-compact)
 
 ---
 
