@@ -218,6 +218,8 @@ The generated APK will be located at:
 
 ---
 
+
+
 ## In-Game Screenshots
 
 <img width="400" height="600" alt="image" src="https://github.com/user-attachments/assets/a9c8947b-e84b-4117-8ffa-7a4a4b921a35" />
@@ -225,6 +227,9 @@ The generated APK will be located at:
 <img width="400" height="600" alt="image" src="https://github.com/user-attachments/assets/f56ae050-50dd-4537-8c10-57dea78125b5" />
 <img width="400" height="600" alt="image" src="https://github.com/user-attachments/assets/b5f55f4d-2e06-47e6-8934-d98b2ca77c4b" />
 <img width="400" height="600" alt="image" src="https://github.com/user-attachments/assets/c1884a07-a8da-473c-ae34-66bdb1913515" />
+
+---
+## Activity Graph:
 
 ![Activity Graph](https://github-readme-activity-graph.ashutosh-dwivedi0710.workers.dev/graph?username=rayishere0&theme=github-compact)
 
